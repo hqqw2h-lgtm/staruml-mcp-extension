@@ -201,6 +201,7 @@ export const mockTypes: Record<string, Ctor> = generateClasses();
  */
 const CONTAINS: Record<string, readonly string[]> = {
   UMLRegionView: ["UMLStateView", "UMLPseudostateView", "UMLFinalStateView"],
+  UMLPackageView: ["UMLClassifierView", "UMLPackageView"],
 };
 Object.defineProperty(mockTypes.View!.prototype, "canContainView", {
   value(this: MockElement, view: MockElement): boolean {
@@ -631,6 +632,14 @@ export class Factory {
     assertParent(options.parent, options.id);
     const diagram = create(options.id);
     options.diagramInitializer?.(diagram);
+    if (options.id === "UMLSequenceDiagram") {
+      // _addFrame in uml-factory.js: initialize(null, 8, 8, 700, 600).
+      const frame = create<View>("UMLFrameView");
+      Object.assign(frame, { left: 8, top: 8, width: 692, height: 592 });
+      frame.model = diagram;
+      attach(diagram, "ownedViews", frame);
+      this.repository.index(frame);
+    }
     attach(options.parent, "ownedElements", diagram);
     this.repository.index(diagram);
     this.repository.setModified(true);

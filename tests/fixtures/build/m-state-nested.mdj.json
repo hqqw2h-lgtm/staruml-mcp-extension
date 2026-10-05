@@ -31,6 +31,7 @@
      "model": {
       "$ref": "#5"
      },
+     "containerView": null,
      "left": 130,
      "top": 450,
      "width": 20,
@@ -42,10 +43,12 @@
      "model": {
       "$ref": "#7"
      },
+     "containerView": null,
      "left": 80,
      "top": 1335,
      "width": 120,
-     "height": 50
+     "height": 50,
+     "showNamespace": false
     },
     {
      "_id": "#8",
@@ -53,10 +56,12 @@
      "model": {
       "$ref": "#9"
      },
+     "containerView": null,
      "left": 40,
      "top": 1840,
      "width": 200,
-     "height": 840
+     "height": 840,
+     "showNamespace": false
     },
     {
      "_id": "#10",
@@ -64,38 +69,52 @@
      "model": {
       "$ref": "#11"
      },
+     "containerView": {
+      "$ref": "#12"
+     },
      "left": 130,
      "top": 1980,
      "width": 20,
      "height": 20
     },
     {
-     "_id": "#12",
+     "_id": "#13",
      "_type": "UMLStateView",
      "model": {
-      "$ref": "#13"
+      "$ref": "#14"
+     },
+     "containerView": {
+      "$ref": "#12"
      },
      "left": 80,
      "top": 2245,
      "width": 120,
-     "height": 50
+     "height": 50,
+     "showNamespace": false
     },
     {
-     "_id": "#14",
+     "_id": "#15",
      "_type": "UMLStateView",
      "model": {
-      "$ref": "#15"
+      "$ref": "#16"
+     },
+     "containerView": {
+      "$ref": "#12"
      },
      "left": 60,
      "top": 2440,
      "width": 160,
-     "height": 220
+     "height": 220,
+     "showNamespace": false
     },
     {
-     "_id": "#16",
+     "_id": "#17",
      "_type": "UMLPseudostateView",
      "model": {
-      "$ref": "#17"
+      "$ref": "#18"
+     },
+     "containerView": {
+      "$ref": "#19"
      },
      "left": 130,
      "top": 2495,
@@ -103,51 +122,59 @@
      "height": 20
     },
     {
-     "_id": "#18",
+     "_id": "#20",
      "_type": "UMLStateView",
      "model": {
+      "$ref": "#21"
+     },
+     "containerView": {
       "$ref": "#19"
      },
      "left": 80,
      "top": 2590,
      "width": 120,
-     "height": 50
+     "height": 50,
+     "showNamespace": false
     },
     {
-     "_id": "#20",
+     "_id": "#22",
      "_type": "UMLFinalStateView",
      "model": {
-      "$ref": "#21"
+      "$ref": "#23"
      },
+     "containerView": null,
      "left": 127,
      "top": 3147,
      "width": 26,
      "height": 26
     },
     {
-     "_id": "#22",
+     "_id": "#24",
      "_type": "UMLNoteView",
      "model": null,
+     "containerView": null,
      "left": 330,
      "top": 436,
      "width": 140,
      "height": 48
     },
     {
-     "_id": "#23",
+     "_id": "#25",
      "_type": "UMLNoteView",
      "model": null,
+     "containerView": null,
      "left": 590,
      "top": 436,
      "width": 140,
      "height": 48
     },
     {
-     "_id": "#24",
+     "_id": "#26",
      "_type": "UMLTransitionView",
      "model": {
-      "$ref": "#25"
+      "$ref": "#27"
      },
+     "containerView": null,
      "head": {
       "$ref": "#6"
      },
@@ -156,29 +183,17 @@
      }
     },
     {
-     "_id": "#26",
-     "_type": "UMLTransitionView",
-     "model": {
-      "$ref": "#27"
-     },
-     "head": {
-      "$ref": "#12"
-     },
-     "tail": {
-      "$ref": "#10"
-     }
-    },
-    {
      "_id": "#28",
      "_type": "UMLTransitionView",
      "model": {
       "$ref": "#29"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#14"
+      "$ref": "#13"
      },
      "tail": {
-      "$ref": "#12"
+      "$ref": "#10"
      }
     },
     {
@@ -187,11 +202,12 @@
      "model": {
       "$ref": "#31"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#12"
+      "$ref": "#15"
      },
      "tail": {
-      "$ref": "#14"
+      "$ref": "#13"
      }
     },
     {
@@ -200,11 +216,12 @@
      "model": {
       "$ref": "#33"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#18"
+      "$ref": "#13"
      },
      "tail": {
-      "$ref": "#16"
+      "$ref": "#15"
      }
     },
     {
@@ -213,11 +230,12 @@
      "model": {
       "$ref": "#35"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#8"
+      "$ref": "#20"
      },
      "tail": {
-      "$ref": "#6"
+      "$ref": "#17"
      }
     },
     {
@@ -226,33 +244,50 @@
      "model": {
       "$ref": "#37"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#20"
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#38",
+     "_type": "UMLTransitionView",
+     "model": {
+      "$ref": "#39"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#22"
      },
      "tail": {
       "$ref": "#8"
      }
     },
     {
-     "_id": "#38",
+     "_id": "#40",
      "_type": "UMLNoteLinkView",
      "model": null,
+     "containerView": null,
      "head": {
       "$ref": "#6"
      },
      "tail": {
-      "$ref": "#22"
+      "$ref": "#24"
      }
     },
     {
-     "_id": "#39",
+     "_id": "#41",
      "_type": "UMLNoteLinkView",
      "model": null,
+     "containerView": null,
      "head": {
-      "$ref": "#12"
+      "$ref": "#13"
      },
      "tail": {
-      "$ref": "#23"
+      "$ref": "#25"
      }
     }
    ]
@@ -283,7 +318,7 @@
    "visibility": "public"
   },
   {
-   "_id": "#21",
+   "_id": "#23",
    "_type": "UMLFinalState",
    "name": "",
    "ownedElements": [],
@@ -291,7 +326,7 @@
    "visibility": "public"
   },
   {
-   "_id": "#25",
+   "_id": "#27",
    "_type": "UMLTransition",
    "name": "",
    "ownedElements": [],
@@ -307,7 +342,7 @@
    "guard": ""
   },
   {
-   "_id": "#27",
+   "_id": "#29",
    "_type": "UMLTransition",
    "name": "",
    "ownedElements": [],
@@ -315,23 +350,7 @@
     "$ref": "#11"
    },
    "target": {
-    "$ref": "#13"
-   },
-   "stereotype": null,
-   "visibility": "public",
-   "kind": "external",
-   "guard": ""
-  },
-  {
-   "_id": "#29",
-   "_type": "UMLTransition",
-   "name": "pause",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#13"
-   },
-   "target": {
-    "$ref": "#15"
+    "$ref": "#14"
    },
    "stereotype": null,
    "visibility": "public",
@@ -341,13 +360,13 @@
   {
    "_id": "#31",
    "_type": "UMLTransition",
-   "name": "resume",
+   "name": "pause",
    "ownedElements": [],
    "source": {
-    "$ref": "#15"
+    "$ref": "#14"
    },
    "target": {
-    "$ref": "#13"
+    "$ref": "#16"
    },
    "stereotype": null,
    "visibility": "public",
@@ -357,13 +376,13 @@
   {
    "_id": "#33",
    "_type": "UMLTransition",
-   "name": "",
+   "name": "resume",
    "ownedElements": [],
    "source": {
-    "$ref": "#17"
+    "$ref": "#16"
    },
    "target": {
-    "$ref": "#19"
+    "$ref": "#14"
    },
    "stereotype": null,
    "visibility": "public",
@@ -372,6 +391,22 @@
   },
   {
    "_id": "#35",
+   "_type": "UMLTransition",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#18"
+   },
+   "target": {
+    "$ref": "#21"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "external",
+   "guard": ""
+  },
+  {
+   "_id": "#37",
    "_type": "UMLTransition",
    "name": "start",
    "ownedElements": [],
@@ -387,7 +422,7 @@
    "guard": ""
   },
   {
-   "_id": "#37",
+   "_id": "#39",
    "_type": "UMLTransition",
    "name": "stop",
    "ownedElements": [],
@@ -395,7 +430,7 @@
     "$ref": "#9"
    },
    "target": {
-    "$ref": "#21"
+    "$ref": "#23"
    },
    "stereotype": null,
    "visibility": "public",

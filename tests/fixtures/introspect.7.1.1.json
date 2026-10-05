@@ -21820,6 +21820,10 @@
             "type": "boolean",
             "description": "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements."
           },
+          "showNamespace": {
+            "type": "boolean",
+            "description": "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it."
+          },
           "parentId": {
             "type": "string",
             "minLength": 1,

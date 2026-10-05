@@ -31,10 +31,12 @@
      "model": {
       "$ref": "#5"
      },
+     "containerView": null,
      "left": 240,
      "top": 40,
      "width": 260,
-     "height": 340
+     "height": 340,
+     "showNamespace": false
     },
     {
      "_id": "#6",
@@ -42,10 +44,14 @@
      "model": {
       "$ref": "#7"
      },
+     "containerView": null,
      "left": 40,
      "top": 80,
      "width": 40,
-     "height": 80
+     "height": 80,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#8",
@@ -53,10 +59,14 @@
      "model": {
       "$ref": "#9"
      },
+     "containerView": null,
      "left": 40,
      "top": 220,
      "width": 40,
-     "height": 80
+     "height": 80,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#10",
@@ -64,10 +74,14 @@
      "model": {
       "$ref": "#11"
      },
+     "containerView": null,
      "left": 290,
      "top": 100,
      "width": 160,
-     "height": 50
+     "height": 50,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#12",
@@ -75,10 +89,14 @@
      "model": {
       "$ref": "#13"
      },
+     "containerView": null,
      "left": 290,
      "top": 180,
      "width": 160,
-     "height": 50
+     "height": 50,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#14",
@@ -86,10 +104,14 @@
      "model": {
       "$ref": "#15"
      },
+     "containerView": null,
      "left": 290,
      "top": 260,
      "width": 160,
-     "height": 50
+     "height": 50,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#16",
@@ -97,6 +119,7 @@
      "model": {
       "$ref": "#17"
      },
+     "containerView": null,
      "head": {
       "$ref": "#10"
      },
@@ -110,6 +133,7 @@
      "model": {
       "$ref": "#19"
      },
+     "containerView": null,
      "head": {
       "$ref": "#12"
      },
@@ -123,6 +147,7 @@
      "model": {
       "$ref": "#21"
      },
+     "containerView": null,
      "head": {
       "$ref": "#14"
      },
@@ -136,6 +161,7 @@
      "model": {
       "$ref": "#23"
      },
+     "containerView": null,
      "head": {
       "$ref": "#10"
      },

@@ -58,6 +58,10 @@ const GOLDEN_FIELDS = [
   "operands",
   "messageSort",
   "kind",
+  "suppressOperations",
+  "suppressAttributes",
+  "showNamespace",
+  "containerView",
   "left",
   "top",
   "width",
@@ -482,7 +486,7 @@ describe("/build_diagram notes, colours and nesting", () => {
     const y = (i: number) =>
       (get(data.edges[i]!.view).points as { points: { y: number }[] })
         .points[0]!.y;
-    expect(operands[0]![0]! + operands[0]![1]!).toBe(y(1) - 35);
+    expect(operands[0]![0]! + operands[0]![1]!).toBe(y(1) - 55);
   });
 
   it("matches notes and colours on upsert", async () => {

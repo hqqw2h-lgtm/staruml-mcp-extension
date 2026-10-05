@@ -46,7 +46,11 @@ import { diagramOf } from "../create.js";
 import { resolveCreateType } from "../toolbox.js";
 import type { Element, View } from "../types.js";
 import { modelTypeOf } from "./elements.js";
-import { type LayoutPresetName, PRESET_NAMES } from "./views.js";
+import {
+  LAYOUT_PRESETS,
+  type LayoutPresetName,
+  PRESET_NAMES,
+} from "./views.js";
 
 /*
  * /build_diagram turns a compact spec (or Mermaid) into one /batch: the
@@ -212,6 +216,28 @@ function propertyOps(node: PlanNode, model: Element): Op[] {
     }));
 }
 
+/** /update_element ops giving `view` the node's view attributes that differ. */
+function viewPropertyOps(node: PlanNode, view: string, current?: View): Op[] {
+  return Object.entries(node.viewProperties ?? {})
+    .filter(([field, value]) => current?.[field] !== value)
+    .map(([field, value]) => ({
+      path: "/update_element",
+      body: { ref: view, field, value },
+    }));
+}
+
+/**
+ * Whether a view of `model` draws "(from Owner)" when shown on a diagram
+ * under another owner: Factory.createViewAndRelationships turns on
+ * showNamespace of a UMLGeneralNodeView then (engine/factory.js, 7.1.1).
+ */
+function namespaced(model: Element): boolean {
+  const viewType = app.metamodels.getViewTypeOf(model.constructor.name);
+  return (
+    viewType !== null && app.metamodels.isKindOf(viewType, "UMLGeneralNodeView")
+  );
+}
+
 /** The /set_view_style op giving `view` the node's style, if it differs. */
 function styleOps(node: PlanNode, view: string, current?: View): Op[] {
   const changed = Object.entries(node.style ?? {}).filter(
@@ -371,6 +397,8 @@ export interface BuildOptions {
   reuse?: boolean;
   /** Let new elements take a sibling's name (the DUPLICATE_NAME policy). */
   allowDuplicateNames?: boolean;
+  /** Keep StarUML's "(from Owner)" on elements shown from another owner. */
+  showNamespace?: boolean;
 }
 
 export interface Target {
@@ -399,6 +427,8 @@ export function opsFor(
         parent: target.parent._id,
         ...(target.name !== undefined && { name: target.name }),
         ...(options.allowDuplicateNames && { allowDuplicateNames: true }),
+        // The frame StarUML adds to a sequence diagram is its first view.
+        ...(plan.frame && { fields: ["_parent", "ownedViews"] }),
       },
     });
   }
@@ -448,6 +478,7 @@ export function opsFor(
           ? [...propertyOps(node, model), ...memberOps(node, model._id, model)]
           : []),
         ...styleOps(node, found._id, found),
+        ...viewPropertyOps(node, found._id, found),
       ];
       if (more.length > 0) {
         updated++;
@@ -505,6 +536,16 @@ export function opsFor(
         ...memberOps(node, model._id, model),
       );
       ops.push(...styleOps(node, `$${as}.view`));
+      ops.push(...viewPropertyOps(node, `$${as}.view`));
+      // An element shown from another owner reads "Name (from Owner)" by
+      // StarUML's default; the build shows the plain name unless asked
+      // (issue #34).
+      if (!options.showNamespace && namespaced(model)) {
+        ops.push({
+          path: "/update_element",
+          body: { ref: `$${as}.view`, field: "showNamespace", value: false },
+        });
+      }
       return;
     }
     const note = node.type === "Note";
@@ -528,7 +569,7 @@ export function opsFor(
         y: Math.round(box.y),
         x2: Math.round(box.x + box.width),
         y2: Math.round(box.y + box.height),
-        ...(node.guard !== undefined && { fields: ["operands"] }),
+        ...(node.operandNames && { fields: ["operands"] }),
         ...(duplicate && { allowDuplicateNames: true }),
       },
     });
@@ -540,14 +581,26 @@ export function opsFor(
     }
     ops.push(...memberOps(node, `$${as}.model`));
     ops.push(...styleOps(node, `$${as}.view`));
-    for (const guard of node.operands ?? []) {
+    ops.push(...viewPropertyOps(node, `$${as}.view`));
+    (node.operands ?? []).forEach((guard, k) => {
       ops.push({
         path: "/create_element",
         body: {
           type: "UMLInteractionOperand",
           parent: `$${as}.model`,
-          name: "",
+          name: node.operandNames![k + 1],
           properties: { guard },
+        },
+      });
+    });
+    if (node.operandNames) {
+      // StarUML makes the first operand with the fragment, unnamed.
+      ops.push({
+        path: "/update_element",
+        body: {
+          ref: `$${as}.model.operands.0`,
+          field: "name",
+          value: node.operandNames[0],
         },
       });
     }
@@ -653,6 +706,7 @@ export function opsFor(
       },
     });
   });
+  ops.push(...frameOps(plan, target.diagram));
   let deleted = 0;
   if (options.prune && pools) {
     // Edges first: deleting a node takes its edges along, and an op on an
@@ -684,7 +738,12 @@ export function opsFor(
   if (engine) {
     ops.push({
       path: "/layout_diagram",
-      body: { diagram: diagramRef, preset },
+      body: {
+        diagram: diagramRef,
+        preset,
+        ...(plan.fit && { fit: true }),
+        ...labelRoom(plan, preset),
+      },
     });
   }
   return {
@@ -702,6 +761,54 @@ export function opsFor(
     layout: engine ? "engine" : "placed",
     ...(engine && { preset }),
   };
+}
+
+/** Most room left for an edge label; longer ones may touch a neighbour. */
+const MAX_LABEL_ROOM = 300;
+
+/**
+ * Separations giving edge labels room: dagre places a label beside its
+ * edge, so between the nodes of a rank when ranks run down and across the
+ * rank gap when they run sideways.
+ */
+function labelRoom(
+  plan: Plan,
+  preset: LayoutPresetName,
+): { nodeSeparation?: number; rankSeparation?: number } {
+  if (plan.edgeLabelWidth === undefined) return {};
+  const { direction, separations } = LAYOUT_PRESETS[preset];
+  const room = Math.min(MAX_LABEL_ROOM, plan.edgeLabelWidth + 20);
+  return direction === "TB" || direction === "BT"
+    ? {
+        nodeSeparation: Math.max(separations.node, room),
+        rankSeparation: Math.max(separations.rank, 80),
+      }
+    : { rankSeparation: Math.max(separations.rank, room) };
+}
+
+/** Sizes a sequence diagram's frame to the plan's, if it differs. */
+function frameOps(plan: Plan, diagram: Element | null): Op[] {
+  if (!plan.frame) return [];
+  const frame = diagram
+    ? (diagram.ownedViews as View[]).find(
+        (v) => v.model === diagram && v instanceof type.UMLFrameView,
+      )
+    : undefined;
+  if (diagram && !frame) return [];
+  const { x, y, width, height } = plan.frame;
+  const bounds = { left: x, top: y, width, height };
+  if (
+    frame &&
+    Object.entries(bounds).every(([k, v]) => (frame as Element)[k] === v)
+  ) {
+    return [];
+  }
+  return [
+    {
+      path: "/resize_node",
+      body: { ref: frame?._id ?? "$diagram.ownedViews.0", ...bounds },
+    },
+  ];
 }
 
 const SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" } as const;
@@ -982,6 +1089,12 @@ export function buildDiagramEndpoint(
           "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements.",
         ),
       ),
+      showNamespace: z.optional(
+        doc(
+          z.boolean(),
+          "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it.",
+        ),
+      ),
     }),
     aliases: { parentId: "parent" },
     response: z.object({
@@ -1053,6 +1166,7 @@ export function buildDiagramEndpoint(
           prune: input.prune,
           reuse: input.reuse ?? true,
           allowDuplicateNames: input.allowDuplicateNames,
+          showNamespace: input.showNamespace,
         },
       );
       const warnings = [...(parsed?.warnings ?? []), ...built.warnings];

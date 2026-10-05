@@ -27,120 +27,145 @@
    "ownedViews": [
     {
      "_id": "#4",
+     "_type": "UMLFrameView",
+     "model": {
+      "$ref": "#3"
+     },
+     "containerView": null,
+     "left": 8,
+     "top": 8,
+     "width": 402,
+     "height": 692,
+     "showNamespace": false
+    },
+    {
+     "_id": "#5",
      "_type": "UMLSeqLifelineView",
      "model": {
-      "$ref": "#5"
+      "$ref": "#6"
      },
+     "containerView": null,
      "left": 40,
-     "top": 20,
+     "top": 40,
      "width": 120,
-     "height": 595
+     "height": 640,
+     "showNamespace": false
     },
     {
-     "_id": "#6",
+     "_id": "#7",
      "_type": "UMLSeqLifelineView",
      "model": {
-      "$ref": "#7"
+      "$ref": "#8"
      },
+     "containerView": null,
      "left": 240,
-     "top": 20,
+     "top": 40,
      "width": 120,
-     "height": 595
+     "height": 640,
+     "showNamespace": false
     },
     {
-     "_id": "#8",
+     "_id": "#9",
      "_type": "UMLCombinedFragmentView",
      "model": {
-      "$ref": "#9"
+      "$ref": "#10"
      },
+     "containerView": null,
      "left": 10,
-     "top": 215,
+     "top": 235,
      "width": 380,
-     "height": 205
-    },
-    {
-     "_id": "#10",
-     "_type": "UMLNoteView",
-     "model": null,
-     "left": 110,
-     "top": 85,
-     "width": 120,
-     "height": 40
+     "height": 250
     },
     {
      "_id": "#11",
      "_type": "UMLNoteView",
      "model": null,
-     "left": 30,
-     "top": 440,
-     "width": 340,
+     "containerView": null,
+     "left": 110,
+     "top": 105,
+     "width": 120,
      "height": 40
     },
     {
      "_id": "#12",
      "_type": "UMLNoteView",
      "model": null,
-     "left": 170,
-     "top": 490,
-     "width": 120,
+     "containerView": null,
+     "left": 30,
+     "top": 505,
+     "width": 340,
      "height": 40
     },
     {
      "_id": "#13",
+     "_type": "UMLNoteView",
+     "model": null,
+     "containerView": null,
+     "left": 170,
+     "top": 555,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#14",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#14"
+      "$ref": "#15"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#6"
+      "$ref": "#7"
      },
      "tail": {
-      "$ref": "#4"
+      "$ref": "#5"
      }
     },
     {
-     "_id": "#15",
+     "_id": "#16",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#16"
+      "$ref": "#17"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#4"
+      "$ref": "#5"
      },
      "tail": {
-      "$ref": "#6"
+      "$ref": "#7"
      }
     },
     {
-     "_id": "#17",
+     "_id": "#18",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#18"
+      "$ref": "#19"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#4"
+      "$ref": "#5"
      },
      "tail": {
-      "$ref": "#6"
+      "$ref": "#7"
      }
     },
     {
-     "_id": "#19",
+     "_id": "#20",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#20"
+      "$ref": "#21"
      },
+     "containerView": null,
      "head": {
-      "$ref": "#4"
+      "$ref": "#5"
      },
      "tail": {
-      "$ref": "#6"
+      "$ref": "#7"
      }
     }
    ]
   },
   {
-   "_id": "#5",
+   "_id": "#6",
    "_type": "UMLLifeline",
    "name": "Alice",
    "ownedElements": [],
@@ -148,7 +173,7 @@
    "visibility": "public"
   },
   {
-   "_id": "#7",
+   "_id": "#8",
    "_type": "UMLLifeline",
    "name": "Bob",
    "ownedElements": [],
@@ -156,9 +181,9 @@
    "visibility": "public"
   },
   {
-   "_id": "#9",
+   "_id": "#10",
    "_type": "UMLCombinedFragment",
-   "name": "",
+   "name": "first",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
@@ -166,9 +191,9 @@
    "interactionOperator": "par",
    "operands": [
     {
-     "_id": "#21",
+     "_id": "#22",
      "_type": "UMLInteractionOperand",
-     "name": "",
+     "name": "first",
      "ownedElements": [],
      "stereotype": null,
      "visibility": "public",
@@ -176,9 +201,9 @@
      "guard": "first"
     },
     {
-     "_id": "#22",
+     "_id": "#23",
      "_type": "UMLInteractionOperand",
-     "name": "",
+     "name": "second",
      "ownedElements": [],
      "stereotype": null,
      "visibility": "public",
@@ -188,15 +213,15 @@
    ]
   },
   {
-   "_id": "#14",
+   "_id": "#15",
    "_type": "UMLMessage",
    "name": "ask",
    "ownedElements": [],
    "source": {
-    "$ref": "#5"
+    "$ref": "#6"
    },
    "target": {
-    "$ref": "#7"
+    "$ref": "#8"
    },
    "stereotype": null,
    "visibility": "public",
@@ -204,15 +229,15 @@
    "guard": ""
   },
   {
-   "_id": "#16",
+   "_id": "#17",
    "_type": "UMLMessage",
    "name": "one",
    "ownedElements": [],
    "source": {
-    "$ref": "#7"
+    "$ref": "#8"
    },
    "target": {
-    "$ref": "#5"
+    "$ref": "#6"
    },
    "stereotype": null,
    "visibility": "public",
@@ -220,15 +245,15 @@
    "guard": ""
   },
   {
-   "_id": "#18",
+   "_id": "#19",
    "_type": "UMLMessage",
    "name": "two",
    "ownedElements": [],
    "source": {
-    "$ref": "#7"
+    "$ref": "#8"
    },
    "target": {
-    "$ref": "#5"
+    "$ref": "#6"
    },
    "stereotype": null,
    "visibility": "public",
@@ -236,15 +261,15 @@
    "guard": ""
   },
   {
-   "_id": "#20",
+   "_id": "#21",
    "_type": "UMLMessage",
    "name": "three",
    "ownedElements": [],
    "source": {
-    "$ref": "#7"
+    "$ref": "#8"
    },
    "target": {
-    "$ref": "#5"
+    "$ref": "#6"
    },
    "stereotype": null,
    "visibility": "public",

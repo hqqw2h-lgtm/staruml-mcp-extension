@@ -31,10 +31,14 @@
      "model": {
       "$ref": "#5"
      },
+     "containerView": null,
      "left": 20,
      "top": 20,
      "width": 180,
-     "height": 54
+     "height": 54,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#6",
@@ -42,15 +46,20 @@
      "model": {
       "$ref": "#7"
      },
+     "containerView": null,
      "left": 20,
      "top": 120,
      "width": 180,
-     "height": 40
+     "height": 40,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#8",
      "_type": "UMLNoteView",
      "model": null,
+     "containerView": null,
      "left": 20,
      "top": 220,
      "width": 140,
@@ -60,6 +69,7 @@
      "_id": "#9",
      "_type": "UMLNoteView",
      "model": null,
+     "containerView": null,
      "left": 20,
      "top": 320,
      "width": 140,
@@ -71,6 +81,7 @@
      "model": {
       "$ref": "#11"
      },
+     "containerView": null,
      "head": {
       "$ref": "#6"
      },
@@ -82,6 +93,7 @@
      "_id": "#12",
      "_type": "UMLNoteLinkView",
      "model": null,
+     "containerView": null,
      "head": {
       "$ref": "#4"
      },

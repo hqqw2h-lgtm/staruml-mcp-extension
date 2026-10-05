@@ -7545,22 +7545,51 @@ function classPlan(spec) {
     const operations = (c.operations ?? []).map(
       (o) => typeof o === "string" ? parseOperation(o) : o
     );
+    const shown = viewProperties(kind2, attributes2.length);
     b.node({
       key: multiline(c.name),
       type: CLASS_TYPES[kind2],
       name: multiline(c.name),
       ...Object.keys(properties2).length > 0 && { properties: properties2 },
-      ...c.package !== void 0 && { owner: c.package },
+      // The class is drawn inside its package's view, which grows to hold
+      // it (issue #34), as dropping a class on a package does.
+      ...c.package !== void 0 && {
+        owner: c.package,
+        container: c.package
+      },
       ...attributes2.length > 0 && { attributes: attributes2 },
       ...operations.length > 0 && { operations },
       ...c.literals && { literals: c.literals },
       // StarUML draws an interface as a lollipop by default, which hides
       // its operations.
       ...kind2 === "interface" && { style: { stereotypeDisplay: "label" } },
-      width: 180,
+      ...shown && { viewProperties: shown },
+      // StarUML widens a class view to its longest line when it draws it;
+      // planning that width keeps neighbours, and a package holding the
+      // class, clear of it.
+      width: Math.max(
+        180,
+        textWidth(
+          [
+            c.name,
+            ...attributes2.map((a) => formatAttribute(a)),
+            ...operations.map(
+              (o) => formatOperation({
+                ...o,
+                parameters: [
+                  ...o.parameters ?? [],
+                  ...o.returnType === void 0 ? [] : [{ direction: "return", type: o.returnType }]
+                ]
+              })
+            ),
+            ...c.literals ?? []
+          ].join("\n")
+        ) + 2 * LABEL_PADDING
+      ),
       height: 40 + 14 * (attributes2.length + operations.length + (c.literals?.length ?? 0))
     });
   });
+  const nested = b.nodes.some((n) => n.container !== void 0);
   (spec.relations ?? []).forEach((r, i) => {
     const type2 = r.type ?? "association";
     const ends2 = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
@@ -7585,7 +7614,16 @@ function classPlan(spec) {
       `relations.${i}`
     );
   });
-  return b.plan();
+  return b.plan(nested);
+}
+function viewProperties(kind2, attributes2) {
+  if (kind2 === "interface") {
+    return {
+      suppressOperations: false,
+      ...attributes2 > 0 && { suppressAttributes: false }
+    };
+  }
+  return kind2 === "abstract" ? { suppressOperations: false } : void 0;
 }
 var MESSAGE_TYPES = {
   sync: "UMLMessage",
@@ -7596,18 +7634,31 @@ var MESSAGE_TYPES = {
 };
 var SEQUENCE = {
   left: 40,
-  top: 20,
+  /** Below the frame's "sd" tab, which StarUML puts at (8, 8). */
+  top: 40,
   spacing: 200,
   width: 120,
-  firstMessage: 110,
+  firstMessage: 130,
   step: 50,
-  /** Room for a fragment's operator tab and guard above its first message. */
-  header: 55,
+  /**
+   * Room for a fragment's operator tab and its first operand's guard above
+   * its first message. The guard is drawn 15 below the operand's top
+   * (INTERACTIONOPERAND_GUARD_VERT_MARGIN in the 7.1.1 uml elements.js) and
+   * a message's name about 17 above its line, so less room puts the guard
+   * on the message's label (issue #34).
+   */
+  header: 80,
   footer: 20,
-  /** Room above an operand's first message for the operand's guard. */
-  operand: 30,
+  /** Room above an operand's first message for the divider and its guard. */
+  operand: 50,
+  /** How far above an operand's first message its divider is drawn. */
+  divider: 55,
   /** A note's row between messages. */
-  note: 50
+  note: 50,
+  /** Where StarUML puts a new sequence diagram's frame (_addFrame, uml-factory.js). */
+  frame: 8,
+  /** Space between the frame and what it holds. */
+  frameMargin: 20
 };
 var noteHeight = (text4) => Math.max(40, 16 + 16 * multiline(text4).split("\n").length);
 function sequencePlan(spec) {
@@ -7623,7 +7674,7 @@ function sequencePlan(spec) {
       if (!participants.includes(end)) participants.push(end);
     }
   }
-  const fragments = spec.fragments ?? [];
+  const fragments = (spec.fragments ?? []).map(withOperandStarts);
   fragments.forEach((f, i) => {
     if (f.from > f.to || f.to >= messages2.length) {
       throw new ApiError(
@@ -7721,6 +7772,9 @@ function sequencePlan(spec) {
       `messages.${i}`
     );
   });
+  const fragmentNames = uniqueNames(
+    fragments.map((f) => f.guard || f.operator)
+  );
   fragments.forEach((f, i) => {
     const inside3 = messages2.slice(f.from, f.to + 1);
     const columns = inside3.flatMap((m) => [m.from, m.to]).map((p) => participants.indexOf(p));
@@ -7733,23 +7787,27 @@ function sequencePlan(spec) {
     const opening = fragments.filter((g) => g.from === f.from).length;
     const closing = fragments.filter((g) => g.to === f.to).length;
     const top = y(f.from) - SEQUENCE.header * (opening - outer.filter((g) => g.from === f.from).length) + 5;
-    const bottom = y(f.to) + SEQUENCE.step / 2 + SEQUENCE.footer * (closing - 1 - outer.filter((g) => g.to === f.to).length);
+    const bottom2 = y(f.to) + SEQUENCE.step / 2 + SEQUENCE.footer * (closing - 1 - outer.filter((g) => g.to === f.to).length);
     b.node({
       key: `fragment ${i}`,
       type: "UMLCombinedFragment",
-      // The operator and guard say it all; StarUML would add "CombinedFragment1".
-      name: "",
+      // Named after its guard, else its operator, rather than StarUML's
+      // "CombinedFragment1"; unnamed, it fails UML001 (issue #34).
+      name: fragmentNames[i],
       properties: { interactionOperator: f.operator },
       ...f.guard !== void 0 && { guard: f.guard },
       ...f.operands && { operands: f.operands },
+      operandNames: uniqueNames(
+        [f.guard, ...f.operands ?? []].map((g) => g || f.operator)
+      ),
       ...f.operandStarts && {
         operandAt: f.operandStarts.map(
-          (s) => y(s) - SEQUENCE.header * openingAt(s) - 35
+          (s) => y(s) - SEQUENCE.header * openingAt(s) - SEQUENCE.divider
         )
       },
       width: x2 - x,
-      height: bottom - top,
-      box: { x, y: top, width: x2 - x, height: bottom - top }
+      height: bottom2 - top,
+      box: { x, y: top, width: x2 - x, height: bottom2 - top }
     });
   });
   notes.forEach((n, j) => {
@@ -7768,7 +7826,43 @@ function sequencePlan(spec) {
       box: { x: left, y: noteTops.get(j), width, height: h }
     });
   });
-  return b.plan(true);
+  const right = Math.max(
+    SEQUENCE.left + SEQUENCE.width + SEQUENCE.frameMargin,
+    ...b.nodes.map((n) => n.box.x + n.box.width + SEQUENCE.frameMargin)
+  );
+  const bottom = Math.max(
+    ...b.nodes.map((n) => n.box.y + n.box.height + SEQUENCE.frameMargin),
+    SEQUENCE.top + height + SEQUENCE.frameMargin
+  );
+  return {
+    ...b.plan(true),
+    frame: {
+      x: SEQUENCE.frame,
+      y: SEQUENCE.frame,
+      width: right - SEQUENCE.frame,
+      height: bottom - SEQUENCE.frame
+    }
+  };
+}
+function uniqueNames(names3) {
+  const seen = /* @__PURE__ */ new Map();
+  return names3.map((name2) => {
+    const n = (seen.get(name2) ?? 0) + 1;
+    seen.set(name2, n);
+    return n === 1 ? name2 : `${name2} ${n}`;
+  });
+}
+function withOperandStarts(f) {
+  const count = f.operands?.length ?? 0;
+  const inside3 = f.to - f.from + 1;
+  if (f.operandStarts || count === 0 || inside3 < count + 1) return f;
+  return {
+    ...f,
+    operandStarts: Array.from(
+      { length: count },
+      (_, k) => f.from + Math.floor((k + 1) * inside3 / (count + 1))
+    )
+  };
 }
 var USECASE_RELATIONS = {
   association: "UMLAssociation",
@@ -7903,12 +7997,14 @@ function statemachinePlan(spec) {
       );
     }
     const [create, width, height] = STATE_CREATE[type2];
+    const name2 = nodeName(o.name, key, type2 === "state");
+    const lines = name2.split("\n");
     b.node({
       key,
       type: create,
-      name: nodeName(o.name, key, type2 === "state"),
-      width,
-      height
+      name: name2,
+      width: type2 === "state" ? Math.max(width, textWidth(name2) + 2 * LABEL_PADDING) : width,
+      height: type2 === "state" ? Math.max(height, 30 + LINE_HEIGHT * lines.length) : height
     });
     if (o.parent !== void 0) nested.push([key, multiline(o.parent), i]);
   });
@@ -7935,7 +8031,18 @@ function statemachinePlan(spec) {
       seen.add(k);
     }
   }
+  let widest = 0;
   (spec.transitions ?? []).forEach((t, i) => {
+    widest = Math.max(
+      widest,
+      textWidth(
+        [
+          t.trigger,
+          t.guard !== void 0 && `[${t.guard}]`,
+          t.effect && `/ ${t.effect}`
+        ].filter(Boolean).join(" ")
+      )
+    );
     const label4 = [
       t.trigger ?? "",
       t.effect !== void 0 ? ` / ${t.effect}` : ""
@@ -7951,7 +8058,17 @@ function statemachinePlan(spec) {
       `transitions.${i}`
     );
   });
-  return b.plan(nested.length > 0);
+  return {
+    ...b.plan(nested.length > 0),
+    fit: true,
+    ...widest > 0 && { edgeLabelWidth: widest }
+  };
+}
+var LINE_HEIGHT = 16;
+var GLYPH_WIDTH = 7;
+var LABEL_PADDING = 20;
+function textWidth(text4) {
+  return GLYPH_WIDTH * Math.max(0, ...text4.split("\n").map((l) => l.length));
 }
 function parseColumn(source) {
   const words = source.trim().split(/\s+/);
@@ -10037,6 +10154,16 @@ function propertyOps(node, model) {
     body: { ref: model._id, field, value }
   }));
 }
+function viewPropertyOps(node, view, current) {
+  return Object.entries(node.viewProperties ?? {}).filter(([field, value]) => current?.[field] !== value).map(([field, value]) => ({
+    path: "/update_element",
+    body: { ref: view, field, value }
+  }));
+}
+function namespaced(model) {
+  const viewType = app.metamodels.getViewTypeOf(model.constructor.name);
+  return viewType !== null && app.metamodels.isKindOf(viewType, "UMLGeneralNodeView");
+}
 function styleOps(node, view, current) {
   const changed = Object.entries(node.style ?? {}).filter(
     ([field, value]) => current?.[field] !== value
@@ -10116,7 +10243,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         type: DIAGRAM_TYPES[plan.kind],
         parent: target.parent._id,
         ...target.name !== void 0 && { name: target.name },
-        ...options.allowDuplicateNames && { allowDuplicateNames: true }
+        ...options.allowDuplicateNames && { allowDuplicateNames: true },
+        // The frame StarUML adds to a sequence diagram is its first view.
+        ...plan.frame && { fields: ["_parent", "ownedViews"] }
       }
     });
   }
@@ -10154,7 +10283,8 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       if (model2) claimed.add(model2);
       const more = [
         ...model2 ? [...propertyOps(node, model2), ...memberOps(node, model2._id, model2)] : [],
-        ...styleOps(node, found._id, found)
+        ...styleOps(node, found._id, found),
+        ...viewPropertyOps(node, found._id, found)
       ];
       if (more.length > 0) {
         updated++;
@@ -10202,6 +10332,13 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         ...memberOps(node, model._id, model)
       );
       ops.push(...styleOps(node, `$${as}.view`));
+      ops.push(...viewPropertyOps(node, `$${as}.view`));
+      if (!options.showNamespace && namespaced(model)) {
+        ops.push({
+          path: "/update_element",
+          body: { ref: `$${as}.view`, field: "showNamespace", value: false }
+        });
+      }
       return;
     }
     const note = node.type === "Note";
@@ -10225,7 +10362,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         y: Math.round(box2.y),
         x2: Math.round(box2.x + box2.width),
         y2: Math.round(box2.y + box2.height),
-        ...node.guard !== void 0 && { fields: ["operands"] },
+        ...node.operandNames && { fields: ["operands"] },
         ...duplicate && { allowDuplicateNames: true }
       }
     });
@@ -10237,14 +10374,25 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     }
     ops.push(...memberOps(node, `$${as}.model`));
     ops.push(...styleOps(node, `$${as}.view`));
-    for (const guard of node.operands ?? []) {
+    ops.push(...viewPropertyOps(node, `$${as}.view`));
+    (node.operands ?? []).forEach((guard, k) => {
       ops.push({
         path: "/create_element",
         body: {
           type: "UMLInteractionOperand",
           parent: `$${as}.model`,
-          name: "",
+          name: node.operandNames[k + 1],
           properties: { guard }
+        }
+      });
+    });
+    if (node.operandNames) {
+      ops.push({
+        path: "/update_element",
+        body: {
+          ref: `$${as}.model.operands.0`,
+          field: "name",
+          value: node.operandNames[0]
         }
       });
     }
@@ -10344,6 +10492,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       }
     });
   });
+  ops.push(...frameOps(plan, target.diagram));
   let deleted = 0;
   if (options.prune && pools) {
     const gone = pools.all.filter((v) => !kept.has(v)).sort((a, b) => Number(isEdge(b)) - Number(isEdge(a)));
@@ -10363,7 +10512,12 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
   if (engine) {
     ops.push({
       path: "/layout_diagram",
-      body: { diagram: diagramRef, preset }
+      body: {
+        diagram: diagramRef,
+        preset,
+        ...plan.fit && { fit: true },
+        ...labelRoom(plan, preset)
+      }
     });
   }
   return {
@@ -10381,6 +10535,34 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     layout: engine ? "engine" : "placed",
     ...engine && { preset }
   };
+}
+var MAX_LABEL_ROOM = 300;
+function labelRoom(plan, preset) {
+  if (plan.edgeLabelWidth === void 0) return {};
+  const { direction: direction2, separations } = LAYOUT_PRESETS[preset];
+  const room = Math.min(MAX_LABEL_ROOM, plan.edgeLabelWidth + 20);
+  return direction2 === "TB" || direction2 === "BT" ? {
+    nodeSeparation: Math.max(separations.node, room),
+    rankSeparation: Math.max(separations.rank, 80)
+  } : { rankSeparation: Math.max(separations.rank, room) };
+}
+function frameOps(plan, diagram) {
+  if (!plan.frame) return [];
+  const frame = diagram ? diagram.ownedViews.find(
+    (v) => v.model === diagram && v instanceof type.UMLFrameView
+  ) : void 0;
+  if (diagram && !frame) return [];
+  const { x, y, width, height } = plan.frame;
+  const bounds = { left: x, top: y, width, height };
+  if (frame && Object.entries(bounds).every(([k, v]) => frame[k] === v)) {
+    return [];
+  }
+  return [
+    {
+      path: "/resize_node",
+      body: { ref: frame?._id ?? "$diagram.ownedViews.0", ...bounds }
+    }
+  ];
 }
 var SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" };
 function defaultPreset(kind2, direction2) {
@@ -10587,6 +10769,12 @@ function buildDiagramEndpoint(endpoints2) {
           boolean2(),
           "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements."
         )
+      ),
+      showNamespace: optional(
+        doc(
+          boolean2(),
+          "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it."
+        )
       )
     }),
     aliases: { parentId: "parent" },
@@ -10655,7 +10843,8 @@ function buildDiagramEndpoint(endpoints2) {
         {
           prune: input.prune,
           reuse: input.reuse ?? true,
-          allowDuplicateNames: input.allowDuplicateNames
+          allowDuplicateNames: input.allowDuplicateNames,
+          showNamespace: input.showNamespace
         }
       );
       const warnings = [...parsed?.warnings ?? [], ...built.warnings];
@@ -16728,7 +16917,7 @@ var AREA = /Frame|Subject|Swimlane|Partition|CombinedFragment|Operand|Region|Bou
 var PASSED_THROUGH = /Lifeline/;
 var NAME_OUTSIDE = /Actor|Pseudostate|InitialState|FinalState|Port|Pin|Point/;
 var CHAR_WIDTH = 7;
-var LABEL_PADDING = 20;
+var LABEL_PADDING2 = 20;
 var CELL = 300;
 var CROWDED = 7;
 var GAP2 = 20;
@@ -16801,7 +16990,7 @@ function crosses(p, q2, box2) {
 }
 function labelWidth(name2) {
   const widest = Math.max(...name2.split("\n").map((l) => l.length));
-  return widest * CHAR_WIDTH + LABEL_PADDING;
+  return widest * CHAR_WIDTH + LABEL_PADDING2;
 }
 function attached(edge, box2) {
   for (const end of [edge.tail, edge.head]) {

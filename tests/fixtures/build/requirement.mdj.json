@@ -31,10 +31,14 @@
      "model": {
       "$ref": "#5"
      },
+     "containerView": null,
      "left": 20,
      "top": 20,
      "width": 180,
-     "height": 100
+     "height": 100,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#6",
@@ -42,10 +46,14 @@
      "model": {
       "$ref": "#7"
      },
+     "containerView": null,
      "left": 20,
      "top": 120,
      "width": 180,
-     "height": 100
+     "height": 100,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#8",
@@ -53,10 +61,14 @@
      "model": {
       "$ref": "#9"
      },
+     "containerView": null,
      "left": 20,
      "top": 220,
      "width": 180,
-     "height": 78
+     "height": 78,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
     },
     {
      "_id": "#10",
@@ -64,6 +76,7 @@
      "model": {
       "$ref": "#11"
      },
+     "containerView": null,
      "head": {
       "$ref": "#4"
      },
@@ -77,6 +90,7 @@
      "model": {
       "$ref": "#13"
      },
+     "containerView": null,
      "head": {
       "$ref": "#6"
      },
@@ -88,6 +102,7 @@
      "_id": "#14",
      "_type": "UMLContainmentView",
      "model": null,
+     "containerView": null,
      "head": {
       "$ref": "#6"
      },

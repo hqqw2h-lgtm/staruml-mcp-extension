@@ -26,6 +26,8 @@ import { doc } from "../endpoint.js";
 import { ApiError } from "../errors.js";
 import {
   type AttributeSpec,
+  formatAttribute,
+  formatOperation,
   multiline,
   type OperationSpec,
   parseAttribute,
@@ -100,6 +102,16 @@ export interface PlanNode {
   guard?: string;
   /** Guards of a combined fragment's further operands. */
   operands?: string[];
+  /**
+   * Names of a combined fragment's operands, the first one included, so
+   * StarUML's UML001 ("Name expected") holds for a generated interaction.
+   */
+  operandNames?: string[];
+  /**
+   * View attributes set with /update_element after the view is made, e.g.
+   * an interface view's suppressOperations.
+   */
+  viewProperties?: Record<string, unknown>;
   /** /set_view_style options for the new view. */
   style?: Record<string, unknown>;
   /** Key of the node whose view contains this one's, e.g. a composite state. */
@@ -134,6 +146,15 @@ export interface Plan {
   edges: PlanEdge[];
   /** Placement is fixed by the kind (sequence) or by lanes and boundaries. */
   fixed: boolean;
+  /** Bounds of a sequence diagram's frame, which holds every lifeline. */
+  frame?: Box;
+  /**
+   * Width of the widest edge label, which the engine layout leaves room
+   * for between nodes so labels do not sit on each other or on nodes.
+   */
+  edgeLabelWidth?: number;
+  /** Size node views to their content before the engine layout. */
+  fit?: boolean;
 }
 
 // ---------------------------------------------------------------- schemas
@@ -831,25 +852,57 @@ function classPlan(spec: Spec<"class">): Plan {
     const operations = (c.operations ?? []).map((o) =>
       typeof o === "string" ? parseOperation(o) : o,
     );
+    const shown = viewProperties(kind, attributes.length);
     b.node({
       key: multiline(c.name),
       type: CLASS_TYPES[kind],
       name: multiline(c.name),
       ...(Object.keys(properties).length > 0 && { properties }),
-      ...(c.package !== undefined && { owner: c.package }),
+      // The class is drawn inside its package's view, which grows to hold
+      // it (issue #34), as dropping a class on a package does.
+      ...(c.package !== undefined && {
+        owner: c.package,
+        container: c.package,
+      }),
       ...(attributes.length > 0 && { attributes }),
       ...(operations.length > 0 && { operations }),
       ...(c.literals && { literals: c.literals }),
       // StarUML draws an interface as a lollipop by default, which hides
       // its operations.
       ...(kind === "interface" && { style: { stereotypeDisplay: "label" } }),
-      width: 180,
+      ...(shown && { viewProperties: shown }),
+      // StarUML widens a class view to its longest line when it draws it;
+      // planning that width keeps neighbours, and a package holding the
+      // class, clear of it.
+      width: Math.max(
+        180,
+        textWidth(
+          [
+            c.name,
+            ...attributes.map((a) => formatAttribute(a)),
+            ...operations.map((o) =>
+              formatOperation({
+                ...o,
+                parameters: [
+                  ...(o.parameters ?? []),
+                  ...(o.returnType === undefined
+                    ? []
+                    : [{ direction: "return", type: o.returnType }]),
+                ],
+              }),
+            ),
+            ...(c.literals ?? []),
+          ].join("\n"),
+        ) +
+          2 * LABEL_PADDING,
+      ),
       height:
         40 +
         14 *
           (attributes.length + operations.length + (c.literals?.length ?? 0)),
     });
   });
+  const nested = b.nodes.some((n) => n.container !== undefined);
   (spec.relations ?? []).forEach((r, i) => {
     const type = r.type ?? "association";
     const ends =
@@ -879,7 +932,30 @@ function classPlan(spec: Spec<"class">): Plan {
       `relations.${i}`,
     );
   });
-  return b.plan();
+  // Format > Layout moves views out of their containers' bounds, so a
+  // diagram with packages holding classes keeps the computed placement.
+  return b.plan(nested);
+}
+
+/**
+ * Compartments an interface view hides by default: the uml.interface
+ * suppressAttributes and suppressOperations preferences default to true
+ * (UMLInterfaceView in the 7.1.1 uml elements.js), so an interface built
+ * with operations was drawn as an empty box. An abstract class shows its
+ * operations, which build_diagram sets explicitly in case the preference
+ * says otherwise.
+ */
+function viewProperties(
+  kind: "class" | "interface" | "enum" | "abstract",
+  attributes: number,
+): Record<string, unknown> | undefined {
+  if (kind === "interface") {
+    return {
+      suppressOperations: false,
+      ...(attributes > 0 && { suppressAttributes: false }),
+    };
+  }
+  return kind === "abstract" ? { suppressOperations: false } : undefined;
 }
 
 const MESSAGE_TYPES = {
@@ -893,18 +969,31 @@ const MESSAGE_TYPES = {
 /** Sequence geometry: lifelines in a row, messages one step down each. */
 export const SEQUENCE = {
   left: 40,
-  top: 20,
+  /** Below the frame's "sd" tab, which StarUML puts at (8, 8). */
+  top: 40,
   spacing: 200,
   width: 120,
-  firstMessage: 110,
+  firstMessage: 130,
   step: 50,
-  /** Room for a fragment's operator tab and guard above its first message. */
-  header: 55,
+  /**
+   * Room for a fragment's operator tab and its first operand's guard above
+   * its first message. The guard is drawn 15 below the operand's top
+   * (INTERACTIONOPERAND_GUARD_VERT_MARGIN in the 7.1.1 uml elements.js) and
+   * a message's name about 17 above its line, so less room puts the guard
+   * on the message's label (issue #34).
+   */
+  header: 80,
   footer: 20,
-  /** Room above an operand's first message for the operand's guard. */
-  operand: 30,
+  /** Room above an operand's first message for the divider and its guard. */
+  operand: 50,
+  /** How far above an operand's first message its divider is drawn. */
+  divider: 55,
   /** A note's row between messages. */
   note: 50,
+  /** Where StarUML puts a new sequence diagram's frame (_addFrame, uml-factory.js). */
+  frame: 8,
+  /** Space between the frame and what it holds. */
+  frameMargin: 20,
 };
 
 /** Height of a note box holding `text`. */
@@ -926,7 +1015,7 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
       if (!participants.includes(end)) participants.push(end);
     }
   }
-  const fragments = spec.fragments ?? [];
+  const fragments = (spec.fragments ?? []).map(withOperandStarts);
   fragments.forEach((f, i) => {
     if (f.from > f.to || f.to >= messages.length) {
       throw new ApiError(
@@ -1042,6 +1131,9 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
       `messages.${i}`,
     );
   });
+  const fragmentNames = uniqueNames(
+    fragments.map((f) => f.guard || f.operator),
+  );
   fragments.forEach((f, i) => {
     const inside = messages.slice(f.from, f.to + 1);
     const columns = inside
@@ -1080,14 +1172,18 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
     b.node({
       key: `fragment ${i}`,
       type: "UMLCombinedFragment",
-      // The operator and guard say it all; StarUML would add "CombinedFragment1".
-      name: "",
+      // Named after its guard, else its operator, rather than StarUML's
+      // "CombinedFragment1"; unnamed, it fails UML001 (issue #34).
+      name: fragmentNames[i]!,
       properties: { interactionOperator: f.operator },
       ...(f.guard !== undefined && { guard: f.guard }),
       ...(f.operands && { operands: f.operands }),
+      operandNames: uniqueNames(
+        [f.guard, ...(f.operands ?? [])].map((g) => g || f.operator),
+      ),
       ...(f.operandStarts && {
         operandAt: f.operandStarts.map(
-          (s) => y(s) - SEQUENCE.header * openingAt(s) - 35,
+          (s) => y(s) - SEQUENCE.header * openingAt(s) - SEQUENCE.divider,
         ),
       }),
       width: x2 - x,
@@ -1119,7 +1215,56 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
       box: { x: left, y: noteTops.get(j)!, width, height: h },
     });
   });
-  return b.plan(true);
+  const right = Math.max(
+    SEQUENCE.left + SEQUENCE.width + SEQUENCE.frameMargin,
+    ...b.nodes.map((n) => n.box!.x + n.box!.width + SEQUENCE.frameMargin),
+  );
+  const bottom = Math.max(
+    ...b.nodes.map((n) => n.box!.y + n.box!.height + SEQUENCE.frameMargin),
+    SEQUENCE.top + height + SEQUENCE.frameMargin,
+  );
+  // StarUML's frame keeps its default 700 x 600 whatever the diagram
+  // holds; the frame is sized to every lifeline, fragment and note.
+  return {
+    ...b.plan(true),
+    frame: {
+      x: SEQUENCE.frame,
+      y: SEQUENCE.frame,
+      width: right - SEQUENCE.frame,
+      height: bottom - SEQUENCE.frame,
+    },
+  };
+}
+
+/** Names made distinct by a counter, as UML002 wants of siblings: "x", "x 2". */
+export function uniqueNames(names: readonly string[]): string[] {
+  const seen = new Map<string, number>();
+  return names.map((name) => {
+    const n = (seen.get(name) ?? 0) + 1;
+    seen.set(name, n);
+    return n === 1 ? name : `${name} ${n}`;
+  });
+}
+
+type FragmentSpec = NonNullable<Spec<"sequence">["fragments"]>[number];
+
+/**
+ * Further operands without operandStarts begin at messages spread evenly
+ * over the fragment, so each divider falls between messages; StarUML's own
+ * equal split cuts through them (issue #34). A fragment with fewer messages
+ * than operands keeps the equal split.
+ */
+function withOperandStarts(f: FragmentSpec): FragmentSpec {
+  const count = f.operands?.length ?? 0;
+  const inside = f.to - f.from + 1;
+  if (f.operandStarts || count === 0 || inside < count + 1) return f;
+  return {
+    ...f,
+    operandStarts: Array.from(
+      { length: count },
+      (_, k) => f.from + Math.floor(((k + 1) * inside) / (count + 1)),
+    ),
+  };
 }
 
 const USECASE_RELATIONS = {
@@ -1276,12 +1421,21 @@ function statemachinePlan(spec: Spec<"statemachine">): Plan {
       );
     }
     const [create, width, height] = STATE_CREATE[type];
+    const name = nodeName(o.name, key, type === "state");
+    // A state view clips its name rather than growing (issue #34).
+    const lines = name.split("\n");
     b.node({
       key,
       type: create,
-      name: nodeName(o.name, key, type === "state"),
-      width,
-      height,
+      name,
+      width:
+        type === "state"
+          ? Math.max(width, textWidth(name) + 2 * LABEL_PADDING)
+          : width,
+      height:
+        type === "state"
+          ? Math.max(height, 30 + LINE_HEIGHT * lines.length)
+          : height,
     });
     if (o.parent !== undefined) nested.push([key, multiline(o.parent), i]);
   });
@@ -1310,7 +1464,21 @@ function statemachinePlan(spec: Spec<"statemachine">): Plan {
       seen.add(k);
     }
   }
+  let widest = 0;
   (spec.transitions ?? []).forEach((t, i) => {
+    // StarUML draws "trigger [guard] / effect" (UMLTransition.getString).
+    widest = Math.max(
+      widest,
+      textWidth(
+        [
+          t.trigger,
+          t.guard !== undefined && `[${t.guard}]`,
+          t.effect && `/ ${t.effect}`,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      ),
+    );
     const label = [
       t.trigger ?? "",
       t.effect !== undefined ? ` / ${t.effect}` : "",
@@ -1328,7 +1496,21 @@ function statemachinePlan(spec: Spec<"statemachine">): Plan {
       `transitions.${i}`,
     );
   });
-  return b.plan(nested.length > 0);
+  return {
+    ...b.plan(nested.length > 0),
+    fit: true,
+    ...(widest > 0 && { edgeLabelWidth: widest }),
+  };
+}
+
+/** Line height and average glyph width of StarUML's default 13px font. */
+const LINE_HEIGHT = 16;
+const GLYPH_WIDTH = 7;
+const LABEL_PADDING = 20;
+
+/** Width of the longest line of `text` in the default font, estimated. */
+export function textWidth(text: string): number {
+  return GLYPH_WIDTH * Math.max(0, ...text.split("\n").map((l) => l.length));
 }
 
 /** "id int PK", "name varchar(40) NOT NULL", "customer_id int FK". */

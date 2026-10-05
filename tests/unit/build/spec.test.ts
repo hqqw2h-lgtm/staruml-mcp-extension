@@ -175,7 +175,14 @@ describe("sequence", () => {
       ],
     });
     const [alt, opt, loop] = plan.nodes.slice(2);
-    expect(alt).toMatchObject({ guard: "x", operands: ["else"], name: "" });
+    expect(alt).toMatchObject({
+      guard: "x",
+      operands: ["else"],
+      name: "x",
+      operandNames: ["x", "else"],
+      operandAt: [expect.any(Number)],
+    });
+    expect(opt).toMatchObject({ name: "opt", operandNames: ["opt"] });
     expect(opt!.box!.x).toBeGreaterThan(alt!.box!.x);
     expect(loop!.box!.x).toBeGreaterThan(alt!.box!.x);
     expect(opt!.box!.y).toBeGreaterThan(loop!.box!.y);
@@ -468,11 +475,11 @@ describe("sequence notes and operands", () => {
     const boxes = Object.fromEntries(
       plan.nodes.filter((n) => n.type === "Note").map((n) => [n.text, n.box]),
     );
-    expect(boxes.first).toEqual({ x: 110, y: 85, width: 120, height: 40 });
-    expect(boxes.left).toEqual({ x: 170, y: 185, width: 120, height: 40 });
+    expect(boxes.first).toEqual({ x: 110, y: 105, width: 120, height: 40 });
+    expect(boxes.left).toEqual({ x: 170, y: 205, width: 120, height: 40 });
     expect(boxes["over one"]).toEqual({
       x: 30,
-      y: 235,
+      y: 255,
       width: 140,
       height: 40,
     });
@@ -509,8 +516,8 @@ describe("sequence notes and operands", () => {
     });
     const fragment = plan.nodes.find((n) => n.type === "UMLCombinedFragment")!;
     const ys = plan.edges.map((e) => e.geometry!.y1);
-    expect(fragment.operandAt).toEqual([ys[1]! - 35, ys[2]! - 35]);
-    expect(ys[1]! - ys[0]!).toBe(80);
+    expect(fragment.operandAt).toEqual([ys[1]! - 55, ys[2]! - 55]);
+    expect(ys[1]! - ys[0]!).toBe(100);
   });
 
   it("refuses operand starts that do not match the operands", () => {
