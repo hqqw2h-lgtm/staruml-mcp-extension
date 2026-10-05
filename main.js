@@ -626,22 +626,36 @@ function shallow(elem) {
 // src/handlers/project.ts
 var getProjectInfo = () => {
   const project = app.project.getProject();
-  const filename = app.project.getFilename();
   return {
     success: true,
-    data: { filename, project: project && summarize(project) }
+    data: {
+      filename: app.project.getFilename(),
+      project: project && summarize(project)
+    }
   };
 };
-var saveProject = async (body) => {
-  const filename = typeof body.filename === "string" ? body.filename : void 0;
+function saveTo(filename) {
+  if (!app.project.getProject()) {
+    return { success: false, error: "No project is open" };
+  }
   try {
-    await app.project.save(filename);
+    app.project.save(filename);
     return { success: true, data: { filename: app.project.getFilename() } };
   } catch (err) {
     return failure(err);
   }
+}
+var saveProject = (body) => {
+  const filename = typeof body.filename === "string" && body.filename.length > 0 ? body.filename : app.project.getFilename();
+  if (!filename) {
+    return {
+      success: false,
+      error: "Project has no file yet; pass 'filename' or use /save_project_as"
+    };
+  }
+  return saveTo(filename);
 };
-var saveProjectAs = async (body) => {
+var saveProjectAs = (body) => {
   const filename = body.filename;
   if (typeof filename !== "string" || filename.length === 0) {
     return {
@@ -649,12 +663,7 @@ var saveProjectAs = async (body) => {
       error: "Required field 'filename' (string) missing"
     };
   }
-  try {
-    await app.project.saveAs(filename);
-    return { success: true, data: { filename } };
-  } catch (err) {
-    return failure(err);
-  }
+  return saveTo(filename);
 };
 var newProject = () => {
   try {
@@ -664,7 +673,7 @@ var newProject = () => {
     return failure(err);
   }
 };
-var openProject = async (body) => {
+var openProject = (body) => {
   const filename = body.filename;
   if (typeof filename !== "string" || filename.length === 0) {
     return {
@@ -673,9 +682,10 @@ var openProject = async (body) => {
     };
   }
   try {
-    const project = app.project;
-    await project.load(filename);
-    return { success: true, data: { filename } };
+    const project = app.project.load(filename);
+    if (!project)
+      return { success: false, error: `File is empty: ${filename}` };
+    return { success: true, data: { filename, project: summarize(project) } };
   } catch (err) {
     return failure(err);
   }

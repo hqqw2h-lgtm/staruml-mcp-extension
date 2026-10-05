@@ -152,10 +152,11 @@ describeLive("class diagram built through create_*_with_view", () => {
     });
   });
 
-  it("writes the classes, views and association to the .mdj", async () => {
+  it("save-as writes the classes, views and association to the .mdj (#2)", async () => {
     const file = join(dir, "class-diagram.mdj");
-    expect(await call("/save_project", { filename: file })).toMatchObject({
+    expect(await call("/save_project_as", { filename: file })).toMatchObject({
       success: true,
+      data: { filename: file },
     });
 
     const all = flatten(JSON.parse(readFileSync(file, "utf-8")) as MdjElement);
@@ -190,6 +191,25 @@ describeLive("class diagram built through create_*_with_view", () => {
       model: { $ref: wrote.model._id },
       tail: { $ref: book.view._id },
       head: { $ref: author.view._id },
+    });
+  });
+
+  it("reopens the .mdj with the diagram intact", async () => {
+    const file = join(dir, "class-diagram.mdj");
+    await call("/new_project");
+    expect(await call("/open_project", { filename: file })).toMatchObject({
+      success: true,
+    });
+    const edge = await call<{ tail: Ref; head: Ref; model: Ref }>(
+      "/get_element_by_id",
+      {
+        id: wrote.view._id,
+      },
+    );
+    expect(edge.data).toMatchObject({
+      tail: { _id: book.view._id },
+      head: { _id: author.view._id },
+      model: { _id: wrote.model._id, name: "wrote" },
     });
   });
 });

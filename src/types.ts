@@ -58,14 +58,21 @@ export interface CommandManager {
   commandNames: Record<string, string>;
 }
 
+/**
+ * engine/project-manager.js. 7.1.1 has neither saveAs nor loadFromFile; its
+ * prototype is closeProject, exportToFile, getFilename, getProject,
+ * importFromFile, importFromJson, load, loadAsTemplate, loadFromJson,
+ * newProject and save.
+ */
 export interface ProjectManager {
   getFilename(): string | null;
-  getProject(): unknown;
-  save(filename?: string): Promise<void>;
-  saveAs(filename: string): Promise<void>;
-  newProject(): unknown;
-  loadFromFile(filename: string): Promise<void>;
-  closeProject(): void;
+  /** Null after closeProject(). */
+  getProject(): Element | null;
+  /** Synchronous; writes the file, adopts it as the filename and clears the modified flag. */
+  save(fullPath: string): Element | null;
+  /** Synchronous; throws for a missing file and returns null for an empty one. */
+  load(fullPath: string): Element | null;
+  newProject(): Element;
 }
 
 /** core/repository.js */

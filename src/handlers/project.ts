@@ -22,29 +22,54 @@
  */
 
 import { failure } from "../errors.js";
-import type { Handler } from "../http-server.js";
+import type { Handler, HandlerResult } from "../http-server.js";
+import type { Element } from "../types.js";
 
 export const getProjectInfo: Handler = () => {
-  const project = app.project.getProject() as Record<string, unknown> | null;
-  const filename = app.project.getFilename();
+  const project = app.project.getProject();
   return {
     success: true,
-    data: { filename, project: project && summarize(project) },
+    data: {
+      filename: app.project.getFilename(),
+      project: project && summarize(project),
+    },
   };
 };
 
-export const saveProject: Handler = async (body) => {
-  const filename =
-    typeof body.filename === "string" ? body.filename : undefined;
+/**
+ * ProjectManager.save(fullPath) is synchronous, writes the file and makes it
+ * the project's filename; with no path it throws inside fs.writeFileSync
+ * (engine/project-manager.js in 7.1.1). Save and save-as both go through it.
+ */
+function saveTo(filename: string): HandlerResult {
+  if (!app.project.getProject()) {
+    return { success: false, error: "No project is open" };
+  }
   try {
-    await app.project.save(filename);
+    app.project.save(filename);
     return { success: true, data: { filename: app.project.getFilename() } };
   } catch (err) {
     return failure(err);
   }
+}
+
+/** Saves to `filename` if given, otherwise to the file the project was last saved to or opened from. */
+export const saveProject: Handler = (body) => {
+  const filename =
+    typeof body.filename === "string" && body.filename.length > 0
+      ? body.filename
+      : app.project.getFilename();
+  if (!filename) {
+    return {
+      success: false,
+      error: "Project has no file yet; pass 'filename' or use /save_project_as",
+    };
+  }
+  return saveTo(filename);
 };
 
-export const saveProjectAs: Handler = async (body) => {
+/** 7.x has no ProjectManager.saveAs (issue #2); save(fullPath) already switches the project to the new file. */
+export const saveProjectAs: Handler = (body) => {
   const filename = body.filename;
   if (typeof filename !== "string" || filename.length === 0) {
     return {
@@ -52,17 +77,10 @@ export const saveProjectAs: Handler = async (body) => {
       error: "Required field 'filename' (string) missing",
     };
   }
-  try {
-    await app.project.saveAs(filename);
-    // Issue #2: ProjectManager has no saveAs on 7.1.1, so this is unreachable
-    // until the handler is rebuilt on save(); the ignore goes with that fix.
-    /* v8 ignore next */
-    return { success: true, data: { filename } };
-  } catch (err) {
-    return failure(err);
-  }
+  return saveTo(filename);
 };
 
+/** An empty Project; the "Model" and "Main" diagram StarUML starts with come from its template, not from this call. */
 export const newProject: Handler = () => {
   try {
     app.project.newProject();
@@ -72,7 +90,7 @@ export const newProject: Handler = () => {
   }
 };
 
-export const openProject: Handler = async (body) => {
+export const openProject: Handler = (body) => {
   const filename = body.filename;
   if (typeof filename !== "string" || filename.length === 0) {
     return {
@@ -81,15 +99,17 @@ export const openProject: Handler = async (body) => {
     };
   }
   try {
-    const project = app.project as unknown as { load: (fp: string) => unknown };
-    await project.load(filename);
-    return { success: true, data: { filename } };
+    // load() is synchronous and returns null, leaving the open project alone, for an empty file.
+    const project = app.project.load(filename);
+    if (!project)
+      return { success: false, error: `File is empty: ${filename}` };
+    return { success: true, data: { filename, project: summarize(project) } };
   } catch (err) {
     return failure(err);
   }
 };
 
-function summarize(project: Record<string, unknown>): Record<string, unknown> {
+function summarize(project: Element): Record<string, unknown> {
   return {
     _id: project._id,
     name: project.name,

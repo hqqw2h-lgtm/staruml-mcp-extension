@@ -6,14 +6,26 @@ import {
   saveProject,
   saveProjectAs,
 } from "../../../src/handlers/project.js";
-import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
+import {
+  installMockApp,
+  UMLClass,
+  type MockEnvironment,
+} from "../../mock/staruml.js";
 
 const FILE = "/tmp/model.mdj";
+const OTHER = "/tmp/other.mdj";
 let env: MockEnvironment;
 
 beforeEach(() => {
   env = installMockApp();
 });
+
+function savedNames(file: string): string[] {
+  const data = JSON.parse(env.disk.get(file)!) as {
+    ownedElements: { name: string }[];
+  };
+  return data.ownedElements.map((e) => e.name);
+}
 
 describe("getProjectInfo", () => {
   it("summarises the open project", async () => {
@@ -42,21 +54,53 @@ describe("saveProject", () => {
       success: true,
       data: { filename: FILE },
     });
-    expect(env.disk.has(FILE)).toBe(true);
+    expect(savedNames(FILE)).toEqual(["Model"]);
     expect(env.app.repository.isModified()).toBe(false);
   });
 
-  it("reports the error ProjectManager.save throws without a path", async () => {
-    expect(await saveProject({})).toMatchObject({
+  it.each([{}, { filename: "" }, { filename: 3 }])(
+    "saves to the current file when none is given: %j",
+    async (body) => {
+      env.app.project.save(FILE);
+      env.app.project.getProject()!.name = "Renamed";
+      expect(await saveProject(body)).toEqual({
+        success: true,
+        data: { filename: FILE },
+      });
+      expect(JSON.parse(env.disk.get(FILE)!)).toMatchObject({
+        name: "Renamed",
+      });
+    },
+  );
+
+  it("refuses to guess a file for a project that was never saved", async () => {
+    expect(await saveProject({})).toEqual({
       success: false,
-      error: expect.stringContaining(
-        'The "path" argument must be of type string',
-      ),
+      error: "Project has no file yet; pass 'filename' or use /save_project_as",
+    });
+    expect(env.disk.size).toBe(0);
+  });
+
+  it("refuses when no project is open", async () => {
+    env.app.project.closeProject();
+    expect(await saveProject({ filename: FILE })).toEqual({
+      success: false,
+      error: "No project is open",
+    });
+  });
+
+  it("reports a write failure", async () => {
+    vi.spyOn(env.app.project, "save").mockImplementation(() => {
+      throw new Error("EACCES: permission denied");
+    });
+    expect(await saveProject({ filename: FILE })).toEqual({
+      success: false,
+      error: "EACCES: permission denied",
     });
   });
 });
 
-describe("saveProjectAs", () => {
+describe("saveProjectAs (#2)", () => {
   it.each([{}, { filename: "" }])("requires a filename: %j", async (body) => {
     expect(await saveProjectAs(body)).toEqual({
       success: false,
@@ -64,19 +108,38 @@ describe("saveProjectAs", () => {
     });
   });
 
-  // Issue #2: 7.1.1 has no ProjectManager.saveAs.
-  it("fails because ProjectManager.saveAs does not exist (#2)", async () => {
+  it("writes through ProjectManager.save, the only save on 7.x", async () => {
+    const spy = vi.spyOn(env.app.project, "save");
     expect(await saveProjectAs({ filename: FILE })).toEqual({
-      success: false,
-      error: "app.project.saveAs is not a function",
+      success: true,
+      data: { filename: FILE },
     });
+    expect(spy).toHaveBeenCalledWith(FILE);
+    expect(savedNames(FILE)).toEqual(["Model"]);
   });
 
-  it.fails("writes the project to the new file (#2)", async () => {
-    expect(await saveProjectAs({ filename: FILE })).toMatchObject({
+  it("switches the project to the new file, leaving the old one untouched", async () => {
+    env.app.project.save(FILE);
+    const before = env.disk.get(FILE);
+    env.app.factory.createModel({
+      id: "UMLClass",
+      parent: env.app.project.getProject()!,
+    });
+
+    expect(await saveProjectAs({ filename: OTHER })).toMatchObject({
       success: true,
     });
-    expect(env.disk.has(FILE)).toBe(true);
+    expect(env.app.project.getFilename()).toBe(OTHER);
+    expect(env.disk.get(FILE)).toBe(before);
+    expect(savedNames(OTHER)).toEqual(["Model", ""]);
+  });
+
+  it("refuses when no project is open", async () => {
+    env.app.project.closeProject();
+    expect(await saveProjectAs({ filename: FILE })).toEqual({
+      success: false,
+      error: "No project is open",
+    });
   });
 });
 
@@ -86,6 +149,7 @@ describe("newProject", () => {
     expect(await newProject({})).toEqual({ success: true, data: null });
     expect(env.app.project.getProject()).not.toBe(before);
     expect(env.app.project.getProject()!.ownedElements).toEqual([]);
+    expect(env.app.project.getFilename()).toBeNull();
   });
 
   it("reports a ProjectManager exception", async () => {
@@ -104,14 +168,34 @@ describe("openProject", () => {
     });
   });
 
-  it("loads a saved project", async () => {
+  it("loads a saved project, keeping element ids", async () => {
+    const cls = env.app.factory.createModel({
+      id: "UMLClass",
+      parent: env.model,
+    })!;
     env.app.project.save(FILE);
     env.app.project.newProject();
-    expect(await openProject({ filename: FILE })).toEqual({
+
+    const result = await openProject({ filename: FILE });
+    expect(result).toMatchObject({
       success: true,
-      data: { filename: FILE },
+      data: {
+        filename: FILE,
+        project: { name: "Untitled", ownedElementsCount: 1 },
+      },
     });
-    expect(env.app.project.getProject()!.ownedElements[0]!.name).toBe("Model");
+    expect(env.app.repository.get(cls._id)).toBeInstanceOf(UMLClass);
+    expect(env.app.project.getFilename()).toBe(FILE);
+  });
+
+  it("reports an empty file, for which load() returns null", async () => {
+    env.disk.set(FILE, "");
+    const before = env.app.project.getProject();
+    expect(await openProject({ filename: FILE })).toEqual({
+      success: false,
+      error: `File is empty: ${FILE}`,
+    });
+    expect(env.app.project.getProject()).toBe(before);
   });
 
   it("reports a missing file", async () => {
