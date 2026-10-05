@@ -1,0 +1,15 @@
+---
+title: "Bundles"
+---
+classDiagram
+  class PurchaseLine
+  class PurchaseOrder
+  class Catalog
+  class Product
+  class Bundle
+  class Wheel
+  class Car
+  PurchaseOrder "1" *-- "1..*" PurchaseLine : lines
+  Catalog o-- "*" Product
+  Bundle o-- "*" Product
+  Car *-- Wheel

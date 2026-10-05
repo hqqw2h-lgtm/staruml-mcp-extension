@@ -104,20 +104,40 @@ function nodeLine(view: View): string {
   );
 }
 
+/**
+ * What an association or ERD relationship end says besides its type: the
+ * aggregation kind, multiplicity or cardinality and role name, e.g.
+ * "(composite 1 owner)". Directed relationships have no ends.
+ */
+function endText(end: Element | undefined): string {
+  if (!end) return "";
+  const parts = [
+    end.aggregation === "none" ? "" : end.aggregation,
+    end.multiplicity,
+    end.cardinality,
+    end.name ? label(end) : "",
+  ].filter((p): p is string => typeof p === "string" && p !== "");
+  return parts.length > 0 ? ` (${parts.join(" ")})` : "";
+}
+
+/**
+ * end1 is drawn at the tail and end2 at the head (UMLUndirectedRelationship
+ * in StarUML's metamodel), so each end's details sit next to its node.
+ */
 function edgeLine(view: View): string {
   const model = view.model!;
   const name = label(model);
   return (
-    `- ${quoted((view.tail as View).model!)} -[${model.constructor.name}` +
+    `- ${quoted((view.tail as View).model!)}${endText(model.end1 as Element | undefined)} -[${model.constructor.name}` +
     (name ? ` "${name}"` : "") +
-    `]-> ${quoted((view.head as View).model!)}`
+    `]->${endText(model.end2 as Element | undefined)} ${quoted((view.head as View).model!)}`
   );
 }
 
 export const describeDiagram = defineEndpoint({
   path: "/describe_diagram",
   description:
-    "A compact text summary of a diagram: its nodes with their members and its edges as 'tail -[Type \"name\"]-> head', cut to maxChars. Cheaper to read than the element tree.",
+    "A compact text summary of a diagram: its nodes with their members and its edges as 'tail (end) -[Type \"name\"]-> (end) head', where an association or ERD end shows its aggregation (shared, composite), multiplicity or cardinality and role name; cut to maxChars. Cheaper to read than the element tree.",
   readOnly: true,
   destructive: false,
   request: z.object({

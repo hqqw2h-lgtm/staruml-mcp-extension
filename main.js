@@ -4310,10 +4310,10 @@ function parseJsonSchema(source, as) {
           });
         } else if (sh.inline) {
           relations.push({
-            from: other,
-            to: name2,
+            from: name2,
+            to: other,
             type: "composition",
-            fromMultiplicity: sh.many ? "*" : optional2 ? "0..1" : "1"
+            toMultiplicity: sh.many ? "*" : optional2 ? "0..1" : "1"
           });
         } else {
           relations.push({
@@ -4624,10 +4624,11 @@ var CLASS_ARROWS = [
   [/^--\|>$/, "generalization", false],
   [/^<\|\.\.$/, "realization", true],
   [/^\.\.\|>$/, "realization", false],
-  [/^\*--$/, "composition", true],
-  [/^--\*$/, "composition", false],
-  [/^o--$/, "aggregation", true],
-  [/^--o$/, "aggregation", false],
+  // The diamond marks the whole, which is the relation's `from`.
+  [/^\*--$/, "composition", false],
+  [/^--\*$/, "composition", true],
+  [/^o--$/, "aggregation", false],
+  [/^--o$/, "aggregation", true],
   [/^-->$/, "directed", false],
   [/^<--$/, "directed", true],
   [/^\.\.>$/, "dependency", false],
@@ -7405,11 +7406,20 @@ var CLASS_TYPES = {
 var RELATION_TYPES = {
   association: "UMLAssociation",
   directed: "UMLDirectedAssociation",
-  aggregation: "UMLAggregation",
-  composition: "UMLComposition",
+  // The whole is `from`, drawn at the tail with end1 aggregated, as
+  // StarUML's own "add aggregated part" commands make it (end1 of an
+  // association whose tail is the whole, uml-commands.js in 7.1.1). The
+  // toolbox's UMLAggregation/UMLComposition items preset end2 instead, which
+  // would put the diamond on the part (issue #29).
+  aggregation: "UMLAssociation",
+  composition: "UMLAssociation",
   generalization: "UMLGeneralization",
   realization: "UMLInterfaceRealization",
   dependency: "UMLDependency"
+};
+var AGGREGATIONS = {
+  aggregation: "shared",
+  composition: "composite"
 };
 function classPlan(spec) {
   const b = new Builder("class");
@@ -7462,15 +7472,20 @@ function classPlan(spec) {
   (spec.relations ?? []).forEach((r, i) => {
     const type2 = r.type ?? "association";
     const ends2 = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
+    const aggregation2 = AGGREGATIONS[type2];
+    const tailEnd = {
+      ...aggregation2 && { aggregation: aggregation2 },
+      ...ends2 && r.fromMultiplicity !== void 0 && {
+        multiplicity: r.fromMultiplicity
+      }
+    };
     b.edge(
       {
         type: RELATION_TYPES[type2],
         from: r.from,
         to: r.to,
         ...r.name !== void 0 && { name: r.name },
-        ...ends2 && r.fromMultiplicity !== void 0 && {
-          tailEnd: { multiplicity: r.fromMultiplicity }
-        },
+        ...Object.keys(tailEnd).length > 0 && { tailEnd },
         ...ends2 && r.toMultiplicity !== void 0 && {
           headEnd: { multiplicity: r.toMultiplicity }
         }
@@ -9959,7 +9974,7 @@ function buildDiagramEndpoint(endpoints2) {
       spec: optional(
         doc(
           record(string2(), unknown()),
-          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
+          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
         )
       ),
       mermaid: optional(
@@ -14557,14 +14572,24 @@ function nodeLine(view) {
   const members2 = membersOf(model);
   return `- ${model.constructor.name} ${quoted(model)}` + (members2.length > 0 ? ` { ${members2.join("; ")} }` : "");
 }
+function endText(end) {
+  if (!end) return "";
+  const parts = [
+    end.aggregation === "none" ? "" : end.aggregation,
+    end.multiplicity,
+    end.cardinality,
+    end.name ? label2(end) : ""
+  ].filter((p) => typeof p === "string" && p !== "");
+  return parts.length > 0 ? ` (${parts.join(" ")})` : "";
+}
 function edgeLine(view) {
   const model = view.model;
   const name2 = label2(model);
-  return `- ${quoted(view.tail.model)} -[${model.constructor.name}` + (name2 ? ` "${name2}"` : "") + `]-> ${quoted(view.head.model)}`;
+  return `- ${quoted(view.tail.model)}${endText(model.end1)} -[${model.constructor.name}` + (name2 ? ` "${name2}"` : "") + `]->${endText(model.end2)} ${quoted(view.head.model)}`;
 }
 var describeDiagram = defineEndpoint({
   path: "/describe_diagram",
-  description: `A compact text summary of a diagram: its nodes with their members and its edges as 'tail -[Type "name"]-> head', cut to maxChars. Cheaper to read than the element tree.`,
+  description: `A compact text summary of a diagram: its nodes with their members and its edges as 'tail (end) -[Type "name"]-> (end) head', where an association or ERD end shows its aggregation (shared, composite), multiplicity or cardinality and role name; cut to maxChars. Cheaper to read than the element tree.`,
   readOnly: true,
   destructive: false,
   request: object({
@@ -14820,8 +14845,8 @@ function classNotes(v) {
 }
 function association(m, named2) {
   let [a, b] = [m.end1, m.end2];
-  if (a.aggregation !== "none" && b.aggregation === "none") [a, b] = [b, a];
-  const type2 = b.aggregation === "composite" ? "composition" : b.aggregation === "shared" ? "aggregation" : b.navigable === "navigable" && a.navigable !== "navigable" ? "directed" : "association";
+  if (b.aggregation !== "none" && a.aggregation === "none") [a, b] = [b, a];
+  const type2 = a.aggregation === "composite" ? "composition" : a.aggregation === "shared" ? "aggregation" : b.navigable === "navigable" && a.navigable !== "navigable" ? "directed" : "association";
   return {
     from: nameOf(a.reference),
     to: nameOf(b.reference),
@@ -15372,8 +15397,8 @@ function classDiagram3(spec, notes) {
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
-      composition: `${to}${card(r.toMultiplicity)} *-- ${cardAfter(r.fromMultiplicity)}${from}`,
-      aggregation: `${to}${card(r.toMultiplicity)} o-- ${cardAfter(r.fromMultiplicity)}${from}`,
+      composition: `${from}${card(r.fromMultiplicity)} *-- ${cardAfter(r.toMultiplicity)}${to}`,
+      aggregation: `${from}${card(r.fromMultiplicity)} o-- ${cardAfter(r.toMultiplicity)}${to}`,
       directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
       dependency: `${from} ..> ${to}`
     }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
@@ -15779,8 +15804,8 @@ function classDiagram4(spec, notes) {
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
-      composition: `${to}${card(r.toMultiplicity)} *-- ${cardAfter(r.fromMultiplicity)}${from}`,
-      aggregation: `${to}${card(r.toMultiplicity)} o-- ${cardAfter(r.fromMultiplicity)}${from}`,
+      composition: `${from}${card(r.fromMultiplicity)} *-- ${cardAfter(r.toMultiplicity)}${to}`,
+      aggregation: `${from}${card(r.fromMultiplicity)} o-- ${cardAfter(r.toMultiplicity)}${to}`,
       directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
       dependency: `${from} ..> ${to}`
     }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;

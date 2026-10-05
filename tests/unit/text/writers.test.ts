@@ -41,13 +41,13 @@ describe("class writers", () => {
       ],
       relations: [
         {
-          from: "Line item",
-          to: "Order",
+          from: "Order",
+          to: "Line item",
           type: "composition",
-          fromMultiplicity: "*",
-          toMultiplicity: "1",
+          fromMultiplicity: "1",
+          toMultiplicity: "*",
         },
-        { from: "Line item", to: "Order", type: "aggregation" },
+        { from: "Order", to: "Line item", type: "aggregation" },
         {
           from: "Order",
           to: "Kind",
@@ -109,11 +109,11 @@ describe("class writers", () => {
       ]),
     });
     expect((spec.relations as unknown[])[0]).toEqual({
-      from: "Line item",
-      to: "Order",
+      from: "Order",
+      to: "Line item",
       type: "composition",
-      fromMultiplicity: "*",
-      toMultiplicity: "1",
+      fromMultiplicity: "1",
+      toMultiplicity: "*",
     });
   });
 

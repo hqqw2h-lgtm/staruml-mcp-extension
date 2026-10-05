@@ -272,10 +272,10 @@ export function parseJsonSchema(source: string, as?: Kind): Parsed {
           });
         } else if (sh.inline) {
           relations.push({
-            from: other,
-            to: name,
+            from: name,
+            to: other,
             type: "composition",
-            fromMultiplicity: sh.many ? "*" : optional ? "0..1" : "1",
+            toMultiplicity: sh.many ? "*" : optional ? "0..1" : "1",
           });
         } else {
           relations.push({

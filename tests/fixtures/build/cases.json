@@ -644,5 +644,45 @@
         }
       ]
     }
+  },
+  "composition": {
+    "kind": "class",
+    "name": "Purchasing",
+    "spec": {
+      "classes": [
+        {
+          "name": "PurchaseOrder"
+        },
+        {
+          "name": "PurchaseLine"
+        },
+        {
+          "name": "Catalog"
+        },
+        {
+          "name": "Product"
+        }
+      ],
+      "relations": [
+        {
+          "from": "PurchaseOrder",
+          "to": "PurchaseLine",
+          "type": "composition",
+          "name": "lines",
+          "fromMultiplicity": "1",
+          "toMultiplicity": "1..*"
+        },
+        {
+          "from": "Catalog",
+          "to": "Product",
+          "type": "aggregation",
+          "toMultiplicity": "*"
+        }
+      ]
+    }
+  },
+  "m-composition": {
+    "name": "Bundles",
+    "mermaid": "classDiagram\n  PurchaseLine \"1..*\" --* \"1\" PurchaseOrder : lines\n  Catalog o-- \"*\" Product\n  Product \"*\" --o Bundle\n  Wheel --* Car"
   }
 }

@@ -109,14 +109,15 @@ function classDiagram(
     const card = (m: string | undefined) => (m ? ` "${m}"` : "");
     const cardAfter = (m: string | undefined) => (m ? `"${m}" ` : "");
     const label = r.name ? ` : ${text(r.name)}` : "";
-    // The arrows build_diagram reads (CLASS_ARROWS); the whole of an
-    // aggregation or composition and the parent of a generalization come first.
+    // The arrows build_diagram reads (CLASS_ARROWS); the parent of a
+    // generalization comes first, as does the whole of an aggregation or
+    // composition, which is also its `from`.
     const line =
       {
         generalization: `${to} <|-- ${from}`,
         realization: `${to} <|.. ${from}`,
-        composition: `${to}${card(r.toMultiplicity)} *-- ${cardAfter(r.fromMultiplicity)}${from}`,
-        aggregation: `${to}${card(r.toMultiplicity)} o-- ${cardAfter(r.fromMultiplicity)}${from}`,
+        composition: `${from}${card(r.fromMultiplicity)} *-- ${cardAfter(r.toMultiplicity)}${to}`,
+        aggregation: `${from}${card(r.fromMultiplicity)} o-- ${cardAfter(r.toMultiplicity)}${to}`,
         directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
         dependency: `${from} ..> ${to}`,
       }[r.type] ??

@@ -107,8 +107,8 @@ function classDiagram(spec: ClassSpec, notes: readonly NoteSpec[]): string[] {
       {
         generalization: `${to} <|-- ${from}`,
         realization: `${to} <|.. ${from}`,
-        composition: `${to}${card(r.toMultiplicity)} *-- ${cardAfter(r.fromMultiplicity)}${from}`,
-        aggregation: `${to}${card(r.toMultiplicity)} o-- ${cardAfter(r.fromMultiplicity)}${from}`,
+        composition: `${from}${card(r.fromMultiplicity)} *-- ${cardAfter(r.toMultiplicity)}${to}`,
+        aggregation: `${from}${card(r.fromMultiplicity)} o-- ${cardAfter(r.toMultiplicity)}${to}`,
         directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
         dependency: `${from} ..> ${to}`,
       }[r.type] ??

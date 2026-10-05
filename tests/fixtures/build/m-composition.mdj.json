@@ -22,7 +22,7 @@
   {
    "_id": "#3",
    "_type": "UMLClassDiagram",
-   "name": "Order",
+   "name": "Bundles",
    "ownedElements": [],
    "ownedViews": [
     {
@@ -34,7 +34,7 @@
      "left": 20,
      "top": 20,
      "width": 180,
-     "height": 68
+     "height": 40
     },
     {
      "_id": "#6",
@@ -45,18 +45,18 @@
      "left": 20,
      "top": 120,
      "width": 180,
-     "height": 82
+     "height": 40
     },
     {
      "_id": "#8",
-     "_type": "UMLEnumerationView",
+     "_type": "UMLClassView",
      "model": {
       "$ref": "#9"
      },
      "left": 20,
      "top": 220,
      "width": 180,
-     "height": 82
+     "height": 40
     },
     {
      "_id": "#10",
@@ -67,7 +67,7 @@
      "left": 20,
      "top": 320,
      "width": 180,
-     "height": 68
+     "height": 40
     },
     {
      "_id": "#12",
@@ -78,7 +78,7 @@
      "left": 20,
      "top": 420,
      "width": 180,
-     "height": 54
+     "height": 40
     },
     {
      "_id": "#14",
@@ -89,20 +89,18 @@
      "left": 20,
      "top": 520,
      "width": 180,
-     "height": 82
+     "height": 40
     },
     {
      "_id": "#16",
-     "_type": "UMLAssociationView",
+     "_type": "UMLClassView",
      "model": {
       "$ref": "#17"
      },
-     "head": {
-      "$ref": "#8"
-     },
-     "tail": {
-      "$ref": "#6"
-     }
+     "left": 20,
+     "top": 620,
+     "width": 180,
+     "height": 40
     },
     {
      "_id": "#18",
@@ -111,7 +109,7 @@
       "$ref": "#19"
      },
      "head": {
-      "$ref": "#12"
+      "$ref": "#4"
      },
      "tail": {
       "$ref": "#6"
@@ -124,10 +122,10 @@
       "$ref": "#21"
      },
      "head": {
-      "$ref": "#14"
+      "$ref": "#10"
      },
      "tail": {
-      "$ref": "#6"
+      "$ref": "#8"
      }
     },
     {
@@ -137,23 +135,23 @@
       "$ref": "#23"
      },
      "head": {
-      "$ref": "#4"
-     },
-     "tail": {
-      "$ref": "#6"
-     }
-    },
-    {
-     "_id": "#24",
-     "_type": "UMLGeneralizationView",
-     "model": {
-      "$ref": "#25"
-     },
-     "head": {
       "$ref": "#10"
      },
      "tail": {
       "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "UMLAssociationView",
+     "model": {
+      "$ref": "#25"
+     },
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#16"
      }
     }
    ]
@@ -161,288 +159,87 @@
   {
    "_id": "#5",
    "_type": "UMLClass",
-   "name": "OrderShipping",
+   "name": "PurchaseLine",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
-   "attributes": [
-    {
-     "_id": "#26",
-     "_type": "UMLAttribute",
-     "name": "street",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "string",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    },
-    {
-     "_id": "#27",
-     "_type": "UMLAttribute",
-     "name": "city",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "string",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    }
-   ],
+   "attributes": [],
    "operations": [],
    "isAbstract": false
   },
   {
    "_id": "#7",
    "_type": "UMLClass",
-   "name": "Order",
-   "ownedElements": [],
-   "stereotype": null,
-   "visibility": "public",
-   "attributes": [
-    {
-     "_id": "#28",
-     "_type": "UMLAttribute",
-     "name": "id",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "uuid",
-     "multiplicity": "",
-     "defaultValue": "",
-     "aggregation": "none"
-    },
-    {
-     "_id": "#29",
-     "_type": "UMLAttribute",
-     "name": "placedAt",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "date-time",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    },
-    {
-     "_id": "#30",
-     "_type": "UMLAttribute",
-     "name": "note",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "string",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    }
-   ],
-   "operations": [],
-   "isAbstract": false
-  },
-  {
-   "_id": "#9",
-   "_type": "UMLEnumeration",
-   "name": "Status",
+   "name": "PurchaseOrder",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
    "attributes": [],
    "operations": [],
-   "isAbstract": false,
-   "literals": [
-    {
-     "_id": "#31",
-     "_type": "UMLEnumerationLiteral",
-     "name": "NEW",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public"
-    },
-    {
-     "_id": "#32",
-     "_type": "UMLEnumerationLiteral",
-     "name": "PAID",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public"
-    },
-    {
-     "_id": "#33",
-     "_type": "UMLEnumerationLiteral",
-     "name": "SHIPPED",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public"
-    }
-   ]
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLClass",
+   "name": "Catalog",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
   },
   {
    "_id": "#11",
    "_type": "UMLClass",
-   "name": "Party",
+   "name": "Product",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
-   "attributes": [
-    {
-     "_id": "#34",
-     "_type": "UMLAttribute",
-     "name": "id",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "integer",
-     "multiplicity": "",
-     "defaultValue": "",
-     "aggregation": "none"
-    },
-    {
-     "_id": "#35",
-     "_type": "UMLAttribute",
-     "name": "name",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "string",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    }
-   ],
+   "attributes": [],
    "operations": [],
    "isAbstract": false
   },
   {
    "_id": "#13",
    "_type": "UMLClass",
-   "name": "Customer",
+   "name": "Bundle",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
-   "attributes": [
-    {
-     "_id": "#36",
-     "_type": "UMLAttribute",
-     "name": "email",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "email",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    }
-   ],
+   "attributes": [],
    "operations": [],
    "isAbstract": false
   },
   {
    "_id": "#15",
    "_type": "UMLClass",
-   "name": "Line",
+   "name": "Wheel",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
-   "attributes": [
-    {
-     "_id": "#37",
-     "_type": "UMLAttribute",
-     "name": "qty",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "integer",
-     "multiplicity": "",
-     "defaultValue": "",
-     "aggregation": "none"
-    },
-    {
-     "_id": "#38",
-     "_type": "UMLAttribute",
-     "name": "price",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "number",
-     "multiplicity": "0..1",
-     "defaultValue": "",
-     "aggregation": "none"
-    },
-    {
-     "_id": "#39",
-     "_type": "UMLAttribute",
-     "name": "tags",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "string",
-     "multiplicity": "*",
-     "defaultValue": "",
-     "aggregation": "none"
-    }
-   ],
+   "attributes": [],
    "operations": [],
    "isAbstract": false
   },
   {
    "_id": "#17",
-   "_type": "UMLAssociation",
-   "name": "status",
+   "_type": "UMLClass",
+   "name": "Car",
    "ownedElements": [],
-   "end1": {
-    "_id": "#40",
-    "_type": "UMLAssociationEnd",
-    "name": "",
-    "ownedElements": [],
-    "reference": {
-     "$ref": "#7"
-    },
-    "stereotype": "",
-    "visibility": "public",
-    "navigable": "unspecified",
-    "aggregation": "none",
-    "multiplicity": "",
-    "defaultValue": ""
-   },
-   "end2": {
-    "_id": "#41",
-    "_type": "UMLAssociationEnd",
-    "name": "",
-    "ownedElements": [],
-    "reference": {
-     "$ref": "#9"
-    },
-    "stereotype": "",
-    "visibility": "public",
-    "navigable": "navigable",
-    "aggregation": "none",
-    "multiplicity": "0..1",
-    "defaultValue": ""
-   },
    "stereotype": null,
-   "visibility": "public"
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
   },
   {
    "_id": "#19",
    "_type": "UMLAssociation",
-   "name": "customer",
+   "name": "lines",
    "ownedElements": [],
    "end1": {
-    "_id": "#42",
+    "_id": "#26",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
@@ -452,23 +249,23 @@
     "stereotype": "",
     "visibility": "public",
     "navigable": "unspecified",
-    "aggregation": "none",
-    "multiplicity": "",
+    "aggregation": "composite",
+    "multiplicity": "1",
     "defaultValue": ""
    },
    "end2": {
-    "_id": "#43",
+    "_id": "#27",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#13"
+     "$ref": "#5"
     },
     "stereotype": "",
     "visibility": "public",
-    "navigable": "navigable",
+    "navigable": "unspecified",
     "aggregation": "none",
-    "multiplicity": "1",
+    "multiplicity": "1..*",
     "defaultValue": ""
    },
    "stereotype": null,
@@ -477,34 +274,34 @@
   {
    "_id": "#21",
    "_type": "UMLAssociation",
-   "name": "lines",
+   "name": "",
    "ownedElements": [],
    "end1": {
-    "_id": "#44",
+    "_id": "#28",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#7"
+     "$ref": "#9"
     },
     "stereotype": "",
     "visibility": "public",
     "navigable": "unspecified",
-    "aggregation": "none",
+    "aggregation": "shared",
     "multiplicity": "",
     "defaultValue": ""
    },
    "end2": {
-    "_id": "#45",
+    "_id": "#29",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#15"
+     "$ref": "#11"
     },
     "stereotype": "",
     "visibility": "public",
-    "navigable": "navigable",
+    "navigable": "unspecified",
     "aggregation": "none",
     "multiplicity": "*",
     "defaultValue": ""
@@ -518,12 +315,50 @@
    "name": "",
    "ownedElements": [],
    "end1": {
-    "_id": "#46",
+    "_id": "#30",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#7"
+     "$ref": "#13"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "shared",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#31",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#11"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "*",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#25",
+   "_type": "UMLAssociation",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#32",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#17"
     },
     "stereotype": "",
     "visibility": "public",
@@ -533,33 +368,19 @@
     "defaultValue": ""
    },
    "end2": {
-    "_id": "#47",
+    "_id": "#33",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#5"
+     "$ref": "#15"
     },
     "stereotype": "",
     "visibility": "public",
     "navigable": "unspecified",
     "aggregation": "none",
-    "multiplicity": "0..1",
+    "multiplicity": "",
     "defaultValue": ""
-   },
-   "stereotype": null,
-   "visibility": "public"
-  },
-  {
-   "_id": "#25",
-   "_type": "UMLGeneralization",
-   "name": "",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#13"
-   },
-   "target": {
-    "$ref": "#11"
    },
    "stereotype": null,
    "visibility": "public"

@@ -64,6 +64,8 @@ const EXPECTED: Record<string, [nodes: number, edges: number, kind: string]> = {
   "m-c4": [5, 4, "c4"],
   requirement: [3, 3, "requirement"],
   c4: [4, 3, "c4"],
+  composition: [4, 2, "class"],
+  "m-composition": [7, 4, "class"],
 };
 
 // Issue #9: /build_diagram against StarUML 7.1.1, every kind from a spec and

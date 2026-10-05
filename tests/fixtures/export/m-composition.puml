@@ -1,0 +1,14 @@
+@startuml
+title Bundles
+class "PurchaseLine" as C0
+class "PurchaseOrder" as C1
+class "Catalog" as C2
+class "Product" as C3
+class "Bundle" as C4
+class "Wheel" as C5
+class "Car" as C6
+C1 "1" *-- "1..*" C0 : lines
+C2 o-- "*" C3
+C4 o-- "*" C3
+C6 *-- C5
+@enduml

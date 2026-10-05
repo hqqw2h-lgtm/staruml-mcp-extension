@@ -22,7 +22,7 @@
   {
    "_id": "#3",
    "_type": "UMLClassDiagram",
-   "name": "",
+   "name": "Purchasing",
    "ownedElements": [],
    "ownedViews": [
     {
@@ -34,7 +34,7 @@
      "left": 20,
      "top": 20,
      "width": 180,
-     "height": 54
+     "height": 40
     },
     {
      "_id": "#6",
@@ -49,27 +49,31 @@
     },
     {
      "_id": "#8",
-     "_type": "UMLNoteView",
-     "model": null,
+     "_type": "UMLClassView",
+     "model": {
+      "$ref": "#9"
+     },
      "left": 20,
      "top": 220,
-     "width": 140,
-     "height": 40
-    },
-    {
-     "_id": "#9",
-     "_type": "UMLNoteView",
-     "model": null,
-     "left": 20,
-     "top": 320,
-     "width": 140,
+     "width": 180,
      "height": 40
     },
     {
      "_id": "#10",
-     "_type": "UMLAssociationView",
+     "_type": "UMLClassView",
      "model": {
       "$ref": "#11"
+     },
+     "left": 20,
+     "top": 320,
+     "width": 180,
+     "height": 40
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLAssociationView",
+     "model": {
+      "$ref": "#13"
      },
      "head": {
       "$ref": "#6"
@@ -79,11 +83,13 @@
      }
     },
     {
-     "_id": "#12",
-     "_type": "UMLNoteLinkView",
-     "model": null,
+     "_id": "#14",
+     "_type": "UMLAssociationView",
+     "model": {
+      "$ref": "#15"
+     },
      "head": {
-      "$ref": "#4"
+      "$ref": "#10"
      },
      "tail": {
       "$ref": "#8"
@@ -94,32 +100,29 @@
   {
    "_id": "#5",
    "_type": "UMLClass",
-   "name": "Order",
+   "name": "PurchaseOrder",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
-   "attributes": [
-    {
-     "_id": "#13",
-     "_type": "UMLAttribute",
-     "name": "id",
-     "ownedElements": [],
-     "stereotype": null,
-     "visibility": "public",
-     "isStatic": false,
-     "type": "long",
-     "multiplicity": "",
-     "defaultValue": "",
-     "aggregation": "none"
-    }
-   ],
+   "attributes": [],
    "operations": [],
    "isAbstract": false
   },
   {
    "_id": "#7",
    "_type": "UMLClass",
-   "name": "Line",
+   "name": "PurchaseLine",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLClass",
+   "name": "Catalog",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
@@ -129,11 +132,22 @@
   },
   {
    "_id": "#11",
+   "_type": "UMLClass",
+   "name": "Product",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#13",
    "_type": "UMLAssociation",
-   "name": "",
+   "name": "lines",
    "ownedElements": [],
    "end1": {
-    "_id": "#14",
+    "_id": "#16",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
@@ -144,11 +158,11 @@
     "visibility": "public",
     "navigable": "unspecified",
     "aggregation": "composite",
-    "multiplicity": "",
+    "multiplicity": "1",
     "defaultValue": ""
    },
    "end2": {
-    "_id": "#15",
+    "_id": "#17",
     "_type": "UMLAssociationEnd",
     "name": "",
     "ownedElements": [],
@@ -159,7 +173,45 @@
     "visibility": "public",
     "navigable": "unspecified",
     "aggregation": "none",
+    "multiplicity": "1..*",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLAssociation",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#18",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#9"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "shared",
     "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#19",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#11"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "*",
     "defaultValue": ""
    },
    "stereotype": null,

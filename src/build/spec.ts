@@ -767,11 +767,21 @@ const CLASS_TYPES = {
 const RELATION_TYPES: Record<(typeof relationTypes)[number], string> = {
   association: "UMLAssociation",
   directed: "UMLDirectedAssociation",
-  aggregation: "UMLAggregation",
-  composition: "UMLComposition",
+  // The whole is `from`, drawn at the tail with end1 aggregated, as
+  // StarUML's own "add aggregated part" commands make it (end1 of an
+  // association whose tail is the whole, uml-commands.js in 7.1.1). The
+  // toolbox's UMLAggregation/UMLComposition items preset end2 instead, which
+  // would put the diamond on the part (issue #29).
+  aggregation: "UMLAssociation",
+  composition: "UMLAssociation",
   generalization: "UMLGeneralization",
   realization: "UMLInterfaceRealization",
   dependency: "UMLDependency",
+};
+
+const AGGREGATIONS: Partial<Record<string, string>> = {
+  aggregation: "shared",
+  composition: "composite",
 };
 
 function classPlan(spec: Spec<"class">): Plan {
@@ -831,16 +841,21 @@ function classPlan(spec: Spec<"class">): Plan {
       type !== "generalization" &&
       type !== "realization" &&
       type !== "dependency";
+    const aggregation = AGGREGATIONS[type];
+    const tailEnd = {
+      ...(aggregation && { aggregation }),
+      ...(ends &&
+        r.fromMultiplicity !== undefined && {
+          multiplicity: r.fromMultiplicity,
+        }),
+    };
     b.edge(
       {
         type: RELATION_TYPES[type],
         from: r.from,
         to: r.to,
         ...(r.name !== undefined && { name: r.name }),
-        ...(ends &&
-          r.fromMultiplicity !== undefined && {
-            tailEnd: { multiplicity: r.fromMultiplicity },
-          }),
+        ...(Object.keys(tailEnd).length > 0 && { tailEnd }),
         ...(ends &&
           r.toMultiplicity !== undefined && {
             headEnd: { multiplicity: r.toMultiplicity },

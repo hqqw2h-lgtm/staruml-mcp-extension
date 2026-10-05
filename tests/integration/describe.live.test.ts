@@ -47,6 +47,59 @@ describeLive("search, describe and validate", () => {
     await call("/new_project");
   });
 
+  // Issue #29: the whole of a composition is `from`, drawn at the tail with
+  // end1 aggregated, and every read shows it on that end.
+  it("puts the composition diamond on the whole and describes the ends", async () => {
+    const res = await call<Built & { edges: { model: string }[] }>(
+      "/build_diagram",
+      {
+        name: "Purchasing",
+        kind: "class",
+        spec: {
+          classes: [{ name: "PurchaseOrder" }, { name: "PurchaseLine" }],
+          relations: [
+            {
+              from: "PurchaseOrder",
+              to: "PurchaseLine",
+              type: "composition",
+              fromMultiplicity: "1",
+              toMultiplicity: "1..*",
+            },
+          ],
+        },
+      },
+    );
+    expect(res.success, JSON.stringify(res)).toBe(true);
+    const assoc = await call<{ end1: { $ref: string } }>("/get_element_by_id", {
+      id: res.data.edges[0]!.model,
+      fields: ["end1"],
+    });
+    const end1 = await call<{
+      aggregation: string;
+      reference: { $ref: string };
+    }>("/get_element_by_id", {
+      id: assoc.data.end1.$ref,
+      fields: ["aggregation", "reference"],
+    });
+    expect(end1.data).toMatchObject({
+      aggregation: "composite",
+      reference: { $ref: res.data.ids.PurchaseOrder!.model },
+    });
+    const described = await call<{ text: string }>("/describe_diagram", {
+      diagramId: res.data.diagram._id,
+    });
+    expect(described.data.text).toContain(
+      '- "PurchaseOrder" (composite 1) -[UMLAssociation]-> (1..*) "PurchaseLine"',
+    );
+    const text = await call<{ text: string }>("/export_text", {
+      diagramId: res.data.diagram._id,
+      format: "mermaid",
+    });
+    expect(text.data.text).toContain(
+      'PurchaseOrder "1" *-- "1..*" PurchaseLine',
+    );
+  });
+
   it("finds types whose example requests work as given", async () => {
     const res = await call<{ total: number; results: Hit[] }>("/search_types", {
       query: "composition",

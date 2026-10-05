@@ -124,22 +124,22 @@ describe("parseJsonSchema", () => {
         toMultiplicity: "*",
       },
       {
-        from: "OrderShip",
-        to: "Order",
+        from: "Order",
+        to: "OrderShip",
         type: "composition",
-        fromMultiplicity: "0..1",
+        toMultiplicity: "0..1",
       },
       {
-        from: "Box",
-        to: "Order",
+        from: "Order",
+        to: "Box",
         type: "composition",
-        fromMultiplicity: "0..1",
+        toMultiplicity: "0..1",
       },
       {
-        from: "OrderParts",
-        to: "Order",
+        from: "Order",
+        to: "OrderParts",
         type: "composition",
-        fromMultiplicity: "*",
+        toMultiplicity: "*",
       },
       {
         from: "Order",
@@ -326,7 +326,7 @@ describe("parseJsonSchema details", () => {
       },
     ]);
     expect(cls.relations).toEqual([
-      { from: "Line", to: "T", type: "composition", fromMultiplicity: "1" },
+      { from: "T", to: "Line", type: "composition", toMultiplicity: "1" },
     ]);
     const erd = parseJsonSchema(JSON.stringify(s), "erd").spec as {
       entities: { name: string; columns?: unknown[] }[];

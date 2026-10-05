@@ -179,10 +179,10 @@
       "$ref": "#29"
      },
      "head": {
-      "$ref": "#16"
+      "$ref": "#12"
      },
      "tail": {
-      "$ref": "#12"
+      "$ref": "#16"
      }
     },
     {
@@ -537,12 +537,12 @@
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#13"
+     "$ref": "#17"
     },
     "stereotype": "",
     "visibility": "public",
     "navigable": "unspecified",
-    "aggregation": "none",
+    "aggregation": "composite",
     "multiplicity": "",
     "defaultValue": ""
    },
@@ -552,12 +552,12 @@
     "name": "",
     "ownedElements": [],
     "reference": {
-     "$ref": "#17"
+     "$ref": "#13"
     },
     "stereotype": "",
     "visibility": "public",
     "navigable": "unspecified",
-    "aggregation": "composite",
+    "aggregation": "none",
     "multiplicity": "",
     "defaultValue": ""
    },

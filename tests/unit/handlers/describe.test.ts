@@ -21,6 +21,7 @@ const build = endpoints.find((e) => e.path === "/build_diagram")!;
 interface Built {
   diagram: { _id: string };
   ids: Record<string, { model: string; view: string }>;
+  edges: { model: string | null; view: string }[];
 }
 
 interface Described {
@@ -76,6 +77,46 @@ describe("/describe_diagram", () => {
       '- "Customer" -[UMLAssociation "places"]-> "Order"',
       '- "Order" -[UMLGeneralization]-> "Base"',
     ]);
+  });
+
+  it("shows aggregation, multiplicity, cardinality and role on relationship ends", async () => {
+    const built = await ok<Built>(build, {
+      kind: "class",
+      spec: {
+        classes: [{ name: "Order" }, { name: "Line" }, { name: "Shelf" }],
+        relations: [
+          {
+            from: "Order",
+            to: "Line",
+            type: "composition",
+            name: "lines",
+            fromMultiplicity: "1",
+            toMultiplicity: "1..*",
+          },
+          { from: "Shelf", to: "Line", type: "aggregation" },
+        ],
+      },
+    });
+    const line = env.app.repository.get(built.edges[0]!.model!)!;
+    (line.end2 as { name: string }).name = "items";
+    const text = (
+      await ok<Described>(describeDiagram, { diagramId: built.diagram._id })
+    ).text;
+    expect(text).toContain(
+      '- "Order" (composite 1) -[UMLAssociation "lines"]-> (1..* items) "Line"',
+    );
+    expect(text).toContain('- "Shelf" (shared) -[UMLAssociation]-> "Line"');
+    const erd = await ok<Built>(build, {
+      kind: "erd",
+      spec: {
+        entities: [{ name: "A" }, { name: "B" }],
+        relationships: [{ from: "A", to: "B" }],
+      },
+    });
+    expect(
+      (await ok<Described>(describeDiagram, { diagramId: erd.diagram._id }))
+        .text,
+    ).toContain('- "A" (1) -[ERDRelationship]-> (0..*) "B"');
   });
 
   it("lists ERD columns and unnamed nodes, and joins multi-line names", async () => {

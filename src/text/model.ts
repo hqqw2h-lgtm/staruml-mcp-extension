@@ -370,12 +370,13 @@ function classNotes(v: Views): NoteSpec[] {
 /** The relation build_diagram would make this association from. */
 function association(m: Element, named: { name?: string }) {
   let [a, b] = [m.end1 as Element, m.end2 as Element];
-  // build_diagram's whole is `to`, which StarUML marks on that end.
-  if (a.aggregation !== "none" && b.aggregation === "none") [a, b] = [b, a];
+  // build_diagram's whole is `from`; StarUML marks it on its own end,
+  // whichever of end1 and end2 that is.
+  if (b.aggregation !== "none" && a.aggregation === "none") [a, b] = [b, a];
   const type =
-    b.aggregation === "composite"
+    a.aggregation === "composite"
       ? "composition"
-      : b.aggregation === "shared"
+      : a.aggregation === "shared"
         ? "aggregation"
         : b.navigable === "navigable" && a.navigable !== "navigable"
           ? "directed"

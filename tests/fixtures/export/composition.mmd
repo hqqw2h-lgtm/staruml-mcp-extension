@@ -1,0 +1,10 @@
+---
+title: "Purchasing"
+---
+classDiagram
+  class PurchaseOrder
+  class PurchaseLine
+  class Catalog
+  class Product
+  PurchaseOrder "1" *-- "1..*" PurchaseLine : lines
+  Catalog o-- "*" Product

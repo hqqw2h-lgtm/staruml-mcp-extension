@@ -144,12 +144,11 @@ describe("/export_text details", () => {
     // The mock leaves out the palette's model-init, which sets these ends.
     const end = (i: number, n: 1 | 2) =>
       model(built.edges[i]!.view)[`end${n}`] as MockElement;
-    end(0, 2).aggregation = "shared";
     end(1, 2).navigable = "navigable";
     end(1, 1).navigable = "unspecified";
-    // An association whose whole is its first end reads with the ends swapped.
-    const swapped = model(built.edges[4]!.view);
-    (swapped.end1 as MockElement).aggregation = "composite";
+    // An association whose whole is its second end, as StarUML's palette
+    // Composition draws it, reads with the ends swapped.
+    end(4, 2).aggregation = "composite";
     add(d, "UMLDataType", "DT", { x: 600, y: 10 });
     add(d, "UMLRealization", "abs", {
       x: 0,
@@ -162,9 +161,9 @@ describe("/export_text details", () => {
       "namespace P {\n    class A {\n      <<abstract>>",
     );
     expect(out.text).toContain(
-      "  B o-- A\n  A --> C : uses\n  B ..> C\n  B -- C\n",
+      "  A o-- B\n  A --> C : uses\n  B ..> C\n  B -- C\n",
     );
-    expect(out.text).toContain('  C "1" *-- B\n');
+    expect(out.text).toContain('  B *-- "1" C\n');
     expect(out.warnings).toEqual([
       "1 UMLDataType view is not written",
       "1 UMLRealization view is not written",

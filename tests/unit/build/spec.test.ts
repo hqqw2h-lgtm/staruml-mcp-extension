@@ -93,8 +93,8 @@ describe("class", () => {
     ).toEqual([
       ["UMLAssociation", undefined, undefined, undefined],
       [
-        "UMLComposition",
-        { multiplicity: "1" },
+        "UMLAssociation",
+        { aggregation: "composite", multiplicity: "1" },
         { multiplicity: "*" },
         undefined,
       ],
