@@ -33,7 +33,8 @@
  * find_elements, /introspect sections, /search_types queries, /export_text
  * of a built class diagram as Mermaid and PlantUML, a read-only /batch
  * of five lookups, and reads that address elements by path ("Load/C7",
- * "Order.total", "Order#place()", the diagram by name) rather than by id. Exits non-zero on any transport error or non-2xx answer, when
+ * "Order.total", "Order#place()", the diagram by name) rather than by id,
+ * and /lint_diagram and /uml_lint over them. Exits non-zero on any transport error or non-2xx answer, when
  * client p99 exceeds P99_BUDGET_MS, or when any single handler held the
  * renderer thread longer than HANDLER_BUDGET_MS (taken from the
  * Server-Timing header the server sets).
@@ -287,6 +288,8 @@ async function main() {
     ],
     () => ["/get_views_of", { ref: "Order" }],
     () => ["/describe_diagram", { diagram: "Export" }],
+    () => ["/lint_diagram", { diagram: "Export" }],
+    () => ["/uml_lint", { scope: "Load", limit: 50 }],
     () => ["/get_project_info", {}],
     (i) => [
       "/get_element_by_id",

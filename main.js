@@ -1846,8 +1846,8 @@ var $ZodOptional = /* @__PURE__ */ $constructor("$ZodOptional", (inst, def) => {
     return values ? /* @__PURE__ */ new Set([...values, void 0]) : void 0;
   });
   defineLazyInternal(inst, "pattern", (zod) => {
-    const pattern = zod.def.innerType._zod.pattern;
-    return pattern ? new RegExp(`^(${cleanRegex(pattern.source)})?$`) : void 0;
+    const pattern2 = zod.def.innerType._zod.pattern;
+    return pattern2 ? new RegExp(`^(${cleanRegex(pattern2.source)})?$`) : void 0;
   });
   inst._zod.parse = (payload, ctx) => {
     if (payload.value === void 0) {
@@ -1866,8 +1866,8 @@ var $ZodNullable = /* @__PURE__ */ $constructor("$ZodNullable", (inst, def) => {
   defineLazyInternal(inst, "optin", (zod) => zod.def.innerType._zod.optin);
   defineLazyInternal(inst, "optout", (zod) => zod.def.innerType._zod.optout);
   defineLazyInternal(inst, "pattern", (zod) => {
-    const pattern = zod.def.innerType._zod.pattern;
-    return pattern ? new RegExp(`^(${cleanRegex(pattern.source)}|null)$`) : void 0;
+    const pattern2 = zod.def.innerType._zod.pattern;
+    return pattern2 ? new RegExp(`^(${cleanRegex(pattern2.source)}|null)$`) : void 0;
   });
   defineLazyInternal(inst, "values", (zod) => {
     return zod.def.innerType._zod.values ? /* @__PURE__ */ new Set([...zod.def.innerType._zod.values, null]) : void 0;
@@ -2162,12 +2162,12 @@ function _minLength(minimum, params) {
   });
 }
 // @__NO_SIDE_EFFECTS__
-function _regex(pattern, params) {
+function _regex(pattern2, params) {
   return new $ZodCheckRegex({
     check: "string_format",
     format: "regex",
     ...normalizeParams(params),
-    pattern
+    pattern: pattern2
   });
 }
 // @__NO_SIDE_EFFECTS__
@@ -2723,9 +2723,9 @@ var addDivisor = (agg, value) => {
   if (!agg.multipleOf.includes(value))
     agg.multipleOf.push(value);
 };
-var addPattern = (agg, pattern) => {
+var addPattern = (agg, pattern2) => {
   agg.patterns ?? (agg.patterns = /* @__PURE__ */ new Set());
-  agg.patterns.add(pattern);
+  agg.patterns.add(pattern2);
 };
 var intersectMime = (agg, mime) => {
   agg.mime = agg.mime ? agg.mime.filter((m) => mime.includes(m)) : [...mime];
@@ -2769,8 +2769,8 @@ var contributors = {
 function aggregateChecks(schema) {
   const agg = {};
   const def = schema._zod.def;
-  const list2 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
-  for (const ch of list2)
+  const list3 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  for (const ch of list3)
     contributors[ch._zod.def.check]?.(agg, ch._zod.def);
   const bag = schema._zod.bag;
   if (bag.minimum !== void 0)
@@ -2790,8 +2790,8 @@ function aggregateChecks(schema) {
   }
   if (bag.mime)
     intersectMime(agg, bag.mime);
-  for (const pattern of bag.patterns ?? [])
-    addPattern(agg, pattern);
+  for (const pattern2 of bag.patterns ?? [])
+    addPattern(agg, pattern2);
   return agg;
 }
 var formatMap = {
@@ -2973,11 +2973,11 @@ var nanProcessor = (schema, ctx, json, params) => {
 };
 var templateLiteralProcessor = (schema, _ctx, json, _params) => {
   const _json = json;
-  const pattern = schema._zod.pattern;
-  if (!pattern)
+  const pattern2 = schema._zod.pattern;
+  if (!pattern2)
     throw new Error("Pattern not found in template literal");
   _json.type = "string";
-  _json.pattern = pattern.source;
+  _json.pattern = pattern2.source;
 };
 var fileProcessor = (schema, _ctx, json, _params) => {
   const _json = json;
@@ -3248,8 +3248,8 @@ var recordProcessor = (schema, ctx, _json, params) => {
       path: [...params.path, "patternProperties", "*"]
     });
     json.patternProperties = {};
-    for (const pattern of patterns) {
-      assignProp(json.patternProperties, exactPattern(pattern).source, valueSchema);
+    for (const pattern2 of patterns) {
+      assignProp(json.patternProperties, exactPattern(pattern2).source, valueSchema);
     }
   } else {
     if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
@@ -4193,7 +4193,7 @@ function parseJsonSchema(source, as) {
       "UNSUPPORTED_SYNTAX"
     );
   }
-  const kind = as === "erd" ? "erd" : "class";
+  const kind2 = as === "erd" ? "erd" : "class";
   const defs = root.$defs ?? root.definitions ?? {};
   const defsKey = root.$defs ? "$defs" : "definitions";
   const named2 = /* @__PURE__ */ new Map();
@@ -4262,12 +4262,12 @@ function parseJsonSchema(source, as) {
     if (t === "object" || t === void 0 && isObject2(s.properties)) {
       return { inline: s, many: false, nullable: nullable2 };
     }
-    const scalar = typeof s.format === "string" && kind === "erd" && SQL_TYPES[s.format] ? s.format : typeof s.format === "string" && kind === "class" ? s.format : t ?? (Array.isArray(s.enum) ? "string" : "any");
+    const scalar = typeof s.format === "string" && kind2 === "erd" && SQL_TYPES[s.format] ? s.format : typeof s.format === "string" && kind2 === "class" ? s.format : t ?? (Array.isArray(s.enum) ? "string" : "any");
     return { scalar, many: false, nullable: nullable2 };
   };
   const classes = [];
   const relations = [];
-  const entities = [];
+  const entities2 = [];
   const relationships = [];
   const done = /* @__PURE__ */ new Set();
   const visit = (name2, s, pointer) => {
@@ -4299,7 +4299,7 @@ function parseJsonSchema(source, as) {
       };
       for (const base of bases) {
         const parent = target(base.$ref, `${pointer}/allOf`);
-        if (kind === "class")
+        if (kind2 === "class")
           relations.push({ from: name2, to: parent, type: "generalization" });
         else
           relationships.push({
@@ -4312,14 +4312,14 @@ function parseJsonSchema(source, as) {
       }
     }
     if (Array.isArray(own2.enum) && !isObject2(own2.properties)) {
-      if (kind === "class") {
+      if (kind2 === "class") {
         classes.push({
           name: name2,
           kind: "enum",
           literals: own2.enum.map(String)
         });
       } else {
-        entities.push({
+        entities2.push({
           name: name2,
           columns: [{ name: "value", type: "varchar", primaryKey: true }]
         });
@@ -4328,7 +4328,7 @@ function parseJsonSchema(source, as) {
     }
     const required2 = new Set(own2.required ?? []);
     const props = isObject2(own2.properties) ? own2.properties : {};
-    const attributes = [];
+    const attributes2 = [];
     const columns = [];
     for (const [prop, raw] of Object.entries(props)) {
       const at = `${pointer}/properties/${prop}`;
@@ -4341,9 +4341,9 @@ function parseJsonSchema(source, as) {
         named2.set(other, sh.inline);
         visit(other, sh.inline, at);
       }
-      if (kind === "class") {
+      if (kind2 === "class") {
         if (other === void 0) {
-          attributes.push({
+          attributes2.push({
             name: prop,
             type: sh.scalar,
             ...sh.many ? { multiplicity: "*" } : optional2 ? { multiplicity: "0..1" } : {}
@@ -4395,25 +4395,25 @@ function parseJsonSchema(source, as) {
         });
       }
     }
-    if (kind === "class") {
-      classes.push({ name: name2, ...attributes.length > 0 && { attributes } });
+    if (kind2 === "class") {
+      classes.push({ name: name2, ...attributes2.length > 0 && { attributes: attributes2 } });
     } else {
-      entities.push({ name: name2, columns });
+      entities2.push({ name: name2, columns });
     }
   };
   const keys = [];
   for (const [name2, schema] of [...named2])
     visit(name2, schema, pointers.get(schema));
   for (const [column, other] of keys) {
-    const type2 = entities.find((e) => e.name === other).columns.find((c) => c.primaryKey)?.type;
+    const type2 = entities2.find((e) => e.name === other).columns.find((c) => c.primaryKey)?.type;
     if (type2 !== void 0) column.type = type2;
   }
   const title = typeof root.title === "string" ? root.title : void 0;
   return {
-    kind,
+    kind: kind2,
     ...title && { title },
-    spec: kind === "class" ? { classes, relations } : {
-      entities: entities.map((e) => ({
+    spec: kind2 === "class" ? { classes, relations } : {
+      entities: entities2.map((e) => ({
         name: e.name,
         ...e.columns.length > 0 && { columns: e.columns }
       })),
@@ -4426,10 +4426,10 @@ function parseJsonSchema(source, as) {
 function macroArgs(text4) {
   const parts = [];
   let current = "";
-  let quoted2 = false;
+  let quoted3 = false;
   for (const ch of text4) {
-    if (ch === '"') quoted2 = !quoted2;
-    else if (ch === "," && !quoted2) {
+    if (ch === '"') quoted3 = !quoted3;
+    else if (ch === "," && !quoted3) {
       parts.push(current);
       current = "";
     } else current += ch;
@@ -4733,7 +4733,7 @@ function classDiagram(lines) {
     } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text4)) {
       annotate(entry(m[2]), m[1]);
     } else if (m = RELATION2.exec(text4)) {
-      const [, a, aCard, arrow, bCard, b, label3] = m;
+      const [, a, aCard, arrow, bCard, b, label4] = m;
       const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
       entry(a);
       entry(b);
@@ -4742,7 +4742,7 @@ function classDiagram(lines) {
         from,
         to,
         type: type2,
-        ...label3 && { name: label3.trim() },
+        ...label4 && { name: label4.trim() },
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
@@ -4792,7 +4792,7 @@ var MESSAGE = /^([^\s:+-][^:]*?)\s*(-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-]?)\s
 function sequenceDiagram(lines) {
   const participants = [];
   const aliases2 = /* @__PURE__ */ new Map();
-  const messages = [];
+  const messages2 = [];
   const fragments = [];
   const notes = [];
   const open = [];
@@ -4811,7 +4811,7 @@ function sequenceDiagram(lines) {
       open.push({
         operator: m[1],
         ...m[2] && { guard: m[2] },
-        from: messages.length,
+        from: messages2.length,
         no,
         operands: [],
         starts: []
@@ -4828,10 +4828,10 @@ function sequenceDiagram(lines) {
     } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text4)) {
       const f = open.at(-1) ?? fail2(no, `${m[1]} outside a block`);
       f.operands.push(m[2] || m[1]);
-      f.starts.push(messages.length);
+      f.starts.push(messages2.length);
     } else if (text4 === "end") {
       const f = open.pop() ?? fail2(no, "end without a block");
-      const to = messages.length - 1;
+      const to = messages2.length - 1;
       if (f.operator && to >= f.from) {
         const divided = f.starts.every(
           (s, i) => s > (i === 0 ? f.from : f.starts[i - 1]) && s <= to
@@ -4851,14 +4851,14 @@ function sequenceDiagram(lines) {
         text: m[3],
         on: m[2].split(",").map(who),
         side,
-        at: messages.length
+        at: messages2.length
       });
     } else if (m = MESSAGE.exec(text4)) {
-      const kind = MESSAGE_ARROWS.find(([a]) => a === m[2])[1];
-      messages.push({
+      const kind2 = MESSAGE_ARROWS.find(([a]) => a === m[2])[1];
+      messages2.push({
         from: who(m[1]),
         to: who(m[4]),
-        kind,
+        kind: kind2,
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
     } else if (!/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text4)) {
@@ -4872,7 +4872,7 @@ function sequenceDiagram(lines) {
     );
   return {
     participants,
-    messages,
+    messages: messages2,
     fragments,
     ...notes.length > 0 && { notes }
   };
@@ -4906,13 +4906,13 @@ function flowchart(lines) {
     if (!id2) return fail2(no, `expected a node at "${rest}"`);
     let after = rest.slice(id2.length);
     let shape;
-    let label3;
+    let label4;
     for (const [open, close, s] of SHAPES) {
       if (after.startsWith(open)) {
         const end = after.indexOf(close, open.length);
         if (end < 0) continue;
         shape = s;
-        label3 = unquote(after.slice(open.length, end));
+        label4 = unquote(after.slice(open.length, end));
         after = after.slice(end + close.length);
         break;
       }
@@ -4926,12 +4926,12 @@ function flowchart(lines) {
     if (!existing2) {
       nodes.set(id2, {
         id: id2,
-        name: multiline(label3 ?? id2),
+        name: multiline(label4 ?? id2),
         shape: shape ?? "process",
         ...lanes.length > 0 && { lane: lanes.at(-1) }
       });
     } else if (shape !== void 0) {
-      existing2.name = multiline(label3);
+      existing2.name = multiline(label4);
       existing2.shape = shape;
     }
     return [id2, after.trimStart()];
@@ -4952,9 +4952,9 @@ function flowchart(lines) {
     while (rest) {
       const link = LINK.exec(rest);
       if (!link) fail2(no, `expected a link at "${rest}"`);
-      const label3 = link[2] ?? link[3] ?? link[4] ?? link[5];
+      const label4 = link[2] ?? link[3] ?? link[4] ?? link[5];
       const [to, after] = node(rest.slice(link[0].length), no);
-      flows.push({ from, to, ...label3 && { label: label3.trim() } });
+      flows.push({ from, to, ...label4 && { label: label4.trim() } });
       from = to;
       rest = after;
     }
@@ -5044,8 +5044,8 @@ function usecaseSpec(lines) {
       actors: nodes.filter((n) => !round.has(n.shape)).map((n) => n.name),
       useCases: nodes.filter((n) => round.has(n.shape)).map((n) => n.name),
       relations: flows.map((f) => {
-        const label3 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
-        const type2 = label3 === "include" || label3 === "extend" || label3 === "generalization" ? label3 : "association";
+        const label4 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
+        const type2 = label4 === "include" || label4 === "extend" || label4 === "generalization" ? label4 : "association";
         return {
           from: names3.get(f.from),
           to: names3.get(f.to),
@@ -5070,12 +5070,12 @@ var RIGHT_CARD = {
   "|{": "1..*"
 };
 function erDiagram(lines) {
-  const entities = /* @__PURE__ */ new Map();
+  const entities2 = /* @__PURE__ */ new Map();
   const relationships = [];
   const entity2 = (name2) => {
     const key = unquote(name2);
-    if (!entities.has(key)) entities.set(key, []);
-    return entities.get(key);
+    if (!entities2.has(key)) entities2.set(key, []);
+    return entities2.get(key);
   };
   let open = null;
   for (const { no, text: text4 } of lines) {
@@ -5116,7 +5116,7 @@ function erDiagram(lines) {
     }
   }
   return {
-    entities: [...entities].map(([name2, columns]) => ({
+    entities: [...entities2].map(([name2, columns]) => ({
       name: name2,
       ...columns.length > 0 && { columns }
     })),
@@ -5171,9 +5171,9 @@ function stateDiagram(lines) {
     )) {
       const from = state2(m[1], "from");
       const to = state2(m[2], "to");
-      const label3 = m[3]?.trim();
-      const guard = label3 ? /\[([^\]]*)\]/.exec(label3) : null;
-      const trigger = label3?.replace(/\[[^\]]*\]/, "").trim();
+      const label4 = m[3]?.trim();
+      const guard = label4 ? /\[([^\]]*)\]/.exec(label4) : null;
+      const trigger = label4?.replace(/\[[^\]]*\]/, "").trim();
       transitions.push({
         from,
         to,
@@ -5354,42 +5354,42 @@ function parseMermaid(source, as) {
       `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap, requirementDiagram or C4Context/C4Container/C4Component`
     );
   }
-  let kind = found[1];
-  if (kind === "flowchart" && (as === "activity" || as === "usecase"))
-    kind = as;
-  else if (as !== void 0 && as !== kind) {
+  let kind2 = found[1];
+  if (kind2 === "flowchart" && (as === "activity" || as === "usecase"))
+    kind2 = as;
+  else if (as !== void 0 && as !== kind2) {
     fail2(header.no, `${header.text.split(/\s/)[0]} cannot be built as ${as}`);
   }
   const titled = title !== void 0 ? { title: multiline(title) } : {};
   const body = () => lines.slice(1);
-  switch (kind) {
+  switch (kind2) {
     case "class":
-      return { kind, ...titled, spec: classDiagram(body()) };
+      return { kind: kind2, ...titled, spec: classDiagram(body()) };
     case "sequence":
-      return { kind, ...titled, spec: sequenceDiagram(body()) };
+      return { kind: kind2, ...titled, spec: sequenceDiagram(body()) };
     case "erd":
-      return { kind, ...titled, spec: erDiagram(body()) };
+      return { kind: kind2, ...titled, spec: erDiagram(body()) };
     case "statemachine":
-      return { kind, ...titled, spec: stateDiagram(body()) };
+      return { kind: kind2, ...titled, spec: stateDiagram(body()) };
     case "mindmap":
-      return { kind, ...titled, spec: mindmap(body()) };
+      return { kind: kind2, ...titled, spec: mindmap(body()) };
     case "requirement":
-      return { kind, ...titled, spec: requirementDiagram(body()) };
+      return { kind: kind2, ...titled, spec: requirementDiagram(body()) };
     case "c4": {
       const { spec, warnings } = readC4(body(), fail2, () => false);
       return {
-        kind,
+        kind: kind2,
         ...titled,
         spec,
         ...warnings.length > 0 && { warnings }
       };
     }
     case "activity":
-      return { kind, ...titled, ...activitySpec(lines) };
+      return { kind: kind2, ...titled, ...activitySpec(lines) };
     case "usecase":
-      return { kind, ...titled, ...usecaseSpec(lines) };
+      return { kind: kind2, ...titled, ...usecaseSpec(lines) };
     default:
-      return { kind, ...titled, ...flowchartSpec(lines) };
+      return { kind: kind2, ...titled, ...flowchartSpec(lines) };
   }
 }
 
@@ -5497,8 +5497,8 @@ function readNote(lines, i) {
   const m = /^[hr]?note\b\s*(.*?)\s*(?::\s*(.*))?$/i.exec(text4);
   if (!m) return null;
   if (m[2] !== void 0) return { head: m[1], text: m[2], next: i + 1 };
-  const quoted2 = /^"(.*)"(.*)$/.exec(m[1]);
-  if (quoted2) return { head: quoted2[2].trim(), text: quoted2[1], next: i + 1 };
+  const quoted3 = /^"(.*)"(.*)$/.exec(m[1]);
+  if (quoted3) return { head: quoted3[2].trim(), text: quoted3[1], next: i + 1 };
   const body = [];
   let j = i + 1;
   for (; j < lines.length && !/^end\s*[hr]?note$/i.test(lines[j].text); j++) {
@@ -5578,8 +5578,8 @@ function classDiagram2(lines) {
       const { key, name: name2 } = named(decl);
       const e = entry(key, name2);
       e.name = name2;
-      const kind = CLASS_KINDS[m[1].replace(/\s+/g, " ")];
-      if (kind) e.kind = kind;
+      const kind2 = CLASS_KINDS[m[1].replace(/\s+/g, " ")];
+      if (kind2) e.kind = kind2;
       if (stereotype !== void 0) e.stereotype = stereotype;
       if (fill) styles[key] = { fillColor: fill };
       for (const [type2, found] of Object.entries(parents)) {
@@ -5689,7 +5689,7 @@ var OPERATORS = /* @__PURE__ */ new Set([
 function sequenceDiagram2(lines) {
   const participants = [];
   const keys = /* @__PURE__ */ new Map();
-  const messages = [];
+  const messages2 = [];
   const fragments = [];
   const notes = [];
   const open = [];
@@ -5711,8 +5711,8 @@ function sequenceDiagram2(lines) {
         fail3(no, `cannot read "${text4}"`);
       }
       const side = at[1].toLowerCase();
-      const on = at[2] ? at[2].split(",").map((p) => who(p.trim())) : messages.length > 0 ? [String(messages.at(-1).from)] : [];
-      notes.push({ text: note.text, on, side, at: messages.length });
+      const on = at[2] ? at[2].split(",").map((p) => who(p.trim())) : messages2.length > 0 ? [String(messages2.at(-1).from)] : [];
+      notes.push({ text: note.text, on, side, at: messages2.length });
     } else if (m = /^create\s+(?:(participant|actor|boundary|control|entity|database|collections|queue)\s+)?(.+)$/.exec(
       text4
     )) {
@@ -5729,7 +5729,7 @@ function sequenceDiagram2(lines) {
       participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^destroy\s+(.+)$/.exec(text4)) {
       const target = who(m[1]);
-      const last = [...messages].reverse().find((x) => x.to === target);
+      const last = [...messages2].reverse().find((x) => x.to === target);
       if (last) last.kind = "delete";
     } else if (m = /^(alt|opt|loop|par2?|break|critical|group)\b\s*(.*)$/.exec(text4)) {
       let operator = m[1].replace("par2", "par");
@@ -5746,7 +5746,7 @@ function sequenceDiagram2(lines) {
       open.push({
         operator,
         ...guard && { guard },
-        from: messages.length,
+        from: messages2.length,
         no,
         operands: [],
         starts: []
@@ -5754,10 +5754,10 @@ function sequenceDiagram2(lines) {
     } else if (m = /^else\b\s*(.*)$/.exec(text4)) {
       const f = open.at(-1) ?? fail3(no, "else outside a group");
       f.operands.push(m[1].trim());
-      f.starts.push(messages.length);
+      f.starts.push(messages2.length);
     } else if (text4 === "end") {
       const f = open.pop() ?? fail3(no, "end without a group");
-      const to = messages.length - 1;
+      const to = messages2.length - 1;
       if (to >= f.from) {
         const divided = f.starts.every(
           (s, k) => s > (k === 0 ? f.from : f.starts[k - 1]) && s <= to
@@ -5791,11 +5791,11 @@ function sequenceDiagram2(lines) {
       const [from, to] = reversed ? [who(m[3]), who(m[1])] : [who(m[1]), who(m[3])];
       const dotted = /--/.test(arrow);
       const head = arrow.replace(/^<+/, "").replace(/^-+/, "");
-      const kind = m[4] || head.includes("x") ? "delete" : creating.delete(to) ? "create" : /^(>>|\\|\/)/.test(head) || /^<</.test(arrow) ? "async" : dotted ? "reply" : "sync";
-      messages.push({
+      const kind2 = m[4] || head.includes("x") ? "delete" : creating.delete(to) ? "create" : /^(>>|\\|\/)/.test(head) || /^<</.test(arrow) ? "async" : dotted ? "reply" : "sync";
+      messages2.push({
         from,
         to,
-        kind,
+        kind: kind2,
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
     } else {
@@ -5808,7 +5808,7 @@ function sequenceDiagram2(lines) {
   return {
     spec: {
       participants,
-      messages,
+      messages: messages2,
       fragments,
       ...notes.length > 0 && { notes }
     },
@@ -5822,7 +5822,7 @@ var UC_RELATION = new RegExp(
 );
 function usecaseDiagram(lines) {
   const actors = [];
-  const useCases = [];
+  const useCases2 = [];
   const names3 = /* @__PURE__ */ new Map();
   const relations = [];
   const notes = [];
@@ -5830,14 +5830,14 @@ function usecaseDiagram(lines) {
   const warnings = [];
   let system;
   let depth = 0;
-  const declare = (list2, key, name2) => {
+  const declare = (list3, key, name2) => {
     names3.set(key, name2);
-    if (!actors.includes(name2) && !useCases.includes(name2)) list2.push(name2);
+    if (!actors.includes(name2) && !useCases2.includes(name2)) list3.push(name2);
     return name2;
   };
   const end = (ref3) => {
     let m = /^\((.+)\)(?:\s+as\s+([\w.]+))?$/.exec(ref3);
-    if (m) return declare(useCases, m[2] ?? m[1], multiline(m[1]));
+    if (m) return declare(useCases2, m[2] ?? m[1], multiline(m[1]));
     m = /^:(.+):$/.exec(ref3);
     if (m) return declare(actors, m[1], multiline(m[1]));
     const key = unquote(ref3);
@@ -5864,7 +5864,7 @@ function usecaseDiagram(lines) {
       const rest = adornments(m[1]).rest;
       const paren = /^\((.+)\)(?:\s+as\s+(\S+))?$/.exec(rest);
       const { key, name: name2 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
-      declare(useCases, key, name2);
+      declare(useCases2, key, name2);
     } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text4)) {
       const name2 = named(adornments(m[2]).rest).name;
       if (system === void 0) system = name2;
@@ -5900,7 +5900,7 @@ function usecaseDiagram(lines) {
     spec: {
       ...system !== void 0 && { system },
       actors,
-      useCases,
+      useCases: useCases2,
       relations,
       ...notes.length > 0 && { notes }
     },
@@ -5934,9 +5934,9 @@ function activityDiagram(lines) {
     lastNode = id2;
     return id2;
   };
-  const top = (no, kind) => {
+  const top = (no, kind2) => {
     const f = stack.at(-1);
-    if (f?.kind !== kind) fail3(no, `no open ${kind}`);
+    if (f?.kind !== kind2) fail3(no, `no open ${kind2}`);
     return f;
   };
   for (let i = 0; i < lines.length; i++) {
@@ -6156,10 +6156,10 @@ function stateDiagram2(lines) {
         );
         declare(id2, pseudo);
       } else {
-        const label3 = m[1] ?? m[3];
+        const label4 = m[1] ?? m[3];
         declare(
           id2,
-          label3 !== void 0 || !states.has(id2) ? { name: multiline(label3 ?? id2) } : {}
+          label4 !== void 0 || !states.has(id2) ? { name: multiline(label4 ?? id2) } : {}
         );
       }
       if (m[6]) blocks.push(id2);
@@ -6212,13 +6212,13 @@ var ERD_RELATION = new RegExp(
   String.raw`^(${ID})\s+(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)\s+(${ID})\s*(?::\s*(.*))?$`
 );
 function erDiagram2(lines) {
-  const entities = /* @__PURE__ */ new Map();
+  const entities2 = /* @__PURE__ */ new Map();
   const relationships = [];
   let open = null;
   const entity2 = (ref3) => {
     const { key, name: name2 } = named(ref3);
-    if (!entities.has(key)) entities.set(key, { name: name2, columns: [] });
-    return entities.get(key);
+    if (!entities2.has(key)) entities2.set(key, { name: name2, columns: [] });
+    return entities2.get(key);
   };
   for (const { no, text: text4 } of lines) {
     let m;
@@ -6263,7 +6263,7 @@ function erDiagram2(lines) {
   }
   return {
     spec: {
-      entities: [...entities.values()].map((e) => ({
+      entities: [...entities2.values()].map((e) => ({
         name: e.name,
         ...e.columns.length > 0 && { columns: e.columns }
       })),
@@ -6353,8 +6353,8 @@ function parsePlantUml(source, as) {
     ...src.title !== void 0 && { title: src.title },
     ...src.direction && { direction: src.direction }
   };
-  const done = (kind2, read) => ({
-    kind: kind2,
+  const done = (kind3, read) => ({
+    kind: kind3,
     ...titled,
     spec: read.spec,
     ...read.warnings.length > 0 && { warnings: read.warnings }
@@ -6377,18 +6377,18 @@ function parsePlantUml(source, as) {
       )
     );
   }
-  const kind = as ?? (detected === "legacy" ? "activity" : detected);
-  if (kind === "activity") {
+  const kind2 = as ?? (detected === "legacy" ? "activity" : detected);
+  if (kind2 === "activity") {
     return done(
-      kind,
+      kind2,
       detected === "activity" ? activityDiagram(src.lines) : legacyActivity(src.lines)
     );
   }
-  const reader = READERS[kind];
+  const reader = READERS[kind2];
   if (!reader) {
-    refuse(src.no, `PlantUML is not read as ${kind}`);
+    refuse(src.no, `PlantUML is not read as ${kind2}`);
   }
-  return done(kind, reader(src.lines));
+  return done(kind2, reader(src.lines));
 }
 
 // src/build/sql.ts
@@ -6461,7 +6461,7 @@ function bare(name2) {
   const last = name2.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
   return last.replace(/^["`[]|["`\]]$/g, "");
 }
-var names = (list2) => items(list2).map(bare);
+var names = (list3) => items(list3).map(bare);
 var CONSTRAINT = /\s+(?=(?:not\s+null|null|primary\s+key|unique|references|default|check|constraint|generated|auto_increment|autoincrement|identity|collate|comment|on\s+update)\b)/i;
 var SKIPPED = /^(create\s+(unique\s+)?index|create\s+sequence|create\s+extension|create\s+schema|create\s+database|alter\s+sequence|alter\s+(database|schema|default)|set\s|select\s|comment\s+on|grant\s|revoke\s|insert\s|update\s|delete\s|drop\s|begin|commit|start\s+transaction|use\s|lock\s|unlock\s|analyze|vacuum|pragma|copy\s|\\)/i;
 var REFUSED = /^create\s+(or\s+replace\s+)?(view|materialized\s+view|type|function|procedure|trigger|domain|rule|policy|event|aggregate|operator|cast)\b/i;
@@ -6613,7 +6613,7 @@ function parseSql(source) {
       identifying: inKey
     });
   }
-  const entities = [...tables.values()].map((t) => {
+  const entities2 = [...tables.values()].map((t) => {
     for (const c of t.columns) {
       if (t.primaryKey.some((p) => p.toLowerCase() === c.name.toLowerCase())) {
         c.primaryKey = true;
@@ -6634,7 +6634,7 @@ function parseSql(source) {
   });
   return {
     kind: "erd",
-    spec: { entities, relationships },
+    spec: { entities: entities2, relationships },
     ...warnings.length > 0 && { warnings }
   };
 }
@@ -6648,22 +6648,22 @@ function detectFormat(text4) {
   if (/\bcreate\s+(?:\w+\s+)*?table\b/i.test(text4)) return "sql";
   return "mermaid";
 }
-function parseSource(text4, format = detectFormat(text4), kind) {
+function parseSource(text4, format = detectFormat(text4), kind2) {
   switch (format) {
     case "plantuml":
-      return { ...parsePlantUml(text4, kind), format };
+      return { ...parsePlantUml(text4, kind2), format };
     case "sql":
-      if (kind !== void 0 && kind !== "erd") {
+      if (kind2 !== void 0 && kind2 !== "erd") {
         throw new ApiError(
           "UNSUPPORTED_SYNTAX",
-          `sql: DDL is read as an ERD, not ${kind}`
+          `sql: DDL is read as an ERD, not ${kind2}`
         );
       }
       return { ...parseSql(text4), format };
     case "jsonschema":
-      return { ...parseJsonSchema(text4, kind), format };
+      return { ...parseJsonSchema(text4, kind2), format };
     default:
-      return { ...parseMermaid(text4, kind), format };
+      return { ...parseMermaid(text4, kind2), format };
   }
 }
 
@@ -7383,21 +7383,21 @@ var SPEC_SCHEMAS = {
   requirement: requirementSpec,
   c4: c4Spec
 };
-function parseSpec(kind, spec) {
-  const result = safeParse(SPEC_SCHEMAS[kind](), spec);
+function parseSpec(kind2, spec) {
+  const result = safeParse(SPEC_SCHEMAS[kind2](), spec);
   if (!result.success) {
     const issue2 = result.error.issues[0];
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `spec.${issue2.path.map(String).join(".")}: ${issue2.message} (for kind ${kind})`,
+      `spec.${issue2.path.map(String).join(".")}: ${issue2.message} (for kind ${kind2})`,
       result.error.issues
     );
   }
   return result.data;
 }
 var Builder = class {
-  constructor(kind) {
-    this.kind = kind;
+  constructor(kind2) {
+    this.kind = kind2;
   }
   kind;
   nodes = [];
@@ -7481,7 +7481,7 @@ function classPlan(spec) {
     });
   }
   (spec.classes ?? []).forEach((c, i) => {
-    const kind = c.kind ?? "class";
+    const kind2 = c.kind ?? "class";
     if (c.package !== void 0 && !b.has(c.package)) {
       if (!spec.autoCreatePackages) {
         throw new ApiError(
@@ -7498,11 +7498,11 @@ function classPlan(spec) {
       });
     }
     const properties2 = {
-      ...kind === "abstract" && { isAbstract: true },
+      ...kind2 === "abstract" && { isAbstract: true },
       ...c.stereotype !== void 0 && { stereotype: c.stereotype },
       ...c.documentation !== void 0 && { documentation: c.documentation }
     };
-    const attributes = (c.attributes ?? []).map(
+    const attributes2 = (c.attributes ?? []).map(
       (a) => typeof a === "string" ? parseAttribute(a) : a
     );
     const operations = (c.operations ?? []).map(
@@ -7510,18 +7510,18 @@ function classPlan(spec) {
     );
     b.node({
       key: multiline(c.name),
-      type: CLASS_TYPES[kind],
+      type: CLASS_TYPES[kind2],
       name: multiline(c.name),
       ...Object.keys(properties2).length > 0 && { properties: properties2 },
       ...c.package !== void 0 && { owner: c.package },
-      ...attributes.length > 0 && { attributes },
+      ...attributes2.length > 0 && { attributes: attributes2 },
       ...operations.length > 0 && { operations },
       ...c.literals && { literals: c.literals },
       // StarUML draws an interface as a lollipop by default, which hides
       // its operations.
-      ...kind === "interface" && { style: { stereotypeDisplay: "label" } },
+      ...kind2 === "interface" && { style: { stereotypeDisplay: "label" } },
       width: 180,
-      height: 40 + 14 * (attributes.length + operations.length + (c.literals?.length ?? 0))
+      height: 40 + 14 * (attributes2.length + operations.length + (c.literals?.length ?? 0))
     });
   });
   (spec.relations ?? []).forEach((r, i) => {
@@ -7575,23 +7575,23 @@ var SEQUENCE = {
 var noteHeight = (text4) => Math.max(40, 16 + 16 * multiline(text4).split("\n").length);
 function sequencePlan(spec) {
   const b = new Builder("sequence");
-  const messages = (spec.messages ?? []).map((m) => ({
+  const messages2 = (spec.messages ?? []).map((m) => ({
     ...m,
     from: multiline(m.from),
     to: multiline(m.to)
   }));
   const participants = (spec.participants ?? []).map(str);
-  for (const m of messages) {
+  for (const m of messages2) {
     for (const end of [m.from, m.to]) {
       if (!participants.includes(end)) participants.push(end);
     }
   }
   const fragments = spec.fragments ?? [];
   fragments.forEach((f, i) => {
-    if (f.from > f.to || f.to >= messages.length) {
+    if (f.from > f.to || f.to >= messages2.length) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `spec.fragments.${i}: from and to must be message indices with from <= to < ${messages.length}`
+        `spec.fragments.${i}: from and to must be message indices with from <= to < ${messages2.length}`
       );
     }
     const starts = f.operandStarts;
@@ -7620,20 +7620,20 @@ function sequencePlan(spec) {
         `spec.notes.${i}: a sequence note stands by a participant, and there is none`
       );
     }
-    return { ...n, on, at: Math.min(n.at ?? messages.length, messages.length) };
+    return { ...n, on, at: Math.min(n.at ?? messages2.length, messages2.length) };
   });
   const openingAt = (i) => fragments.filter((f) => f.from === i).length;
   const startsAt = (i) => fragments.filter((f) => f.operandStarts?.includes(i)).length;
   const ys = [];
   const noteTops = /* @__PURE__ */ new Map();
   let at = SEQUENCE.firstMessage;
-  for (let i = 0; i <= messages.length; i++) {
+  for (let i = 0; i <= messages2.length; i++) {
     notes.forEach((n, j) => {
       if (n.at !== i) return;
       noteTops.set(j, at - 25);
       at += Math.max(SEQUENCE.note, noteHeight(n.text) + 10);
     });
-    if (i === messages.length) break;
+    if (i === messages2.length) break;
     at += SEQUENCE.header * openingAt(i) + SEQUENCE.operand * startsAt(i);
     ys.push(at);
     at += SEQUENCE.step + SEQUENCE.footer * fragments.filter((f) => f.to === i).length;
@@ -7656,7 +7656,7 @@ function sequencePlan(spec) {
     })
   );
   const y = (i) => ys[i];
-  messages.forEach((m, i) => {
+  messages2.forEach((m, i) => {
     const self = m.from === m.to;
     b.edge(
       {
@@ -7685,8 +7685,8 @@ function sequencePlan(spec) {
     );
   });
   fragments.forEach((f, i) => {
-    const inside2 = messages.slice(f.from, f.to + 1);
-    const columns = inside2.flatMap((m) => [m.from, m.to]).map((p) => participants.indexOf(p));
+    const inside3 = messages2.slice(f.from, f.to + 1);
+    const columns = inside3.flatMap((m) => [m.from, m.to]).map((p) => participants.indexOf(p));
     const outer = fragments.filter(
       (g, j) => j !== i && g.from <= f.from && g.to >= f.to && (g.to - g.from > f.to - f.from || j < i)
     );
@@ -7742,14 +7742,14 @@ var USECASE_RELATIONS = {
 function usecasePlan(spec) {
   const b = new Builder("usecase");
   const system = spec.system === void 0 ? void 0 : multiline(spec.system);
-  const useCases = (spec.useCases ?? []).map(multiline);
+  const useCases2 = (spec.useCases ?? []).map(multiline);
   if (system !== void 0) {
     b.node({
       key: system,
       type: "UMLUseCaseSubject",
       name: system,
       width: 260,
-      height: 100 + 80 * useCases.length
+      height: 100 + 80 * useCases2.length
     });
   }
   for (const a of spec.actors ?? []) {
@@ -7761,7 +7761,7 @@ function usecasePlan(spec) {
       height: 80
     });
   }
-  for (const u of useCases) {
+  for (const u of useCases2) {
     b.node({ key: u, type: "UMLUseCase", name: u, width: 160, height: 50 });
   }
   (spec.relations ?? []).forEach(
@@ -7899,7 +7899,7 @@ function statemachinePlan(spec) {
     }
   }
   (spec.transitions ?? []).forEach((t, i) => {
-    const label3 = [
+    const label4 = [
       t.trigger ?? "",
       t.effect !== void 0 ? ` / ${t.effect}` : ""
     ].join("").trim();
@@ -7908,7 +7908,7 @@ function statemachinePlan(spec) {
         type: "UMLTransition",
         from: t.from,
         to: t.to,
-        ...label3 && { name: label3 },
+        ...label4 && { name: label4 },
         ...t.guard !== void 0 && { properties: { guard: t.guard } }
       },
       `transitions.${i}`
@@ -8044,7 +8044,7 @@ function requirementPlan(spec) {
     });
   }
   for (const e of spec.elements ?? []) {
-    const attributes = [
+    const attributes2 = [
       e.type !== void 0 && { name: "Type", defaultValue: e.type },
       e.docRef !== void 0 && { name: "DocRef", defaultValue: e.docRef }
     ].filter((a) => a !== false);
@@ -8053,9 +8053,9 @@ function requirementPlan(spec) {
       type: "UMLClass",
       name: multiline(e.name),
       properties: { stereotype: "element" },
-      ...attributes.length > 0 && { attributes },
+      ...attributes2.length > 0 && { attributes: attributes2 },
       width: 180,
-      height: 50 + 14 * attributes.length
+      height: 50 + 14 * attributes2.length
     });
   }
   (spec.relations ?? []).forEach((r, i) => {
@@ -8166,9 +8166,9 @@ function decorate(plan, spec) {
   }
   return plan;
 }
-function planFor(kind, spec) {
-  const parsed = parseSpec(kind, spec);
-  return decorate(PLANNERS[kind](parsed), parsed);
+function planFor(kind2, spec) {
+  const parsed = parseSpec(kind2, spec);
+  return decorate(PLANNERS[kind2](parsed), parsed);
 }
 
 // src/refs.ts
@@ -8238,8 +8238,8 @@ function readParams(text4, from) {
 function fieldOf(elem) {
   const owner = elem._parent;
   for (const field of [...MEMBER_FIELDS, ...OPERATION_FIELDS]) {
-    const list2 = owner[field];
-    if (Array.isArray(list2) && list2.includes(elem)) return field;
+    const list3 = owner[field];
+    if (Array.isArray(list3) && list3.includes(elem)) return field;
   }
   return null;
 }
@@ -8335,8 +8335,8 @@ function nameIndex() {
       for (const elem of Object.values(app.repository.getIdMap())) {
         if (isView(elem)) continue;
         const key = typeof elem.name === "string" ? elem.name : "";
-        const list2 = index.get(key);
-        if (list2) list2.push(elem);
+        const list3 = index.get(key);
+        if (list3) list3.push(elem);
         else index.set(key, [elem]);
       }
     }
@@ -8382,12 +8382,12 @@ function splitAt(ref3) {
 }
 var MAX_CANDIDATES = 20;
 function resolveRef(ref3, options = {}) {
-  const kind = options.kind ?? "element";
-  const role = options.role ?? { element: "Element", diagram: "Diagram", view: "View" }[kind];
+  const kind2 = options.kind ?? "element";
+  const role = options.role ?? { element: "Element", diagram: "Diagram", view: "View" }[kind2];
   let found = lookupAll(ref3);
-  if (kind === "diagram") {
+  if (kind2 === "diagram") {
     found = found.filter((e) => e instanceof type.Diagram);
-  } else if (kind === "view") {
+  } else if (kind2 === "view") {
     found = unique(
       found.flatMap(
         (e) => isView(e) ? [e] : viewsOf(e).filter(
@@ -8414,7 +8414,7 @@ function tryResolve(ref3, options = {}) {
     throw err;
   }
 }
-var unique = (list2) => [...new Set(list2)];
+var unique = (list3) => [...new Set(list3)];
 function candidate(elem) {
   return {
     _id: elem._id,
@@ -9093,11 +9093,11 @@ function changeReferences(elem, attr, op, value) {
     attr,
     Array.isArray(value) ? value : [value]
   );
-  const list2 = elem[attr.name];
+  const list3 = elem[attr.name];
   for (const item of items2) {
-    if (op === "add" && !list2.includes(item)) {
+    if (op === "add" && !list3.includes(item)) {
       inStarUML(() => app.engine.addItem(elem, attr.name, item));
-    } else if (op === "remove" && list2.includes(item)) {
+    } else if (op === "remove" && list3.includes(item)) {
       inStarUML(() => app.engine.removeItem(elem, attr.name, item));
     }
   }
@@ -9113,20 +9113,20 @@ function reorder(elem, attr, value, index) {
   if (index === void 0) {
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
-  const list2 = elem[attr.name];
+  const list3 = elem[attr.name];
   const itemRef = refId(value);
   const itemId = itemRef === null || byId(itemRef) ? itemRef : tryResolve(itemRef)?._id ?? itemRef;
-  const item = list2.find((e) => e._id === itemId);
+  const item = list3.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
       "NOT_FOUND",
       `${String(itemId)} is not in ${typeName3}.${attr.name}`
     );
   }
-  if (index >= list2.length) {
+  if (index >= list3.length) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName3}.${attr.name} (${list2.length} items)`
+      `index ${index} is past the end of ${typeName3}.${attr.name} (${list3.length} items)`
     );
   }
   const builder = app.repository.getOperationBuilder();
@@ -9901,8 +9901,8 @@ function within(elem, ancestor) {
 }
 function signatureOf(type2) {
   const { id: createId, preset } = resolveCreateType(type2);
-  const kind = preset.pseudostateKind;
-  return `${modelTypeOf(createId)}:${typeof kind === "string" ? kind : ""}`;
+  const kind2 = preset.pseudostateKind;
+  return `${modelTypeOf(createId)}:${typeof kind2 === "string" ? kind2 : ""}`;
 }
 function modelSignature(model) {
   const name2 = model.constructor.name;
@@ -9911,9 +9911,9 @@ function modelSignature(model) {
 var Pool = class {
   bySignature = /* @__PURE__ */ new Map();
   add(signature, item) {
-    const list2 = this.bySignature.get(signature) ?? [];
-    list2.push(item);
-    this.bySignature.set(signature, list2);
+    const list3 = this.bySignature.get(signature) ?? [];
+    list3.push(item);
+    this.bySignature.set(signature, list3);
   }
   take(signature) {
     return this.bySignature.get(signature)?.shift();
@@ -9958,7 +9958,7 @@ function existing(diagram) {
   }
   return { nodes, edges, all };
 }
-var names2 = (list2) => new Set((Array.isArray(list2) ? list2 : []).map((e) => e.name));
+var names2 = (list3) => new Set((Array.isArray(list3) ? list3 : []).map((e) => e.name));
 function memberOps(node, owner, model) {
   const ops = [];
   const add = (field, members2, op) => {
@@ -10339,13 +10339,13 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
   };
 }
 var SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" };
-function defaultPreset(kind, direction2) {
-  const family = kind === "class" ? "hierarchy" : "flow";
+function defaultPreset(kind2, direction2) {
+  const family = kind2 === "class" ? "hierarchy" : "flow";
   return `${family}-${SIDES[direction2]}`;
 }
-function findDiagram(kind, name2, parent) {
+function findDiagram(kind2, name2, parent) {
   if (name2 === void 0) return null;
-  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind]).find((d) => d.name === name2 && within(d, parent)) ?? null;
+  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name2 && within(d, parent)) ?? null;
 }
 var refSchema = () => object({
   model: nullable(string2()),
@@ -10490,7 +10490,7 @@ function buildDiagramEndpoint(endpoints2) {
           `format: mermaid holds Mermaid; pass ${input.format} source as text`
         );
       }
-      let kind;
+      let kind2;
       let spec;
       let title;
       let direction2 = input.direction;
@@ -10502,24 +10502,24 @@ function buildDiagramEndpoint(endpoints2) {
           input.mermaid !== void 0 ? "mermaid" : input.format,
           input.kind
         );
-        kind = parsed.kind;
+        kind2 = parsed.kind;
         spec = parsed.spec;
         title = parsed.title;
         direction2 ??= parsed.direction;
       } else if (input.kind === void 0) {
         throw new ApiError("INVALID_ARGUMENT", "kind: required with spec");
       } else {
-        kind = input.kind;
+        kind2 = input.kind;
         spec = input.spec;
       }
-      const plan = planFor(kind, spec);
+      const plan = planFor(kind2, spec);
       const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
       const raw = input.name ?? title;
       const name2 = raw === void 0 ? void 0 : multiline(raw);
       if (input.prune && !input.upsert) {
         throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
       }
-      const diagram = input.upsert ? findDiagram(kind, name2, parent) : null;
+      const diagram = input.upsert ? findDiagram(kind2, name2, parent) : null;
       const built = opsFor(
         plan,
         { diagram, parent, name: name2 },
@@ -10563,7 +10563,7 @@ function buildDiagramEndpoint(endpoints2) {
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
-        kind,
+        kind: kind2,
         upserted: diagram !== null,
         created: built.created.size + edges.length,
         updated: built.updated,
@@ -14448,11 +14448,11 @@ function methodNames(host) {
 async function withoutDialogs(what, run) {
   const attempted = [];
   const restore = [];
-  for (const [host, name2, label3] of dialogMethods()) {
+  for (const [host, name2, label4] of dialogMethods()) {
     const own2 = Object.getOwnPropertyDescriptor(host, name2);
     host[name2] = () => {
-      attempted.push(label3);
-      throw new DialogRefused(label3);
+      attempted.push(label4);
+      throw new DialogRefused(label4);
     };
     restore.push(() => {
       if (own2) Object.defineProperty(host, name2, own2);
@@ -15189,16 +15189,16 @@ function classSpec2(v) {
   const classes = [];
   for (const view of v.nodes) {
     const m = view.model;
-    const kind = kinds[typeOf(m)];
+    const kind2 = kinds[typeOf(m)];
     if (typeOf(m) === "UMLPackage") continue;
-    if (!kind) {
+    if (!kind2) {
       v.skip(view);
       continue;
     }
     const pkg = packages.find((p) => p === m._parent);
     classes.push({
       name: nameOf(m),
-      kind: kind === "class" && m.isAbstract ? "abstract" : kind,
+      kind: kind2 === "class" && m.isAbstract ? "abstract" : kind2,
       ...pkg && { package: nameOf(pkg) },
       attributes: list(m.attributes).map((a) => formatAttribute(a)),
       operations: list(m.operations).map((o) => formatOperation(o)),
@@ -15264,7 +15264,7 @@ function edgeY(view) {
 }
 function sequenceSpec2(v) {
   const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline").sort((a, b) => box(a).left - box(b).left);
-  const messages = [...v.edges].sort((a, b) => edgeY(a) - edgeY(b));
+  const messages2 = [...v.edges].sort((a, b) => edgeY(a) - edgeY(b));
   const fragments = [];
   for (const view of v.nodes) {
     const m = view.model;
@@ -15274,7 +15274,7 @@ function sequenceSpec2(v) {
       continue;
     }
     const b = box(view);
-    const covered = messages.map((e, i) => [edgeY(e), i]).filter(([y]) => y >= b.top && y <= b.top + b.height).map(([, i]) => i);
+    const covered = messages2.map((e, i) => [edgeY(e), i]).filter(([y]) => y >= b.top && y <= b.top + b.height).map(([, i]) => i);
     if (covered.length === 0) {
       v.skip(view);
       continue;
@@ -15285,7 +15285,7 @@ function sequenceSpec2(v) {
       (_, k) => box(operandViews[0]).top + operandViews.slice(0, k + 1).reduce((sum, o) => sum + box(o).height, 0)
     );
     const starts = tops.map(
-      (top) => covered.find((i) => edgeY(messages[i]) >= top)
+      (top) => covered.find((i) => edgeY(messages2[i]) >= top)
     );
     const divided = tops.length === operands.length - 1 && tops.length > 0 && starts.every(
       (s, k) => s !== void 0 && s > (k === 0 ? covered[0] : starts[k - 1])
@@ -15301,7 +15301,7 @@ function sequenceSpec2(v) {
   }
   return {
     participants: lifelines.map((l) => nameOf(l.model)),
-    messages: messages.map((e) => {
+    messages: messages2.map((e) => {
       const { tail, head } = ends(e);
       return {
         from: nameOf(tail),
@@ -15344,12 +15344,12 @@ var USECASE_RELATIONS2 = {
 function usecaseSpec3(v) {
   const subject = v.nodes.find((n) => typeOf(n.model) === "UMLUseCaseSubject");
   const actors = [];
-  const useCases = [];
+  const useCases2 = [];
   for (const view of v.nodes) {
     const t = typeOf(view.model);
     if (t === "UMLActor") actors.push(nameOf(view.model));
     else if (t === "UMLUseCase") {
-      useCases.push({
+      useCases2.push({
         name: nameOf(view.model),
         inSystem: subject !== void 0 && inside(view, subject)
       });
@@ -15373,7 +15373,7 @@ function usecaseSpec3(v) {
   return {
     ...subject && { system: nameOf(subject.model) },
     actors,
-    useCases,
+    useCases: useCases2,
     relations
   };
 }
@@ -15448,8 +15448,8 @@ function stateType(model) {
   if (t === "UMLState") return "state";
   if (t === "UMLFinalState") return "final";
   if (t !== "UMLPseudostate") return void 0;
-  const kind = str2(model.kind);
-  return PSEUDO_KINDS.includes(kind) ? kind : "choice";
+  const kind2 = str2(model.kind);
+  return PSEUDO_KINDS.includes(kind2) ? kind2 : "choice";
 }
 function stateSpec(v) {
   const { nodes, edges, ids: ids2 } = flowGraph(v, stateType, ["UMLTransition"]);
@@ -15471,14 +15471,14 @@ function stateSpec(v) {
   };
 }
 function erdSpec2(v) {
-  const entities = [];
+  const entities2 = [];
   for (const view of v.nodes) {
     const m = view.model;
     if (typeOf(m) !== "ERDEntity") {
       v.skip(view);
       continue;
     }
-    entities.push({
+    entities2.push({
       name: nameOf(m),
       columns: list(m.columns).map((c) => ({
         name: nameOf(c),
@@ -15506,7 +15506,7 @@ function erdSpec2(v) {
       ...m.name ? { name: nameOf(m) } : {}
     });
   }
-  return { entities, relationships };
+  return { entities: entities2, relationships };
 }
 var SHAPES2 = Object.fromEntries(
   Object.entries(FLOWCHART_SHAPES).map(([shape, t]) => [t, shape])
@@ -15654,43 +15654,43 @@ function c4Spec2(v) {
   }
   return { elements, relations };
 }
-function extract(diagram, kind) {
+function extract(diagram, kind2) {
   const nodes = nodeViews(diagram);
   const edges = edgeViews(diagram);
   const owned = diagram.ownedViews;
   const notes = owned.filter((n) => n instanceof type.UMLNoteView);
   const links = owned.filter((n) => n instanceof type.UMLNoteLinkView);
-  const noted = kind === "class" || kind === "sequence" || kind === "statemachine";
+  const noted = kind2 === "class" || kind2 === "sequence" || kind2 === "statemachine";
   const v = new Views(nodes, edges, noted ? notes : [], links);
   if (!noted && notes.length > 0) {
     v.skipped.set("UMLNote", notes.length);
   }
   const direction2 = flowDirection(edges);
   const extracted = (() => {
-    switch (kind) {
+    switch (kind2) {
       case "class":
-        return { kind, spec: classSpec2(v), notes: classNotes(v) };
+        return { kind: kind2, spec: classSpec2(v), notes: classNotes(v) };
       case "sequence":
-        return { kind, spec: sequenceSpec2(v), notes: sequenceNotes(v) };
+        return { kind: kind2, spec: sequenceSpec2(v), notes: sequenceNotes(v) };
       case "usecase":
-        return { kind, spec: usecaseSpec3(v), direction: direction2 };
+        return { kind: kind2, spec: usecaseSpec3(v), direction: direction2 };
       case "activity":
-        return { kind, spec: activitySpec3(v), direction: direction2 };
+        return { kind: kind2, spec: activitySpec3(v), direction: direction2 };
       case "statemachine": {
         const { ids: ids2, ...spec } = stateSpec(v);
         const notes2 = v.linkedNotes((m) => ids2.get(m));
-        return { kind, spec, direction: direction2, notes: notes2 };
+        return { kind: kind2, spec, direction: direction2, notes: notes2 };
       }
       case "erd":
-        return { kind, spec: erdSpec2(v) };
+        return { kind: kind2, spec: erdSpec2(v) };
       case "flowchart":
-        return { kind, spec: flowchartSpec3(v), direction: direction2 };
+        return { kind: kind2, spec: flowchartSpec3(v), direction: direction2 };
       case "requirement":
-        return { kind, spec: requirementSpec2(v, owned) };
+        return { kind: kind2, spec: requirementSpec2(v, owned) };
       case "c4":
-        return { kind, spec: c4Spec2(v) };
+        return { kind: kind2, spec: c4Spec2(v) };
       default:
-        return { kind, spec: mindmapSpec2(v) };
+        return { kind: kind2, spec: mindmapSpec2(v) };
     }
   })();
   return { extracted, warnings: v.warnings() };
@@ -15710,10 +15710,10 @@ var MACROS = {
 };
 function call(name2, alias, args) {
   while (args.length > 0 && args.at(-1) === "") args.pop();
-  const quoted2 = args.map(
+  const quoted3 = args.map(
     (a) => `"${a.replace(/"/g, "'").replace(/\r?\n/g, " ")}"`
   );
-  return `${name2}(${[...alias, ...quoted2].join(", ")})`;
+  return `${name2}(${[...alias, ...quoted3].join(", ")})`;
 }
 function c4Macros(spec) {
   const lines = spec.elements.map((e) => {
@@ -15787,7 +15787,7 @@ function classDiagram3(spec, notes) {
     const to = ids2.get(r.to);
     const card = (m) => m ? ` "${m}"` : "";
     const cardAfter = (m) => m ? `"${m}" ` : "";
-    const label3 = r.name ? ` : ${text3(r.name)}` : "";
+    const label4 = r.name ? ` : ${text3(r.name)}` : "";
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
@@ -15796,7 +15796,7 @@ function classDiagram3(spec, notes) {
       directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
       dependency: `${from} ..> ${to}`
     }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
-    lines.push(`  ${line}${label3}`);
+    lines.push(`  ${line}${label4}`);
   }
   for (const n of notes) {
     if (n.on.length > 1)
@@ -15904,9 +15904,9 @@ function usecase(spec, direction2) {
   }
   spec.useCases.forEach((u, i) => !u.inSystem && useCase(u, i, "  "));
   for (const r of spec.relations) {
-    const label3 = r.type === "association" ? r.name : r.type;
+    const label4 = r.type === "association" ? r.name : r.type;
     lines.push(
-      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label3 ? `|${text3(label3)}|` : ""} ${ids2.get(r.to)}`
+      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label4 ? `|${text3(label4)}|` : ""} ${ids2.get(r.to)}`
     );
   }
   return lines;
@@ -15933,8 +15933,8 @@ function activity(spec, direction2) {
   const lines = [HEADER2[direction2]];
   const node = (n, indent) => {
     const [open, close] = ACTIVITY_SHAPES[n.type];
-    const label3 = n.name || ACTIVITY_LABELS[n.type] || " ";
-    lines.push(`${indent}${n.id}${open}"${text3(label3)}"${close}`);
+    const label4 = n.name || ACTIVITY_LABELS[n.type] || " ";
+    lines.push(`${indent}${n.id}${open}"${text3(label4)}"${close}`);
   };
   for (const lane of spec.lanes) {
     lines.push(`  subgraph ${laneId(spec.lanes, lane)}["${text3(lane)}"]`);
@@ -15975,12 +15975,12 @@ function stateDiagram3(spec, direction2, notes) {
     }
     for (const t of spec.transitions) {
       if (scope(t) !== parent) continue;
-      const label3 = [
+      const label4 = [
         t.trigger ? text3(t.trigger) : "",
         t.guard ? `[${text3(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines.push(
-        `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label3 ? ` : ${label3}` : ""}`
+        `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label4 ? ` : ${label4}` : ""}`
       );
     }
   };
@@ -16065,8 +16065,8 @@ function mindmap3(roots) {
   const warnings = [];
   const write = (node, depth) => {
     const name2 = text3(node.name);
-    const label3 = /[()[\]{}]/.test(name2) ? `n["${name2}"]` : name2 || '[" "]';
-    lines.push(`${"  ".repeat(depth)}${label3}`);
+    const label4 = /[()[\]{}]/.test(name2) ? `n["${name2}"]` : name2 || '[" "]';
+    lines.push(`${"  ".repeat(depth)}${label4}`);
     for (const child of node.children) write(child, depth + 1);
   };
   if (roots.length > 1) {
@@ -16194,7 +16194,7 @@ function classDiagram4(spec, notes) {
     const to = id2(r.to);
     const card = (m) => m ? ` "${m}"` : "";
     const cardAfter = (m) => m ? `"${m}" ` : "";
-    const label3 = r.name ? ` : ${one(r.name)}` : "";
+    const label4 = r.name ? ` : ${one(r.name)}` : "";
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
@@ -16203,7 +16203,7 @@ function classDiagram4(spec, notes) {
       directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
       dependency: `${from} ..> ${to}`
     }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
-    lines.push(`${line}${label3}`);
+    lines.push(`${line}${label4}`);
   }
   notes.forEach((n, i) => {
     lines.push(...noteLines(`note as N${i}`, n.text));
@@ -16365,12 +16365,12 @@ function stateDiagram4(spec, direction2, notes) {
     }
     for (const t of spec.transitions) {
       if (scope(t) !== parent) continue;
-      const label3 = [
+      const label4 = [
         t.trigger ? one(t.trigger) : "",
         t.guard ? `[${one(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines.push(
-        `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label3 ? ` : ${label3}` : ""}`
+        `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label4 ? ` : ${label4}` : ""}`
       );
     }
   };
@@ -16538,24 +16538,777 @@ var exportText = defineEndpoint({
   }),
   handle: (input) => {
     const diagram = requireDiagram(input.diagram);
-    const kind = kindOf(diagram);
-    if (!kind) {
+    const kind2 = kindOf(diagram);
+    if (!kind2) {
       throw new ApiError(
         "INVALID_ARGUMENT",
         `${diagram.constructor.name} cannot be written as text; supported: ${KINDS.join(", ")} diagrams`
       );
     }
-    const { extracted, warnings } = extract(diagram, kind);
+    const { extracted, warnings } = extract(diagram, kind2);
     const { _id, _type, name: name2 } = summarize(diagram);
     const write = input.format === "mermaid" ? toMermaid : toPlantUml;
     const out = write(extracted, diagram.name);
     return {
       diagram: { _id, _type, name: name2 },
-      kind,
+      kind: kind2,
       format: input.format,
       text: out.text,
       warnings: [...warnings, ...out.warnings]
     };
+  }
+});
+
+// src/handlers/lint.ts
+var SEVERITIES = ["error", "warning", "info"];
+var LAYOUT_RULES = {
+  L001: "stacked",
+  L002: "overlap",
+  L003: "out-of-canvas",
+  L004: "edge-crosses-node",
+  L005: "label-overflow",
+  L006: "disconnected",
+  L007: "dense"
+};
+var AREA = /Frame|Subject|Swimlane|Partition|CombinedFragment|Operand|Region|Boundary|Lane|Pool/;
+var PASSED_THROUGH = /Lifeline/;
+var NAME_OUTSIDE = /Actor|Pseudostate|InitialState|FinalState|Port|Pin|Point/;
+var CHAR_WIDTH = 7;
+var LABEL_PADDING = 20;
+var CELL = 300;
+var CROWDED = 7;
+var GAP2 = 20;
+var kind = (v) => v.constructor.name;
+function boxOf(view) {
+  const [left, top, width, height] = [
+    view.left,
+    view.top,
+    view.width,
+    view.height
+  ];
+  return { view, left, top, right: left + width, bottom: top + height };
+}
+function nodeBoxes(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.NodeView && v.visible !== false && !(v.model instanceof type.Diagram)
+  ).map(boxOf);
+}
+function edgeViews2(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.EdgeView && v.visible !== false
+  );
+}
+var inside2 = (a, b) => a.left >= b.left && a.top >= b.top && a.right <= b.right && a.bottom <= b.bottom;
+function heldBy(a, b) {
+  if (inside2(a, b)) return true;
+  for (let c = a.view.containerView; c; c = c.containerView) {
+    if (c === b.view) return true;
+  }
+  return false;
+}
+var area = (b) => AREA.test(kind(b.view));
+function edgePoints(edge) {
+  const points = edge.points?.points;
+  if (Array.isArray(points) && points.length >= 2) return points;
+  const centre2 = (v) => {
+    const b = boxOf(v);
+    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  };
+  return [centre2(edge.tail), centre2(edge.head)];
+}
+function crosses(p, q2, box2) {
+  const [x0, y0, x1, y1] = [
+    box2.left + 2,
+    box2.top + 2,
+    box2.right - 2,
+    box2.bottom - 2
+  ];
+  if (x1 <= x0 || y1 <= y0) return false;
+  const dx = q2.x - p.x;
+  const dy = q2.y - p.y;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [pk, qk] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y]
+  ]) {
+    if (pk === 0) {
+      if (qk < 0) return false;
+      continue;
+    }
+    const r = qk / pk;
+    if (pk < 0) t0 = Math.max(t0, r);
+    else t1 = Math.min(t1, r);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+function labelWidth(name2) {
+  const widest = Math.max(...name2.split("\n").map((l) => l.length));
+  return widest * CHAR_WIDTH + LABEL_PADDING;
+}
+function attached(edge, box2) {
+  for (const end of [edge.tail, edge.head]) {
+    for (let v = end; v; v = v._parent) {
+      if (v === box2.view) return true;
+      if (!(v._parent instanceof type.View)) break;
+    }
+  }
+  return false;
+}
+var Findings = class {
+  constructor(enabled, diagram) {
+    this.enabled = enabled;
+    this.diagram = diagram;
+  }
+  enabled;
+  diagram;
+  list = [];
+  on(rule) {
+    return this.enabled.has(rule);
+  }
+  add(rule, severity, views, message, fix, autofix) {
+    this.list.push({
+      rule,
+      name: LAYOUT_RULES[rule],
+      severity,
+      message,
+      ids: views.map((v) => v._id),
+      paths: views.map(pathOf),
+      fix,
+      autofix
+    });
+  }
+  relayout(options = {}) {
+    return {
+      path: "/layout_diagram",
+      body: { diagram: this.diagram._id, ...options }
+    };
+  }
+};
+var label3 = (v) => {
+  const name2 = v.model?.name;
+  return typeof name2 === "string" && name2 ? `"${name2.replace(/\n/g, " ")}"` : kind(v);
+};
+function stacked(f, boxes) {
+  const byOrigin = /* @__PURE__ */ new Map();
+  for (const b of boxes) {
+    const key = `${Math.round(b.left)},${Math.round(b.top)}`;
+    byOrigin.set(key, [...byOrigin.get(key) ?? [], b]);
+  }
+  const seen = /* @__PURE__ */ new Set();
+  for (const [origin, group] of byOrigin) {
+    if (group.length < 2) continue;
+    for (const b of group) seen.add(b.view);
+    f.add(
+      "L001",
+      "error",
+      group.map((b) => b.view),
+      `${group.length} views start at the same point (${origin}): ${group.map((b) => label3(b.view)).join(", ")}`,
+      "Lay the diagram out again.",
+      f.relayout()
+    );
+  }
+  return seen;
+}
+function overlaps(f, boxes, skip) {
+  const solid = boxes.filter((b) => !area(b));
+  for (let i = 0; i < solid.length; i++) {
+    for (let j = i + 1; j < solid.length; j++) {
+      const [a, b] = [solid[i], solid[j]];
+      if (skip.has(a.view) && skip.has(b.view)) continue;
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (w <= 1 || h <= 1 || heldBy(a, b) || heldBy(b, a)) continue;
+      f.add(
+        "L002",
+        "warning",
+        [a.view, b.view],
+        `${label3(a.view)} and ${label3(b.view)} overlap by ${Math.round(w)}x${Math.round(h)}`,
+        `Move ${label3(b.view)} ${Math.round(w + GAP2)} to the right, or lay the diagram out again.`,
+        {
+          path: "/move_views",
+          body: { refs: [b.view._id], dx: Math.round(w + GAP2), dy: 0 }
+        }
+      );
+    }
+  }
+}
+function outOfCanvas(f, boxes) {
+  for (const b of boxes) {
+    if (b.left >= 0 && b.top >= 0) continue;
+    const dx = b.left < 0 ? Math.round(GAP2 - b.left) : 0;
+    const dy = b.top < 0 ? Math.round(GAP2 - b.top) : 0;
+    f.add(
+      "L003",
+      "warning",
+      [b.view],
+      `${label3(b.view)} starts outside the canvas at (${Math.round(b.left)}, ${Math.round(b.top)})`,
+      `Move it by (${dx}, ${dy}).`,
+      { path: "/move_views", body: { refs: [b.view._id], dx, dy } }
+    );
+  }
+}
+function crossings(f, boxes, edges) {
+  const obstacles = boxes.filter(
+    (b) => !area(b) && !PASSED_THROUGH.test(kind(b.view))
+  );
+  for (const edge of edges) {
+    const points = edgePoints(edge);
+    for (const b of obstacles) {
+      if (attached(edge, b)) continue;
+      const ends2 = [edge.tail, edge.head].map((e) => boxOf(e));
+      if (ends2.some((e) => heldBy(e, b))) continue;
+      if (!points.some((p, i) => i > 0 && crosses(points[i - 1], p, b))) {
+        continue;
+      }
+      f.add(
+        "L004",
+        "warning",
+        [edge, b.view],
+        `The ${kind(edge)} from ${label3(edge.tail)} to ${label3(edge.head)} runs through ${label3(b.view)}`,
+        "Lay the diagram out again, or move the node off the line.",
+        f.relayout()
+      );
+    }
+  }
+}
+function overflows(f, boxes) {
+  for (const b of boxes) {
+    const name2 = b.view.model?.name;
+    if (typeof name2 !== "string" || !name2 || NAME_OUTSIDE.test(kind(b.view))) {
+      continue;
+    }
+    const width = labelWidth(name2);
+    if (width <= b.right - b.left) continue;
+    f.add(
+      "L005",
+      "warning",
+      [b.view],
+      `The name of ${label3(b.view)} needs about ${width}px and its box is ${Math.round(b.right - b.left)}px wide, so it wraps or is cut`,
+      `Widen it to ${width}.`,
+      {
+        path: "/resize_node",
+        body: {
+          ref: b.view._id,
+          width,
+          height: Math.round(b.bottom - b.top)
+        }
+      }
+    );
+  }
+}
+function disconnected(f, boxes, edges) {
+  if (edges.length === 0) return;
+  for (const b of boxes) {
+    if (!b.view.model || area(b)) continue;
+    if (edges.some((e) => attached(e, b))) continue;
+    if (boxes.some((o) => o !== b && heldBy(o, b))) continue;
+    f.add(
+      "L006",
+      "info",
+      [b.view],
+      `${label3(b.view)} has no edge on this diagram`,
+      "Connect it, or show it on a diagram where it relates to something.",
+      null
+    );
+  }
+}
+function dense(f, boxes) {
+  const cells = /* @__PURE__ */ new Map();
+  for (const b of boxes) {
+    if (area(b)) continue;
+    const cx = Math.floor((b.left + b.right) / 2 / CELL);
+    const cy = Math.floor((b.top + b.bottom) / 2 / CELL);
+    const key = `${cx},${cy}`;
+    cells.set(key, [...cells.get(key) ?? [], b]);
+  }
+  for (const [cell, group] of cells) {
+    if (group.length < CROWDED) continue;
+    const [cx, cy] = cell.split(",").map((n) => Number(n) * CELL);
+    f.add(
+      "L007",
+      "info",
+      group.map((b) => b.view),
+      `${group.length} nodes are centred in the ${CELL}x${CELL} area at (${cx}, ${cy})`,
+      "Lay the diagram out with more spacing.",
+      f.relayout({ nodeSeparation: 60, rankSeparation: 80 })
+    );
+  }
+}
+var RANK = { error: 0, warning: 1, info: 2 };
+function lintLayout(diagram, enabled) {
+  const f = new Findings(enabled, diagram);
+  const boxes = nodeBoxes(diagram);
+  const edges = edgeViews2(diagram).filter((e) => e.tail && e.head);
+  const piled = f.on("L001") ? stacked(f, boxes) : /* @__PURE__ */ new Set();
+  if (f.on("L002")) overlaps(f, boxes, piled);
+  if (f.on("L003")) outOfCanvas(f, boxes);
+  if (f.on("L004")) crossings(f, boxes, edges);
+  if (f.on("L005")) overflows(f, boxes);
+  if (f.on("L006")) disconnected(f, boxes, edges);
+  if (f.on("L007")) dense(f, boxes);
+  return f.list.sort((a, b) => RANK[a.severity] - RANK[b.severity]);
+}
+function pickRules(table, wanted, field) {
+  const ids2 = Object.keys(table);
+  if (wanted === void 0) return new Set(ids2);
+  return new Set(
+    wanted.map((w) => {
+      const id2 = ids2.find((i) => i === w || table[i] === w);
+      if (!id2) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${field}: no rule ${w}; rules are ${ids2.map((i) => `${i} ${table[i]}`).join(", ")}`
+        );
+      }
+      return id2;
+    })
+  );
+}
+var limitField = () => optional(
+  doc(
+    int().check(_gte(1), _lte(1e3)),
+    "Most findings to list, most severe first; default 100. count is always the full number."
+  )
+);
+function counted(findings, limit) {
+  const counts = { error: 0, warning: 0, info: 0 };
+  for (const f of findings) counts[f.severity]++;
+  const shown = findings.slice(0, limit ?? 100);
+  return {
+    count: findings.length,
+    counts,
+    truncated: shown.length < findings.length,
+    findings: shown
+  };
+}
+var countsSchema = () => object({ error: int(), warning: int(), info: int() });
+var lintDiagram = defineEndpoint({
+  path: "/lint_diagram",
+  description: "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006) and crowded areas (L007). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    diagram: optional(ref2("Diagram; default the current diagram.")),
+    rules: optional(
+      doc(
+        array(string2().check(_minLength(1))),
+        "Rules to run, by id (L001) or name (overlap); default all."
+      )
+    ),
+    limit: limitField()
+  }),
+  aliases: { diagramId: "diagram", id: "diagram" },
+  response: object({
+    diagram: elementSchema(),
+    count: doc(int(), "Findings in all."),
+    counts: countsSchema(),
+    truncated: boolean2(),
+    findings: array(
+      object({
+        rule: string2(),
+        name: string2(),
+        severity: _enum(SEVERITIES),
+        message: string2(),
+        ids: doc(array(string2()), "Views the finding is about."),
+        paths: array(nullable(string2())),
+        fix: string2(),
+        autofix: doc(
+          nullable(
+            object({
+              path: string2(),
+              body: record(string2(), unknown())
+            })
+          ),
+          "A request that fixes it: POST body to path. Null where only a person can decide."
+        )
+      })
+    )
+  }),
+  handle: (input) => {
+    const enabled = pickRules(LAYOUT_RULES, input.rules, "rules");
+    const diagram = requireDiagram(input.diagram ?? "@current");
+    return {
+      diagram: serialize(diagram),
+      ...counted(lintLayout(diagram, enabled), input.limit)
+    };
+  }
+});
+
+// src/handlers/uml-lint.ts
+var UML_RULES = {
+  U001: "association-end-multiplicity",
+  U002: "association-navigability",
+  U003: "attribute-type",
+  U004: "dangling-relationship",
+  U005: "abstract-without-subclass",
+  U006: "interface-not-realized",
+  U007: "message-without-operation",
+  U008: "use-case-without-actor",
+  U009: "state-machine-without-initial",
+  U010: "state-machine-without-final",
+  U011: "entity-without-primary-key",
+  U012: "naming"
+};
+var DEFAULT_SEVERITY = {
+  U001: "warning",
+  U002: "info",
+  U003: "warning",
+  U004: "error",
+  U005: "warning",
+  U006: "warning",
+  U007: "warning",
+  U008: "warning",
+  U009: "warning",
+  U010: "info",
+  U011: "warning",
+  U012: "info"
+};
+var PRESETS = {
+  PascalCase: /^[A-Z][A-Za-z0-9]*$/,
+  camelCase: /^[a-z][A-Za-z0-9]*$/,
+  UPPER_CASE: /^[A-Z][A-Z0-9_]*$/,
+  snake_case: /^[a-z][a-z0-9_]*$/,
+  lowercase: /^[a-z][a-z0-9.]*$/
+};
+var NAMING_KINDS = {
+  classifier: ["UMLClass", "UMLInterface", "UMLEnumeration", "UMLSignal"],
+  attribute: ["UMLAttribute"],
+  operation: ["UMLOperation"],
+  literal: ["UMLEnumerationLiteral"],
+  package: ["UMLPackage"]
+};
+var DEFAULT_NAMING = {
+  classifier: "PascalCase",
+  attribute: "camelCase",
+  operation: "camelCase",
+  literal: "UPPER_CASE",
+  package: false
+};
+function compileNaming(given) {
+  const naming2 = { ...DEFAULT_NAMING, ...given };
+  return Object.keys(NAMING_KINDS).flatMap((k) => {
+    const pattern2 = naming2[k];
+    if (pattern2 === false) return [];
+    try {
+      const re = Object.hasOwn(PRESETS, pattern2) ? PRESETS[pattern2] : new RegExp(pattern2, "u");
+      return [[k, pattern2, re]];
+    } catch (err) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `naming.${k}: ${pattern2} is neither ${Object.keys(PRESETS).join(", ")} nor a regular expression (${err.message})`
+      );
+    }
+  });
+}
+var list2 = (value) => Array.isArray(value) ? value : [];
+var quoted2 = (e) => typeof e.name === "string" && e.name ? `"${e.name}"` : e.constructor.name;
+function within3(elem, scope) {
+  for (let e = elem; e; e = e._parent) {
+    if (e === scope) return true;
+  }
+  return false;
+}
+var Lint = class {
+  constructor(scope, severity) {
+    this.scope = scope;
+    this.severity = severity;
+  }
+  scope;
+  severity;
+  findings = [];
+  all(typeName3) {
+    return app.repository.getInstancesOf(typeName3).filter((e) => within3(e, this.scope));
+  }
+  on(rule) {
+    return this.severity.has(rule);
+  }
+  add(rule, elem, message, fix) {
+    this.findings.push({
+      rule,
+      name: UML_RULES[rule],
+      severity: this.severity.get(rule),
+      message,
+      id: elem._id,
+      path: pathOf(elem),
+      fix
+    });
+  }
+};
+function targetsOf(elem, ...typeNames) {
+  return app.repository.getRelationshipsOf(elem).filter((r) => typeNames.includes(r.constructor.name) && r.target === elem);
+}
+function associations(l) {
+  for (const a of l.all("UMLAssociation")) {
+    const ends2 = [a.end1, a.end2];
+    if (l.on("U001")) {
+      const missing = ends2.filter((e) => !e.multiplicity);
+      if (missing.length > 0) {
+        l.add(
+          "U001",
+          a,
+          `The association ${quoted2(a)} between ${ends2.map((e) => quoted2(e.reference)).join(" and ")} has ${missing.length === 2 ? "no multiplicity on either end" : "an end without multiplicity"}`,
+          "Set each end's multiplicity, e.g. /update_element {ref: <end id>, field: 'multiplicity', value: '1'}."
+        );
+      }
+    }
+    if (l.on("U002") && ends2.every((e) => e.navigable === "unspecified")) {
+      l.add(
+        "U002",
+        a,
+        `The association ${quoted2(a)} does not say which way it is navigable`,
+        "Set navigable on the end that can be reached, or build it as a directed association."
+      );
+    }
+  }
+}
+function attributes(l) {
+  for (const attr of l.all("UMLAttribute")) {
+    if (!list2(attr._parent?.attributes).includes(attr)) continue;
+    if (attr.type) continue;
+    l.add(
+      "U003",
+      attr,
+      `The attribute ${quoted2(attr)} of ${quoted2(attr._parent)} has no type`,
+      "Give it a type, e.g. /update_element {ref: <path>, field: 'type', value: 'String'}."
+    );
+  }
+}
+var present = (value) => !!value && byId(value._id) === value;
+function dangling(l) {
+  for (const r of l.all("DirectedRelationship")) {
+    if (present(r.source) && present(r.target)) continue;
+    l.add(
+      "U004",
+      r,
+      `The ${r.constructor.name} ${quoted2(r)} is missing its ${present(r.source) ? "target" : "source"}`,
+      "Delete it or reconnect it with /update_element (source/target)."
+    );
+  }
+  for (const r of l.all("UndirectedRelationship")) {
+    const ends2 = [r.end1, r.end2];
+    if (ends2.every((e) => present(e.reference))) continue;
+    l.add(
+      "U004",
+      r,
+      `The ${r.constructor.name} ${quoted2(r)} has an end that refers to nothing`,
+      "Delete it or set the end's reference with /update_element."
+    );
+  }
+}
+function hierarchy2(l) {
+  if (l.on("U005")) {
+    for (const cls of l.all("UMLClass")) {
+      if (!cls.isAbstract || targetsOf(cls, "UMLGeneralization").length > 0) {
+        continue;
+      }
+      l.add(
+        "U005",
+        cls,
+        `The abstract class ${quoted2(cls)} has no subclass`,
+        "Add a subclass (generalization to it), or make it concrete."
+      );
+    }
+  }
+  if (l.on("U006")) {
+    for (const i of l.all("UMLInterface")) {
+      const users = targetsOf(
+        i,
+        "UMLInterfaceRealization",
+        "UMLRealization",
+        "UMLGeneralization"
+      );
+      if (users.length > 0) continue;
+      l.add(
+        "U006",
+        i,
+        `The interface ${quoted2(i)} is realized by no class`,
+        "Add an interface realization from the class that implements it, or remove the interface."
+      );
+    }
+  }
+}
+function operationsOf(cls, seen = /* @__PURE__ */ new Set()) {
+  if (seen.has(cls)) return [];
+  seen.add(cls);
+  const parents = app.repository.getRelationshipsOf(cls).filter((r) => r instanceof type.UMLGeneralization && r.source === cls).map((r) => r.target);
+  return [
+    ...list2(cls.operations),
+    ...parents.flatMap((p) => operationsOf(p, seen))
+  ];
+}
+var CALLS = /* @__PURE__ */ new Set(["synchCall", "asynchCall"]);
+function messages(l) {
+  for (const m of l.all("UMLMessage")) {
+    const name2 = m.name.trim();
+    if (!name2 || m.signature || !CALLS.has(String(m.messageSort))) continue;
+    const role = m.target?.represent;
+    const receiver = role?.type;
+    if (!receiver || typeof receiver !== "object") continue;
+    const called = name2.replace(/\(.*$/s, "").trim();
+    if (operationsOf(receiver).some((o) => o.name === called)) {
+      continue;
+    }
+    l.add(
+      "U007",
+      m,
+      `The message ${quoted2(m)} names no operation of ${quoted2(receiver)}`,
+      `Add the operation (/add_operation {ref: '${pathOf(receiver)}', name: '${called}'}) or rename the message.`
+    );
+  }
+}
+function useCases(l) {
+  for (const uc of l.all("UMLUseCase")) {
+    const related = app.repository.getRelationshipsOf(uc);
+    const actor = related.some(
+      (r) => r instanceof type.UMLAssociation && [r.end1, r.end2].some(
+        (e) => e.reference instanceof type.UMLActor
+      )
+    );
+    const reached = related.some(
+      (r) => r instanceof type.UMLInclude && r.target === uc || r instanceof type.UMLExtend && r.source === uc
+    );
+    if (actor || reached) continue;
+    l.add(
+      "U008",
+      uc,
+      `The use case ${quoted2(uc)} has no actor`,
+      "Associate an actor with it, or include it from a use case that has one."
+    );
+  }
+}
+function stateMachines(l) {
+  for (const sm of l.all("UMLStateMachine")) {
+    const inner = (typeName3) => app.repository.getInstancesOf(typeName3).filter((e) => within3(e, sm));
+    if (l.on("U009") && !inner("UMLPseudostate").some((p) => p.kind === "initial")) {
+      l.add(
+        "U009",
+        sm,
+        `The state machine ${quoted2(sm)} has no initial state`,
+        "Add an initial pseudostate with a transition to the first state."
+      );
+    }
+    if (l.on("U010") && inner("UMLFinalState").length === 0) {
+      l.add(
+        "U010",
+        sm,
+        `The state machine ${quoted2(sm)} has no final state`,
+        "Add a final state, unless the machine runs forever."
+      );
+    }
+  }
+}
+function entities(l) {
+  for (const e of l.all("ERDEntity")) {
+    if (list2(e.columns).some((c) => c.primaryKey)) continue;
+    l.add(
+      "U011",
+      e,
+      `The entity ${quoted2(e)} has no primary key`,
+      "Mark a column primaryKey, e.g. /update_element {ref: '<entity>.id', field: 'primaryKey', value: true}."
+    );
+  }
+}
+function naming(l, patterns) {
+  for (const [k, pattern2, re] of patterns) {
+    for (const typeName3 of NAMING_KINDS[k]) {
+      for (const e of l.all(typeName3)) {
+        if (e.constructor.name !== typeName3) continue;
+        const name2 = e.name;
+        if (!name2 || re.test(name2)) continue;
+        l.add(
+          "U012",
+          e,
+          `The ${k} name ${quoted2(e)} is not ${pattern2}`,
+          `Rename it to fit ${pattern2}, or pass naming.${k} to change the convention.`
+        );
+      }
+    }
+  }
+}
+var RANK2 = { error: 0, warning: 1, info: 2 };
+function lintModel(scope, severity, patterns) {
+  const l = new Lint(scope, severity);
+  if (l.on("U001") || l.on("U002")) associations(l);
+  if (l.on("U003")) attributes(l);
+  if (l.on("U004")) dangling(l);
+  hierarchy2(l);
+  if (l.on("U007")) messages(l);
+  if (l.on("U008")) useCases(l);
+  stateMachines(l);
+  if (l.on("U011")) entities(l);
+  if (l.on("U012")) naming(l, patterns);
+  return l.findings.sort(
+    (a, b) => RANK2[a.severity] - RANK2[b.severity] || a.rule.localeCompare(b.rule)
+  );
+}
+var ruleSetting = () => _enum(["off", ...SEVERITIES]);
+var pattern = () => optional(union([string2(), literal(false)]));
+var umlLint = defineEndpoint({
+  path: "/uml_lint",
+  description: "Check the model for modelling mistakes StarUML's own validation does not look for: association ends without multiplicity (U001) or navigability (U002), attributes without a type (U003), relationships missing an end (U004), abstract classes without a subclass (U005), interfaces nobody realizes (U006), sequence messages that name no operation of the receiver (U007), use cases without an actor (U008), state machines without an initial (U009) or final state (U010), ERD entities without a primary key (U011) and names off the naming convention (U012). Each finding has a rule id, the element's id and path, and a one-line fix. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    scope: optional(
+      ref2("Only this element and what it owns; default the project.")
+    ),
+    rules: optional(
+      doc(
+        record(string2(), ruleSetting()),
+        "Per rule id or name: off, or the severity to report it with, e.g. {U002: 'off', naming: 'warning'}."
+      )
+    ),
+    naming: optional(
+      doc(
+        object({
+          classifier: pattern(),
+          attribute: pattern(),
+          operation: pattern(),
+          literal: pattern(),
+          package: pattern()
+        }),
+        "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, a regular expression, or false to skip. Defaults: classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, package skipped."
+      )
+    ),
+    limit: limitField()
+  }),
+  response: object({
+    count: doc(int(), "Findings in all."),
+    counts: countsSchema(),
+    truncated: boolean2(),
+    findings: array(
+      object({
+        rule: string2(),
+        name: string2(),
+        severity: _enum(SEVERITIES),
+        message: string2(),
+        id: string2(),
+        path: nullable(string2()),
+        fix: string2()
+      })
+    )
+  }),
+  handle: (input) => {
+    const given = input.rules ?? {};
+    pickRules(UML_RULES, Object.keys(given), "rules");
+    const severity = /* @__PURE__ */ new Map();
+    for (const id2 of Object.keys(UML_RULES)) {
+      const setting = Object.entries(given).find(
+        ([k]) => k === id2 || k === UML_RULES[id2]
+      )?.[1];
+      if (setting === "off") continue;
+      severity.set(
+        id2,
+        setting ?? DEFAULT_SEVERITY[id2]
+      );
+    }
+    const patterns = compileNaming(input.naming);
+    const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
+    return counted(lintModel(scope, severity, patterns), input.limit);
   }
 });
 
@@ -16965,12 +17718,12 @@ function describeType(name2, ids2, inherited) {
     };
   }
   const isDiagram = app.metamodels.isKindOf(name2, "Diagram");
-  const attributes = inherited ? app.metamodels.getMetaAttributes(name2) : metaType.attributes ?? [];
+  const attributes2 = inherited ? app.metamodels.getMetaAttributes(name2) : metaType.attributes ?? [];
   return {
     kind: "class",
     super: metaType.super ?? null,
     supers: lineage(name2).slice(1),
-    attributes: attributes.map(describeAttribute),
+    attributes: attributes2.map(describeAttribute),
     viewType: app.metamodels.getViewTypeOf(name2),
     ...isDiagram && {
       viewTypes: app.metamodels.getAvailableViewTypes(name2)
@@ -17673,11 +18426,11 @@ function endTypes(modelType) {
     head: probe.end2.constructor.name
   };
 }
-function endValues(modelType, kind, tailEnd, headEnd) {
+function endValues(modelType, kind2, tailEnd, headEnd) {
   if (tailEnd === void 0 && headEnd === void 0) {
     return { tail: {}, head: {} };
   }
-  if (kind !== "undirected") {
+  if (kind2 !== "undirected") {
     throw new ApiError(
       "INVALID_ARGUMENT",
       `tailEnd/headEnd apply to undirected relationships (end1/end2); ${String(modelType)} has none`
@@ -17744,10 +18497,10 @@ function withRoleNames(input) {
 function createEdge(request) {
   const { id: createId, preset } = resolveCreateType(request.type);
   const modelType = modelTypeOf(createId);
-  const kind = modelType ? relationshipKind(modelType) : null;
+  const kind2 = modelType ? relationshipKind(modelType) : null;
   const values = valuesFor(createId, request.name, request.properties);
   const { tailEnd, headEnd } = withRoleNames(request);
-  const ends2 = endValues(modelType, kind, tailEnd, headEnd);
+  const ends2 = endValues(modelType, kind2, tailEnd, headEnd);
   return createModelAndView({
     ...preset,
     id: createId,
@@ -17817,14 +18570,14 @@ var createEdgeWithView = defineEndpoint({
     return created(view, input);
   }
 });
-function createModelOnly(modelType, kind, input, tail, head) {
+function createModelOnly(modelType, kind2, input, tail, head) {
   const values = initialValues(modelType, input.name, input.properties);
   const { tailEnd, headEnd } = withRoleNames(input);
-  const ends2 = endValues(modelType, kind, tailEnd, headEnd);
+  const ends2 = endValues(modelType, kind2, tailEnd, headEnd);
   const parent = input.parent === void 0 ? defaultOwner(tail, modelType) : requireElement(input.parent, "Parent");
   const field = resolveOwnerField(parent, modelType, input.field);
   const model = instantiate(modelType);
-  if (kind === "directed") {
+  if (kind2 === "directed") {
     model.source = tail;
     model.target = head;
   } else {
@@ -17921,8 +18674,8 @@ var createRelationship = defineEndpoint({
       });
       return created(view, input);
     }
-    const kind = isMetaClass(input.type) ? relationshipKind(input.type) : null;
-    if (!kind) {
+    const kind2 = isMetaClass(input.type) ? relationshipKind(input.type) : null;
+    if (!kind2) {
       throw new ApiError(
         "UNKNOWN_TYPE",
         `Not a relationship type: ${input.type}`
@@ -17930,7 +18683,7 @@ var createRelationship = defineEndpoint({
     }
     const model = createModelOnly(
       input.type,
-      kind,
+      kind2,
       input,
       endModel(input.tail, "Tail"),
       endModel(input.head, "Head")
@@ -18627,6 +19380,8 @@ var endpoints = [
   searchTypes,
   describeDiagram,
   validateModel,
+  lintDiagram,
+  umlLint,
   introspectEndpoint(() => endpoints),
   debug
 ];
