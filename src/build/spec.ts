@@ -246,6 +246,12 @@ const classSpec = () =>
         nameOr(z.object({ name: name(), stereotype: z.optional(z.string()) })),
       ),
     ),
+    autoCreatePackages: z.optional(
+      doc(
+        z.boolean(),
+        "Make a package for each class's package that packages does not declare.",
+      ),
+    ),
     classes: z.optional(
       z.array(
         z.object({
@@ -800,10 +806,19 @@ function classPlan(spec: Spec<"class">): Plan {
   (spec.classes ?? []).forEach((c, i) => {
     const kind = c.kind ?? "class";
     if (c.package !== undefined && !b.has(c.package)) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `spec.classes.${i}.package: no package named ${c.package}`,
-      );
+      if (!spec.autoCreatePackages) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.classes.${i}.package: no package named ${c.package}; declare it in spec.packages or set spec.autoCreatePackages`,
+        );
+      }
+      b.node({
+        key: c.package,
+        type: "UMLPackage",
+        name: c.package,
+        width: 200,
+        height: 120,
+      });
     }
     const properties = {
       ...(kind === "abstract" && { isAbstract: true }),

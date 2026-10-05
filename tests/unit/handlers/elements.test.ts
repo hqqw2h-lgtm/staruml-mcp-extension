@@ -48,7 +48,7 @@ function addClassWithView(name: string, x: number): View {
 
 describe("/get_element_by_id", () => {
   it.each([{}, { id: "" }, { id: 1 }])("requires an id: %j", async (body) => {
-    await fails(getElementById, body, "INVALID_ARGUMENT", /^id: /);
+    await fails(getElementById, body, "INVALID_ARGUMENT", /^(id|ref): /);
   });
 
   it("rejects an unknown id", async () => {
@@ -67,6 +67,7 @@ describe("/get_element_by_id", () => {
       _type: "UMLClass",
       name: "Book",
       _parent: env.model._id,
+      path: "Model/Book",
     });
   });
 
@@ -149,6 +150,7 @@ describe("/find_elements", () => {
           _type: "UMLClass",
           name: "Author",
           _parent: env.model._id,
+          path: "Model/Author",
         },
       ],
       nextCursor: null,
@@ -266,7 +268,7 @@ describe("/create_element", () => {
       createElement,
       { type: "UMLClass", ...body },
       "INVALID_ARGUMENT",
-      /^parentId: /,
+      /^(parentId|parent): /,
     );
   });
 
@@ -337,7 +339,7 @@ describe("/update_element", () => {
       updateElement,
       { field: "name", value: 1, ...body },
       "INVALID_ARGUMENT",
-      /^id: /,
+      /^(id|ref): /,
     );
   });
 
@@ -394,7 +396,7 @@ describe("/update_element", () => {
 
 describe("/delete_element", () => {
   it.each([{}, { id: "" }])("requires an id: %j", async (body) => {
-    await fails(deleteElement, body, "INVALID_ARGUMENT", /^id: /);
+    await fails(deleteElement, body, "INVALID_ARGUMENT", /^(id|ref): /);
   });
 
   it("rejects an unknown id", async () => {
@@ -748,7 +750,7 @@ describe("/update_element (#5)", () => {
         updateElement,
         { id: cls._id, op: "relocate" },
         "INVALID_ARGUMENT",
-        "relocate needs parentId",
+        "relocate needs parent",
       );
     });
 

@@ -22,8 +22,8 @@
  */
 
 import { ApiError, inStarUML } from "./errors.js";
-import { requireElement } from "./lookup.js";
 import { isMetaClass, resolveOwnerField } from "./metamodel.js";
+import { byId, candidate, pathOf, resolveRef } from "./refs.js";
 import type { Element, ModelAndViewOptions, View } from "./types.js";
 import { toModelValues } from "./values.js";
 
@@ -98,6 +98,71 @@ export function createOwned(
 }
 
 /**
+ * Kinds whose names address them: two siblings of one of these kinds with
+ * the same name make a path ambiguous, and StarUML's own UML002 rule
+ * ("Name is already defined") reports them. Operations overload, and flow
+ * nodes, states, lifelines and relationships repeat names by design.
+ */
+const NAMED_KINDS = [
+  "UMLClassifier",
+  "UMLPackage",
+  "UMLAttribute",
+  "UMLEnumerationLiteral",
+  "ERDEntity",
+  "ERDColumn",
+  "Diagram",
+];
+
+function namedKind(typeName: string): string | undefined {
+  return NAMED_KINDS.find((k) => app.metamodels.isKindOf(typeName, k));
+}
+
+/** Diagrams, members and other elements are separate name spaces. */
+function nameSpace(typeName: string): string {
+  if (app.metamodels.isKindOf(typeName, "Diagram")) return "diagram";
+  return ["UMLAttribute", "UMLEnumerationLiteral", "ERDColumn"].some((k) =>
+    app.metamodels.isKindOf(typeName, k),
+  )
+    ? "member"
+    : "element";
+}
+
+/** What `owner` holds in its owned lists; element constructors start each as []. */
+function ownedBy(owner: Element): Element[] {
+  return app.metamodels
+    .getMetaAttributes(owner.constructor.name)
+    .filter((a) => a.kind === "objs")
+    .flatMap((a) => owner[a.name] as Element[]);
+}
+
+/**
+ * Refuses a new `typeName` named like a sibling under `owner` (issue #20's
+ * duplicate-name policy) unless `allow` is set.
+ */
+export function assertUniqueName(
+  owner: Element,
+  typeName: string,
+  name: string | undefined,
+  allow: boolean | undefined,
+): void {
+  if (allow || !name || !namedKind(typeName)) return;
+  const space = nameSpace(typeName);
+  const clash = ownedBy(owner).find(
+    (e) =>
+      e.name === name &&
+      namedKind(e.constructor.name) !== undefined &&
+      nameSpace(e.constructor.name) === space,
+  );
+  if (clash) {
+    throw new ApiError(
+      "DUPLICATE_NAME",
+      `${pathOf(owner) ?? "The project"} already has a ${clash.constructor.name} named ${name} (${pathOf(clash)}); pass allowDuplicateNames: true to add another`,
+      { existing: candidate(clash) },
+    );
+  }
+}
+
+/**
  * A detached instance, for owned parts built inside an initializer (such as
  * an operation's parameters) and for relationships without a view, which no
  * factory function creates. StarUML's own factory functions construct
@@ -120,10 +185,14 @@ export function diagramOf(view: Element): Element | null {
 
 /**
  * A view for one end of an edge: the id itself when it is a view on
- * `diagram`, or the first view on `diagram` of the model it names.
+ * `diagram`, or the first view on `diagram` of the model it names; a path
+ * names the model's view on `diagram`.
  */
 export function endView(id: string, diagram: Element, role: string): View {
-  const elem = requireElement(id, role);
+  const elem = byId(id);
+  // A path names the view on this diagram directly, so a name shown on
+  // other diagrams too is not ambiguous here.
+  if (!elem) return resolveRef(id, { kind: "view", role, diagram }) as View;
   if (elem instanceof type.View) {
     if (diagramOf(elem) !== diagram) {
       throw new ApiError(

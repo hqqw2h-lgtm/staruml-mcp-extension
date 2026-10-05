@@ -155,6 +155,7 @@ describeLive("endpoints against StarUML 7.1.1", () => {
       _type: "UMLClass",
       name: "Book",
       _parent: modelId,
+      path: "Domain/Book",
     });
 
     expect(

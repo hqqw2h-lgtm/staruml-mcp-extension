@@ -46,6 +46,16 @@ export const ERROR_STATUS = {
   UNSUPPORTED_MEDIA_TYPE: 415,
   /** The operation needs an open project, or a saved one. */
   NO_PROJECT: 409,
+  /**
+   * A path or name that fits several elements; details.candidates lists
+   * each one's _id, _type and path.
+   */
+  AMBIGUOUS_REF: 409,
+  /**
+   * A new element named like a sibling of its kind, with allowDuplicateNames
+   * unset; details.existing is that sibling.
+   */
+  DUPLICATE_NAME: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**

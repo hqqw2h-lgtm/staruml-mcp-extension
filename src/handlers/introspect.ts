@@ -289,6 +289,30 @@ function describeToolbox() {
   };
 }
 
+type JsonObject = Record<string, unknown>;
+
+/**
+ * Lists each alias as a property beside its canonical one, with the same
+ * schema, `x-alias-of` naming the canonical field and `deprecated` set, so
+ * a client can offer only canonical names and still read old calls.
+ */
+function withAliases(
+  schema: JsonObject,
+  aliases: Readonly<Record<string, string>> | undefined,
+): JsonObject {
+  if (!aliases) return schema;
+  const properties = { ...(schema.properties as Record<string, JsonObject>) };
+  for (const [alias, canonical] of Object.entries(aliases)) {
+    properties[alias] = {
+      ...properties[canonical],
+      description: `Alias of ${canonical}.`,
+      "x-alias-of": canonical,
+      deprecated: true,
+    };
+  }
+  return { ...schema, properties };
+}
+
 let manifestCache: { endpoints: Endpoint[]; entries: unknown[] } | null = null;
 
 /** JSON Schemas are derived once per endpoint list; the list never changes at runtime. */
@@ -301,7 +325,10 @@ export function manifest(endpoints: readonly Endpoint[]) {
         description: e.description,
         readOnly: e.readOnly,
         destructive: e.destructive,
-        request: z.toJSONSchema(e.request, { io: "input" }),
+        request: withAliases(
+          z.toJSONSchema(e.request, { io: "input" }) as JsonObject,
+          e.aliases,
+        ),
         response: z.toJSONSchema(e.response, { io: "output" }),
       })),
     };

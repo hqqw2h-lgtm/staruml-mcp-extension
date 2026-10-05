@@ -25,7 +25,7 @@ import * as z from "zod/mini";
 import { defineEndpoint } from "../endpoint.js";
 import { inStarUML } from "../errors.js";
 import { requireElement, requireTypeName, requireView } from "../lookup.js";
-import { elementSchema, id, projectionShape, typeName } from "../schemas.js";
+import { elementSchema, projectionShape, ref, typeName } from "../schemas.js";
 import { serialize, type Projection } from "../serialize.js";
 import type { Element } from "../types.js";
 
@@ -51,10 +51,11 @@ export const getViewsOf = defineEndpoint({
     "Every view of a model element, on any diagram; empty for a model that is in no diagram.",
   readOnly: true,
   destructive: false,
-  request: z.object({ id: id("Model element id."), ...projectionShape() }),
+  request: z.object({ ref: ref("Model element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
   handle: (input) =>
-    listOf(app.repository.getViewsOf(requireElement(input.id)), input),
+    listOf(app.repository.getViewsOf(requireElement(input.ref)), input),
 });
 
 export const getEdgeViewsOf = defineEndpoint({
@@ -62,10 +63,11 @@ export const getEdgeViewsOf = defineEndpoint({
   description: "Edge views attached to a view at either end.",
   readOnly: true,
   destructive: false,
-  request: z.object({ id: id("View id."), ...projectionShape() }),
+  request: z.object({ ref: ref("View."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
   handle: (input) =>
-    listOf(app.repository.getEdgeViewsOf(requireView(input.id)), input),
+    listOf(app.repository.getEdgeViewsOf(requireView(input.ref)), input),
 });
 
 export const getRelationshipsOf = defineEndpoint({
@@ -74,10 +76,11 @@ export const getRelationshipsOf = defineEndpoint({
     "Relationships (generalizations, associations, dependencies, ...) that have the element at an end.",
   readOnly: true,
   destructive: false,
-  request: z.object({ id: id("Model element id."), ...projectionShape() }),
+  request: z.object({ ref: ref("Model element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
   handle: (input) =>
-    listOf(app.repository.getRelationshipsOf(requireElement(input.id)), input),
+    listOf(app.repository.getRelationshipsOf(requireElement(input.ref)), input),
 });
 
 export const getRefsTo = defineEndpoint({
@@ -86,10 +89,11 @@ export const getRefsTo = defineEndpoint({
     "Every element holding a reference to the element: typed attributes, relationship ends, views showing it. Check before deleting.",
   readOnly: true,
   destructive: false,
-  request: z.object({ id: id("Element id."), ...projectionShape() }),
+  request: z.object({ ref: ref("Element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
   handle: (input) =>
-    listOf(app.repository.getRefsTo(requireElement(input.id)), input),
+    listOf(app.repository.getRefsTo(requireElement(input.ref)), input),
 });
 
 export const getConnectedNodeViews = defineEndpoint({
@@ -99,7 +103,7 @@ export const getConnectedNodeViews = defineEndpoint({
   readOnly: true,
   destructive: false,
   request: z.object({
-    id: id("View id."),
+    ref: ref("View; a model stands for its only view."),
     edgeType: z.optional(
       typeName(
         "Edge view type to follow, e.g. 'UMLAssociationView'; default every EdgeView.",
@@ -107,9 +111,10 @@ export const getConnectedNodeViews = defineEndpoint({
     ),
     ...projectionShape(),
   }),
+  aliases: { id: "ref" },
   response: listResult(),
   handle: (input) => {
-    const view = requireView(input.id);
+    const view = requireView(input.ref);
     const edgeType = input.edgeType ?? "EdgeView";
     requireTypeName(edgeType);
     const nodes = inStarUML(() =>

@@ -26,7 +26,7 @@ import { KINDS } from "../build/spec.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError } from "../errors.js";
 import { requireDiagram } from "../lookup.js";
-import { id } from "../schemas.js";
+import { ref } from "../schemas.js";
 import { summarize } from "../serialize.js";
 import { toMermaid } from "../text/mermaid-writer.js";
 import { extract, kindOf } from "../text/model.js";
@@ -39,9 +39,10 @@ export const exportText = defineEndpoint({
   readOnly: true,
   destructive: false,
   request: z.object({
-    diagramId: id("Diagram id."),
+    diagram: ref("Diagram."),
     format: doc(z.enum(["mermaid", "plantuml"]), "Text format."),
   }),
+  aliases: { diagramId: "diagram" },
   response: z.object({
     diagram: z.object({
       _id: z.string(),
@@ -60,7 +61,7 @@ export const exportText = defineEndpoint({
     ),
   }),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const kind = kindOf(diagram);
     if (!kind) {
       throw new ApiError(

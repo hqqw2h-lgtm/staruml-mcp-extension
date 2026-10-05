@@ -44,9 +44,9 @@ import {
   ATTRIBUTE_VALUES_HELP,
   coordinate,
   elementSchema,
-  id,
   projectionShape,
   properties,
+  ref,
   text,
   typeName,
 } from "../schemas.js";
@@ -132,7 +132,42 @@ const endShape = () => ({
     "Undirected relationships only: attributes of end1, e.g. {name, navigable, aggregation, multiplicity} for a UMLAssociation.",
   ),
   headEnd: properties("Undirected relationships only: attributes of end2."),
+  tailName: z.optional(
+    text(
+      "Undirected relationships only: the role name of end1 (tailEnd.name).",
+    ),
+  ),
+  headName: z.optional(
+    text(
+      "Undirected relationships only: the role name of end2 (headEnd.name).",
+    ),
+  ),
 });
+
+const nameShape = () => ({
+  name: z.optional(
+    text(
+      "The relationship's own name, drawn as a plain label on the edge (without the visibility mark); role names go in tailName/headName.",
+    ),
+  ),
+});
+
+/** tailEnd/headEnd with the role names given on their own folded in. */
+function withRoleNames(input: {
+  tailEnd?: Record<string, unknown>;
+  headEnd?: Record<string, unknown>;
+  tailName?: string;
+  headName?: string;
+}) {
+  const end = (
+    values: Record<string, unknown> | undefined,
+    name: string | undefined,
+  ) => (name === undefined ? values : { ...values, name });
+  return {
+    tailEnd: end(input.tailEnd, input.tailName),
+    headEnd: end(input.headEnd, input.headName),
+  };
+}
 
 interface EdgeRequest {
   type: string;
@@ -144,6 +179,8 @@ interface EdgeRequest {
   properties?: Record<string, unknown>;
   tailEnd?: Record<string, unknown>;
   headEnd?: Record<string, unknown>;
+  tailName?: string;
+  headName?: string;
   x1?: number;
   y1?: number;
   x2?: number;
@@ -160,7 +197,8 @@ function createEdge(request: EdgeRequest): View {
   const modelType = modelTypeOf(createId);
   const kind = modelType ? relationshipKind(modelType) : null;
   const values = valuesFor(createId, request.name, request.properties);
-  const ends = endValues(modelType, kind, request.tailEnd, request.headEnd);
+  const { tailEnd, headEnd } = withRoleNames(request);
+  const ends = endValues(modelType, kind, tailEnd, headEnd);
   return createModelAndView({
     ...preset,
     id: createId,
@@ -175,6 +213,12 @@ function createEdge(request: EdgeRequest): View {
       Object.assign(m, values);
       assignEnds(m, ends);
     },
+    // UMLGeneralEdgeView draws the name as model.getString(view), which puts
+    // the visibility mark ("+") before it while showVisibility is on, its
+    // default (uml/elements.js, 7.1.1). A relationship's name is a label.
+    viewInitializer: (v: View) => {
+      if (request.name && "showVisibility" in v) v.showVisibility = false;
+    },
   });
 }
 
@@ -188,33 +232,43 @@ export const createEdgeWithView = defineEndpoint({
     type: typeName(
       "A model-and-view id of /introspect factory.modelAndViewIds whose entry has a relationship kind, e.g. 'UMLAssociation', an edge id such as 'NoteLink', or a toolbox item id such as 'UMLComposition' or 'UMLAsyncMessage'.",
     ),
-    diagramId: id("Diagram to place the edge on."),
-    parentId: z.optional(
-      id(
+    diagram: ref("Diagram to place the edge on."),
+    parent: z.optional(
+      ref(
         "Passed to the factory as the diagram editor does; default the diagram's owner. Most relationship factories file the relationship under the tail model regardless.",
       ),
     ),
-    tailViewId: id("View at the source end."),
-    headViewId: id("View at the target end."),
-    name: z.optional(text("Relationship name.")),
+    tail: ref(
+      "View at the source end; a model stands for its view on the diagram.",
+    ),
+    head: ref(
+      "View at the target end; a model stands for its view on the diagram.",
+    ),
+    ...nameShape(),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...endShape(),
     ...geometryShape(),
     ...projectionShape(),
   }),
+  aliases: {
+    diagramId: "diagram",
+    parentId: "parent",
+    tailViewId: "tail",
+    headViewId: "head",
+  },
   response: createdSchema(),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const parent =
-      input.parentId === undefined
+      input.parent === undefined
         ? diagram._parent!
-        : requireElement(input.parentId, "Parent");
+        : requireElement(input.parent, "Parent");
     const view = createEdge({
       ...input,
       parent,
       diagram,
-      tail: requireView(input.tailViewId, "Tail view"),
-      head: requireView(input.headViewId, "Head view"),
+      tail: requireView(input.tail, "Tail view", diagram),
+      head: requireView(input.head, "Head view", diagram),
     });
     return created(view, input);
   },
@@ -230,22 +284,25 @@ function createModelOnly(
   modelType: string,
   kind: RelationshipKind,
   input: {
-    parentId?: string;
+    parent?: string;
     field?: string;
     name?: string;
     properties?: Record<string, unknown>;
     tailEnd?: Record<string, unknown>;
     headEnd?: Record<string, unknown>;
+    tailName?: string;
+    headName?: string;
   },
   tail: Element,
   head: Element,
 ): Element {
   const values = initialValues(modelType, input.name, input.properties);
-  const ends = endValues(modelType, kind, input.tailEnd, input.headEnd);
+  const { tailEnd, headEnd } = withRoleNames(input);
+  const ends = endValues(modelType, kind, tailEnd, headEnd);
   const parent =
-    input.parentId === undefined
+    input.parent === undefined
       ? defaultOwner(tail, modelType)
-      : requireElement(input.parentId, "Parent");
+      : requireElement(input.parent, "Parent");
   const field = resolveOwnerField(parent, modelType, input.field);
   const model = instantiate(modelType);
   if (kind === "directed") {
@@ -297,18 +354,18 @@ function endModel(id: string, role: string): Element {
 export const createRelationship = defineEndpoint({
   path: "/create_relationship",
   description:
-    "Create a relationship between two elements with its ends set: source/target for directed kinds (Generalization, Dependency, Realization, InterfaceRealization, Include, Extend, Transition, ControlFlow, ObjectFlow, Message, flows of the other diagram families), end1/end2 for undirected ones (Association with end name, navigability, aggregation, multiplicity; Link; ERD relationship; connectors). With diagramId the edge view is created too, through StarUML's own factory and its connection rules; tail/head may then be view ids or ids of models shown on that diagram.",
+    "Create a relationship between two elements with its ends set: source/target for directed kinds (Generalization, Dependency, Realization, InterfaceRealization, Include, Extend, Transition, ControlFlow, ObjectFlow, Message, flows of the other diagram families), end1/end2 for undirected ones (Association with end name, navigability, aggregation, multiplicity; Link; ERD relationship; connectors). With a diagram the edge view is created too, through StarUML's own factory and its connection rules; tail/head may then be view ids or ids of models shown on that diagram.",
   readOnly: false,
   destructive: false,
   request: z.object({
     type: typeName(
-      "With diagramId: a model-and-view id (see /introspect factory.modelAndView) or a toolbox item id that presets one, e.g. 'UMLComposition', 'UMLReplyMessage', 'ERDRelationshipOneToMany'. Without: a metamodel class whose relationship kind is directed or undirected.",
+      "With a diagram: a model-and-view id (see /introspect factory.modelAndView) or a toolbox item id that presets one, e.g. 'UMLComposition', 'UMLReplyMessage', 'ERDRelationshipOneToMany'. Without: a metamodel class whose relationship kind is directed or undirected.",
     ),
-    tailId: id("Source end: a model, or a view on the diagram."),
-    headId: id("Target end: a model, or a view on the diagram."),
-    diagramId: z.optional(id("Diagram to draw the relationship on.")),
-    parentId: z.optional(
-      id(
+    tail: ref("Source end: a model, or a view on the diagram."),
+    head: ref("Target end: a model, or a view on the diagram."),
+    diagram: z.optional(ref("Diagram to draw the relationship on.")),
+    parent: z.optional(
+      ref(
         "Owner of the relationship. With a diagram it is passed to the factory as the diagram editor does (default the diagram's owner); most relationship factories file the relationship under the tail model regardless. Without a diagram the default is the tail's owner when that has a list for this type (messages, edges, transitions), else the tail model.",
       ),
     ),
@@ -318,7 +375,7 @@ export const createRelationship = defineEndpoint({
         "Without a diagram: owner list to add to; default the list typed for the relationship, e.g. 'messages' of a UMLInteraction.",
       ),
     ),
-    name: z.optional(text("Relationship name.")),
+    ...nameShape(),
     properties: properties(
       `${ATTRIBUTE_VALUES_HELP} E.g. {messageSort: "asynchCall"} for a UMLMessage, {guard: "x > 0"} for a UMLControlFlow.`,
     ),
@@ -326,6 +383,12 @@ export const createRelationship = defineEndpoint({
     ...geometryShape(),
     ...projectionShape(),
   }),
+  aliases: {
+    tailId: "tail",
+    headId: "head",
+    diagramId: "diagram",
+    parentId: "parent",
+  },
   response: z.object({
     view: doc(z.nullable(elementSchema()), "Null without a diagram."),
     model: doc(
@@ -334,8 +397,8 @@ export const createRelationship = defineEndpoint({
     ),
   }),
   handle: (input) => {
-    if (input.diagramId !== undefined) {
-      const diagram = requireDiagram(input.diagramId);
+    if (input.diagram !== undefined) {
+      const diagram = requireDiagram(input.diagram);
       if (input.field !== undefined) {
         throw new ApiError(
           "INVALID_ARGUMENT",
@@ -345,12 +408,12 @@ export const createRelationship = defineEndpoint({
       const view = createEdge({
         ...input,
         parent:
-          input.parentId === undefined
+          input.parent === undefined
             ? diagram._parent!
-            : requireElement(input.parentId, "Parent"),
+            : requireElement(input.parent, "Parent"),
         diagram,
-        tail: endView(input.tailId, diagram, "Tail"),
-        head: endView(input.headId, diagram, "Head"),
+        tail: endView(input.tail, diagram, "Tail"),
+        head: endView(input.head, diagram, "Head"),
       });
       return created(view, input);
     }
@@ -365,8 +428,8 @@ export const createRelationship = defineEndpoint({
       input.type,
       kind,
       input,
-      endModel(input.tailId, "Tail"),
-      endModel(input.headId, "Head"),
+      endModel(input.tail, "Tail"),
+      endModel(input.head, "Head"),
     );
     return { view: null, model: serialize(model, input) };
   },

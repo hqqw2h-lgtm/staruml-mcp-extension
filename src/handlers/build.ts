@@ -38,8 +38,9 @@ import {
 } from "../build/spec.js";
 import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError, type ErrorCode } from "../errors.js";
+import { tryResolve } from "../refs.js";
 import { requireElement, requireProject } from "../lookup.js";
-import { id } from "../schemas.js";
+import { duplicateShape, ref } from "../schemas.js";
 import { summarize } from "../serialize.js";
 import { diagramOf } from "../create.js";
 import { resolveCreateType } from "../toolbox.js";
@@ -177,25 +178,25 @@ function memberOps(node: PlanNode, owner: string, model?: Element): Op[] {
   };
   add("attributes", node.attributes, (a) => ({
     path: "/add_attribute",
-    body: { ownerId: owner, ...a },
+    body: { ref: owner, ...a },
   }));
   add("operations", node.operations, (o) => ({
     path: "/add_operation",
-    body: { ownerId: owner, ...o },
+    body: { ref: owner, ...o },
   }));
   add(
     "literals",
     node.literals?.map((name) => ({ name })),
     ({ name }) => ({
       path: "/add_enumeration_literal",
-      body: { enumerationId: owner, name },
+      body: { ref: owner, name },
     }),
   );
   add("columns", node.columns, (c) => {
     const { name, ...properties } = c as ColumnSpec;
     return {
       path: "/create_element",
-      body: { type: "ERDColumn", parentId: owner, name, properties },
+      body: { type: "ERDColumn", parent: owner, name, properties },
     };
   });
   return ops;
@@ -207,7 +208,7 @@ function propertyOps(node: PlanNode, model: Element): Op[] {
     .filter(([field, value]) => model[field] !== value)
     .map(([field, value]) => ({
       path: "/update_element",
-      body: { id: model._id, field, value },
+      body: { ref: model._id, field, value },
     }));
 }
 
@@ -221,7 +222,7 @@ function styleOps(node: PlanNode, view: string, current?: View): Op[] {
     : [
         {
           path: "/set_view_style",
-          body: { ids: [view], ...Object.fromEntries(changed) },
+          body: { refs: [view], ...Object.fromEntries(changed) },
         },
       ];
 }
@@ -263,6 +264,18 @@ function findModel(
   if (node.type === "Note") return null;
   const modelType = modelTypeOf(resolveCreateType(node.type).id)!;
   const signature = signatureOf(node.type);
+  // A path ("Model/Billing/Invoice") names one element as every endpoint
+  // reads it; a name with "/" that names nothing is still just a name.
+  if (node.name.includes("/")) {
+    const byPath = tryResolve(node.name);
+    if (
+      byPath &&
+      modelSignature(byPath) === signature &&
+      !claimed.has(byPath)
+    ) {
+      return byPath;
+    }
+  }
   const path = node.name.split("::").map((p) => p.trim());
   const candidates = app.repository
     .getInstancesOf(modelType)
@@ -352,6 +365,8 @@ export interface BuildOptions {
   prune?: boolean;
   /** Show existing model elements a node names instead of making new ones. */
   reuse?: boolean;
+  /** Let new elements take a sibling's name (the DUPLICATE_NAME policy). */
+  allowDuplicateNames?: boolean;
 }
 
 export interface Target {
@@ -377,8 +392,9 @@ export function opsFor(
       as: "diagram",
       body: {
         type: DIAGRAM_TYPES[plan.kind],
-        parentId: target.parent._id,
+        parent: target.parent._id,
         ...(target.name !== undefined && { name: target.name }),
+        ...(options.allowDuplicateNames && { allowDuplicateNames: true }),
       },
     });
   }
@@ -391,7 +407,7 @@ export function opsFor(
   ) {
     ops.push({
       path: "/update_element",
-      body: { id: "$diagram._parent", field: "name", value: target.name },
+      body: { ref: "$diagram._parent", field: "name", value: target.name },
     });
   }
   const pools = target.diagram ? existing(target.diagram) : null;
@@ -436,6 +452,7 @@ export function opsFor(
     const box = boxes.get(node.key)!;
     created.set(as, node.key);
     fresh.add(node.key);
+    const warned = warnings.length;
     const model = reuse
       ? findModel(
           node,
@@ -444,6 +461,12 @@ export function opsFor(
           warnings,
         )
       : null;
+    // Without reuse, or when several elements have the name, a new element
+    // of the same name is what was asked for.
+    const duplicate =
+      options.allowDuplicateNames === true ||
+      options.reuse === false ||
+      warnings.length > warned;
     if (model) {
       claimed.add(model);
       shown++;
@@ -452,8 +475,8 @@ export function opsFor(
         path: "/create_view_of",
         as,
         body: {
-          modelId: model._id,
-          diagramId: diagramRef,
+          ref: model._id,
+          diagram: diagramRef,
           x: Math.round(box.x),
           y: Math.round(box.y),
         },
@@ -464,7 +487,7 @@ export function opsFor(
       ops.push({
         path: "/resize_node",
         body: {
-          id: `$${as}.view`,
+          ref: `$${as}.view`,
           width: Math.round(box.width),
           height: Math.round(box.height),
         },
@@ -486,9 +509,9 @@ export function opsFor(
       as,
       body: {
         type: node.type,
-        diagramId: diagramRef,
+        diagram: diagramRef,
         ...(node.owner !== undefined && {
-          parentId: refs.get(node.owner)!.model,
+          parent: refs.get(node.owner)!.model,
         }),
         // A note is a view without a model, so it takes neither.
         ...(!note && { name: node.name }),
@@ -498,12 +521,13 @@ export function opsFor(
         x2: Math.round(box.x + box.width),
         y2: Math.round(box.y + box.height),
         ...(node.guard !== undefined && { fields: ["operands"] }),
+        ...(duplicate && { allowDuplicateNames: true }),
       },
     });
     if (note) {
       ops.push({
         path: "/update_element",
-        body: { id: `$${as}.view`, field: "text", value: node.text },
+        body: { ref: `$${as}.view`, field: "text", value: node.text },
       });
     }
     ops.push(...memberOps(node, `$${as}.model`));
@@ -513,7 +537,7 @@ export function opsFor(
         path: "/create_element",
         body: {
           type: "UMLInteractionOperand",
-          parentId: `$${as}.model`,
+          parent: `$${as}.model`,
           name: "",
           properties: { guard },
         },
@@ -523,7 +547,7 @@ export function opsFor(
       ops.push({
         path: "/update_element",
         body: {
-          id: `$${as}.model.operands.0`,
+          ref: `$${as}.model.operands.0`,
           field: "guard",
           value: node.guard,
         },
@@ -532,7 +556,7 @@ export function opsFor(
     if (node.operandAt) {
       ops.push({
         path: "/divide_fragment",
-        body: { id: `$${as}.view`, at: node.operandAt },
+        body: { ref: `$${as}.view`, at: node.operandAt },
       });
     }
   });
@@ -550,10 +574,10 @@ export function opsFor(
     ops.push({
       path: "/move_views",
       body: {
-        ids: views,
+        refs: views,
         dx: 0,
         dy: 0,
-        containerViewId: refs.get(container)!.view,
+        container: refs.get(container)!.view,
       },
     });
   }
@@ -581,9 +605,9 @@ export function opsFor(
         as,
         body: {
           type: edge.type,
-          diagramId: diagramRef,
-          tailViewId: tail.view,
-          headViewId: head.view,
+          diagram: diagramRef,
+          tail: tail.view,
+          head: head.view,
         },
       });
       return;
@@ -601,7 +625,7 @@ export function opsFor(
       ops.push({
         path: "/create_view_of",
         as,
-        body: { modelId: relationship._id, diagramId: diagramRef },
+        body: { ref: relationship._id, diagram: diagramRef },
       });
       return;
     }
@@ -610,9 +634,9 @@ export function opsFor(
       as,
       body: {
         type: edge.type,
-        tailId: tail.view,
-        headId: head.view,
-        diagramId: diagramRef,
+        tail: tail.view,
+        head: head.view,
+        diagram: diagramRef,
         ...(edge.name !== undefined && { name: edge.name }),
         ...(edge.properties && { properties: edge.properties }),
         ...(edge.tailEnd && { tailEnd: edge.tailEnd }),
@@ -638,7 +662,7 @@ export function opsFor(
         owned !== null && models.some((m) => m !== owned && within(owned, m));
       if (covered || targets.indexOf(t) !== i) continue;
       deleted++;
-      ops.push({ path: "/delete_element", body: { id: t._id } });
+      ops.push({ path: "/delete_element", body: { ref: t._id } });
     }
   }
   // Engine layout rearranges every node; on an upsert that added nothing it
@@ -651,7 +675,7 @@ export function opsFor(
   if (engine) {
     ops.push({
       path: "/layout_diagram",
-      body: { id: diagramRef, preset },
+      body: { diagram: diagramRef, preset },
     });
   }
   return {
@@ -742,8 +766,8 @@ export function buildDiagramEndpoint(
         ),
       ),
       name: z.optional(doc(z.string(), "Diagram name.")),
-      parentId: z.optional(
-        id(
+      parent: z.optional(
+        ref(
           "Owner of the diagram; default the project, where StarUML adds the container the kind needs (a model, interaction, activity, state machine, data model, flowchart or mind map).",
         ),
       ),
@@ -774,13 +798,15 @@ export function buildDiagramEndpoint(
           "With upsert: delete the nodes, notes and edges on the diagram that the spec does not have, in the same undo step. An element shown on other diagrams too, or owning one the spec keeps, loses only its view here.",
         ),
       ),
+      ...duplicateShape(),
       reuse: z.optional(
         doc(
           z.boolean(),
-          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements.",
+          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements.",
         ),
       ),
     }),
+    aliases: { parentId: "parent" },
     response: z.object({
       diagram: doc(
         z.object({
@@ -868,9 +894,9 @@ export function buildDiagramEndpoint(
       }
       const plan = planFor(kind, spec);
       const parent =
-        input.parentId === undefined
+        input.parent === undefined
           ? requireProject()
-          : requireElement(input.parentId, "Parent");
+          : requireElement(input.parent, "Parent");
       const raw = input.name ?? title;
       const name = raw === undefined ? undefined : multiline(raw);
       if (input.prune && !input.upsert) {
@@ -883,7 +909,11 @@ export function buildDiagramEndpoint(
         direction ?? "TB",
         input.autoLayout ?? true,
         input.layout,
-        { prune: input.prune, reuse: input.reuse ?? true },
+        {
+          prune: input.prune,
+          reuse: input.reuse ?? true,
+          allowDuplicateNames: input.allowDuplicateNames,
+        },
       );
       const batch = endpoints().find((e) => e.path === "/batch")!;
       let data: BatchData = { results: [] };

@@ -106,8 +106,20 @@ describe("class", () => {
 
   it("refuses a class in an unknown package", () => {
     expect(refused("class", { classes: [{ name: "A", package: "p" }] })).toBe(
-      "spec.classes.0.package: no package named p",
+      "spec.classes.0.package: no package named p; declare it in spec.packages or set spec.autoCreatePackages",
     );
+    const auto = planFor("class", {
+      autoCreatePackages: true,
+      classes: [
+        { name: "A", package: "p" },
+        { name: "B", package: "p" },
+      ],
+    });
+    expect(auto.nodes.map((n) => [n.key, n.type, n.owner])).toEqual([
+      ["p", "UMLPackage", undefined],
+      ["A", "UMLClass", "p"],
+      ["B", "UMLClass", "p"],
+    ]);
   });
 
   it("accepts an empty spec", () => {

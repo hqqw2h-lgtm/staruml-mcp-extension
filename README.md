@@ -80,6 +80,27 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 | Batches       | `/batch`                                                                                                                                                                      |
 | History       | `/undo`, `/redo`, `/is_modified`                                                                                                                                              |
 
+### References: paths and canonical field names
+
+Every field that takes an element, view or diagram takes its id or a path (`src/refs.ts`):
+
+| Reference                           | Names                                                                                                                              |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `Model/Shop/Order`                  | owners from the project down, `/` between steps                                                                                    |
+| `Shop/Order`, `Order`               | the trailing steps of a path, when one element ends so; a path from the project wins                                               |
+| `/Model/Shop`                       | only the path from the project                                                                                                     |
+| `Order.total`                       | a member: attribute, literal, column, slot, parameter                                                                              |
+| `Order#pay`, `Order#pay(int, Item)` | an operation; parameter types pick an overload                                                                                     |
+| `Main`, `Model/Main`                | a diagram, by name or path                                                                                                         |
+| `Order@Main`                        | the view of `Order` on the diagram `Main`; a model where a view is expected is its only view, or its view on the request's diagram |
+| `@current`, `@project`              | the diagram open in the editor; the project                                                                                        |
+
+`\` escapes `/ . # @ ( ) , \` inside a name. Ids win over paths. A reference that fits several elements is `409 AMBIGUOUS_REF` with `details.candidates` (`_id`, `_type`, `path`, at most 20); one that fits none is `404 NOT_FOUND`. Summaries carry `path`, the canonical form, which resolves back to the element whenever the names along it are unique among their siblings; `/batch` results do too, so `"$name.path"` works.
+
+The fields have one name each across endpoints: `ref` (the element acted on), `refs`, `diagram`, `diagrams`, `tail`, `head`, `parent` (owner of what is created), `container` (host or containing view), `views` and `models` (`/set_selection`). The earlier names (`id`, `ids`, `elementId`, `ownerId`, `operationId`, `enumerationId`, `instanceId`, `modelId`, `baseId`, `diagramId`, `parentId`, `containerViewId`, `tailId`/`headId`, `tailViewId`/`headViewId`, `viewIds`, `modelIds`) are accepted as aliases; the manifest lists each beside its canonical field with `x-alias-of` and `deprecated: true`, and passing both spellings is `400 INVALID_ARGUMENT`.
+
+Creating a classifier, package, diagram, attribute, enumeration literal, ERD entity or column named like a sibling of its kind is `409 DUPLICATE_NAME` (`details.existing`), since a path could not tell them apart; `allowDuplicateNames: true` adds it anyway. `/build_diagram` passes it for new elements when `reuse` is false or several elements already have the name.
+
 ### `/introspect`
 
 Returns the StarUML and extension versions and, unless `include` narrows it, four sections:
@@ -94,34 +115,34 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 ### Finding types, reading diagrams, validating
 
 - `/search_types {query, limit?, categories?}` ranks diagram types, palette items, relationship ids, model types, enumerations and command ids against a fuzzy query: a whole id beats a prefix, a prefix a substring, then all query words in the id, title or description, then the query's letters in order ("clsdgm"). Descriptions and the minimal `example` request are generated from the metamodel, the factory, the palette and the command catalogue, so types added by extensions are found too.
-- `/describe_diagram {diagramId, maxChars?}` answers a few lines of text: the diagram, each node with its members (`+id: long; +total(): double`), each edge as `"tail" (end) -[Type "name"]-> (end) "head"`, where an association or ERD relationship end shows its aggregation (`shared`, `composite`), multiplicity or cardinality and role name, e.g. `"Order" (composite 1) -[UMLAssociation]-> (1..*) "Line"`, cut to `maxChars` (default 4000).
+- `/describe_diagram {diagram, maxChars?}` answers a few lines of text: the diagram, each node with its members (`+id: long; +total(): double`), each edge as `"tail" (end) -[Type "name"]-> (end) "head"`, where an association or ERD relationship end shows its aggregation (`shared`, `composite`), multiplicity or cardinality and role name, e.g. `"Order" (composite 1) -[UMLAssociation]-> (1..*) "Line"`, cut to `maxChars` (default 4000).
 - `/validate_model {scope?, limit?}` runs StarUML's validation rules on the open model and lists `{id, _type, name, ruleId, message}`. StarUML loads `rules.js` only in its main process and validates the saved file there (**Model → Validate**); this endpoint loads the same files (`resources/default/rules.js` and the `rules.js` of every essential, default, dev and user extension) into the window's `rules` once and runs `app.validator`, so no save is needed.
 
 ### Creating and changing elements
 
 - `create_element` files the element in the owner list typed for it (`attributes` for a UMLAttribute in a class, `columns` for an ERDColumn) unless `field` says otherwise; `properties` sets attributes on creation.
-- `create_element_with_view` takes `containerViewId` for views placed on or inside another view (ports, parts, pins, BPMN boundary events, timing diagram parts).
-- `create_relationship` sets the ends: source/target, or end1/end2 with `tailEnd`/`headEnd` attributes. With `diagramId` it draws the edge through StarUML's factory and its connection rules; without, it creates the model only.
+- `create_element_with_view` takes `container` for views placed on or inside another view (ports, parts, pins, BPMN boundary events, timing diagram parts).
+- `create_relationship` sets the ends: source/target, or end1/end2 with `tailEnd`/`headEnd` attributes. With `diagram` it draws the edge through StarUML's factory and its connection rules; without, it creates the model only. `name` is the relationship's own name, drawn as a plain label (the edge view's `showVisibility` is turned off, which would otherwise prefix it with `+`); role names go in `tailName`/`headName`.
 - `update_element` with `op`: `set` (references as id or `{$ref}`), `add`/`remove` on reference lists, `reorder` within a list, `relocate` to another owner. Each call is one undo step.
 
 ### Views and export
 
 - View edits go through StarUML's engine (`layoutDiagram`, `moveViews`, `resizeNode`, `setFillColor`, ...), which needs the editor to show the views' diagram, so they make that diagram current. Each is one undo step; `/set_view_style` is one step per property given.
 - `/layout_diagram` takes a `preset`: `flow-down|up|right|left` put an edge's source before its target, `hierarchy-down|up|right|left` its target first (a superclass above its subclasses). StarUML hands edges to dagre head first (`Diagram.layout` in `core/core.js`), so its raw `direction: "TB"` draws a flow bottom-up; the flow presets pass the opposite rank direction. `nodeSeparation`, `rankSeparation` and `edgeLineStyle` override the preset, and a partial spacing is completed with StarUML's defaults (30). `fit: true` first sizes node views to their content, one more undo step.
-- `/route_edges {diagramId, lineStyle}` gives every edge on the diagram one line style (`rectilinear`, `oblique`, `roundrect`, `curve`) in one undo step.
-- `/move_views {ids, dx, dy, containerViewId}` also puts the views inside the container view and their models inside its model (`Engine.moveViewsChangingContainer`), as dropping them on it does; a composite state holds states in its region's view, which the diagram gets when drawn, so the endpoint draws it first.
-- `/create_view_of {modelId, diagramId, x, y}` shows an existing element as dragging it from the Model Explorer does (`Factory.createViewOf`), relationships to elements already on the diagram included. A model already shown answers its view; a relationship needs both ends shown first.
-- `/divide_fragment {id, at}` sets where each operand of a combined fragment begins (diagram y of each boundary). StarUML stacks operand views by their heights and stretches the last one, so this sets the heights.
+- `/route_edges {diagram, lineStyle}` gives every edge on the diagram one line style (`rectilinear`, `oblique`, `roundrect`, `curve`) in one undo step.
+- `/move_views {refs, dx, dy, container}` also puts the views inside the container view and their models inside its model (`Engine.moveViewsChangingContainer`), as dropping them on it does; a composite state holds states in its region's view, which the diagram gets when drawn, so the endpoint draws it first.
+- `/create_view_of {ref, diagram, x, y}` shows an existing element as dragging it from the Model Explorer does (`Factory.createViewOf`), relationships to elements already on the diagram included. A model already shown answers its view; a relationship needs both ends shown first.
+- `/divide_fragment {ref, at}` sets where each operand of a combined fragment begins (diagram y of each boundary). StarUML stacks operand views by their heights and stretches the last one, so this sets the heights.
 - `/export_diagram` renders PNG and JPEG by calling StarUML's own exporter (`engine/diagram-export.js` `getImageData`, what **File → Export Diagram As** uses) and SVG through its SVG export. `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) is passed as the pixel ratio that exporter reads; `background` (default transparent, white for JPEG) is painted under a transparent rendering. It answers base64 or writes `path`. Whatever the exporter draws for the running licence appears as it does in the menu.
-- `/export_diagrams` writes every diagram (or `ids`) into a directory, one PNG, JPEG or SVG file each, named after the diagram.
-- `/export_text {diagramId, format: mermaid|plantuml}` writes class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams as text, from the views on the diagram. The Mermaid is the dialect `/build_diagram` reads, with the diagram's name as front matter `title`, so `/build_diagram {mermaid, kind}` with the answer's `kind` rebuilds the same nodes, members and edges; use case and activity diagrams come out as flowcharts in the shape `build_diagram` reads as those kinds. PlantUML uses aliases so any name works; activity diagrams and flowcharts use the legacy activity syntax, whose arrows join any two nodes. Composite states come out as `state X { }` blocks, notes on class, state and sequence diagrams as notes, and an operand's `else` before its first message, read from the heights of the drawn operand views. `warnings` names what the text leaves out: views of other kinds, fragments without a Mermaid block, nodes without flows in PlantUML. Requirement diagrams are Mermaid `requirementDiagram`s and, since PlantUML has none, stereotyped PlantUML classes; C4 diagrams are the macros Mermaid and C4-PlantUML share, at the deepest level used (`C4Context`, `C4Container`, `C4Component`), external elements being the grey ones. `tests/fixtures/export` holds the output for every build case.
+- `/export_diagrams` writes every diagram (or `diagrams`) into a directory, one PNG, JPEG or SVG file each, named after the diagram.
+- `/export_text {diagram, format: mermaid|plantuml}` writes class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams as text, from the views on the diagram. The Mermaid is the dialect `/build_diagram` reads, with the diagram's name as front matter `title`, so `/build_diagram {mermaid, kind}` with the answer's `kind` rebuilds the same nodes, members and edges; use case and activity diagrams come out as flowcharts in the shape `build_diagram` reads as those kinds. PlantUML uses aliases so any name works; activity diagrams and flowcharts use the legacy activity syntax, whose arrows join any two nodes. Composite states come out as `state X { }` blocks, notes on class, state and sequence diagrams as notes, and an operand's `else` before its first message, read from the heights of the drawn operand views. `warnings` names what the text leaves out: views of other kinds, fragments without a Mermaid block, nodes without flows in PlantUML. Requirement diagrams are Mermaid `requirementDiagram`s and, since PlantUML has none, stereotyped PlantUML classes; C4 diagrams are the macros Mermaid and C4-PlantUML share, at the deepest level used (`C4Context`, `C4Container`, `C4Component`), external elements being the grey ones. `tests/fixtures/export` holds the output for every build case.
 - `/export_pdf` and `/export_html` write what the CLI's `pdf` and `html` commands write, to an absolute path.
 
 ### Commands and code generation
 
 - [`docs/commands.md`](docs/commands.md) lists every command id with its arguments, effect and dialog behaviour; `/describe_commands` answers the same from the running app. `npm run docs:commands` regenerates the file.
 - `/execute_command` answers `422 DIALOG_REQUIRED` instead of waiting on a dialog: commands that always open one, or that are missing the arguments that avoid one, are refused before they run; any other command runs with every `app.dialogs.show*` and `app.*Dialog.showDialog` replaced, and is stopped where it would open one. StarUML's message and file boxes are synchronous, so an opened one would freeze StarUML and this server with it.
-- `/generate_code {language, baseId, path, options?}` runs an installed generator extension (`staruml.java`, `staruml.cpp`, `staruml.csharp`, `staruml.python`) and lists the files it wrote; options default to the generator's preferences. `/reverse_code {language, path, options?}` reads a source directory into the project through the extension's analyzer. `/list_code_generators` shows what is installed. All three find the extension wherever StarUML loaded it from.
+- `/generate_code {language, ref, path, options?}` runs an installed generator extension (`staruml.java`, `staruml.cpp`, `staruml.csharp`, `staruml.python`) and lists the files it wrote; options default to the generator's preferences. `/reverse_code {language, path, options?}` reads a source directory into the project through the extension's analyzer. `/list_code_generators` shows what is installed. All three find the extension wherever StarUML loaded it from.
 
 ### `/batch`
 
@@ -189,6 +210,8 @@ Success is `{success: true, data}`. Failure is `{success: false, code, error, de
 | `METHOD_NOT_ALLOWED`               | 405    | Not `POST`                                                                          |
 | `PAYLOAD_TOO_LARGE`                | 413    | Body over `mcp-ext.limits.maxBodyKiB`, or a batch over `mcp-ext.limits.maxBatchOps` |
 | `NO_PROJECT`                       | 409    | No project open, or it has no file yet                                              |
+| `AMBIGUOUS_REF`                    | 409    | A path or name fits several elements; `details.candidates` lists them               |
+| `DUPLICATE_NAME`                   | 409    | A sibling of the same kind has the name; `details.existing` is it                   |
 | `STARUML_ERROR`                    | 422    | StarUML refused, e.g. a factory precondition                                        |
 | `DIALOG_REQUIRED`                  | 422    | The command would open a dialog; `details` says which                               |
 | `UNSUPPORTED_SYNTAX`               | 422    | `/build_diagram` text uses a construct it does not translate; the message names it  |
@@ -196,7 +219,7 @@ Success is `{success: true, data}`. Failure is `{success: false, code, error, de
 
 ### Elements
 
-Every endpoint that returns elements returns summaries by default: `{_id, _type, name, _parent}`, where `_type` is the metamodel class and `_parent` the owner id. The keys carry an underscore, as in `.mdj` files, because `id` and `type` are attribute names in the metamodel. These optional request fields change that:
+Every endpoint that returns elements returns summaries by default: `{_id, _type, name, _parent, path}`, where `_type` is the metamodel class and `_parent` the owner id. The keys carry an underscore, as in `.mdj` files, because `id` and `type` are attribute names in the metamodel. These optional request fields change that:
 
 | Field     | Effect                                                                                                          |
 | --------- | --------------------------------------------------------------------------------------------------------------- |

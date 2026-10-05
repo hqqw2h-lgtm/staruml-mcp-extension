@@ -59,16 +59,16 @@ export interface TypeEntry {
 
 const nodeExample = (type: string): Example => ({
   path: "/create_element_with_view",
-  body: { type, diagramId: "<diagram id>", name: "<name>", x: 100, y: 100 },
+  body: { type, diagram: "<diagram>", name: "<name>", x: 100, y: 100 },
 });
 
 const edgeExample = (type: string): Example => ({
   path: "/create_relationship",
   body: {
     type,
-    tailId: "<source view id>",
-    headId: "<target view id>",
-    diagramId: "<diagram id>",
+    tail: "<source>",
+    head: "<target>",
+    diagram: "<diagram>",
   },
 });
 
@@ -176,7 +176,7 @@ function corpus(): TypeEntry[] {
         description: `Diagram, ${ancestry(name)}; holds ${app.metamodels.getAvailableViewTypes(name).length} view types`,
         example: {
           path: "/create_diagram",
-          body: { type: name, parentId: "<owner id>", name: "<name>" },
+          body: { type: name, parent: "<owner>", name: "<name>" },
         },
       });
       continue;
@@ -197,7 +197,7 @@ function corpus(): TypeEntry[] {
         : modelIds.has(name)
           ? {
               path: "/create_element",
-              body: { type: name, parentId: "<owner id>", name: "<name>" },
+              body: { type: name, parent: "<owner>", name: "<name>" },
             }
           : { path: "/find_elements", body: { type: name } },
     });

@@ -45,6 +45,11 @@ export interface Endpoint {
   request: z.ZodMiniType;
   /** Schema of `data` in a successful response. */
   response: z.ZodMiniType;
+  /**
+   * Older request field names, each mapped to the canonical field it stands
+   * for (issue #36). The manifest lists them marked `x-alias-of`.
+   */
+  aliases?: Readonly<Record<string, string>>;
   handler: Handler;
 }
 
@@ -73,9 +78,15 @@ export function defineEndpoint<
 >(spec: EndpointSpec<Req, Res>): Endpoint {
   const { handle, ...endpoint } = spec;
   const handler: Handler = async (body) => {
-    const parsed = z.safeParse(spec.request, body);
+    let renamed: Renamed;
+    try {
+      renamed = renameAliases(body, spec.aliases);
+    } catch (err) {
+      return (err as ApiError).toBody();
+    }
+    const parsed = z.safeParse(spec.request, renamed.body);
     if (!parsed.success) {
-      const issues = parsed.error.issues.map(toIssue);
+      const issues = parsed.error.issues.map((i) => toIssue(i, renamed.used));
       return new ApiError(
         "INVALID_ARGUMENT",
         issues.map((i) => `${i.path}: ${i.message}`).join("; "),
@@ -92,8 +103,48 @@ export function defineEndpoint<
   return { ...endpoint, handler };
 }
 
-function toIssue(issue: z.core.$ZodIssue): Issue {
-  const path = issue.path.map(String).join(".");
+/**
+ * The body with each alias renamed to its canonical field. Both spellings
+ * of one field in the same body are refused rather than one silently
+ * winning.
+ */
+export function renameAliases(
+  body: unknown,
+  aliases: Readonly<Record<string, string>> | undefined,
+): Renamed {
+  const used = new Map<string, string>();
+  if (!aliases || !body || typeof body !== "object" || Array.isArray(body)) {
+    return { body, used };
+  }
+  const out: Record<string, unknown> = { ...(body as Record<string, unknown>) };
+  for (const [alias, canonical] of Object.entries(aliases)) {
+    if (!Object.hasOwn(out, alias)) continue;
+    if (Object.hasOwn(out, canonical)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${alias}: an alias of ${canonical}, which is given too; pass ${canonical} only`,
+      );
+    }
+    out[canonical] = out[alias];
+    delete out[alias];
+    used.set(canonical, alias);
+  }
+  return { body: out, used };
+}
+
+export interface Renamed {
+  body: unknown;
+  /** The alias the caller wrote, by the canonical field it was renamed to. */
+  used: Map<string, string>;
+}
+
+/** An issue under the field name the caller wrote, alias or canonical. */
+function toIssue(issue: z.core.$ZodIssue, used: Map<string, string>): Issue {
+  const [head, ...rest] = issue.path.map(String);
+  const path = [
+    ...(head === undefined ? [] : [used.get(head) ?? head]),
+    ...rest,
+  ].join(".");
   return { path: path || "(body)", message: issue.message };
 }
 

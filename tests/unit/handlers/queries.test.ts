@@ -9,7 +9,7 @@ import {
 } from "../../../src/handlers/queries.js";
 import { createEdgeWithView } from "../../../src/handlers/relationships.js";
 import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
-import { fails, ok } from "../support.js";
+import { fails, invoke, ok } from "../support.js";
 
 let env: MockEnvironment;
 interface Created {
@@ -112,7 +112,11 @@ describe("reverse lookups", () => {
 
   it("answers NOT_FOUND for unknown ids and non-views", async () => {
     await fails(getViewsOf, { id: "nope" }, "NOT_FOUND");
-    await fails(getEdgeViewsOf, { id: a.model._id }, "NOT_FOUND");
+    // A model stands for its only view; one without a view names none.
+    await fails(getEdgeViewsOf, { id: env.model._id }, "NOT_FOUND");
+    expect((await invoke(getEdgeViewsOf, { id: a.model._id })).success).toBe(
+      true,
+    );
     await fails(getRefsTo, { id: "nope" }, "NOT_FOUND");
     await fails(getRelationshipsOf, { id: "nope" }, "NOT_FOUND");
   });

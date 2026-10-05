@@ -31,7 +31,7 @@ describe("/create_diagram", () => {
       createDiagram,
       { type: "UMLClassDiagram" },
       "INVALID_ARGUMENT",
-      /^parentId: /,
+      /^parent: /,
     );
   });
 
@@ -100,7 +100,7 @@ describe.each([
   ["/close_diagram", closeDiagram],
 ])("%s", (_path, endpoint) => {
   it("requires an id", async () => {
-    await fails(endpoint, {}, "INVALID_ARGUMENT", /^id: /);
+    await fails(endpoint, {}, "INVALID_ARGUMENT", /^diagram: /);
   });
 
   it.each(["missing", "model"])(

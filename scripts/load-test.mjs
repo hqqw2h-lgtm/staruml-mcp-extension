@@ -31,8 +31,9 @@
  * fires read-only requests at a fixed concurrency: summaries, full and
  * field-projected elements, owned elements expanded one level, paged
  * find_elements, /introspect sections, /search_types queries, /export_text
- * of a built class diagram as Mermaid and PlantUML and a read-only /batch
- * of five lookups. Exits non-zero on any transport error or non-2xx answer, when
+ * of a built class diagram as Mermaid and PlantUML, a read-only /batch
+ * of five lookups, and reads that address elements by path ("Load/C7",
+ * "Order.total", "Order#place()", the diagram by name) rather than by id. Exits non-zero on any transport error or non-2xx answer, when
  * client p99 exceeds P99_BUDGET_MS, or when any single handler held the
  * renderer thread longer than HANDLER_BUDGET_MS (taken from the
  * Server-Timing header the server sets).
@@ -131,14 +132,14 @@ async function seed() {
   const projectId = info.json.data.project._id;
   const model = await post("/create_element", {
     type: "UMLModel",
-    parentId: projectId,
+    parent: projectId,
     name: "Load",
   });
   const ids = [model.json.data._id];
   for (let i = 0; i < SEED; i++) {
     const cls = await post("/create_element", {
       type: "UMLClass",
-      parentId: model.json.data._id,
+      parent: model.json.data._id,
       name: `C${i}`,
     });
     ids.push(cls.json.data._id);
@@ -162,10 +163,10 @@ async function writePhase(modelId, errors) {
         {
           path: "/create_element",
           as: "c",
-          body: { type: "UMLClass", parentId: modelId, name: `W${i}` },
+          body: { type: "UMLClass", parent: modelId, name: `W${i}` },
         },
-        { path: "/add_attribute", body: { ownerId: "$c", name: "id" } },
-        { path: "/add_operation", body: { ownerId: "$c", name: "run" } },
+        { path: "/add_attribute", body: { ref: "$c", name: "id" } },
+        { path: "/add_operation", body: { ref: "$c", name: "run" } },
       ],
     });
     times[atomic].push(res.handlerMs);
@@ -278,7 +279,14 @@ async function main() {
   const mix = [
     () => ["/find_elements", { type: "UMLClass" }],
     () => ["/find_elements", { type: "UMLClass", name: `C${SEED >> 1}` }],
-    (i) => ["/get_element_by_id", { id: classIds[i % classIds.length] }],
+    (i) => ["/get_element_by_id", { ref: classIds[i % classIds.length] }],
+    (i) => ["/get_element_by_id", { ref: `Load/C${i % SEED}` }],
+    (i) => [
+      "/get_element_by_id",
+      { ref: i % 2 ? "Order.total" : "Order#place()" },
+    ],
+    () => ["/get_views_of", { ref: "Order" }],
+    () => ["/describe_diagram", { diagram: "Export" }],
     () => ["/get_project_info", {}],
     (i) => [
       "/get_element_by_id",
@@ -304,7 +312,7 @@ async function main() {
     () => ["/introspect", { include: ["factory", "toolbox"] }],
     (i) => [
       "/export_text",
-      { diagramId: exportId, format: i % 2 ? "plantuml" : "mermaid" },
+      { diagram: exportId, format: i % 2 ? "plantuml" : "mermaid" },
     ],
     (i) => [
       "/search_types",
@@ -316,7 +324,7 @@ async function main() {
         atomic: false,
         ops: Array.from({ length: 5 }, (_, k) => ({
           path: "/get_element_by_id",
-          body: { id: classIds[(i + k) % classIds.length] },
+          body: { ref: classIds[(i + k) % classIds.length] },
         })),
       },
     ],

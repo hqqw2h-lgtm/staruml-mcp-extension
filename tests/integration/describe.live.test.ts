@@ -110,10 +110,11 @@ describeLive("search, describe and validate", () => {
       id: "UMLComposition",
       category: "relationship",
     });
+    // The example's placeholders take paths as well as ids (issue #20).
     const edge = await fill(hit.example!, {
-      tailId: built.ids.Customer!.view,
-      headId: built.ids.Order!.view,
-      diagramId: built.diagram._id,
+      tail: "Customer",
+      head: "Order",
+      diagram: "Shop",
     });
     expect(edge.success, JSON.stringify(edge)).toBe(true);
 
@@ -165,6 +166,7 @@ describeLive("search, describe and validate", () => {
       type: "UMLClass",
       parentId: parent,
       name: "Order",
+      allowDuplicateNames: true,
     });
     const res = await call<{
       count: number;

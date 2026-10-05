@@ -39,7 +39,7 @@ describe("/search_types", () => {
       title: "Class",
       example: {
         path: "/create_element_with_view",
-        body: { type: "UMLClass", diagramId: "<diagram id>" },
+        body: { type: "UMLClass", diagram: "<diagram>" },
       },
     });
     expect(data.results[0]!.description).toMatch(
@@ -60,9 +60,9 @@ describe("/search_types", () => {
       path: "/create_relationship",
       body: {
         type: "UMLComposition",
-        tailId: "<source view id>",
-        headId: "<target view id>",
-        diagramId: "<diagram id>",
+        tail: "<source>",
+        head: "<target>",
+        diagram: "<diagram>",
       },
     });
   });

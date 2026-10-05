@@ -35,8 +35,8 @@ import { withoutDialogs } from "../dialog-guard.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, errorMessage } from "../errors.js";
 import { requireElement, requireProject } from "../lookup.js";
-import { id } from "../schemas.js";
-import { summarize } from "../serialize.js";
+import { elementSchema, ref } from "../schemas.js";
+import { serialize } from "../serialize.js";
 
 /**
  * StarUML's code generators are separate extensions, installed from Tools >
@@ -190,7 +190,7 @@ export const generateCode = defineEndpoint({
   destructive: true,
   request: z.object({
     language: languageField(),
-    baseId: id(
+    ref: ref(
       "Element to generate from: a package or model generates its whole tree, a class or interface one file.",
     ),
     path: absoluteDir(
@@ -200,6 +200,7 @@ export const generateCode = defineEndpoint({
       "Generator options by name, e.g. {indentSpaces: 2, javaDoc: false} for Java; the rest come from the generator's preferences (see /list_code_generators).",
     ),
   }),
+  aliases: { baseId: "ref" },
   response: z.object({
     language: z.string(),
     base: z.string(),
@@ -219,7 +220,7 @@ export const generateCode = defineEndpoint({
         `${GENERATORS[input.language].extension} registered no ${command} command`,
       );
     }
-    const base = requireElement(input.baseId, "Base element");
+    const base = requireElement(input.ref, "Base element");
     try {
       mkdirSync(input.path, { recursive: true });
     } catch (err) {
@@ -281,14 +282,7 @@ export const reverseCode = defineEndpoint({
     path: z.string(),
     created: doc(z.int(), "Elements added, views and diagrams included."),
     roots: doc(
-      z.array(
-        z.object({
-          _id: z.string(),
-          _type: z.string(),
-          name: z.optional(z.nullable(z.string())),
-          _parent: z.optional(z.nullable(z.string())),
-        }),
-      ),
+      z.array(elementSchema()),
       "The added elements whose owner existed before, e.g. the top-level packages.",
     ),
   }),
@@ -323,7 +317,7 @@ export const reverseCode = defineEndpoint({
       created: added.length,
       roots: added
         .filter((e) => !e._parent || !fresh.has(e._parent))
-        .map(summarize),
+        .map((e) => serialize(e)),
     };
   },
 });

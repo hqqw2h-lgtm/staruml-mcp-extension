@@ -87,7 +87,7 @@ describeLive("/export_text", () => {
       spec: {
         classes: [{ name: "Whole" }, { name: "Part" }, { name: "Other" }],
         relations: [
-          { from: "Part", to: "Whole", type: "composition" },
+          { from: "Whole", to: "Part", type: "composition" },
           { from: "Part", to: "Other", type: "directed" },
         ],
       },

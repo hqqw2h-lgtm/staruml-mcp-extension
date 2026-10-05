@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as z from "zod/mini";
 import { elementSchema } from "../../src/schemas.js";
+import { escapeName } from "../../src/refs.js";
 import {
   isElement,
   serialize,
@@ -56,6 +57,7 @@ describe("summarize", () => {
       _type: "UMLModel",
       name: "Model",
       _parent: env.project._id,
+      path: "Model",
     });
   });
 
@@ -288,6 +290,10 @@ describe("projection on every element kind", () => {
       _type: name,
       name: typeof elem.name === "string" ? elem.name : null,
       _parent: env.model._id,
+      // A view without a model has no path; anything else is under Model.
+      ...(!(elem instanceof type.View) && {
+        path: `Model/${escapeName(typeof elem.name === "string" ? elem.name : "")}`,
+      }),
     });
   });
 });

@@ -25,9 +25,11 @@ import * as z from "zod/mini";
 import { defineEndpoint } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
 import { requireDiagram, requireElement } from "../lookup.js";
+import { assertUniqueName } from "../create.js";
 import {
+  duplicateShape,
   elementSchema,
-  id,
+  ref,
   projectionShape,
   text,
   typeName,
@@ -44,14 +46,19 @@ export const createDiagram = defineEndpoint({
     type: typeName(
       "A diagram id of app.factory.getDiagramIds(), e.g. 'UMLClassDiagram', 'UMLSequenceDiagram', 'ERDDiagram'.",
     ),
-    parentId: id("Owner, usually a UMLModel or UMLPackage."),
+    parent: ref("Owner, usually a UMLModel or UMLPackage."),
     name: z.optional(text("Diagram name; StarUML generates one if omitted.")),
+    ...duplicateShape(),
     ...projectionShape(),
   }),
+  aliases: { parentId: "parent" },
   response: elementSchema(),
   handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent element");
+    const parent = requireElement(input.parent, "Parent element");
     const { name } = input;
+    if (app.factory.getDiagramIds().includes(input.type)) {
+      assertUniqueName(parent, input.type, name, input.allowDuplicateNames);
+    }
     const diagram = inStarUML(() =>
       app.factory.createDiagram({
         id: input.type,
@@ -70,7 +77,7 @@ export const createDiagram = defineEndpoint({
   },
 });
 
-const diagramRequest = () => z.object({ id: id("Diagram id.") });
+const diagramRequest = () => z.object({ diagram: ref("Diagram.") });
 
 export const switchDiagram = defineEndpoint({
   path: "/switch_diagram",
@@ -78,9 +85,10 @@ export const switchDiagram = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: diagramRequest(),
+  aliases: { id: "diagram" },
   response: z.object({ _id: z.string() }),
   handle: (input) => {
-    const diagram = requireDiagram(input.id);
+    const diagram = requireDiagram(input.diagram);
     inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
     return { _id: diagram._id };
   },
@@ -92,9 +100,10 @@ export const closeDiagram = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: diagramRequest(),
+  aliases: { id: "diagram" },
   response: z.object({ closed: z.string() }),
   handle: (input) => {
-    const diagram = requireDiagram(input.id);
+    const diagram = requireDiagram(input.diagram);
     inStarUML(() => app.diagrams.closeDiagram(diagram));
     return { closed: diagram._id };
   },

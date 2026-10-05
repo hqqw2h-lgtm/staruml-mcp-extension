@@ -25,7 +25,7 @@ import * as z from "zod/mini";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { inStarUML } from "../errors.js";
 import { requireDiagram, requireElement } from "../lookup.js";
-import { elementSchema, id, projectionShape } from "../schemas.js";
+import { elementSchema, projectionShape, ref } from "../schemas.js";
 import { serialize } from "../serialize.js";
 import type { Element } from "../types.js";
 import { editorShowing, requireViewsOnOneDiagram } from "./views.js";
@@ -57,19 +57,24 @@ export const setSelection = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    viewIds: ids("Views to select, all on one diagram."),
-    modelIds: ids("Model elements to select besides the views' models."),
+    views: ids(
+      "Views to select, all on one diagram, by id or path; a model stands for its only view.",
+    ),
+    models: ids(
+      "Model elements to select besides the views' models, by id or path.",
+    ),
     ...projectionShape(),
   }),
+  aliases: { viewIds: "views", modelIds: "models" },
   response: z.object({
     models: z.array(elementSchema()),
     views: z.array(elementSchema()),
   }),
   handle: (input) => {
-    const extra = (input.modelIds ?? []).map((i) => requireElement(i));
+    const extra = (input.models ?? []).map((i) => requireElement(i));
     const picked =
-      input.viewIds && input.viewIds.length > 0
-        ? requireViewsOnOneDiagram(input.viewIds)
+      input.views && input.views.length > 0
+        ? requireViewsOnOneDiagram(input.views)
         : null;
     const views = picked ? picked.views : [];
     inStarUML(() => {
@@ -153,7 +158,7 @@ export const setEditorState = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    diagramId: z.optional(id("Diagram to open and show first.")),
+    diagram: z.optional(ref("Diagram to open and show first.")),
     zoom: z.optional(
       doc(
         z.number().check(z.minimum(0.1), z.maximum(3)),
@@ -169,10 +174,11 @@ export const setEditorState = defineEndpoint({
     gridVisible: z.optional(z.boolean()),
     snapToGrid: z.optional(z.boolean()),
   }),
+  aliases: { diagramId: "diagram" },
   response: editorState(),
   handle: (input) => {
     const diagram =
-      input.diagramId === undefined ? null : requireDiagram(input.diagramId);
+      input.diagram === undefined ? null : requireDiagram(input.diagram);
     inStarUML(() => {
       if (diagram) app.diagrams.setCurrentDiagram(diagram);
       if (input.zoom !== undefined) app.diagrams.setZoomLevel(input.zoom);

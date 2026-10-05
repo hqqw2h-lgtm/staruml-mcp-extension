@@ -22,14 +22,20 @@
  */
 
 import * as z from "zod/mini";
-import { createOwned, initialValues, instantiate } from "../create.js";
+import {
+  assertUniqueName,
+  createOwned,
+  initialValues,
+  instantiate,
+} from "../create.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { inStarUML } from "../errors.js";
 import { requireElement } from "../lookup.js";
 import {
   ATTRIBUTE_VALUES_HELP,
+  duplicateShape,
   elementSchema,
-  id,
+  ref,
   projectionShape,
   properties,
   reference,
@@ -128,14 +134,22 @@ export const addAttribute = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    ownerId: id("Classifier id."),
+    ref: ref("Classifier."),
     name: text("Attribute name."),
     ...structuralShape(),
+    ...duplicateShape(),
     ...projectionShape(),
   }),
+  aliases: { ownerId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.ownerId, "Owner");
+    const owner = requireElement(input.ref, "Owner");
+    assertUniqueName(
+      owner,
+      "UMLAttribute",
+      input.name,
+      input.allowDuplicateNames,
+    );
     const values = featureValues("UMLAttribute", input, STRUCTURAL);
     return serialize(
       createOwned(owner, "UMLAttribute", "attributes", values),
@@ -187,7 +201,7 @@ export const addOperation = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    ownerId: id("Classifier id."),
+    ref: ref("Classifier."),
     name: text("Operation name."),
     visibility: visibility(),
     isStatic: flag("Class-level operation."),
@@ -206,9 +220,10 @@ export const addOperation = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape(),
   }),
+  aliases: { ownerId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.ownerId, "Owner");
+    const owner = requireElement(input.ref, "Owner");
     const values = featureValues("UMLOperation", input, OPERATION);
     const parameters = [
       ...(input.parameters ?? []).map((p) =>
@@ -247,13 +262,14 @@ export const addParameter = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    operationId: id("Operation id."),
+    ref: ref("Operation."),
     ...parameterShape(),
     ...projectionShape(),
   }),
+  aliases: { operationId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.operationId, "Operation");
+    const owner = requireElement(input.ref, "Operation");
     const values = featureValues("UMLParameter", input, PARAMETER);
     return serialize(
       createOwned(owner, "UMLParameter", "parameters", values),
@@ -268,15 +284,23 @@ export const addEnumerationLiteral = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    enumerationId: id("UMLEnumeration id."),
+    ref: ref("UMLEnumeration."),
     name: text("Literal name."),
     documentation: str("Documentation text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...duplicateShape(),
     ...projectionShape(),
   }),
+  aliases: { enumerationId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.enumerationId, "Enumeration");
+    const owner = requireElement(input.ref, "Enumeration");
+    assertUniqueName(
+      owner,
+      "UMLEnumerationLiteral",
+      input.name,
+      input.allowDuplicateNames,
+    );
     const values = featureValues("UMLEnumerationLiteral", input, [
       "documentation",
     ]);
@@ -294,7 +318,7 @@ export const addTemplateParameter = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    ownerId: id("Templated element id."),
+    ref: ref("Templated element."),
     name: text("Parameter name, e.g. 'T'."),
     parameterType: z.optional(
       typeValue("Kind of argument, e.g. 'class', or {$ref: id}."),
@@ -305,9 +329,10 @@ export const addTemplateParameter = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape(),
   }),
+  aliases: { ownerId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.ownerId, "Owner");
+    const owner = requireElement(input.ref, "Owner");
     const values = featureValues("UMLTemplateParameter", input, [
       "parameterType",
       "defaultValue",
@@ -326,7 +351,7 @@ export const addSlot = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    instanceId: id("Instance id, e.g. a UMLObject."),
+    ref: ref("Instance, e.g. a UMLObject."),
     name: str("Slot name; usually the defining attribute's name."),
     definingFeature: z.optional(
       reference(
@@ -337,9 +362,10 @@ export const addSlot = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape(),
   }),
+  aliases: { instanceId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.instanceId, "Instance");
+    const owner = requireElement(input.ref, "Instance");
     const values = featureValues("UMLSlot", input, [
       "definingFeature",
       "value",
@@ -367,7 +393,7 @@ export const addTag = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    elementId: id("Element to tag."),
+    ref: ref("Element to tag."),
     name: text("Tag name."),
     kind: doc(
       z.enum(["string", "number", "boolean", "reference", "enum"]),
@@ -381,9 +407,10 @@ export const addTag = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape(),
   }),
+  aliases: { elementId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.elementId, "Element");
+    const owner = requireElement(input.ref, "Element");
     const values = initialValues("Tag", input.name, {
       ...input.properties,
       kind: input.kind,
@@ -412,7 +439,7 @@ export const setStereotype = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: z.object({
-    elementId: id("Element id."),
+    ref: ref("Element."),
     stereotype: doc(
       z.nullable(
         z.union([
@@ -424,9 +451,10 @@ export const setStereotype = defineEndpoint({
     ),
     ...projectionShape(),
   }),
+  aliases: { elementId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const elem = requireElement(input.elementId);
+    const elem = requireElement(input.ref);
     setAttribute(elem, "stereotype", input.stereotype);
     return serialize(elem, input);
   },
@@ -438,13 +466,14 @@ export const setDocumentation = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: z.object({
-    elementId: id("Element id."),
+    ref: ref("Element."),
     documentation: text("Documentation; replaces the current text."),
     ...projectionShape(),
   }),
+  aliases: { elementId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const elem = requireElement(input.elementId);
+    const elem = requireElement(input.ref);
     setAttribute(elem, "documentation", input.documentation);
     return serialize(elem, input);
   },

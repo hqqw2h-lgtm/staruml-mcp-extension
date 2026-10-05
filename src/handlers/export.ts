@@ -34,6 +34,7 @@ import { diagramExport } from "../app-modules.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
 import { requireDiagram, requireProject } from "../lookup.js";
+import { ref } from "../schemas.js";
 import type { Element } from "../types.js";
 
 export const MAX_SCALE = 4;
@@ -211,7 +212,7 @@ export const exportDiagram = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: z.object({
-    id: z.optional(doc(z.string(), "Diagram id; default the current diagram.")),
+    diagram: z.optional(ref("Diagram; default the current diagram.")),
     format: z.optional(
       doc(z.enum(["png", "jpeg", "svg"]), "Image format; default png."),
     ),
@@ -233,6 +234,7 @@ export const exportDiagram = defineEndpoint({
       ),
     ),
   }),
+  aliases: { id: "diagram" },
   response: z.object({
     diagram: z.string(),
     format: z.string(),
@@ -248,7 +250,7 @@ export const exportDiagram = defineEndpoint({
     ),
   }),
   handle: async (input) => {
-    const diagram = currentOr(input.id) as SelectableDiagram;
+    const diagram = currentOr(input.diagram) as SelectableDiagram;
     const format: Format = input.format ?? "png";
     const image =
       format === "svg"
@@ -319,10 +321,10 @@ export const exportDiagrams = defineEndpoint({
     path: absolutePath(
       "Absolute directory to write into; created if missing. Files of the same name are overwritten.",
     ),
-    ids: z.optional(
+    diagrams: z.optional(
       doc(
         z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
-        "Diagram ids; default every diagram in the project.",
+        "Diagrams, by id or path,; default every diagram in the project.",
       ),
     ),
     format: z.optional(
@@ -341,6 +343,7 @@ export const exportDiagrams = defineEndpoint({
       ),
     ),
   }),
+  aliases: { ids: "diagrams" },
   response: z.object({
     path: z.string(),
     format: z.string(),
@@ -357,8 +360,8 @@ export const exportDiagrams = defineEndpoint({
   }),
   handle: async (input) => {
     requireProject();
-    const diagrams = input.ids
-      ? input.ids.map((i) => requireDiagram(i))
+    const diagrams = input.diagrams
+      ? input.diagrams.map((i) => requireDiagram(i))
       : app.repository.getInstancesOf("Diagram");
     if (diagrams.length === 0) {
       throw new ApiError("NOT_FOUND", "The project has no diagrams");
@@ -425,10 +428,10 @@ export const exportPdf = defineEndpoint({
   destructive: true,
   request: z.object({
     path: absolutePath("Absolute .pdf file to write; overwritten."),
-    ids: z.optional(
+    diagrams: z.optional(
       doc(
         z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
-        "Diagram ids in page order; default every diagram in the project.",
+        "Diagrams, by id or path, in page order; default every diagram in the project.",
       ),
     ),
     size: z.optional(
@@ -444,6 +447,7 @@ export const exportPdf = defineEndpoint({
       doc(z.boolean(), "Print each diagram's path name; default true."),
     ),
   }),
+  aliases: { ids: "diagrams" },
   response: z.object({
     path: z.string(),
     pages: z.int(),
@@ -451,8 +455,8 @@ export const exportPdf = defineEndpoint({
   }),
   handle: async (input) => {
     requireProject();
-    const diagrams = input.ids
-      ? input.ids.map((i) => requireDiagram(i))
+    const diagrams = input.diagrams
+      ? input.diagrams.map((i) => requireDiagram(i))
       : app.repository.getInstancesOf("Diagram");
     if (diagrams.length === 0) {
       throw new ApiError("NOT_FOUND", "The project has no diagrams");

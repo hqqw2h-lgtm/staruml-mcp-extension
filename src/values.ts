@@ -23,12 +23,14 @@
 
 import { ApiError } from "./errors.js";
 import { attributeOf } from "./metamodel.js";
+import { resolveRef } from "./refs.js";
 import type { Element, MetaAttribute } from "./types.js";
 
 /*
  * Converts attribute values from requests into model values, following the
  * attribute's metamodel kind. References are given the way responses carry
- * them, `{$ref: id}`, or for ref/refs attributes also as a bare id.
+ * them, `{$ref: id}`, or for ref/refs attributes also as a bare id; a
+ * path (refs.ts) works wherever an id does.
  */
 
 const PRIM_CHECKS: Record<string, (v: unknown) => boolean> = {
@@ -66,13 +68,7 @@ function referenced(
 ): Element {
   const id = refId(value);
   if (id === null) invalid(owner, attr, "an element id or {$ref: id}");
-  const elem = app.repository.get(id);
-  if (!elem) {
-    throw new ApiError(
-      "NOT_FOUND",
-      `${owner}.${attr.name}: element not found: ${id}`,
-    );
-  }
+  const elem = resolveRef(id, { role: `${owner}.${attr.name}: element` });
   if (!app.metamodels.isKindOf(elem.constructor.name, attr.type)) {
     invalid(owner, attr, `a ${attr.type}, got ${elem.constructor.name} ${id}`);
   }

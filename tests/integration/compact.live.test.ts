@@ -111,6 +111,7 @@ describeLive("compact responses against StarUML 7.1.1", () => {
       _type: "UMLClass",
       name: "Book",
       _parent: modelId,
+      path: "Compact/Book",
     });
     const found = await call<Page>("/find_elements", { type: "UMLClass" });
     for (const elem of found.data.elements) {
@@ -119,6 +120,7 @@ describeLive("compact responses against StarUML 7.1.1", () => {
         "_parent",
         "_type",
         "name",
+        "path",
       ]);
     }
   });

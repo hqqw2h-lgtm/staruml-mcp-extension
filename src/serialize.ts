@@ -21,6 +21,7 @@
  *
  */
 
+import { pathOf } from "./refs.js";
 import type { Element, MetaAttribute } from "./types.js";
 
 /**
@@ -47,6 +48,8 @@ export interface ElementSummary {
   name: string | null;
   /** Owner id; null for the project. */
   _parent: string | null;
+  /** Path that resolves back to the element (refs.ts); absent where none does. */
+  path?: string;
 }
 
 /** Summary, full or field-projected element; see `serialize`. */
@@ -78,11 +81,13 @@ export function ref(elem: Element): Ref {
 }
 
 export function summarize(elem: Element): ElementSummary {
+  const path = pathOf(elem);
   return {
     _id: elem._id,
     _type: elem.constructor.name,
     name: typeof elem.name === "string" ? elem.name : null,
     _parent: elem._parent ? elem._parent._id : null,
+    ...(path !== null && { path }),
   };
 }
 

@@ -91,6 +91,7 @@ describe("/execute_command", () => {
         _id: env.model._id,
         _type: "UMLModel",
         name: "Model",
+        path: "Model",
         _parent: env.project._id,
       },
     });

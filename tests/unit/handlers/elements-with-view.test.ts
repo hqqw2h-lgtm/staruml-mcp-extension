@@ -84,12 +84,14 @@ describe("/create_element_with_view", () => {
         _type: "UMLClassView",
         name: null,
         _parent: env.mainDiagram._id,
+        path: "Model/Book@Model/Main",
       },
       model: {
         _id: data.model._id,
         _type: "UMLClass",
         name: "Book",
         _parent: env.model._id,
+        path: "Model/Book",
       },
     });
     const view = env.app.repository.get(data.view._id) as View;

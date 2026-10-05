@@ -35,6 +35,15 @@ export function id(description: string) {
   return doc(z.string().check(z.minLength(1)), description);
 }
 
+/**
+ * An element, view or diagram reference: an id or a path such as
+ * 'Model/Shop/Order', 'Order.total', 'Order#pay()', a diagram name or
+ * '@current' (refs.ts).
+ */
+export function ref(description: string) {
+  return doc(z.string().check(z.minLength(1)), `${description} Id or path.`);
+}
+
 export function typeName(description: string) {
   return doc(z.string().check(z.minLength(1)), description);
 }
@@ -45,6 +54,18 @@ export function text(description: string) {
 
 export function coordinate(description: string) {
   return z.optional(doc(z.number(), description));
+}
+
+/** The duplicate-name policy's opt-out, on endpoints that create named elements. */
+export function duplicateShape() {
+  return {
+    allowDuplicateNames: z.optional(
+      doc(
+        z.boolean(),
+        "Default false: a classifier, package, diagram, attribute, literal, entity or column named like a sibling of its kind is refused with DUPLICATE_NAME, since paths could not tell them apart.",
+      ),
+    ),
+  };
 }
 
 /** Request properties every endpoint that returns elements accepts. */
@@ -83,6 +104,12 @@ export function elementSchema() {
       name: z.optional(z.nullable(z.string())),
       _parent: z.optional(
         doc(z.nullable(z.string()), "Owner id; null for the project."),
+      ),
+      path: z.optional(
+        doc(
+          z.string(),
+          "Summary only: a path any id field accepts, e.g. 'Model/Shop/Order', 'Model/Shop/Order.total', 'Model/Shop/Order#pay()', and 'model path@diagram path' for a view. Absent for the project and for views without a model.",
+        ),
       ),
     }),
     "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements.",

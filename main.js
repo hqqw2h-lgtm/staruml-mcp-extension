@@ -90,6 +90,16 @@ var ERROR_STATUS = {
   UNSUPPORTED_MEDIA_TYPE: 415,
   /** The operation needs an open project, or a saved one. */
   NO_PROJECT: 409,
+  /**
+   * A path or name that fits several elements; details.candidates lists
+   * each one's _id, _type and path.
+   */
+  AMBIGUOUS_REF: 409,
+  /**
+   * A new element named like a sibling of its kind, with allowDuplicateNames
+   * unset; details.existing is that sibling.
+   */
+  DUPLICATE_NAME: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**
@@ -2317,7 +2327,7 @@ function extractDefs(ctx, schema) {
       return;
     }
     const seen = entry[1];
-    const { ref: ref2, defId } = makeURI(entry);
+    const { ref: ref3, defId } = makeURI(entry);
     seen.def = { ...seen.schema };
     if (defId)
       seen.defId = defId;
@@ -2325,7 +2335,7 @@ function extractDefs(ctx, schema) {
     for (const key in schema2) {
       delete schema2[key];
     }
-    schema2.$ref = ref2;
+    schema2.$ref = ref3;
   };
   if (ctx.cycles === "throw") {
     for (const entry of ctx.seen.entries()) {
@@ -2486,11 +2496,11 @@ function finalize(ctx, schema) {
       return;
     const schema2 = seen.def ?? seen.schema;
     const _cached = { ...schema2 };
-    const ref2 = seen.ref;
+    const ref3 = seen.ref;
     seen.ref = null;
-    if (ref2) {
-      flattenRef(ref2);
-      const refSeen = ctx.seen.get(ref2);
+    if (ref3) {
+      flattenRef(ref3);
+      const refSeen = ctx.seen.get(ref3);
       const refSchema2 = refSeen.schema;
       if (refSchema2.$ref && (ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0")) {
         schema2.allOf = schema2.allOf ?? [];
@@ -2499,7 +2509,7 @@ function finalize(ctx, schema) {
         assignProps(schema2, refSchema2);
       }
       assignProps(schema2, _cached);
-      const isParentRef = zodSchema._zod.parent === ref2;
+      const isParentRef = zodSchema._zod.parent === ref3;
       if (isParentRef) {
         for (const key in schema2) {
           if (key === "$ref" || key === "allOf")
@@ -2520,7 +2530,7 @@ function finalize(ctx, schema) {
       }
     }
     const parent = zodSchema._zod.parent;
-    if (parent && parent !== ref2) {
+    if (parent && parent !== ref3) {
       flattenRef(parent);
       const parentSeen = ctx.seen.get(parent);
       if (parentSeen?.schema.$ref) {
@@ -3664,9 +3674,15 @@ config({ jitless: true });
 function defineEndpoint(spec) {
   const { handle, ...endpoint } = spec;
   const handler = async (body) => {
-    const parsed = safeParse(spec.request, body);
+    let renamed;
+    try {
+      renamed = renameAliases(body, spec.aliases);
+    } catch (err) {
+      return err.toBody();
+    }
+    const parsed = safeParse(spec.request, renamed.body);
     if (!parsed.success) {
-      const issues = parsed.error.issues.map(toIssue);
+      const issues = parsed.error.issues.map((i) => toIssue(i, renamed.used));
       return new ApiError(
         "INVALID_ARGUMENT",
         issues.map((i) => `${i.path}: ${i.message}`).join("; "),
@@ -3682,8 +3698,32 @@ function defineEndpoint(spec) {
   };
   return { ...endpoint, handler };
 }
-function toIssue(issue2) {
-  const path = issue2.path.map(String).join(".");
+function renameAliases(body, aliases2) {
+  const used = /* @__PURE__ */ new Map();
+  if (!aliases2 || !body || typeof body !== "object" || Array.isArray(body)) {
+    return { body, used };
+  }
+  const out = { ...body };
+  for (const [alias, canonical] of Object.entries(aliases2)) {
+    if (!Object.hasOwn(out, alias)) continue;
+    if (Object.hasOwn(out, canonical)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${alias}: an alias of ${canonical}, which is given too; pass ${canonical} only`
+      );
+    }
+    out[canonical] = out[alias];
+    delete out[alias];
+    used.set(canonical, alias);
+  }
+  return { body: out, used };
+}
+function toIssue(issue2, used) {
+  const [head, ...rest] = issue2.path.map(String);
+  const path = [
+    ...head === void 0 ? [] : [used.get(head) ?? head],
+    ...rest
+  ].join(".");
   return { path: path || "(body)", message: issue2.message };
 }
 function doc(schema, description) {
@@ -4172,20 +4212,20 @@ function parseJsonSchema(source, as) {
   }
   if (named2.size === 0)
     fail("", "no object schema: give the root properties, or $defs");
-  const target = (ref2, pointer) => {
-    const m = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ref2);
-    if (ref2 === "#") return rootName;
+  const target = (ref3, pointer) => {
+    const m = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ref3);
+    if (ref3 === "#") return rootName;
     if (!m) {
       return fail(
         pointer,
-        `$ref ${ref2} points outside this document's definitions`,
+        `$ref ${ref3} points outside this document's definitions`,
         "UNSUPPORTED_SYNTAX"
       );
     }
     const name2 = decodeURIComponent(
       m[2].replace(/~1/g, "/").replace(/~0/g, "~")
     );
-    if (!named2.has(name2)) fail(pointer, `$ref ${ref2} names no definition`);
+    if (!named2.has(name2)) fail(pointer, `$ref ${ref3} names no definition`);
     return name2;
   };
   const shape = (s, pointer) => {
@@ -4581,9 +4621,9 @@ var Styles = class {
     this.classes.set(id2, [...this.classes.get(id2) ?? [], cls]);
   }
   /** Strips a trailing :::class from `ref`, recording it for the id. */
-  suffix(ref2) {
-    const m = /^(.*?):::([\w-]+)$/.exec(ref2.trim());
-    if (!m) return ref2.trim();
+  suffix(ref3) {
+    const m = /^(.*?):::([\w-]+)$/.exec(ref3.trim());
+    if (!m) return ref3.trim();
     this.use(m[1], m[2]);
     return m[1];
   }
@@ -5103,8 +5143,8 @@ function stateDiagram(lines) {
       ...blocks.length > 0 && { parent: blocks.at(-1) }
     });
   };
-  const state2 = (ref2, side) => {
-    const id2 = styles.suffix(ref2);
+  const state2 = (ref3, side) => {
+    const id2 = styles.suffix(ref3);
     if (id2 === "[*]") {
       const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends2}`;
       declare(key, { type: side === "from" ? "initial" : "final" });
@@ -5654,9 +5694,9 @@ function sequenceDiagram2(lines) {
   const notes = [];
   const open = [];
   const creating = /* @__PURE__ */ new Set();
-  const who = (ref2) => {
-    const key = named(ref2).key;
-    if (!keys.has(key)) keys.set(key, named(ref2).name);
+  const who = (ref3) => {
+    const key = named(ref3).key;
+    if (!keys.has(key)) keys.set(key, named(ref3).name);
     return keys.get(key);
   };
   for (let i = 0; i < lines.length; i++) {
@@ -5795,12 +5835,12 @@ function usecaseDiagram(lines) {
     if (!actors.includes(name2) && !useCases.includes(name2)) list2.push(name2);
     return name2;
   };
-  const end = (ref2) => {
-    let m = /^\((.+)\)(?:\s+as\s+([\w.]+))?$/.exec(ref2);
+  const end = (ref3) => {
+    let m = /^\((.+)\)(?:\s+as\s+([\w.]+))?$/.exec(ref3);
     if (m) return declare(useCases, m[2] ?? m[1], multiline(m[1]));
-    m = /^:(.+):$/.exec(ref2);
+    m = /^:(.+):$/.exec(ref3);
     if (m) return declare(actors, m[1], multiline(m[1]));
-    const key = unquote(ref2);
+    const key = unquote(ref3);
     return names3.get(key) ?? declare(actors, key, multiline(key));
   };
   for (let i = 0; i < lines.length; i++) {
@@ -6022,7 +6062,7 @@ function legacyActivity(lines) {
   let last;
   let starts = 0;
   let ends2 = 0;
-  const ref2 = (text4, side) => {
+  const ref3 = (text4, side) => {
     if (/^\(\*/.test(text4)) {
       const id3 = side === "from" ? `start${++starts}` : `end${++ends2}`;
       nodes.set(id3, { id: id3, type: side === "from" ? "initial" : "final" });
@@ -6043,8 +6083,8 @@ function legacyActivity(lines) {
   };
   for (const { no, text: text4 } of lines) {
     const m = LEGACY.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
-    const from = m[1] ? ref2(m[1], "from") : last ?? fail3(no, "an arrow needs a start");
-    const to = ref2(m[3], "to");
+    const from = m[1] ? ref3(m[1], "from") : last ?? fail3(no, "an arrow needs a start");
+    const to = ref3(m[3], "to");
     flows.push({ from, to, ...m[2] && { guard: m[2] } });
     last = to;
   }
@@ -6175,8 +6215,8 @@ function erDiagram2(lines) {
   const entities = /* @__PURE__ */ new Map();
   const relationships = [];
   let open = null;
-  const entity2 = (ref2) => {
-    const { key, name: name2 } = named(ref2);
+  const entity2 = (ref3) => {
+    const { key, name: name2 } = named(ref3);
     if (!entities.has(key)) entities.set(key, { name: name2, columns: [] });
     return entities.get(key);
   };
@@ -6443,17 +6483,17 @@ function parseSql(source) {
     if (/primary\s+key/i.test(constraints)) t.primaryKey.push(c.name);
     if (/\bunique\b/i.test(constraints)) c.unique = true;
     if (!/not\s+null|primary\s+key/i.test(constraints)) c.nullable = true;
-    const ref2 = new RegExp(
+    const ref3 = new RegExp(
       String.raw`references\s+(${NAME3})\s*(?:\(([^)]*)\))?`,
       "i"
     ).exec(constraints);
-    if (ref2) {
+    if (ref3) {
       keys.push({
         line,
         table: t.name,
         columns: [c.name],
-        references: bare(ref2[1]),
-        referenced: ref2[2] ? names(ref2[2]) : []
+        references: bare(ref3[1]),
+        referenced: ref3[2] ? names(ref3[2]) : []
       });
     }
     t.columns.push(c);
@@ -6561,7 +6601,7 @@ function parseSql(source) {
     );
     for (const c of cols) c.foreignKey = true;
     const same = (a, b) => a.length === b.length && a.every((x) => b.some((y) => y.toLowerCase() === x.toLowerCase()));
-    const unique = same(k.columns, child.primaryKey) || child.unique.some((u) => same(k.columns, u)) || cols.length === 1 && cols[0].unique === true;
+    const unique2 = same(k.columns, child.primaryKey) || child.unique.some((u) => same(k.columns, u)) || cols.length === 1 && cols[0].unique === true;
     const inKey = k.columns.every(
       (c) => child.primaryKey.some((p) => p.toLowerCase() === c.toLowerCase())
     );
@@ -6569,7 +6609,7 @@ function parseSql(source) {
       from: parent.name,
       to: child.name,
       fromCardinality: cols.some((c) => c.nullable && !inKey) ? "0..1" : "1",
-      toCardinality: unique ? "0..1" : "0..*",
+      toCardinality: unique2 ? "0..1" : "0..*",
       identifying: inKey
     });
   }
@@ -6944,6 +6984,12 @@ var classSpec = () => object({
   packages: optional(
     array(
       nameOr(object({ name: name(), stereotype: optional(string2()) }))
+    )
+  ),
+  autoCreatePackages: optional(
+    doc(
+      boolean2(),
+      "Make a package for each class's package that packages does not declare."
     )
   ),
   classes: optional(
@@ -7437,10 +7483,19 @@ function classPlan(spec) {
   (spec.classes ?? []).forEach((c, i) => {
     const kind = c.kind ?? "class";
     if (c.package !== void 0 && !b.has(c.package)) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `spec.classes.${i}.package: no package named ${c.package}`
-      );
+      if (!spec.autoCreatePackages) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.classes.${i}.package: no package named ${c.package}; declare it in spec.packages or set spec.autoCreatePackages`
+        );
+      }
+      b.node({
+        key: c.package,
+        type: "UMLPackage",
+        name: c.package,
+        width: 200,
+        height: 120
+      });
     }
     const properties2 = {
       ...kind === "abstract" && { isAbstract: true },
@@ -8116,25 +8171,271 @@ function planFor(kind, spec) {
   return decorate(PLANNERS[kind](parsed), parsed);
 }
 
+// src/refs.ts
+var MEMBER_FIELDS = [
+  "attributes",
+  "literals",
+  "columns",
+  "slots",
+  "parameters"
+];
+var OPERATION_FIELDS = ["operations", "receptions"];
+var SPECIAL = /[\\/.#@(),]/g;
+function escapeName(name2) {
+  return name2.replace(SPECIAL, (c) => `\\${c}`);
+}
+function parsePath(text4, dots = true) {
+  const steps = [];
+  let step = { sep: "/", name: "" };
+  let absolute = false;
+  let i = 0;
+  if (text4.startsWith("/")) {
+    absolute = true;
+    i = 1;
+  }
+  const next = (sep2) => {
+    steps.push(step);
+    step = { sep: sep2, name: "" };
+  };
+  while (i < text4.length) {
+    const c = text4[i];
+    if (c === "\\" && i + 1 < text4.length) {
+      step.name += text4[i + 1];
+      i += 2;
+      continue;
+    }
+    if (c === "/") next("/");
+    else if (c === "#") next("#");
+    else if (c === "." && dots) next(".");
+    else if (c === "(" && step.sep === "#" && step.params === void 0) {
+      const [params, end] = readParams(text4, i + 1);
+      step.params = params;
+      i = end;
+    } else step.name += c;
+    i++;
+  }
+  steps.push(step);
+  return { absolute, steps };
+}
+function readParams(text4, from) {
+  const params = [];
+  let current = "";
+  let i = from;
+  for (; i < text4.length && text4[i] !== ")"; i++) {
+    const c = text4[i];
+    if (c === "\\" && i + 1 < text4.length) {
+      current += text4[++i];
+    } else if (c === ",") {
+      params.push(current.trim());
+      current = "";
+    } else {
+      current += c;
+    }
+  }
+  if (current.trim() !== "" || params.length > 0) params.push(current.trim());
+  return [params, i];
+}
+function fieldOf(elem) {
+  const owner = elem._parent;
+  for (const field of [...MEMBER_FIELDS, ...OPERATION_FIELDS]) {
+    const list2 = owner[field];
+    if (Array.isArray(list2) && list2.includes(elem)) return field;
+  }
+  return null;
+}
+var isView = (elem) => elem instanceof type.View;
+function typeName(value) {
+  if (value && typeof value === "object") {
+    return String(value.name ?? "");
+  }
+  return typeof value === "string" ? value : "";
+}
+function parameterTypes(op) {
+  return op.parameters.filter((p) => p.direction !== "return").map((p) => typeName(p.type));
+}
+function pathOf(elem) {
+  if (isView(elem)) {
+    const view = elem;
+    const model = view.model;
+    const diagram = diagramOf(view);
+    if (!model || !diagram) return null;
+    const modelPath = pathOf(model);
+    const diagramPath = pathOf(diagram);
+    return modelPath === null || diagramPath === null ? null : `${modelPath}@${diagramPath}`;
+  }
+  const parts = [];
+  for (let e = elem; e && e._parent; e = e._parent) {
+    const field = fieldOf(e);
+    const name2 = escapeName(typeof e.name === "string" ? e.name : "");
+    if (field && OPERATION_FIELDS.includes(field)) {
+      parts.unshift(
+        `#${name2}(${parameterTypes(e).map(escapeName).join(", ")})`
+      );
+    } else if (field) {
+      parts.unshift(`.${name2}`);
+    } else {
+      parts.unshift(`/${name2}`);
+    }
+  }
+  if (parts.length === 0) return null;
+  return parts.join("").slice(1);
+}
+function diagramOf(view) {
+  let e = view;
+  while (e && !(e instanceof type.Diagram)) e = e._parent;
+  return e ?? null;
+}
+function stepMatches(elem, step) {
+  if ((elem.name ?? "") !== step.name) return false;
+  const field = fieldOf(elem);
+  if (step.sep === "#") {
+    if (!field || !OPERATION_FIELDS.includes(field)) return false;
+    return step.params === void 0 || sameTypes(parameterTypes(elem), step.params);
+  }
+  if (step.sep === ".") return field !== null && MEMBER_FIELDS.includes(field);
+  return true;
+}
+var sameTypes = (a, b) => a.length === b.length && a.every((t, i) => t === b[i]);
+function matchPath(parsed, candidates) {
+  const { steps } = parsed;
+  const exact = [];
+  const suffix = [];
+  for (const elem of candidates(steps.at(-1).name)) {
+    let e = elem;
+    let ok = true;
+    for (let i = steps.length - 1; i >= 0; i--) {
+      if (!e || !e._parent || !stepMatches(e, steps[i])) {
+        ok = false;
+        break;
+      }
+      e = e._parent;
+    }
+    if (!ok) continue;
+    if (!e._parent) exact.push(elem);
+    else if (!parsed.absolute) suffix.push(elem);
+  }
+  const found = exact.length > 0 ? exact : suffix;
+  const last = steps.at(-1);
+  if (found.length === 0 && last.sep === "#" && last.params !== void 0) {
+    return matchPath(
+      {
+        ...parsed,
+        steps: [...steps.slice(0, -1), { ...last, params: void 0 }]
+      },
+      candidates
+    );
+  }
+  return found;
+}
+function nameIndex() {
+  let index = null;
+  return (name2) => {
+    if (!index) {
+      index = /* @__PURE__ */ new Map();
+      for (const elem of Object.values(app.repository.getIdMap())) {
+        if (isView(elem)) continue;
+        const key = typeof elem.name === "string" ? elem.name : "";
+        const list2 = index.get(key);
+        if (list2) list2.push(elem);
+        else index.set(key, [elem]);
+      }
+    }
+    return index.get(name2) ?? [];
+  };
+}
+function byId(id2) {
+  const elem = app.repository.get(id2);
+  return elem?._id === id2 ? elem : void 0;
+}
+function lookupAll(ref3) {
+  const found = byId(ref3);
+  if (found) return [found];
+  if (ref3 === "@current") {
+    const current = app.diagrams.getCurrentDiagram();
+    return current ? [current] : [];
+  }
+  if (ref3 === "@project") {
+    const project = app.project.getProject();
+    return project ? [project] : [];
+  }
+  const at = splitAt(ref3);
+  if (at) {
+    const diagrams = lookupAll(at[1]).filter((d) => d instanceof type.Diagram);
+    const views = lookupAll(at[0]).flatMap(
+      (m) => viewsOf(m).filter((v) => diagrams.includes(diagramOf(v)))
+    );
+    if (views.length > 0) return views;
+  }
+  const index = nameIndex();
+  const strict = matchPath(parsePath(ref3), index);
+  return strict.length > 0 || !ref3.includes(".") ? strict : matchPath(parsePath(ref3, false), index);
+}
+function viewsOf(model) {
+  return app.repository.getViewsOf(model).filter((v) => !(v._parent instanceof type.View));
+}
+function splitAt(ref3) {
+  for (let i = 1; i < ref3.length; i++) {
+    if (ref3[i] === "\\") i++;
+    else if (ref3[i] === "@") return [ref3.slice(0, i), ref3.slice(i + 1)];
+  }
+  return null;
+}
+var MAX_CANDIDATES = 20;
+function resolveRef(ref3, options = {}) {
+  const kind = options.kind ?? "element";
+  const role = options.role ?? { element: "Element", diagram: "Diagram", view: "View" }[kind];
+  let found = lookupAll(ref3);
+  if (kind === "diagram") {
+    found = found.filter((e) => e instanceof type.Diagram);
+  } else if (kind === "view") {
+    found = unique(
+      found.flatMap(
+        (e) => isView(e) ? [e] : viewsOf(e).filter(
+          (v) => !options.diagram || diagramOf(v) === options.diagram
+        )
+      )
+    );
+  }
+  if (found.length === 1) return found[0];
+  if (found.length === 0) {
+    throw new ApiError("NOT_FOUND", `${role} not found: ${ref3}`);
+  }
+  throw new ApiError(
+    "AMBIGUOUS_REF",
+    `${role} ${ref3} names ${found.length} elements; pass one of their ids or a longer path`,
+    { candidates: found.slice(0, MAX_CANDIDATES).map(candidate) }
+  );
+}
+function tryResolve(ref3, options = {}) {
+  try {
+    return resolveRef(ref3, options);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "NOT_FOUND") return null;
+    throw err;
+  }
+}
+var unique = (list2) => [...new Set(list2)];
+function candidate(elem) {
+  return {
+    _id: elem._id,
+    _type: elem.constructor.name,
+    path: pathOf(elem)
+  };
+}
+
 // src/lookup.ts
-function requireElement(id2, role = "Element") {
-  const elem = app.repository.get(id2);
-  if (!elem) throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  return elem;
+function requireElement(ref3, role = "Element") {
+  return resolveRef(ref3, { role });
 }
-function requireDiagram(id2, role = "Diagram") {
-  const elem = app.repository.get(id2);
-  if (!elem || !(elem instanceof type.Diagram)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  }
-  return elem;
+function requireDiagram(ref3, role = "Diagram") {
+  return resolveRef(ref3, { kind: "diagram", role });
 }
-function requireView(id2, role = "View") {
-  const elem = app.repository.get(id2);
-  if (!elem || !(elem instanceof type.View)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  }
-  return elem;
+function requireView(ref3, role = "View", diagram) {
+  return resolveRef(ref3, {
+    kind: "view",
+    role,
+    ...diagram && { diagram }
+  });
 }
 function requireTypeName(name2) {
   if (!Object.hasOwn(type, name2)) {
@@ -8156,11 +8457,13 @@ function ref(elem) {
   return { $ref: elem._id };
 }
 function summarize(elem) {
+  const path = pathOf(elem);
   return {
     _id: elem._id,
     _type: elem.constructor.name,
     name: typeof elem.name === "string" ? elem.name : null,
-    _parent: elem._parent ? elem._parent._id : null
+    _parent: elem._parent ? elem._parent._id : null,
+    ...path !== null && { path }
   };
 }
 function reported(attr) {
@@ -8226,7 +8529,10 @@ function serializeValue(value, projection = {}) {
 function id(description) {
   return doc(string2().check(_minLength(1)), description);
 }
-function typeName(description) {
+function ref2(description) {
+  return doc(string2().check(_minLength(1)), `${description} Id or path.`);
+}
+function typeName2(description) {
   return doc(string2().check(_minLength(1)), description);
 }
 function text2(description) {
@@ -8234,6 +8540,16 @@ function text2(description) {
 }
 function coordinate(description) {
   return optional(doc(number2(), description));
+}
+function duplicateShape() {
+  return {
+    allowDuplicateNames: optional(
+      doc(
+        boolean2(),
+        "Default false: a classifier, package, diagram, attribute, literal, entity or column named like a sibling of its kind is refused with DUPLICATE_NAME, since paths could not tell them apart."
+      )
+    )
+  };
 }
 function projectionShape() {
   return {
@@ -8265,6 +8581,12 @@ function elementSchema() {
       name: optional(nullable(string2())),
       _parent: optional(
         doc(nullable(string2()), "Owner id; null for the project.")
+      ),
+      path: optional(
+        doc(
+          string2(),
+          "Summary only: a path any id field accepts, e.g. 'Model/Shop/Order', 'Model/Shop/Order.total', 'Model/Shop/Order#pay()', and 'model path@diagram path' for a view. Absent for the project and for views without a model."
+        )
       )
     }),
     "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
@@ -8299,8 +8621,8 @@ function lineage(name2) {
   for (let t = name2; t; t = meta[t]?.super) out.push(t);
   return out;
 }
-function attributeOf(typeName2, name2) {
-  return app.metamodels.getMetaAttributes(typeName2).find((attr) => attr.name === name2);
+function attributeOf(typeName3, name2) {
+  return app.metamodels.getMetaAttributes(typeName3).find((attr) => attr.name === name2);
 }
 function ownerField(owner, childType) {
   let best = null;
@@ -8339,10 +8661,10 @@ function resolveOwnerField(owner, childType, field) {
   }
   return field;
 }
-function relationshipKind(typeName2) {
-  if (app.metamodels.isKindOf(typeName2, "DirectedRelationship"))
+function relationshipKind(typeName3) {
+  if (app.metamodels.isKindOf(typeName3, "DirectedRelationship"))
     return "directed";
-  if (app.metamodels.isKindOf(typeName2, "UndirectedRelationship"))
+  if (app.metamodels.isKindOf(typeName3, "UndirectedRelationship"))
     return "undirected";
   return null;
 }
@@ -8371,13 +8693,7 @@ function invalid(owner, attr, expected) {
 function referenced(owner, attr, value) {
   const id2 = refId(value);
   if (id2 === null) invalid(owner, attr, "an element id or {$ref: id}");
-  const elem = app.repository.get(id2);
-  if (!elem) {
-    throw new ApiError(
-      "NOT_FOUND",
-      `${owner}.${attr.name}: element not found: ${id2}`
-    );
-  }
+  const elem = resolveRef(id2, { role: `${owner}.${attr.name}: element` });
   if (!app.metamodels.isKindOf(elem.constructor.name, attr.type)) {
     invalid(owner, attr, `a ${attr.type}, got ${elem.constructor.name} ${id2}`);
   }
@@ -8415,22 +8731,22 @@ function toModelValue(owner, attr, value) {
       );
   }
 }
-function settableAttribute(typeName2, name2) {
-  const attr = name2 === "_id" || name2 === "_parent" ? void 0 : attributeOf(typeName2, name2);
+function settableAttribute(typeName3, name2) {
+  const attr = name2 === "_id" || name2 === "_parent" ? void 0 : attributeOf(typeName3, name2);
   if (!attr) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${typeName2} has no field '${name2}'`
+      `${typeName3} has no field '${name2}'`
     );
   }
   return attr;
 }
-function toModelValues(typeName2, properties2) {
+function toModelValues(typeName3, properties2) {
   const out = {};
   for (const [name2, value] of Object.entries(properties2)) {
     out[name2] = toModelValue(
-      typeName2,
-      settableAttribute(typeName2, name2),
+      typeName3,
+      settableAttribute(typeName3, name2),
       value
     );
   }
@@ -8438,8 +8754,8 @@ function toModelValues(typeName2, properties2) {
 }
 
 // src/create.ts
-function initialValues(typeName2, name2, properties2) {
-  return toModelValues(typeName2, {
+function initialValues(typeName3, name2, properties2) {
+  return toModelValues(typeName3, {
     ...properties2,
     ...name2 !== void 0 && { name: name2 }
   });
@@ -8455,13 +8771,13 @@ function requireModelId(id2) {
     );
   }
 }
-function createOwned(owner, typeName2, field, values, initialize = () => {
+function createOwned(owner, typeName3, field, values, initialize = () => {
 }) {
-  requireModelId(typeName2);
-  const into = resolveOwnerField(owner, typeName2, field);
+  requireModelId(typeName3);
+  const into = resolveOwnerField(owner, typeName3, field);
   const elem = inStarUML(
     () => app.factory.createModel({
-      id: typeName2,
+      id: typeName3,
       parent: owner,
       field: into,
       modelInitializer: (m) => {
@@ -8473,27 +8789,63 @@ function createOwned(owner, typeName2, field, values, initialize = () => {
   if (!elem) {
     throw new ApiError(
       "STARUML_ERROR",
-      `StarUML did not create ${typeName2} in ${owner.constructor.name}.${into}`
+      `StarUML did not create ${typeName3} in ${owner.constructor.name}.${into}`
     );
   }
   return elem;
 }
-function instantiate(typeName2) {
-  if (!isMetaClass(typeName2) || !Object.hasOwn(type, typeName2)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName2}`);
+var NAMED_KINDS = [
+  "UMLClassifier",
+  "UMLPackage",
+  "UMLAttribute",
+  "UMLEnumerationLiteral",
+  "ERDEntity",
+  "ERDColumn",
+  "Diagram"
+];
+function namedKind(typeName3) {
+  return NAMED_KINDS.find((k) => app.metamodels.isKindOf(typeName3, k));
+}
+function nameSpace(typeName3) {
+  if (app.metamodels.isKindOf(typeName3, "Diagram")) return "diagram";
+  return ["UMLAttribute", "UMLEnumerationLiteral", "ERDColumn"].some(
+    (k) => app.metamodels.isKindOf(typeName3, k)
+  ) ? "member" : "element";
+}
+function ownedBy(owner) {
+  return app.metamodels.getMetaAttributes(owner.constructor.name).filter((a) => a.kind === "objs").flatMap((a) => owner[a.name]);
+}
+function assertUniqueName(owner, typeName3, name2, allow) {
+  if (allow || !name2 || !namedKind(typeName3)) return;
+  const space = nameSpace(typeName3);
+  const clash = ownedBy(owner).find(
+    (e) => e.name === name2 && namedKind(e.constructor.name) !== void 0 && nameSpace(e.constructor.name) === space
+  );
+  if (clash) {
+    throw new ApiError(
+      "DUPLICATE_NAME",
+      `${pathOf(owner) ?? "The project"} already has a ${clash.constructor.name} named ${name2} (${pathOf(clash)}); pass allowDuplicateNames: true to add another`,
+      { existing: candidate(clash) }
+    );
   }
-  const Ctor = type[typeName2];
+}
+function instantiate(typeName3) {
+  if (!isMetaClass(typeName3) || !Object.hasOwn(type, typeName3)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName3}`);
+  }
+  const Ctor = type[typeName3];
   return new Ctor();
 }
-function diagramOf(view) {
+function diagramOf2(view) {
   let e = view;
   while (e && !(e instanceof type.Diagram)) e = e._parent;
   return e ?? null;
 }
 function endView(id2, diagram, role) {
-  const elem = requireElement(id2, role);
+  const elem = byId(id2);
+  if (!elem) return resolveRef(id2, { kind: "view", role, diagram });
   if (elem instanceof type.View) {
-    if (diagramOf(elem) !== diagram) {
+    if (diagramOf2(elem) !== diagram) {
       throw new ApiError(
         "NOT_FOUND",
         `${role} ${id2} is not on diagram ${diagram._id}`
@@ -8501,7 +8853,7 @@ function endView(id2, diagram, role) {
     }
     return elem;
   }
-  const view = app.repository.getViewsOf(elem).find((v) => diagramOf(v) === diagram);
+  const view = app.repository.getViewsOf(elem).find((v) => diagramOf2(v) === diagram);
   if (!view) {
     throw new ApiError(
       "NOT_FOUND",
@@ -8542,17 +8894,17 @@ function createModelAndView(options) {
 // src/toolbox.ts
 var CURSOR_OPTIONS = /* @__PURE__ */ new Set(["id", "connectable-views", "self-connection"]);
 var DEFAULT_COMMAND = "factory:create-model-and-view";
-function resolveCreateType(typeName2) {
+function resolveCreateType(typeName3) {
   const { items: items2 } = app.toolbox;
-  const item = Object.hasOwn(items2, typeName2) ? items2[typeName2] : void 0;
+  const item = Object.hasOwn(items2, typeName3) ? items2[typeName3] : void 0;
   const custom = item?.command && item.command !== DEFAULT_COMMAND;
   if (!item || custom) {
-    if (app.factory.getModelAndViewIds().includes(typeName2)) {
-      return { id: typeName2, preset: {} };
+    if (app.factory.getModelAndViewIds().includes(typeName3)) {
+      return { id: typeName3, preset: {} };
     }
     throw new ApiError(
       "UNKNOWN_TYPE",
-      custom ? `${typeName2} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName2}`
+      custom ? `${typeName3} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName3}`
     );
   }
   const arg = item.commandArg ?? {};
@@ -8560,18 +8912,19 @@ function resolveCreateType(typeName2) {
   for (const [key, value] of Object.entries(arg)) {
     if (!CURSOR_OPTIONS.has(key)) preset[key] = value;
   }
-  return { id: typeof arg.id === "string" ? arg.id : typeName2, preset };
+  return { id: typeof arg.id === "string" ? arg.id : typeName3, preset };
 }
 
 // src/handlers/elements.ts
 var getElementById = defineEndpoint({
   path: "/get_element_by_id",
-  description: "Read one element by id.",
+  description: "Read one element by id or path ('Model/Shop/Order', 'Order.total', 'Order#pay()', a diagram name, '@current').",
   readOnly: true,
   destructive: false,
-  request: object({ id: id("Element id."), ...projectionShape() }),
+  request: object({ ref: ref2("Element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: elementSchema(),
-  handle: (input) => serialize(requireElement(input.id), input)
+  handle: (input) => serialize(requireElement(input.ref), input)
 });
 var DEFAULT_PAGE_SIZE = 100;
 var MAX_PAGE_SIZE = 1e3;
@@ -8582,7 +8935,7 @@ var findElements = defineEndpoint({
   destructive: false,
   request: object({
     type: optional(
-      typeName("Metamodel class, e.g. 'UMLClass'; subtypes match too.")
+      typeName2("Metamodel class, e.g. 'UMLClass'; subtypes match too.")
     ),
     name: optional(text2("Exact element name.")),
     limit: optional(
@@ -8633,10 +8986,10 @@ var createElement = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    type: typeName(
+    type: typeName2(
       "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
     ),
-    parentId: id("Owner element id."),
+    parent: ref2("Owner element."),
     name: optional(text2("Element name; StarUML generates one if omitted.")),
     field: optional(
       doc(
@@ -8645,12 +8998,15 @@ var createElement = defineEndpoint({
       )
     ),
     properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...duplicateShape(),
     ...projectionShape()
   }),
+  aliases: { parentId: "parent" },
   response: elementSchema(),
   handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent element");
+    const parent = requireElement(input.parent, "Parent element");
     requireModelId(input.type);
+    assertUniqueName(parent, input.type, input.name, input.allowDuplicateNames);
     const values = initialValues(input.type, input.name, input.properties);
     return serialize(
       createOwned(parent, input.type, input.field, values),
@@ -8665,11 +9021,11 @@ var updateElement = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: object({
-    id: id("Element id."),
+    ref: ref2("Element."),
     op: optional(
       doc(
         _enum(UPDATE_OPS),
-        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parentId`, keeping its list field."
+        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parent`, keeping its list field."
       )
     ),
     field: optional(
@@ -8690,18 +9046,19 @@ var updateElement = defineEndpoint({
         "reorder: target position, counted after the item is taken out."
       )
     ),
-    parentId: optional(id("relocate: the new owner.")),
+    parent: optional(ref2("relocate: the new owner.")),
     ...projectionShape()
   }),
+  aliases: { id: "ref", parentId: "parent" },
   response: elementSchema(),
   handle: (input) => {
-    const elem = requireElement(input.id);
+    const elem = requireElement(input.ref);
     const op = input.op ?? "set";
     if (op === "relocate") {
-      if (input.parentId === void 0) {
-        throw new ApiError("INVALID_ARGUMENT", "relocate needs parentId");
+      if (input.parent === void 0) {
+        throw new ApiError("INVALID_ARGUMENT", "relocate needs parent");
       }
-      relocate(elem, requireElement(input.parentId, "Parent"), input.field);
+      relocate(elem, requireElement(input.parent, "Parent"), input.field);
       return serialize(elem, input);
     }
     if (input.field === void 0) {
@@ -8710,10 +9067,10 @@ var updateElement = defineEndpoint({
     if (input.value === void 0) {
       throw new ApiError("INVALID_ARGUMENT", `${op} needs value`);
     }
-    const typeName2 = elem.constructor.name;
-    const attr = settableAttribute(typeName2, input.field);
+    const typeName3 = elem.constructor.name;
+    const attr = settableAttribute(typeName3, input.field);
     if (op === "set") {
-      const value = toModelValue(typeName2, attr, input.value);
+      const value = toModelValue(typeName3, attr, input.value);
       inStarUML(() => app.engine.setProperty(elem, attr.name, value));
     } else if (op === "reorder") {
       reorder(elem, attr, input.value, input.index);
@@ -8724,15 +9081,15 @@ var updateElement = defineEndpoint({
   }
 });
 function changeReferences(elem, attr, op, value) {
-  const typeName2 = elem.constructor.name;
+  const typeName3 = elem.constructor.name;
   if (attr.kind !== "refs") {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${op} needs a reference list; ${typeName2}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
+      `${op} needs a reference list; ${typeName3}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
     );
   }
   const items2 = toModelValue(
-    typeName2,
+    typeName3,
     attr,
     Array.isArray(value) ? value : [value]
   );
@@ -8746,29 +9103,30 @@ function changeReferences(elem, attr, op, value) {
   }
 }
 function reorder(elem, attr, value, index) {
-  const typeName2 = elem.constructor.name;
+  const typeName3 = elem.constructor.name;
   if (attr.kind !== "refs" && attr.kind !== "objs") {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `reorder needs a list; ${typeName2}.${attr.name} is ${attr.kind}`
+      `reorder needs a list; ${typeName3}.${attr.name} is ${attr.kind}`
     );
   }
   if (index === void 0) {
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
   const list2 = elem[attr.name];
-  const itemId = refId(value);
+  const itemRef = refId(value);
+  const itemId = itemRef === null || byId(itemRef) ? itemRef : tryResolve(itemRef)?._id ?? itemRef;
   const item = list2.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
       "NOT_FOUND",
-      `${String(itemId)} is not in ${typeName2}.${attr.name}`
+      `${String(itemId)} is not in ${typeName3}.${attr.name}`
     );
   }
   if (index >= list2.length) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName2}.${attr.name} (${list2.length} items)`
+      `index ${index} is past the end of ${typeName3}.${attr.name} (${list2.length} items)`
     );
   }
   const builder = app.repository.getOperationBuilder();
@@ -8828,18 +9186,19 @@ var deleteElement = defineEndpoint({
   description: "Delete an element with everything it owns, the views showing them, and edges attached to those views.",
   readOnly: false,
   destructive: true,
-  request: object({ id: id("Element id.") }),
+  request: object({ ref: ref2("Element.") }),
+  aliases: { id: "ref" },
   response: object({
-    deleted: string2(),
+    deleted: doc(string2(), "Id of the element deleted."),
     models_deleted: int(),
     views_deleted: int()
   }),
   handle: (input) => {
-    const elem = requireElement(input.id);
+    const elem = requireElement(input.ref);
     const { models, views } = collectDeletionTargets(elem);
     inStarUML(() => app.engine.deleteElements(models, views));
     return {
-      deleted: input.id,
+      deleted: elem._id,
       models_deleted: models.length,
       views_deleted: views.length
     };
@@ -8882,21 +9241,23 @@ function created(view, projection) {
 }
 var createElementWithView = defineEndpoint({
   path: "/create_element_with_view",
-  description: "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass containerViewId for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
+  description: "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass container for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
   readOnly: false,
   destructive: false,
   request: object({
-    type: typeName(
+    type: typeName2(
       "A model-and-view id of /introspect factory.modelAndViewIds, e.g. 'UMLClass', 'ERDEntity', or a toolbox item id, which applies the item's presets, e.g. 'UMLInitialState', 'UMLCompositeState', 'C4ContainerDatabase'."
     ),
-    diagramId: id("Diagram to place the view on."),
-    parentId: optional(
-      id(
+    diagram: ref2("Diagram to place the view on."),
+    parent: optional(
+      ref2(
         "Owner of the new model element; default the diagram's owner, as the diagram editor does. Items placed on a host view (toolbox option parasitic, e.g. ports and pins) are filed under the host's model by StarUML regardless."
       )
     ),
-    containerViewId: optional(
-      id("View that hosts or contains the new view.")
+    container: optional(
+      ref2(
+        "View that hosts or contains the new view; a model stands for its view on the diagram."
+      )
     ),
     name: optional(text2("Element name; StarUML generates one if omitted.")),
     properties: properties(ATTRIBUTE_VALUES_HELP),
@@ -8904,15 +9265,30 @@ var createElementWithView = defineEndpoint({
     y: coordinate("Top edge, default 100."),
     x2: coordinate("Right edge, default x + 100."),
     y2: coordinate("Bottom edge, default y + 50."),
+    ...duplicateShape(),
     ...projectionShape()
   }),
+  aliases: {
+    diagramId: "diagram",
+    parentId: "parent",
+    containerViewId: "container"
+  },
   response: createdSchema(),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
-    const container = input.containerViewId === void 0 ? void 0 : requireView(input.containerViewId, "Container view");
-    const parent = input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent");
+    const diagram = requireDiagram(input.diagram);
+    const container = input.container === void 0 ? void 0 : requireView(input.container, "Container view", diagram);
+    const parent = input.parent === void 0 ? diagram._parent : requireElement(input.parent, "Parent");
     const { id: createId, preset } = resolveCreateType(input.type);
     const values = valuesFor(createId, input.name, input.properties);
+    const modelType = modelTypeOf(createId);
+    if (modelType && !container) {
+      assertUniqueName(
+        parent,
+        modelType,
+        input.name,
+        input.allowDuplicateNames
+      );
+    }
     const x1 = input.x ?? 100;
     const y1 = input.y ?? 100;
     const view = createModelAndView({
@@ -8952,8 +9328,8 @@ function valuesFor(id2, name2, props) {
   return {};
 }
 function modelTypeOf(id2) {
-  const candidate = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
-  return isMetaClass(candidate) ? candidate : null;
+  const candidate2 = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
+  return isMetaClass(candidate2) ? candidate2 : null;
 }
 
 // src/handlers/views.ts
@@ -8984,12 +9360,12 @@ var color = (description) => optional(
 );
 var viewIds = () => doc(
   array(string2().check(_minLength(1))).check(_minLength(1)),
-  "View ids, all on one diagram."
+  "Views, all on one diagram, by id or path; a model stands for its only view."
 );
 function requireViewsOnOneDiagram(ids2) {
   const views = ids2.map((i) => requireView(i));
-  const diagram = diagramOf(views[0]);
-  const stray = views.find((v) => diagramOf(v) !== diagram);
+  const diagram = diagramOf2(views[0]);
+  const stray = views.find((v) => diagramOf2(v) !== diagram);
   if (stray) {
     throw new ApiError(
       "INVALID_ARGUMENT",
@@ -9081,8 +9457,7 @@ var layoutDiagram = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    id: optional(id("Diagram id; default the current diagram.")),
-    diagramId: optional(id("Same as id.")),
+    diagram: optional(ref2("Diagram; default the current diagram.")),
     preset: optional(
       doc(
         _enum(PRESET_NAMES),
@@ -9121,6 +9496,7 @@ var layoutDiagram = defineEndpoint({
       )
     )
   }),
+  aliases: { id: "diagram", diagramId: "diagram" },
   response: object({
     _id: string2(),
     direction: string2(),
@@ -9135,7 +9511,7 @@ var layoutDiagram = defineEndpoint({
     fitted: optional(doc(int(), "Node views resized by fit."))
   }),
   handle: (input) => {
-    const diagram = diagramOrCurrent(input.diagramId ?? input.id, "id");
+    const diagram = diagramOrCurrent(input.diagram, "diagram");
     const preset = input.preset === void 0 ? void 0 : LAYOUT_PRESETS[input.preset];
     const direction2 = input.direction ?? preset?.direction ?? "TB";
     const custom = preset !== void 0 || input.separations !== void 0 || input.nodeSeparation !== void 0 || input.rankSeparation !== void 0;
@@ -9173,16 +9549,17 @@ var routeEdges = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    diagramId: optional(id("Diagram id; default the current diagram.")),
+    diagram: optional(ref2("Diagram; default the current diagram.")),
     lineStyle: lineStyle("Line style for every edge.")
   }),
+  aliases: { diagramId: "diagram" },
   response: object({
     diagram: string2(),
     lineStyle: string2(),
     edges: doc(int(), "Edge views given the style.")
   }),
   handle: (input) => {
-    const diagram = diagramOrCurrent(input.diagramId, "diagramId");
+    const diagram = diagramOrCurrent(input.diagram, "diagram");
     const edges = diagram.ownedViews.filter(
       (v) => v instanceof type.EdgeView
     );
@@ -9205,25 +9582,26 @@ var moveViews = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    ids: viewIds(),
+    refs: viewIds(),
     dx: doc(number2(), "Horizontal offset in diagram units."),
     dy: doc(number2(), "Vertical offset in diagram units."),
-    containerViewId: optional(
-      id(
+    container: optional(
+      ref2(
         "Also put the views inside this view and their models inside its model, as dropping them on it does: states in a composite state (its region), classes in a package."
       )
     ),
     ...projectionShape()
   }),
+  aliases: { ids: "refs", containerViewId: "container" },
   response: viewsResult(),
   handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const { views, diagram } = requireViewsOnOneDiagram(input.refs);
     const editor = editorShowing(diagram);
-    if (input.containerViewId === void 0) {
+    if (input.container === void 0) {
       inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
     } else {
-      const container = requireView(input.containerViewId, "Container view");
-      if (diagramOf(container) !== diagram) {
+      const container = requireView(input.container, "Container view", diagram);
+      if (diagramOf2(container) !== diagram) {
         throw new ApiError(
           "INVALID_ARGUMENT",
           `View ${container._id} is not on diagram ${diagram._id}`
@@ -9268,17 +9646,18 @@ var divideFragment = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    id: id("Combined fragment view id."),
+    ref: ref2("Combined fragment view."),
     at: doc(
       array(number2()).check(_minLength(1)),
       "Diagram y of the top of each operand after the first, increasing, inside the fragment."
     ),
     ...projectionShape()
   }),
+  aliases: { id: "ref" },
   response: viewsResult(),
   handle: (input) => {
-    const view = requireView(input.id);
-    const diagram = diagramOf(view);
+    const view = requireView(input.ref);
+    const diagram = diagramOf2(view);
     editorShowing(diagram);
     app.diagrams.repaint();
     const box2 = (v) => v;
@@ -9313,25 +9692,26 @@ var resizeNode = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    id: id("Node view id."),
+    ref: ref2("Node view; a model stands for its only view."),
     left: optional(doc(number2(), "Left edge in diagram units.")),
     top: optional(doc(number2(), "Top edge in diagram units.")),
     width: optional(doc(number2().check(_positive()), "Width.")),
     height: optional(doc(number2().check(_positive()), "Height.")),
     ...projectionShape()
   }),
+  aliases: { id: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const node = requireView(input.id);
+    const node = requireView(input.ref);
     if (!(node instanceof type.NodeView)) {
-      throw new ApiError("NOT_FOUND", `Node view not found: ${input.id}`);
+      throw new ApiError("NOT_FOUND", `Node view not found: ${input.ref}`);
     }
     const bounds = node;
     const left = input.left ?? bounds.left;
     const top = input.top ?? bounds.top;
     const right = left + (input.width ?? bounds.width);
     const bottom = top + (input.height ?? bounds.height);
-    const editor = editorShowing(diagramOf(node));
+    const editor = editorShowing(diagramOf2(node));
     inStarUML(
       () => app.engine.resizeNode(editor, node, left, top, right, bottom)
     );
@@ -9344,7 +9724,7 @@ var setViewStyle = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    ids: viewIds(),
+    refs: viewIds(),
     fillColor: color("Fill colour, CSS hex such as '#ffcc00'."),
     lineColor: color("Line colour."),
     fontColor: color("Text colour."),
@@ -9366,9 +9746,10 @@ var setViewStyle = defineEndpoint({
     ),
     ...projectionShape()
   }),
+  aliases: { ids: "refs" },
   response: viewsResult(),
   handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const { views, diagram } = requireViewsOnOneDiagram(input.refs);
     const editor = editorShowing(diagram);
     const e = app.engine;
     const changes = [
@@ -9411,9 +9792,10 @@ var setZOrder = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    ids: viewIds(),
+    refs: viewIds(),
     position: doc(_enum(["front", "back"]), "Where to move the views.")
   }),
+  aliases: { ids: "refs" },
   response: object({
     diagram: string2(),
     order: doc(
@@ -9422,7 +9804,7 @@ var setZOrder = defineEndpoint({
     )
   }),
   handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const { views, diagram } = requireViewsOnOneDiagram(input.refs);
     const owned = diagram.ownedViews;
     const builder = app.repository.getOperationBuilder();
     builder.begin(
@@ -9461,22 +9843,23 @@ var createViewOf = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    modelId: id("Model element id."),
-    diagramId: id("Diagram to show it on."),
+    ref: ref2("Model element."),
+    diagram: ref2("Diagram to show it on."),
     x: optional(doc(number2(), "Left edge, default 100.")),
     y: optional(doc(number2(), "Top edge, default 100.")),
     ...projectionShape()
   }),
+  aliases: { modelId: "ref", diagramId: "diagram" },
   response: createdSchema(),
   handle: (input) => {
-    const model = requireElement(input.modelId, "Model");
+    const model = requireElement(input.ref, "Model");
     if (model instanceof type.View || model instanceof type.Diagram) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${input.modelId} is a ${model.constructor.name}, not a model element`
+        `${input.ref} is a ${model.constructor.name}, not a model element`
       );
     }
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const shown = (m) => diagram.ownedViews.find((v) => v.model === m);
     const existing2 = shown(model);
     if (existing2) return created(existing2, input);
@@ -9484,7 +9867,7 @@ var createViewOf = defineEndpoint({
       if (!shown(end)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          `${end.constructor.name} ${end._id} at an end of ${input.modelId} is not on the diagram; show it first`
+          `${end.constructor.name} ${end._id} at an end of ${input.ref} is not on the diagram; show it first`
         );
       }
     }
@@ -9588,25 +9971,25 @@ function memberOps(node, owner, model) {
   };
   add("attributes", node.attributes, (a) => ({
     path: "/add_attribute",
-    body: { ownerId: owner, ...a }
+    body: { ref: owner, ...a }
   }));
   add("operations", node.operations, (o) => ({
     path: "/add_operation",
-    body: { ownerId: owner, ...o }
+    body: { ref: owner, ...o }
   }));
   add(
     "literals",
     node.literals?.map((name2) => ({ name: name2 })),
     ({ name: name2 }) => ({
       path: "/add_enumeration_literal",
-      body: { enumerationId: owner, name: name2 }
+      body: { ref: owner, name: name2 }
     })
   );
   add("columns", node.columns, (c) => {
     const { name: name2, ...properties2 } = c;
     return {
       path: "/create_element",
-      body: { type: "ERDColumn", parentId: owner, name: name2, properties: properties2 }
+      body: { type: "ERDColumn", parent: owner, name: name2, properties: properties2 }
     };
   });
   return ops;
@@ -9614,7 +9997,7 @@ function memberOps(node, owner, model) {
 function propertyOps(node, model) {
   return Object.entries(node.properties ?? {}).filter(([field, value]) => model[field] !== value).map(([field, value]) => ({
     path: "/update_element",
-    body: { id: model._id, field, value }
+    body: { ref: model._id, field, value }
   }));
 }
 function styleOps(node, view, current) {
@@ -9624,7 +10007,7 @@ function styleOps(node, view, current) {
   return changed.length === 0 ? [] : [
     {
       path: "/set_view_style",
-      body: { ids: [view], ...Object.fromEntries(changed) }
+      body: { refs: [view], ...Object.fromEntries(changed) }
     }
   ];
 }
@@ -9647,6 +10030,12 @@ function findModel(node, owner, claimed, warnings) {
   if (node.type === "Note") return null;
   const modelType = modelTypeOf(resolveCreateType(node.type).id);
   const signature = signatureOf(node.type);
+  if (node.name.includes("/")) {
+    const byPath = tryResolve(node.name);
+    if (byPath && modelSignature(byPath) === signature && !claimed.has(byPath)) {
+      return byPath;
+    }
+  }
   const path = node.name.split("::").map((p) => p.trim());
   const candidates = app.repository.getInstancesOf(modelType).filter(
     (m) => modelSignature(m) === signature && !claimed.has(m) && atPath(m, path)
@@ -9676,7 +10065,7 @@ function findRelationship(edge, tail, head) {
 function pruneTarget(view, diagram, keep) {
   const model = view.model;
   if (!model) return view;
-  const elsewhere = app.repository.getViewsOf(model).some((v) => diagramOf(v) !== diagram);
+  const elsewhere = app.repository.getViewsOf(model).some((v) => diagramOf2(v) !== diagram);
   return elsewhere || within(diagram, model) || keep.some((k) => within(k, model)) ? view : model;
 }
 function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(plan.kind, direction2), options = {}) {
@@ -9688,15 +10077,16 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       as: "diagram",
       body: {
         type: DIAGRAM_TYPES[plan.kind],
-        parentId: target.parent._id,
-        ...target.name !== void 0 && { name: target.name }
+        parent: target.parent._id,
+        ...target.name !== void 0 && { name: target.name },
+        ...options.allowDuplicateNames && { allowDuplicateNames: true }
       }
     });
   }
   if (!target.diagram && plan.kind === "sequence" && target.name !== void 0) {
     ops.push({
       path: "/update_element",
-      body: { id: "$diagram._parent", field: "name", value: target.name }
+      body: { ref: "$diagram._parent", field: "name", value: target.name }
     });
   }
   const pools = target.diagram ? existing(target.diagram) : null;
@@ -9719,9 +10109,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     if (found) {
       kept.add(found);
       const model2 = found.model;
-      const ref2 = { model: model2?._id ?? null, view: found._id };
-      refs.set(node.key, ref2);
-      reused.set(node.key, ref2);
+      const ref3 = { model: model2?._id ?? null, view: found._id };
+      refs.set(node.key, ref3);
+      reused.set(node.key, ref3);
       if (model2) claimed.add(model2);
       const more = [
         ...model2 ? [...propertyOps(node, model2), ...memberOps(node, model2._id, model2)] : [],
@@ -9736,12 +10126,14 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     const box2 = boxes.get(node.key);
     created2.set(as, node.key);
     fresh.add(node.key);
+    const warned = warnings.length;
     const model = reuse ? findModel(
       node,
       target.diagram?._parent ?? target.parent,
       claimed,
       warnings
     ) : null;
+    const duplicate = options.allowDuplicateNames === true || options.reuse === false || warnings.length > warned;
     if (model) {
       claimed.add(model);
       shown++;
@@ -9750,8 +10142,8 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         path: "/create_view_of",
         as,
         body: {
-          modelId: model._id,
-          diagramId: diagramRef,
+          ref: model._id,
+          diagram: diagramRef,
           x: Math.round(box2.x),
           y: Math.round(box2.y)
         }
@@ -9759,7 +10151,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       ops.push({
         path: "/resize_node",
         body: {
-          id: `$${as}.view`,
+          ref: `$${as}.view`,
           width: Math.round(box2.width),
           height: Math.round(box2.height)
         }
@@ -9781,9 +10173,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       as,
       body: {
         type: node.type,
-        diagramId: diagramRef,
+        diagram: diagramRef,
         ...node.owner !== void 0 && {
-          parentId: refs.get(node.owner).model
+          parent: refs.get(node.owner).model
         },
         // A note is a view without a model, so it takes neither.
         ...!note && { name: node.name },
@@ -9792,13 +10184,14 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         y: Math.round(box2.y),
         x2: Math.round(box2.x + box2.width),
         y2: Math.round(box2.y + box2.height),
-        ...node.guard !== void 0 && { fields: ["operands"] }
+        ...node.guard !== void 0 && { fields: ["operands"] },
+        ...duplicate && { allowDuplicateNames: true }
       }
     });
     if (note) {
       ops.push({
         path: "/update_element",
-        body: { id: `$${as}.view`, field: "text", value: node.text }
+        body: { ref: `$${as}.view`, field: "text", value: node.text }
       });
     }
     ops.push(...memberOps(node, `$${as}.model`));
@@ -9808,7 +10201,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         path: "/create_element",
         body: {
           type: "UMLInteractionOperand",
-          parentId: `$${as}.model`,
+          parent: `$${as}.model`,
           name: "",
           properties: { guard }
         }
@@ -9818,7 +10211,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       ops.push({
         path: "/update_element",
         body: {
-          id: `$${as}.model.operands.0`,
+          ref: `$${as}.model.operands.0`,
           field: "guard",
           value: node.guard
         }
@@ -9827,7 +10220,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     if (node.operandAt) {
       ops.push({
         path: "/divide_fragment",
-        body: { id: `$${as}.view`, at: node.operandAt }
+        body: { ref: `$${as}.view`, at: node.operandAt }
       });
     }
   });
@@ -9844,10 +10237,10 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     ops.push({
       path: "/move_views",
       body: {
-        ids: views,
+        refs: views,
         dx: 0,
         dy: 0,
-        containerViewId: refs.get(container).view
+        container: refs.get(container).view
       }
     });
   }
@@ -9873,9 +10266,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         as,
         body: {
           type: edge.type,
-          diagramId: diagramRef,
-          tailViewId: tail.view,
-          headViewId: head.view
+          diagram: diagramRef,
+          tail: tail.view,
+          head: head.view
         }
       });
       return;
@@ -9890,7 +10283,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       ops.push({
         path: "/create_view_of",
         as,
-        body: { modelId: relationship._id, diagramId: diagramRef }
+        body: { ref: relationship._id, diagram: diagramRef }
       });
       return;
     }
@@ -9899,9 +10292,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       as,
       body: {
         type: edge.type,
-        tailId: tail.view,
-        headId: head.view,
-        diagramId: diagramRef,
+        tail: tail.view,
+        head: head.view,
+        diagram: diagramRef,
         ...edge.name !== void 0 && { name: edge.name },
         ...edge.properties && { properties: edge.properties },
         ...edge.tailEnd && { tailEnd: edge.tailEnd },
@@ -9921,14 +10314,14 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       const covered = owned !== null && models.some((m) => m !== owned && within(owned, m));
       if (covered || targets.indexOf(t) !== i) continue;
       deleted++;
-      ops.push({ path: "/delete_element", body: { id: t._id } });
+      ops.push({ path: "/delete_element", body: { ref: t._id } });
     }
   }
   const engine = autoLayout && !plan.fixed && typeof app.engine.layoutDiagram === "function" && (created2.size > 0 || edgeOps.length > 0);
   if (engine) {
     ops.push({
       path: "/layout_diagram",
-      body: { id: diagramRef, preset }
+      body: { diagram: diagramRef, preset }
     });
   }
   return {
@@ -9996,8 +10389,8 @@ function buildDiagramEndpoint(endpoints2) {
         )
       ),
       name: optional(doc(string2(), "Diagram name.")),
-      parentId: optional(
-        id(
+      parent: optional(
+        ref2(
           "Owner of the diagram; default the project, where StarUML adds the container the kind needs (a model, interaction, activity, state machine, data model, flowchart or mind map)."
         )
       ),
@@ -10028,13 +10421,15 @@ function buildDiagramEndpoint(endpoints2) {
           "With upsert: delete the nodes, notes and edges on the diagram that the spec does not have, in the same undo step. An element shown on other diagrams too, or owning one the spec keeps, loses only its view here."
         )
       ),
+      ...duplicateShape(),
       reuse: optional(
         doc(
           boolean2(),
-          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements."
+          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements."
         )
       )
     }),
+    aliases: { parentId: "parent" },
     response: object({
       diagram: doc(
         object({
@@ -10118,7 +10513,7 @@ function buildDiagramEndpoint(endpoints2) {
         spec = input.spec;
       }
       const plan = planFor(kind, spec);
-      const parent = input.parentId === void 0 ? requireProject() : requireElement(input.parentId, "Parent");
+      const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
       const raw = input.name ?? title;
       const name2 = raw === void 0 ? void 0 : multiline(raw);
       if (input.prune && !input.upsert) {
@@ -10131,7 +10526,11 @@ function buildDiagramEndpoint(endpoints2) {
         direction2 ?? "TB",
         input.autoLayout ?? true,
         input.layout,
-        { prune: input.prune, reuse: input.reuse ?? true }
+        {
+          prune: input.prune,
+          reuse: input.reuse ?? true,
+          allowDuplicateNames: input.allowDuplicateNames
+        }
       );
       const batch = endpoints2().find((e) => e.path === "/batch");
       let data = { results: [] };
@@ -10150,7 +10549,7 @@ function buildDiagramEndpoint(endpoints2) {
         data.results.flatMap((r) => r.as ? [[r.as, r.data]] : [])
       );
       const ids2 = {};
-      for (const [key, ref2] of built.reused) ids2[key] = ref2;
+      for (const [key, ref3] of built.reused) ids2[key] = ref3;
       for (const [as, key] of built.created) {
         const r = byName.get(as);
         ids2[key] = { model: r.model?._id ?? null, view: r.view._id };
@@ -14319,7 +14718,7 @@ var generateCode = defineEndpoint({
   destructive: true,
   request: object({
     language: languageField(),
-    baseId: id(
+    ref: ref2(
       "Element to generate from: a package or model generates its whole tree, a class or interface one file."
     ),
     path: absoluteDir(
@@ -14329,6 +14728,7 @@ var generateCode = defineEndpoint({
       "Generator options by name, e.g. {indentSpaces: 2, javaDoc: false} for Java; the rest come from the generator's preferences (see /list_code_generators)."
     )
   }),
+  aliases: { baseId: "ref" },
   response: object({
     language: string2(),
     base: string2(),
@@ -14348,7 +14748,7 @@ var generateCode = defineEndpoint({
         `${GENERATORS[input.language].extension} registered no ${command} command`
       );
     }
-    const base = requireElement(input.baseId, "Base element");
+    const base = requireElement(input.ref, "Base element");
     try {
       (0, import_node_fs.mkdirSync)(input.path, { recursive: true });
     } catch (err) {
@@ -14400,14 +14800,7 @@ var reverseCode = defineEndpoint({
     path: string2(),
     created: doc(int(), "Elements added, views and diagrams included."),
     roots: doc(
-      array(
-        object({
-          _id: string2(),
-          _type: string2(),
-          name: optional(nullable(string2())),
-          _parent: optional(nullable(string2()))
-        })
-      ),
+      array(elementSchema()),
       "The added elements whose owner existed before, e.g. the top-level packages."
     )
   }),
@@ -14439,7 +14832,7 @@ var reverseCode = defineEndpoint({
       language: input.language,
       path: input.path,
       created: added.length,
-      roots: added.filter((e) => !e._parent || !fresh.has(e._parent)).map(summarize)
+      roots: added.filter((e) => !e._parent || !fresh.has(e._parent)).map((e) => serialize(e))
     };
   }
 });
@@ -14593,7 +14986,7 @@ var describeDiagram = defineEndpoint({
   readOnly: true,
   destructive: false,
   request: object({
-    diagramId: id("Diagram id."),
+    diagram: ref2("Diagram."),
     maxChars: optional(
       doc(
         int().check(_gte(200), _lte(2e5)),
@@ -14601,6 +14994,7 @@ var describeDiagram = defineEndpoint({
       )
     )
   }),
+  aliases: { diagramId: "diagram" },
   response: object({
     diagram: object({
       _id: string2(),
@@ -14613,7 +15007,7 @@ var describeDiagram = defineEndpoint({
     truncated: boolean2()
   }),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const max = input.maxChars ?? 4e3;
     const nodes = nodeViews(diagram);
     const edges = edgeViews(diagram);
@@ -14657,7 +15051,7 @@ var validateModel = defineEndpoint({
   destructive: false,
   request: object({
     scope: optional(
-      id(
+      ref2(
         "Only problems on this element and what it owns; default the project."
       )
     ),
@@ -14771,8 +15165,8 @@ var Views = class {
     return this.notes.map((note) => {
       const on = this.links.flatMap((link) => {
         const other = link.tail === note ? link.head : link.head === note ? link.tail : null;
-        const ref2 = other?.model ? refOf(other.model) : void 0;
-        return ref2 === void 0 ? [] : [ref2];
+        const ref3 = other?.model ? refOf(other.model) : void 0;
+        return ref3 === void 0 ? [] : [ref3];
       });
       return { text: str2(note.text), on };
     });
@@ -15560,7 +15954,7 @@ function stateDiagram3(spec, direction2, notes) {
     lines.push(`  direction ${direction2}`);
   }
   const types = new Map(spec.states.map((s) => [s.id, s.type]));
-  const ref2 = (id2) => {
+  const ref3 = (id2) => {
     const t = types.get(id2);
     return t === "initial" || t === "final" ? "[*]" : id2;
   };
@@ -15586,7 +15980,7 @@ function stateDiagram3(spec, direction2, notes) {
         t.guard ? `[${text3(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines.push(
-        `${indent}${ref2(t.from)} --> ${ref2(t.to)}${label3 ? ` : ${label3}` : ""}`
+        `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label3 ? ` : ${label3}` : ""}`
       );
     }
   };
@@ -15891,9 +16285,9 @@ function usecase2(spec, direction2) {
   for (const u of spec.useCases) {
     if (!u.inSystem) lines.push(`usecase ${q(u.name)} as ${uc(u.name)}`);
   }
-  const ref2 = (name2) => spec.actors.includes(name2) ? actor(name2) : uc(name2);
+  const ref3 = (name2) => spec.actors.includes(name2) ? actor(name2) : uc(name2);
   for (const r of spec.relations) {
-    const [from, to] = [ref2(r.from), ref2(r.to)];
+    const [from, to] = [ref3(r.from), ref3(r.to)];
     lines.push(
       {
         include: `${from} ..> ${to} : <<include>>`,
@@ -15905,10 +16299,10 @@ function usecase2(spec, direction2) {
   return lines;
 }
 function graph(nodes, edges, direction2) {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const byId2 = new Map(nodes.map((n) => [n.id, n]));
   const declared = /* @__PURE__ */ new Set();
-  const ref2 = (id2, side) => {
-    const n = byId.get(id2);
+  const ref3 = (id2, side) => {
+    const n = byId2.get(id2);
     if (n.type === "initial" && side === "from") return "(*)";
     if ((n.type === "final" || n.type === "flowFinal") && side === "to") {
       return "(*)";
@@ -15920,9 +16314,9 @@ function graph(nodes, edges, direction2) {
   };
   const lines = [...LAYOUT[direction2]];
   for (const e of edges) {
-    const from = ref2(e.from, "from");
+    const from = ref3(e.from, "from");
     lines.push(
-      `${from} -->${e.label ? ` [${one(e.label)}]` : ""} ${ref2(e.to, "to")}`
+      `${from} -->${e.label ? ` [${one(e.label)}]` : ""} ${ref3(e.to, "to")}`
     );
   }
   const linked = new Set(edges.flatMap((e) => [e.from, e.to]));
@@ -15948,7 +16342,7 @@ var STEREOTYPES = /* @__PURE__ */ new Set(["choice", "fork", "join"]);
 function stateDiagram4(spec, direction2, notes) {
   const lines = [...LAYOUT[direction2]];
   const types = new Map(spec.states.map((s) => [s.id, s.type]));
-  const ref2 = (id2) => {
+  const ref3 = (id2) => {
     const t = types.get(id2);
     return t === "initial" || t === "final" ? "[*]" : id2;
   };
@@ -15976,7 +16370,7 @@ function stateDiagram4(spec, direction2, notes) {
         t.guard ? `[${one(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines.push(
-        `${indent}${ref2(t.from)} --> ${ref2(t.to)}${label3 ? ` : ${label3}` : ""}`
+        `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label3 ? ` : ${label3}` : ""}`
       );
     }
   };
@@ -16121,9 +16515,10 @@ var exportText = defineEndpoint({
   readOnly: true,
   destructive: false,
   request: object({
-    diagramId: id("Diagram id."),
+    diagram: ref2("Diagram."),
     format: doc(_enum(["mermaid", "plantuml"]), "Text format.")
   }),
+  aliases: { diagramId: "diagram" },
   response: object({
     diagram: object({
       _id: string2(),
@@ -16142,7 +16537,7 @@ var exportText = defineEndpoint({
     )
   }),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const kind = kindOf(diagram);
     if (!kind) {
       throw new ApiError(
@@ -16175,15 +16570,15 @@ var CATEGORIES = [
 ];
 var nodeExample = (type2) => ({
   path: "/create_element_with_view",
-  body: { type: type2, diagramId: "<diagram id>", name: "<name>", x: 100, y: 100 }
+  body: { type: type2, diagram: "<diagram>", name: "<name>", x: 100, y: 100 }
 });
 var edgeExample = (type2) => ({
   path: "/create_relationship",
   body: {
     type: type2,
-    tailId: "<source view id>",
-    headId: "<target view id>",
-    diagramId: "<diagram id>"
+    tail: "<source>",
+    head: "<target>",
+    diagram: "<diagram>"
   }
 });
 function ancestry(name2) {
@@ -16207,8 +16602,8 @@ function groupDiagrams(groupId) {
   return ` in "${group.title}"${diagrams ? ` (${diagrams.join(", ")})` : ""}`;
 }
 function modelTypeOfId(id2) {
-  const candidate = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
-  return meta[candidate]?.kind === "class" ? candidate : null;
+  const candidate2 = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
+  return meta[candidate2]?.kind === "class" ? candidate2 : null;
 }
 function corpus() {
   const entries = [];
@@ -16264,7 +16659,7 @@ function corpus() {
         description: `Diagram, ${ancestry(name2)}; holds ${app.metamodels.getAvailableViewTypes(name2).length} view types`,
         example: {
           path: "/create_diagram",
-          body: { type: name2, parentId: "<owner id>", name: "<name>" }
+          body: { type: name2, parent: "<owner>", name: "<name>" }
         }
       });
       continue;
@@ -16280,7 +16675,7 @@ function corpus() {
       description: `Model element, ${ancestry(name2)}${ownAttributes(name2)}${ways.length > 0 ? `; creatable ${ways.join(" or ")}` : "; not creatable directly"}`,
       example: modelAndView.includes(name2) ? relationshipKind(name2) ? edgeExample(name2) : nodeExample(name2) : modelIds.has(name2) ? {
         path: "/create_element",
-        body: { type: name2, parentId: "<owner id>", name: "<name>" }
+        body: { type: name2, parent: "<owner>", name: "<name>" }
       } : { path: "/find_elements", body: { type: name2 } }
     });
   }
@@ -16592,8 +16987,8 @@ function describeType(name2, ids2, inherited) {
 }
 function describeModelAndView(id2) {
   const options = app.factory.modelAndViewOptions[id2] ?? {};
-  const candidate = options.modelType ?? id2;
-  const modelType = isMetaClass(candidate) ? candidate : null;
+  const candidate2 = options.modelType ?? id2;
+  const modelType = isMetaClass(candidate2) ? candidate2 : null;
   return {
     id: id2,
     modelType,
@@ -16623,6 +17018,19 @@ function describeToolbox() {
     })
   };
 }
+function withAliases(schema, aliases2) {
+  if (!aliases2) return schema;
+  const properties2 = { ...schema.properties };
+  for (const [alias, canonical] of Object.entries(aliases2)) {
+    properties2[alias] = {
+      ...properties2[canonical],
+      description: `Alias of ${canonical}.`,
+      "x-alias-of": canonical,
+      deprecated: true
+    };
+  }
+  return { ...schema, properties: properties2 };
+}
 var manifestCache = null;
 function manifest(endpoints2) {
   if (manifestCache?.endpoints !== endpoints2) {
@@ -16633,7 +17041,10 @@ function manifest(endpoints2) {
         description: e.description,
         readOnly: e.readOnly,
         destructive: e.destructive,
-        request: toJSONSchema(e.request, { io: "input" }),
+        request: withAliases(
+          toJSONSchema(e.request, { io: "input" }),
+          e.aliases
+        ),
         response: toJSONSchema(e.response, { io: "output" })
       }))
     };
@@ -16725,17 +17136,22 @@ var createDiagram = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    type: typeName(
+    type: typeName2(
       "A diagram id of app.factory.getDiagramIds(), e.g. 'UMLClassDiagram', 'UMLSequenceDiagram', 'ERDDiagram'."
     ),
-    parentId: id("Owner, usually a UMLModel or UMLPackage."),
+    parent: ref2("Owner, usually a UMLModel or UMLPackage."),
     name: optional(text2("Diagram name; StarUML generates one if omitted.")),
+    ...duplicateShape(),
     ...projectionShape()
   }),
+  aliases: { parentId: "parent" },
   response: elementSchema(),
   handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent element");
+    const parent = requireElement(input.parent, "Parent element");
     const { name: name2 } = input;
+    if (app.factory.getDiagramIds().includes(input.type)) {
+      assertUniqueName(parent, input.type, name2, input.allowDuplicateNames);
+    }
     const diagram = inStarUML(
       () => app.factory.createDiagram({
         id: input.type,
@@ -16753,16 +17169,17 @@ var createDiagram = defineEndpoint({
     return serialize(diagram, input);
   }
 });
-var diagramRequest = () => object({ id: id("Diagram id.") });
+var diagramRequest = () => object({ diagram: ref2("Diagram.") });
 var switchDiagram = defineEndpoint({
   path: "/switch_diagram",
   description: "Open a diagram in the editor and make it the current one.",
   readOnly: false,
   destructive: false,
   request: diagramRequest(),
+  aliases: { id: "diagram" },
   response: object({ _id: string2() }),
   handle: (input) => {
-    const diagram = requireDiagram(input.id);
+    const diagram = requireDiagram(input.diagram);
     inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
     return { _id: diagram._id };
   }
@@ -16773,9 +17190,10 @@ var closeDiagram = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: diagramRequest(),
+  aliases: { id: "diagram" },
   response: object({ closed: string2() }),
   handle: (input) => {
-    const diagram = requireDiagram(input.id);
+    const diagram = requireDiagram(input.diagram);
     inStarUML(() => app.diagrams.closeDiagram(diagram));
     return { closed: diagram._id };
   }
@@ -16921,8 +17339,8 @@ var structuralShape = () => ({
   documentation: str3("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
-function featureValues(typeName2, input, names3) {
-  return initialValues(typeName2, input.name, {
+function featureValues(typeName3, input, names3) {
+  return initialValues(typeName3, input.name, {
     ...input.properties,
     ...pick2(input, names3)
   });
@@ -16933,14 +17351,22 @@ var addAttribute = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    ownerId: id("Classifier id."),
+    ref: ref2("Classifier."),
     name: text2("Attribute name."),
     ...structuralShape(),
+    ...duplicateShape(),
     ...projectionShape()
   }),
+  aliases: { ownerId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.ownerId, "Owner");
+    const owner = requireElement(input.ref, "Owner");
+    assertUniqueName(
+      owner,
+      "UMLAttribute",
+      input.name,
+      input.allowDuplicateNames
+    );
     const values = featureValues("UMLAttribute", input, STRUCTURAL);
     return serialize(
       createOwned(owner, "UMLAttribute", "attributes", values),
@@ -16982,7 +17408,7 @@ var addOperation = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    ownerId: id("Classifier id."),
+    ref: ref2("Classifier."),
     name: text2("Operation name."),
     visibility: visibility2(),
     isStatic: flag("Class-level operation."),
@@ -17001,9 +17427,10 @@ var addOperation = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
+  aliases: { ownerId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.ownerId, "Owner");
+    const owner = requireElement(input.ref, "Owner");
     const values = featureValues("UMLOperation", input, OPERATION);
     const parameters = [
       ...(input.parameters ?? []).map(
@@ -17038,13 +17465,14 @@ var addParameter = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    operationId: id("Operation id."),
+    ref: ref2("Operation."),
     ...parameterShape(),
     ...projectionShape()
   }),
+  aliases: { operationId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.operationId, "Operation");
+    const owner = requireElement(input.ref, "Operation");
     const values = featureValues("UMLParameter", input, PARAMETER);
     return serialize(
       createOwned(owner, "UMLParameter", "parameters", values),
@@ -17058,15 +17486,23 @@ var addEnumerationLiteral = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    enumerationId: id("UMLEnumeration id."),
+    ref: ref2("UMLEnumeration."),
     name: text2("Literal name."),
     documentation: str3("Documentation text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...duplicateShape(),
     ...projectionShape()
   }),
+  aliases: { enumerationId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.enumerationId, "Enumeration");
+    const owner = requireElement(input.ref, "Enumeration");
+    assertUniqueName(
+      owner,
+      "UMLEnumerationLiteral",
+      input.name,
+      input.allowDuplicateNames
+    );
     const values = featureValues("UMLEnumerationLiteral", input, [
       "documentation"
     ]);
@@ -17082,7 +17518,7 @@ var addTemplateParameter = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    ownerId: id("Templated element id."),
+    ref: ref2("Templated element."),
     name: text2("Parameter name, e.g. 'T'."),
     parameterType: optional(
       typeValue("Kind of argument, e.g. 'class', or {$ref: id}.")
@@ -17093,9 +17529,10 @@ var addTemplateParameter = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
+  aliases: { ownerId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.ownerId, "Owner");
+    const owner = requireElement(input.ref, "Owner");
     const values = featureValues("UMLTemplateParameter", input, [
       "parameterType",
       "defaultValue"
@@ -17112,7 +17549,7 @@ var addSlot = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    instanceId: id("Instance id, e.g. a UMLObject."),
+    ref: ref2("Instance, e.g. a UMLObject."),
     name: str3("Slot name; usually the defining attribute's name."),
     definingFeature: optional(
       reference(
@@ -17123,9 +17560,10 @@ var addSlot = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
+  aliases: { instanceId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.instanceId, "Instance");
+    const owner = requireElement(input.ref, "Instance");
     const values = featureValues("UMLSlot", input, [
       "definingFeature",
       "value"
@@ -17146,7 +17584,7 @@ var addTag = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    elementId: id("Element to tag."),
+    ref: ref2("Element to tag."),
     name: text2("Tag name."),
     kind: doc(
       _enum(["string", "number", "boolean", "reference", "enum"]),
@@ -17160,9 +17598,10 @@ var addTag = defineEndpoint({
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
+  aliases: { elementId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const owner = requireElement(input.elementId, "Element");
+    const owner = requireElement(input.ref, "Element");
     const values = initialValues("Tag", input.name, {
       ...input.properties,
       kind: input.kind,
@@ -17173,10 +17612,10 @@ var addTag = defineEndpoint({
   }
 });
 function setAttribute(elem, field, value) {
-  const typeName2 = elem.constructor.name;
+  const typeName3 = elem.constructor.name;
   const converted = toModelValue(
-    typeName2,
-    settableAttribute(typeName2, field),
+    typeName3,
+    settableAttribute(typeName3, field),
     value
   );
   inStarUML(() => app.engine.setProperty(elem, field, converted));
@@ -17187,7 +17626,7 @@ var setStereotype = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: object({
-    elementId: id("Element id."),
+    ref: ref2("Element."),
     stereotype: doc(
       nullable(
         union([
@@ -17199,9 +17638,10 @@ var setStereotype = defineEndpoint({
     ),
     ...projectionShape()
   }),
+  aliases: { elementId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const elem = requireElement(input.elementId);
+    const elem = requireElement(input.ref);
     setAttribute(elem, "stereotype", input.stereotype);
     return serialize(elem, input);
   }
@@ -17212,13 +17652,14 @@ var setDocumentation = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: object({
-    elementId: id("Element id."),
+    ref: ref2("Element."),
     documentation: text2("Documentation; replaces the current text."),
     ...projectionShape()
   }),
+  aliases: { elementId: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const elem = requireElement(input.elementId);
+    const elem = requireElement(input.ref);
     setAttribute(elem, "documentation", input.documentation);
     return serialize(elem, input);
   }
@@ -17274,14 +17715,39 @@ var endShape = () => ({
   tailEnd: properties(
     "Undirected relationships only: attributes of end1, e.g. {name, navigable, aggregation, multiplicity} for a UMLAssociation."
   ),
-  headEnd: properties("Undirected relationships only: attributes of end2.")
+  headEnd: properties("Undirected relationships only: attributes of end2."),
+  tailName: optional(
+    text2(
+      "Undirected relationships only: the role name of end1 (tailEnd.name)."
+    )
+  ),
+  headName: optional(
+    text2(
+      "Undirected relationships only: the role name of end2 (headEnd.name)."
+    )
+  )
 });
+var nameShape = () => ({
+  name: optional(
+    text2(
+      "The relationship's own name, drawn as a plain label on the edge (without the visibility mark); role names go in tailName/headName."
+    )
+  )
+});
+function withRoleNames(input) {
+  const end = (values, name2) => name2 === void 0 ? values : { ...values, name: name2 };
+  return {
+    tailEnd: end(input.tailEnd, input.tailName),
+    headEnd: end(input.headEnd, input.headName)
+  };
+}
 function createEdge(request) {
   const { id: createId, preset } = resolveCreateType(request.type);
   const modelType = modelTypeOf(createId);
   const kind = modelType ? relationshipKind(modelType) : null;
   const values = valuesFor(createId, request.name, request.properties);
-  const ends2 = endValues(modelType, kind, request.tailEnd, request.headEnd);
+  const { tailEnd, headEnd } = withRoleNames(request);
+  const ends2 = endValues(modelType, kind, tailEnd, headEnd);
   return createModelAndView({
     ...preset,
     id: createId,
@@ -17295,6 +17761,12 @@ function createEdge(request) {
     modelInitializer: (m) => {
       Object.assign(m, values);
       assignEnds(m, ends2);
+    },
+    // UMLGeneralEdgeView draws the name as model.getString(view), which puts
+    // the visibility mark ("+") before it while showVisibility is on, its
+    // default (uml/elements.js, 7.1.1). A relationship's name is a label.
+    viewInitializer: (v) => {
+      if (request.name && "showVisibility" in v) v.showVisibility = false;
     }
   });
 }
@@ -17304,41 +17776,52 @@ var createEdgeWithView = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    type: typeName(
+    type: typeName2(
       "A model-and-view id of /introspect factory.modelAndViewIds whose entry has a relationship kind, e.g. 'UMLAssociation', an edge id such as 'NoteLink', or a toolbox item id such as 'UMLComposition' or 'UMLAsyncMessage'."
     ),
-    diagramId: id("Diagram to place the edge on."),
-    parentId: optional(
-      id(
+    diagram: ref2("Diagram to place the edge on."),
+    parent: optional(
+      ref2(
         "Passed to the factory as the diagram editor does; default the diagram's owner. Most relationship factories file the relationship under the tail model regardless."
       )
     ),
-    tailViewId: id("View at the source end."),
-    headViewId: id("View at the target end."),
-    name: optional(text2("Relationship name.")),
+    tail: ref2(
+      "View at the source end; a model stands for its view on the diagram."
+    ),
+    head: ref2(
+      "View at the target end; a model stands for its view on the diagram."
+    ),
+    ...nameShape(),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...endShape(),
     ...geometryShape(),
     ...projectionShape()
   }),
+  aliases: {
+    diagramId: "diagram",
+    parentId: "parent",
+    tailViewId: "tail",
+    headViewId: "head"
+  },
   response: createdSchema(),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
-    const parent = input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent");
+    const diagram = requireDiagram(input.diagram);
+    const parent = input.parent === void 0 ? diagram._parent : requireElement(input.parent, "Parent");
     const view = createEdge({
       ...input,
       parent,
       diagram,
-      tail: requireView(input.tailViewId, "Tail view"),
-      head: requireView(input.headViewId, "Head view")
+      tail: requireView(input.tail, "Tail view", diagram),
+      head: requireView(input.head, "Head view", diagram)
     });
     return created(view, input);
   }
 });
 function createModelOnly(modelType, kind, input, tail, head) {
   const values = initialValues(modelType, input.name, input.properties);
-  const ends2 = endValues(modelType, kind, input.tailEnd, input.headEnd);
-  const parent = input.parentId === void 0 ? defaultOwner(tail, modelType) : requireElement(input.parentId, "Parent");
+  const { tailEnd, headEnd } = withRoleNames(input);
+  const ends2 = endValues(modelType, kind, tailEnd, headEnd);
+  const parent = input.parent === void 0 ? defaultOwner(tail, modelType) : requireElement(input.parent, "Parent");
   const field = resolveOwnerField(parent, modelType, input.field);
   const model = instantiate(modelType);
   if (kind === "directed") {
@@ -17378,18 +17861,18 @@ function endModel(id2, role) {
 }
 var createRelationship = defineEndpoint({
   path: "/create_relationship",
-  description: "Create a relationship between two elements with its ends set: source/target for directed kinds (Generalization, Dependency, Realization, InterfaceRealization, Include, Extend, Transition, ControlFlow, ObjectFlow, Message, flows of the other diagram families), end1/end2 for undirected ones (Association with end name, navigability, aggregation, multiplicity; Link; ERD relationship; connectors). With diagramId the edge view is created too, through StarUML's own factory and its connection rules; tail/head may then be view ids or ids of models shown on that diagram.",
+  description: "Create a relationship between two elements with its ends set: source/target for directed kinds (Generalization, Dependency, Realization, InterfaceRealization, Include, Extend, Transition, ControlFlow, ObjectFlow, Message, flows of the other diagram families), end1/end2 for undirected ones (Association with end name, navigability, aggregation, multiplicity; Link; ERD relationship; connectors). With a diagram the edge view is created too, through StarUML's own factory and its connection rules; tail/head may then be view ids or ids of models shown on that diagram.",
   readOnly: false,
   destructive: false,
   request: object({
-    type: typeName(
-      "With diagramId: a model-and-view id (see /introspect factory.modelAndView) or a toolbox item id that presets one, e.g. 'UMLComposition', 'UMLReplyMessage', 'ERDRelationshipOneToMany'. Without: a metamodel class whose relationship kind is directed or undirected."
+    type: typeName2(
+      "With a diagram: a model-and-view id (see /introspect factory.modelAndView) or a toolbox item id that presets one, e.g. 'UMLComposition', 'UMLReplyMessage', 'ERDRelationshipOneToMany'. Without: a metamodel class whose relationship kind is directed or undirected."
     ),
-    tailId: id("Source end: a model, or a view on the diagram."),
-    headId: id("Target end: a model, or a view on the diagram."),
-    diagramId: optional(id("Diagram to draw the relationship on.")),
-    parentId: optional(
-      id(
+    tail: ref2("Source end: a model, or a view on the diagram."),
+    head: ref2("Target end: a model, or a view on the diagram."),
+    diagram: optional(ref2("Diagram to draw the relationship on.")),
+    parent: optional(
+      ref2(
         "Owner of the relationship. With a diagram it is passed to the factory as the diagram editor does (default the diagram's owner); most relationship factories file the relationship under the tail model regardless. Without a diagram the default is the tail's owner when that has a list for this type (messages, edges, transitions), else the tail model."
       )
     ),
@@ -17399,7 +17882,7 @@ var createRelationship = defineEndpoint({
         "Without a diagram: owner list to add to; default the list typed for the relationship, e.g. 'messages' of a UMLInteraction."
       )
     ),
-    name: optional(text2("Relationship name.")),
+    ...nameShape(),
     properties: properties(
       `${ATTRIBUTE_VALUES_HELP} E.g. {messageSort: "asynchCall"} for a UMLMessage, {guard: "x > 0"} for a UMLControlFlow.`
     ),
@@ -17407,6 +17890,12 @@ var createRelationship = defineEndpoint({
     ...geometryShape(),
     ...projectionShape()
   }),
+  aliases: {
+    tailId: "tail",
+    headId: "head",
+    diagramId: "diagram",
+    parentId: "parent"
+  },
   response: object({
     view: doc(nullable(elementSchema()), "Null without a diagram."),
     model: doc(
@@ -17415,8 +17904,8 @@ var createRelationship = defineEndpoint({
     )
   }),
   handle: (input) => {
-    if (input.diagramId !== void 0) {
-      const diagram = requireDiagram(input.diagramId);
+    if (input.diagram !== void 0) {
+      const diagram = requireDiagram(input.diagram);
       if (input.field !== void 0) {
         throw new ApiError(
           "INVALID_ARGUMENT",
@@ -17425,10 +17914,10 @@ var createRelationship = defineEndpoint({
       }
       const view = createEdge({
         ...input,
-        parent: input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent"),
+        parent: input.parent === void 0 ? diagram._parent : requireElement(input.parent, "Parent"),
         diagram,
-        tail: endView(input.tailId, diagram, "Tail"),
-        head: endView(input.headId, diagram, "Head")
+        tail: endView(input.tail, diagram, "Tail"),
+        head: endView(input.head, diagram, "Head")
       });
       return created(view, input);
     }
@@ -17443,8 +17932,8 @@ var createRelationship = defineEndpoint({
       input.type,
       kind,
       input,
-      endModel(input.tailId, "Tail"),
-      endModel(input.headId, "Head")
+      endModel(input.tail, "Tail"),
+      endModel(input.head, "Head")
     );
     return { view: null, model: serialize(model, input) };
   }
@@ -17473,17 +17962,22 @@ var setSelection = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    viewIds: ids("Views to select, all on one diagram."),
-    modelIds: ids("Model elements to select besides the views' models."),
+    views: ids(
+      "Views to select, all on one diagram, by id or path; a model stands for its only view."
+    ),
+    models: ids(
+      "Model elements to select besides the views' models, by id or path."
+    ),
     ...projectionShape()
   }),
+  aliases: { viewIds: "views", modelIds: "models" },
   response: object({
     models: array(elementSchema()),
     views: array(elementSchema())
   }),
   handle: (input) => {
-    const extra = (input.modelIds ?? []).map((i) => requireElement(i));
-    const picked = input.viewIds && input.viewIds.length > 0 ? requireViewsOnOneDiagram(input.viewIds) : null;
+    const extra = (input.models ?? []).map((i) => requireElement(i));
+    const picked = input.views && input.views.length > 0 ? requireViewsOnOneDiagram(input.views) : null;
     const views = picked ? picked.views : [];
     inStarUML(() => {
       app.diagrams.deselectAll();
@@ -17553,7 +18047,7 @@ var setEditorState = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: object({
-    diagramId: optional(id("Diagram to open and show first.")),
+    diagram: optional(ref2("Diagram to open and show first.")),
     zoom: optional(
       doc(
         number2().check(_gte(0.1), _lte(3)),
@@ -17569,9 +18063,10 @@ var setEditorState = defineEndpoint({
     gridVisible: optional(boolean2()),
     snapToGrid: optional(boolean2())
   }),
+  aliases: { diagramId: "diagram" },
   response: editorState(),
   handle: (input) => {
-    const diagram = input.diagramId === void 0 ? null : requireDiagram(input.diagramId);
+    const diagram = input.diagram === void 0 ? null : requireDiagram(input.diagram);
     inStarUML(() => {
       if (diagram) app.diagrams.setCurrentDiagram(diagram);
       if (input.zoom !== void 0) app.diagrams.setZoomLevel(input.zoom);
@@ -17693,7 +18188,7 @@ var exportDiagram = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: object({
-    id: optional(doc(string2(), "Diagram id; default the current diagram.")),
+    diagram: optional(ref2("Diagram; default the current diagram.")),
     format: optional(
       doc(_enum(["png", "jpeg", "svg"]), "Image format; default png.")
     ),
@@ -17715,6 +18210,7 @@ var exportDiagram = defineEndpoint({
       )
     )
   }),
+  aliases: { id: "diagram" },
   response: object({
     diagram: string2(),
     format: string2(),
@@ -17730,7 +18226,7 @@ var exportDiagram = defineEndpoint({
     )
   }),
   handle: async (input) => {
-    const diagram = currentOr(input.id);
+    const diagram = currentOr(input.diagram);
     const format = input.format ?? "png";
     const image = format === "svg" ? inStarUML(() => renderSvg(diagram, input.background)) : await renderRaster(
       diagram,
@@ -17784,10 +18280,10 @@ var exportDiagrams = defineEndpoint({
     path: absolutePath(
       "Absolute directory to write into; created if missing. Files of the same name are overwritten."
     ),
-    ids: optional(
+    diagrams: optional(
       doc(
         array(string2().check(_minLength(1))).check(_minLength(1)),
-        "Diagram ids; default every diagram in the project."
+        "Diagrams, by id or path,; default every diagram in the project."
       )
     ),
     format: optional(
@@ -17806,6 +18302,7 @@ var exportDiagrams = defineEndpoint({
       )
     )
   }),
+  aliases: { ids: "diagrams" },
   response: object({
     path: string2(),
     format: string2(),
@@ -17822,7 +18319,7 @@ var exportDiagrams = defineEndpoint({
   }),
   handle: async (input) => {
     requireProject();
-    const diagrams = input.ids ? input.ids.map((i) => requireDiagram(i)) : app.repository.getInstancesOf("Diagram");
+    const diagrams = input.diagrams ? input.diagrams.map((i) => requireDiagram(i)) : app.repository.getInstancesOf("Diagram");
     if (diagrams.length === 0) {
       throw new ApiError("NOT_FOUND", "The project has no diagrams");
     }
@@ -17874,10 +18371,10 @@ var exportPdf = defineEndpoint({
   destructive: true,
   request: object({
     path: absolutePath("Absolute .pdf file to write; overwritten."),
-    ids: optional(
+    diagrams: optional(
       doc(
         array(string2().check(_minLength(1))).check(_minLength(1)),
-        "Diagram ids in page order; default every diagram in the project."
+        "Diagrams, by id or path, in page order; default every diagram in the project."
       )
     ),
     size: optional(
@@ -17893,6 +18390,7 @@ var exportPdf = defineEndpoint({
       doc(boolean2(), "Print each diagram's path name; default true.")
     )
   }),
+  aliases: { ids: "diagrams" },
   response: object({
     path: string2(),
     pages: int(),
@@ -17900,7 +18398,7 @@ var exportPdf = defineEndpoint({
   }),
   handle: async (input) => {
     requireProject();
-    const diagrams = input.ids ? input.ids.map((i) => requireDiagram(i)) : app.repository.getInstancesOf("Diagram");
+    const diagrams = input.diagrams ? input.diagrams.map((i) => requireDiagram(i)) : app.repository.getInstancesOf("Diagram");
     if (diagrams.length === 0) {
       throw new ApiError("NOT_FOUND", "The project has no diagrams");
     }
@@ -18004,36 +18502,40 @@ var getViewsOf = defineEndpoint({
   description: "Every view of a model element, on any diagram; empty for a model that is in no diagram.",
   readOnly: true,
   destructive: false,
-  request: object({ id: id("Model element id."), ...projectionShape() }),
+  request: object({ ref: ref2("Model element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
-  handle: (input) => listOf(app.repository.getViewsOf(requireElement(input.id)), input)
+  handle: (input) => listOf(app.repository.getViewsOf(requireElement(input.ref)), input)
 });
 var getEdgeViewsOf = defineEndpoint({
   path: "/get_edge_views_of",
   description: "Edge views attached to a view at either end.",
   readOnly: true,
   destructive: false,
-  request: object({ id: id("View id."), ...projectionShape() }),
+  request: object({ ref: ref2("View."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
-  handle: (input) => listOf(app.repository.getEdgeViewsOf(requireView(input.id)), input)
+  handle: (input) => listOf(app.repository.getEdgeViewsOf(requireView(input.ref)), input)
 });
 var getRelationshipsOf = defineEndpoint({
   path: "/get_relationships_of",
   description: "Relationships (generalizations, associations, dependencies, ...) that have the element at an end.",
   readOnly: true,
   destructive: false,
-  request: object({ id: id("Model element id."), ...projectionShape() }),
+  request: object({ ref: ref2("Model element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
-  handle: (input) => listOf(app.repository.getRelationshipsOf(requireElement(input.id)), input)
+  handle: (input) => listOf(app.repository.getRelationshipsOf(requireElement(input.ref)), input)
 });
 var getRefsTo = defineEndpoint({
   path: "/get_refs_to",
   description: "Every element holding a reference to the element: typed attributes, relationship ends, views showing it. Check before deleting.",
   readOnly: true,
   destructive: false,
-  request: object({ id: id("Element id."), ...projectionShape() }),
+  request: object({ ref: ref2("Element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: listResult(),
-  handle: (input) => listOf(app.repository.getRefsTo(requireElement(input.id)), input)
+  handle: (input) => listOf(app.repository.getRefsTo(requireElement(input.ref)), input)
 });
 var getConnectedNodeViews = defineEndpoint({
   path: "/get_connected_node_views",
@@ -18041,17 +18543,18 @@ var getConnectedNodeViews = defineEndpoint({
   readOnly: true,
   destructive: false,
   request: object({
-    id: id("View id."),
+    ref: ref2("View; a model stands for its only view."),
     edgeType: optional(
-      typeName(
+      typeName2(
         "Edge view type to follow, e.g. 'UMLAssociationView'; default every EdgeView."
       )
     ),
     ...projectionShape()
   }),
+  aliases: { id: "ref" },
   response: listResult(),
   handle: (input) => {
-    const view = requireView(input.id);
+    const view = requireView(input.ref);
     const edgeType = input.edgeType ?? "EdgeView";
     requireTypeName(edgeType);
     const nodes = inStarUML(
@@ -18164,14 +18667,14 @@ async function init() {
     );
     return;
   }
-  const candidate = new ExtensionHttpServer({
+  const candidate2 = new ExtensionHttpServer({
     port,
     handlers: routes,
     policy: preferencePolicy(),
     onLog: log
   });
   try {
-    await candidate.start();
+    await candidate2.start();
   } catch (err) {
     log(
       "error",
@@ -18179,7 +18682,7 @@ async function init() {
     );
     return;
   }
-  server = candidate;
+  server = candidate2;
 }
 async function shutdown() {
   const running = server;

@@ -84,7 +84,7 @@ describe("/layout_diagram", () => {
       layoutDiagram,
       {},
       "NOT_FOUND",
-      "No diagram is open; pass 'id'",
+      "No diagram is open; pass 'diagram'",
     );
   });
 
@@ -263,7 +263,7 @@ describe("/route_edges", () => {
       routeEdges,
       { lineStyle: "curve" },
       "NOT_FOUND",
-      "No diagram is open; pass 'diagramId'",
+      "No diagram is open; pass 'diagram'",
     );
     await fails(
       routeEdges,

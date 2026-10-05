@@ -31,7 +31,7 @@ import { loadValidationRules } from "../app-modules.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
 import { requireDiagram, requireElement } from "../lookup.js";
-import { id } from "../schemas.js";
+import { ref } from "../schemas.js";
 import { summarize } from "../serialize.js";
 import type { Element, View } from "../types.js";
 
@@ -141,7 +141,7 @@ export const describeDiagram = defineEndpoint({
   readOnly: true,
   destructive: false,
   request: z.object({
-    diagramId: id("Diagram id."),
+    diagram: ref("Diagram."),
     maxChars: z.optional(
       doc(
         z.int().check(z.minimum(200), z.maximum(200_000)),
@@ -149,6 +149,7 @@ export const describeDiagram = defineEndpoint({
       ),
     ),
   }),
+  aliases: { diagramId: "diagram" },
   response: z.object({
     diagram: z.object({
       _id: z.string(),
@@ -161,7 +162,7 @@ export const describeDiagram = defineEndpoint({
     truncated: z.boolean(),
   }),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const max = input.maxChars ?? 4000;
     const nodes = nodeViews(diagram);
     const edges = edgeViews(diagram);
@@ -208,7 +209,7 @@ export const validateModel = defineEndpoint({
   destructive: false,
   request: z.object({
     scope: z.optional(
-      id(
+      ref(
         "Only problems on this element and what it owns; default the project.",
       ),
     ),

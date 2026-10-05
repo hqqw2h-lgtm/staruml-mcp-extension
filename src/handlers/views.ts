@@ -26,7 +26,7 @@ import { diagramOf } from "../create.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
 import { requireDiagram, requireElement, requireView } from "../lookup.js";
-import { elementSchema, id, projectionShape } from "../schemas.js";
+import { elementSchema, projectionShape, ref } from "../schemas.js";
 import { serialize, type Projection } from "../serialize.js";
 import type { Element, View } from "../types.js";
 import { created, createdSchema } from "./elements.js";
@@ -70,7 +70,7 @@ const color = (description: string) =>
 const viewIds = () =>
   doc(
     z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
-    "View ids, all on one diagram.",
+    "Views, all on one diagram, by id or path; a model stands for its only view.",
   );
 
 /**
@@ -242,8 +242,7 @@ export const layoutDiagram = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    id: z.optional(id("Diagram id; default the current diagram.")),
-    diagramId: z.optional(id("Same as id.")),
+    diagram: z.optional(ref("Diagram; default the current diagram.")),
     preset: z.optional(
       doc(
         z.enum(PRESET_NAMES),
@@ -282,6 +281,7 @@ export const layoutDiagram = defineEndpoint({
       ),
     ),
   }),
+  aliases: { id: "diagram", diagramId: "diagram" },
   response: z.object({
     _id: z.string(),
     direction: z.string(),
@@ -296,7 +296,7 @@ export const layoutDiagram = defineEndpoint({
     fitted: z.optional(doc(z.int(), "Node views resized by fit.")),
   }),
   handle: (input) => {
-    const diagram = diagramOrCurrent(input.diagramId ?? input.id, "id");
+    const diagram = diagramOrCurrent(input.diagram, "diagram");
     const preset =
       input.preset === undefined ? undefined : LAYOUT_PRESETS[input.preset];
     const direction = input.direction ?? preset?.direction ?? "TB";
@@ -346,16 +346,17 @@ export const routeEdges = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    diagramId: z.optional(id("Diagram id; default the current diagram.")),
+    diagram: z.optional(ref("Diagram; default the current diagram.")),
     lineStyle: lineStyle("Line style for every edge."),
   }),
+  aliases: { diagramId: "diagram" },
   response: z.object({
     diagram: z.string(),
     lineStyle: z.string(),
     edges: doc(z.int(), "Edge views given the style."),
   }),
   handle: (input) => {
-    const diagram = diagramOrCurrent(input.diagramId, "diagramId");
+    const diagram = diagramOrCurrent(input.diagram, "diagram");
     const edges = (diagram.ownedViews as View[]).filter(
       (v) => v instanceof type.EdgeView,
     );
@@ -380,24 +381,25 @@ export const moveViews = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    ids: viewIds(),
+    refs: viewIds(),
     dx: doc(z.number(), "Horizontal offset in diagram units."),
     dy: doc(z.number(), "Vertical offset in diagram units."),
-    containerViewId: z.optional(
-      id(
+    container: z.optional(
+      ref(
         "Also put the views inside this view and their models inside its model, as dropping them on it does: states in a composite state (its region), classes in a package.",
       ),
     ),
     ...projectionShape(),
   }),
+  aliases: { ids: "refs", containerViewId: "container" },
   response: viewsResult(),
   handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const { views, diagram } = requireViewsOnOneDiagram(input.refs);
     const editor = editorShowing(diagram);
-    if (input.containerViewId === undefined) {
+    if (input.container === undefined) {
       inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
     } else {
-      const container = requireView(input.containerViewId, "Container view");
+      const container = requireView(input.container, "Container view", diagram);
       if (diagramOf(container) !== diagram) {
         throw new ApiError(
           "INVALID_ARGUMENT",
@@ -453,16 +455,17 @@ export const divideFragment = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    id: id("Combined fragment view id."),
+    ref: ref("Combined fragment view."),
     at: doc(
       z.array(z.number()).check(z.minLength(1)),
       "Diagram y of the top of each operand after the first, increasing, inside the fragment.",
     ),
     ...projectionShape(),
   }),
+  aliases: { id: "ref" },
   response: viewsResult(),
   handle: (input) => {
-    const view = requireView(input.id);
+    const view = requireView(input.ref);
     const diagram = diagramOf(view)!;
     editorShowing(diagram);
     // Operand views are made when the fragment is drawn, and drawing places
@@ -506,18 +509,19 @@ export const resizeNode = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    id: id("Node view id."),
+    ref: ref("Node view; a model stands for its only view."),
     left: z.optional(doc(z.number(), "Left edge in diagram units.")),
     top: z.optional(doc(z.number(), "Top edge in diagram units.")),
     width: z.optional(doc(z.number().check(z.positive()), "Width.")),
     height: z.optional(doc(z.number().check(z.positive()), "Height.")),
     ...projectionShape(),
   }),
+  aliases: { id: "ref" },
   response: elementSchema(),
   handle: (input) => {
-    const node = requireView(input.id);
+    const node = requireView(input.ref);
     if (!(node instanceof type.NodeView)) {
-      throw new ApiError("NOT_FOUND", `Node view not found: ${input.id}`);
+      throw new ApiError("NOT_FOUND", `Node view not found: ${input.ref}`);
     }
     const bounds = node as unknown as Record<(typeof GEOMETRY)[number], number>;
     const left = input.left ?? bounds.left!;
@@ -539,7 +543,7 @@ export const setViewStyle = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    ids: viewIds(),
+    refs: viewIds(),
     fillColor: color("Fill colour, CSS hex such as '#ffcc00'."),
     lineColor: color("Line colour."),
     fontColor: color("Text colour."),
@@ -561,9 +565,10 @@ export const setViewStyle = defineEndpoint({
     ),
     ...projectionShape(),
   }),
+  aliases: { ids: "refs" },
   response: viewsResult(),
   handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const { views, diagram } = requireViewsOnOneDiagram(input.refs);
     const editor = editorShowing(diagram);
     const e = app.engine;
     const changes: [keyof typeof input, () => unknown][] = [
@@ -609,9 +614,10 @@ export const setZOrder = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    ids: viewIds(),
+    refs: viewIds(),
     position: doc(z.enum(["front", "back"]), "Where to move the views."),
   }),
+  aliases: { ids: "refs" },
   response: z.object({
     diagram: z.string(),
     order: doc(
@@ -620,7 +626,7 @@ export const setZOrder = defineEndpoint({
     ),
   }),
   handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const { views, diagram } = requireViewsOnOneDiagram(input.refs);
     // The alignment extension's bring-to-front/send-to-back reorder
     // diagram.ownedViews, which drawDiagram paints in order (7.1.1).
     const owned = diagram.ownedViews as Element[];
@@ -665,22 +671,23 @@ export const createViewOf = defineEndpoint({
   readOnly: false,
   destructive: false,
   request: z.object({
-    modelId: id("Model element id."),
-    diagramId: id("Diagram to show it on."),
+    ref: ref("Model element."),
+    diagram: ref("Diagram to show it on."),
     x: z.optional(doc(z.number(), "Left edge, default 100.")),
     y: z.optional(doc(z.number(), "Top edge, default 100.")),
     ...projectionShape(),
   }),
+  aliases: { modelId: "ref", diagramId: "diagram" },
   response: createdSchema(),
   handle: (input) => {
-    const model = requireElement(input.modelId, "Model");
+    const model = requireElement(input.ref, "Model");
     if (model instanceof type.View || model instanceof type.Diagram) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${input.modelId} is a ${model.constructor.name}, not a model element`,
+        `${input.ref} is a ${model.constructor.name}, not a model element`,
       );
     }
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const shown = (m: Element) =>
       (diagram.ownedViews as View[]).find((v) => v.model === m);
     const existing = shown(model);
@@ -689,7 +696,7 @@ export const createViewOf = defineEndpoint({
       if (!shown(end)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          `${end.constructor.name} ${end._id} at an end of ${input.modelId} is not on the diagram; show it first`,
+          `${end.constructor.name} ${end._id} at an end of ${input.ref} is not on the diagram; show it first`,
         );
       }
     }

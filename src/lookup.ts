@@ -22,13 +22,15 @@
  */
 
 import { ApiError } from "./errors.js";
+import { resolveRef } from "./refs.js";
 import type { Element, View } from "./types.js";
 
-/** Resolves an id, throwing NOT_FOUND; `role` names the request field in the message. */
-export function requireElement(id: string, role = "Element"): Element {
-  const elem = app.repository.get(id);
-  if (!elem) throw new ApiError("NOT_FOUND", `${role} not found: ${id}`);
-  return elem;
+/**
+ * Resolves an id or path (see refs.ts), throwing NOT_FOUND or AMBIGUOUS_REF;
+ * `role` names the request field in the message.
+ */
+export function requireElement(ref: string, role = "Element"): Element {
+  return resolveRef(ref, { role });
 }
 
 /**
@@ -36,20 +38,24 @@ export function requireElement(id: string, role = "Element"): Element {
  * expected and fail later inside the editor (ui/diagram-manager.js,
  * engine/factory.js in 7.1.1), so the kind is checked here.
  */
-export function requireDiagram(id: string, role = "Diagram"): Element {
-  const elem = app.repository.get(id);
-  if (!elem || !(elem instanceof type.Diagram)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id}`);
-  }
-  return elem;
+export function requireDiagram(ref: string, role = "Diagram"): Element {
+  return resolveRef(ref, { kind: "diagram", role });
 }
 
-export function requireView(id: string, role = "View"): View {
-  const elem = app.repository.get(id);
-  if (!elem || !(elem instanceof type.View)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id}`);
-  }
-  return elem as View;
+/**
+ * A view, or a model standing for its view on `diagram` (its only view when
+ * no diagram is given).
+ */
+export function requireView(
+  ref: string,
+  role = "View",
+  diagram?: Element,
+): View {
+  return resolveRef(ref, {
+    kind: "view",
+    role,
+    ...(diagram && { diagram }),
+  }) as View;
 }
 
 /**

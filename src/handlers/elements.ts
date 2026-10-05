@@ -24,6 +24,7 @@
 import * as z from "zod/mini";
 import { defineEndpoint, doc } from "../endpoint.js";
 import {
+  assertUniqueName,
   createModelAndView,
   createOwned,
   initialValues,
@@ -37,14 +38,16 @@ import {
   requireView,
 } from "../lookup.js";
 import { isMetaClass } from "../metamodel.js";
+import { byId, tryResolve } from "../refs.js";
 import { resolveCreateType } from "../toolbox.js";
 import {
   ATTRIBUTE_VALUES_HELP,
   coordinate,
+  duplicateShape,
   elementSchema,
-  id,
   projectionShape,
   properties,
+  ref,
   text,
   typeName,
 } from "../schemas.js";
@@ -54,12 +57,14 @@ import { refId, settableAttribute, toModelValue } from "../values.js";
 
 export const getElementById = defineEndpoint({
   path: "/get_element_by_id",
-  description: "Read one element by id.",
+  description:
+    "Read one element by id or path ('Model/Shop/Order', 'Order.total', 'Order#pay()', a diagram name, '@current').",
   readOnly: true,
   destructive: false,
-  request: z.object({ id: id("Element id."), ...projectionShape() }),
+  request: z.object({ ref: ref("Element."), ...projectionShape() }),
+  aliases: { id: "ref" },
   response: elementSchema(),
-  handle: (input) => serialize(requireElement(input.id), input),
+  handle: (input) => serialize(requireElement(input.ref), input),
 });
 
 export const DEFAULT_PAGE_SIZE = 100;
@@ -140,7 +145,7 @@ export const createElement = defineEndpoint({
     type: typeName(
       "A model id of /introspect factory.modelIds, e.g. 'UMLClass'.",
     ),
-    parentId: id("Owner element id."),
+    parent: ref("Owner element."),
     name: z.optional(text("Element name; StarUML generates one if omitted.")),
     field: z.optional(
       doc(
@@ -149,12 +154,15 @@ export const createElement = defineEndpoint({
       ),
     ),
     properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...duplicateShape(),
     ...projectionShape(),
   }),
+  aliases: { parentId: "parent" },
   response: elementSchema(),
   handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent element");
+    const parent = requireElement(input.parent, "Parent element");
     requireModelId(input.type);
+    assertUniqueName(parent, input.type, input.name, input.allowDuplicateNames);
     const values = initialValues(input.type, input.name, input.properties);
     return serialize(
       createOwned(parent, input.type, input.field, values),
@@ -172,11 +180,11 @@ export const updateElement = defineEndpoint({
   readOnly: false,
   destructive: true,
   request: z.object({
-    id: id("Element id."),
+    ref: ref("Element."),
     op: z.optional(
       doc(
         z.enum(UPDATE_OPS),
-        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parentId`, keeping its list field.",
+        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parent`, keeping its list field.",
       ),
     ),
     field: z.optional(
@@ -197,18 +205,19 @@ export const updateElement = defineEndpoint({
         "reorder: target position, counted after the item is taken out.",
       ),
     ),
-    parentId: z.optional(id("relocate: the new owner.")),
+    parent: z.optional(ref("relocate: the new owner.")),
     ...projectionShape(),
   }),
+  aliases: { id: "ref", parentId: "parent" },
   response: elementSchema(),
   handle: (input) => {
-    const elem = requireElement(input.id);
+    const elem = requireElement(input.ref);
     const op = input.op ?? "set";
     if (op === "relocate") {
-      if (input.parentId === undefined) {
-        throw new ApiError("INVALID_ARGUMENT", "relocate needs parentId");
+      if (input.parent === undefined) {
+        throw new ApiError("INVALID_ARGUMENT", "relocate needs parent");
       }
-      relocate(elem, requireElement(input.parentId, "Parent"), input.field);
+      relocate(elem, requireElement(input.parent, "Parent"), input.field);
       return serialize(elem, input);
     }
     if (input.field === undefined) {
@@ -282,7 +291,11 @@ function reorder(
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
   const list = elem[attr.name] as Element[];
-  const itemId = refId(value);
+  const itemRef = refId(value);
+  const itemId =
+    itemRef === null || byId(itemRef)
+      ? itemRef
+      : (tryResolve(itemRef)?._id ?? itemRef);
   const item = list.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
@@ -367,18 +380,19 @@ export const deleteElement = defineEndpoint({
     "Delete an element with everything it owns, the views showing them, and edges attached to those views.",
   readOnly: false,
   destructive: true,
-  request: z.object({ id: id("Element id.") }),
+  request: z.object({ ref: ref("Element.") }),
+  aliases: { id: "ref" },
   response: z.object({
-    deleted: z.string(),
+    deleted: doc(z.string(), "Id of the element deleted."),
     models_deleted: z.int(),
     views_deleted: z.int(),
   }),
   handle: (input) => {
-    const elem = requireElement(input.id);
+    const elem = requireElement(input.ref);
     const { models, views } = collectDeletionTargets(elem);
     inStarUML(() => app.engine.deleteElements(models, views));
     return {
-      deleted: input.id,
+      deleted: elem._id,
       models_deleted: models.length,
       views_deleted: views.length,
     };
@@ -437,21 +451,23 @@ export function created(view: View, projection: Projection) {
 export const createElementWithView = defineEndpoint({
   path: "/create_element_with_view",
   description:
-    "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass containerViewId for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
+    "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass container for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
   readOnly: false,
   destructive: false,
   request: z.object({
     type: typeName(
       "A model-and-view id of /introspect factory.modelAndViewIds, e.g. 'UMLClass', 'ERDEntity', or a toolbox item id, which applies the item's presets, e.g. 'UMLInitialState', 'UMLCompositeState', 'C4ContainerDatabase'.",
     ),
-    diagramId: id("Diagram to place the view on."),
-    parentId: z.optional(
-      id(
+    diagram: ref("Diagram to place the view on."),
+    parent: z.optional(
+      ref(
         "Owner of the new model element; default the diagram's owner, as the diagram editor does. Items placed on a host view (toolbox option parasitic, e.g. ports and pins) are filed under the host's model by StarUML regardless.",
       ),
     ),
-    containerViewId: z.optional(
-      id("View that hosts or contains the new view."),
+    container: z.optional(
+      ref(
+        "View that hosts or contains the new view; a model stands for its view on the diagram.",
+      ),
     ),
     name: z.optional(text("Element name; StarUML generates one if omitted.")),
     properties: properties(ATTRIBUTE_VALUES_HELP),
@@ -459,21 +475,38 @@ export const createElementWithView = defineEndpoint({
     y: coordinate("Top edge, default 100."),
     x2: coordinate("Right edge, default x + 100."),
     y2: coordinate("Bottom edge, default y + 50."),
+    ...duplicateShape(),
     ...projectionShape(),
   }),
+  aliases: {
+    diagramId: "diagram",
+    parentId: "parent",
+    containerViewId: "container",
+  },
   response: createdSchema(),
   handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
+    const diagram = requireDiagram(input.diagram);
     const container =
-      input.containerViewId === undefined
+      input.container === undefined
         ? undefined
-        : requireView(input.containerViewId, "Container view");
+        : requireView(input.container, "Container view", diagram);
     const parent =
-      input.parentId === undefined
+      input.parent === undefined
         ? diagram._parent!
-        : requireElement(input.parentId, "Parent");
+        : requireElement(input.parent, "Parent");
     const { id: createId, preset } = resolveCreateType(input.type);
     const values = valuesFor(createId, input.name, input.properties);
+    const modelType = modelTypeOf(createId);
+    // A view hosted by another (a port, a pin) is filed under the host's
+    // model by StarUML, so its siblings are not the parent's.
+    if (modelType && !container) {
+      assertUniqueName(
+        parent,
+        modelType,
+        input.name,
+        input.allowDuplicateNames,
+      );
+    }
     const x1 = input.x ?? 100;
     const y1 = input.y ?? 100;
     const view = createModelAndView({

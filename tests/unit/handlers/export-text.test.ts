@@ -67,6 +67,7 @@ describe("/export_text per kind", () => {
       const again = await ok<Built>(build, {
         mermaid: mermaid.text,
         kind: mermaid.kind,
+        allowDuplicateNames: true,
       });
       expect(shown(again.diagram._id)).toEqual(shown(built.diagram._id));
     },
