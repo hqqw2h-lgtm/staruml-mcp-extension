@@ -62,6 +62,21 @@ export const STYLE_ENDPOINTS = [
   "/divide_fragment",
 ] as const;
 
+/**
+ * Endpoints that draw rather than model: the style ones and those placing
+ * or making views. A strict profile hides them from the oo capability set
+ * of /introspect, where only model-level and derive endpoints remain
+ * (issue #33).
+ */
+export const DRAWING_ENDPOINTS = [
+  ...STYLE_ENDPOINTS,
+  "/build_diagram",
+  "/create_element_with_view",
+  "/create_edge_with_view",
+  "/create_view_of",
+  "/layout_diagram",
+] as const;
+
 /** View attributes /update_element would set past the profile. */
 export const VIEW_STYLE_FIELDS = new Set([
   "left",

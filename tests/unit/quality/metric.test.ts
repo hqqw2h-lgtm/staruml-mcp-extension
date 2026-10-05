@@ -134,6 +134,7 @@ describe("measure", () => {
     const label: GNode = {
       ...node("lab", 15, 15, 30, 10),
       attachedTo: ["i", "x"],
+      label: true,
     };
     const orphan: GNode = { ...node("o", 700, 700), parent: "gone" };
     const m = measure({

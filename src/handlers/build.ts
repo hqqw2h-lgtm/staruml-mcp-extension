@@ -48,7 +48,7 @@ import {
 } from "../style/apply.js";
 import { effectiveProfile, presetFor } from "../style/profile.js";
 import { oneStep } from "../undo.js";
-import { improve, qualitySchema } from "../quality/loop.js";
+import { improve, qualitySchema, scoredAsIs } from "../quality/loop.js";
 import { batchRunner } from "./batch.js";
 import { byId, pathOf, tryResolve } from "../refs.js";
 import { requireElement, requireProject } from "../lookup.js";
@@ -110,13 +110,22 @@ function modelSignature(model: Element): string {
 /** Hands out existing elements by signature, each at most once, in diagram order. */
 class Pool<T> {
   private readonly bySignature = new Map<string, T[]>();
+  private readonly taken = new Set<T>();
   add(signature: string, item: T): void {
     const list = this.bySignature.get(signature) ?? [];
     list.push(item);
     this.bySignature.set(signature, list);
   }
+  /** The next item under `signature` not yet taken under any signature. */
   take(signature: string): T | undefined {
-    return this.bySignature.get(signature)?.shift();
+    const list = this.bySignature.get(signature);
+    while (list && list.length > 0) {
+      const item = list.shift()!;
+      if (this.taken.has(item)) continue;
+      this.taken.add(item);
+      return item;
+    }
+    return undefined;
   }
 }
 
@@ -163,8 +172,10 @@ function existing(diagram: Element) {
         `${modelSignature(model)}|${model.name}|${tail?._id}|${head?._id}`,
         view,
       );
+      edges.add(`id|${model._id}`, view);
     } else {
       nodes.add(`${modelSignature(model)}|${model.name}`, view);
+      nodes.add(`id|${model._id}`, view);
     }
     all.push(view);
   }
@@ -414,6 +425,15 @@ export interface BuildOptions {
   allowDuplicateNames?: boolean;
   /** Keep StarUML's "(from Owner)" on elements shown from another owner. */
   showNamespace?: boolean;
+  /**
+   * The model element each node shows, by node key: a derived diagram
+   * shows the model it was derived from, never a copy (issue #33).
+   */
+  bind?: ReadonlyMap<string, Element>;
+  /** The relationship each edge shows, by its index in the plan. */
+  bindEdges?: ReadonlyMap<number, Element>;
+  /** Prune removes views only, never the elements they show. */
+  pruneViewsOnly?: boolean;
 }
 
 export interface Target {
@@ -452,7 +472,9 @@ export function opsFor(
   if (
     !target.diagram &&
     plan.kind === "sequence" &&
-    target.name !== undefined
+    target.name !== undefined &&
+    // A diagram made in an existing interaction leaves that one's name alone.
+    !(target.parent instanceof type.UMLInteraction)
   ) {
     ops.push({
       path: "/update_element",
@@ -476,10 +498,13 @@ export function opsFor(
   /** Nodes whose view is new, so containment and dividers apply to them. */
   const fresh = new Set<string>();
   plan.nodes.forEach((node, i) => {
+    const bound = options.bind?.get(node.key);
     const found = pools?.nodes.take(
-      node.type === "Note"
-        ? `Note|${node.text}`
-        : `${signatureOf(node.type)}|${node.name}`,
+      bound
+        ? `id|${bound._id}`
+        : node.type === "Note"
+          ? `Note|${node.text}`
+          : `${signatureOf(node.type)}|${node.name}`,
     );
     if (found) {
       kept.add(found);
@@ -507,14 +532,16 @@ export function opsFor(
     created.set(as, node.key);
     fresh.add(node.key);
     const warned = warnings.length;
-    const model = reuse
-      ? findModel(
-          node,
-          target.diagram?._parent ?? target.parent,
-          claimed,
-          warnings,
-        )
-      : null;
+    const model =
+      bound ??
+      (reuse
+        ? findModel(
+            node,
+            target.diagram?._parent ?? target.parent,
+            claimed,
+            warnings,
+          )
+        : null);
     // Without reuse, or when several elements have the name, a new element
     // of the same name is what was asked for.
     const duplicate =
@@ -665,10 +692,13 @@ export function opsFor(
     const tail = refs.get(edge.from)!;
     const head = refs.get(edge.to)!;
     const noteLink = viewOnly(edge.type);
+    const boundEdge = options.bindEdges?.get(i);
     const found = pools?.edges.take(
-      noteLink
-        ? `${edge.type}|${tail.view}|${head.view}`
-        : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`,
+      boundEdge
+        ? `id|${boundEdge._id}`
+        : noteLink
+          ? `${edge.type}|${tail.view}|${head.view}`
+          : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`,
     );
     const key = `${edge.from} -> ${edge.to}`;
     if (found) {
@@ -693,18 +723,28 @@ export function opsFor(
     }
     const existingEnds =
       reuse && !tail.model!.startsWith("$") && !head.model!.startsWith("$");
-    const relationship = existingEnds
-      ? findRelationship(
-          edge,
-          app.repository.get(tail.model!)!,
-          app.repository.get(head.model!)!,
-        )
-      : undefined;
+    const relationship =
+      boundEdge ??
+      (existingEnds
+        ? findRelationship(
+            edge,
+            app.repository.get(tail.model!)!,
+            app.repository.get(head.model!)!,
+          )
+        : undefined);
     if (relationship) {
       ops.push({
         path: "/create_view_of",
         as,
-        body: { ref: relationship._id, diagram: diagramRef },
+        body: {
+          ref: relationship._id,
+          diagram: diagramRef,
+          // A message is shown at its place in time.
+          ...(edge.geometry && {
+            x: Math.round(edge.geometry.x1),
+            y: Math.round(edge.geometry.y1),
+          }),
+        },
       });
       return;
     }
@@ -733,7 +773,9 @@ export function opsFor(
       .filter((v) => !kept.has(v))
       .sort((a, b) => Number(isEdge(b)) - Number(isEdge(a)));
     const keep = [...kept].flatMap((v) => (v.model ? [v.model] : []));
-    const targets = gone.map((v) => pruneTarget(v, target.diagram!, keep));
+    const targets = gone.map((v) =>
+      options.pruneViewsOnly ? v : pruneTarget(v, target.diagram!, keep),
+    );
     const models = targets.filter((t) => !(t instanceof type.View));
     for (const [i, t] of targets.entries()) {
       // What a pruned model owns, and the views showing it, go with it.
@@ -1104,6 +1146,152 @@ function withoutStyles(plan: Plan, warnings: string[]): Plan {
   };
 }
 
+const buildRequest = () =>
+  z.object({
+    kind: z.optional(
+      doc(
+        z.enum(KINDS),
+        "Diagram kind; required with spec. With text it is read from the source; 'activity' or 'usecase' reads a Mermaid flowchart as that kind, 'erd' JSON Schema as an ERD, and any kind picks the PlantUML reader.",
+      ),
+    ),
+    spec: z.optional(
+      doc(
+        z.record(z.string(), z.unknown()),
+        "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
+      ),
+    ),
+    mermaid: z.optional(
+      doc(
+        z.string().check(z.minLength(1)),
+        "Mermaid source instead of spec. The diagram is named by 'name', else front matter 'title:' or a 'title' line.",
+      ),
+    ),
+    text: z.optional(
+      doc(
+        z.string().check(z.minLength(1)),
+        "Diagram source instead of spec, in format: Mermaid, PlantUML (class, sequence, use case, activity, state, IE entity, mind map, C4-PlantUML), SQL DDL (an ERD from CREATE TABLE and foreign keys) or JSON Schema (a class diagram, or an ERD with kind erd). Constructs a StarUML diagram cannot hold are refused as UNSUPPORTED_SYNTAX.",
+      ),
+    ),
+    format: z.optional(
+      doc(
+        z.enum(FORMATS),
+        "Format of text (or mermaid); detected when omitted: @start... is PlantUML, a JSON object JSON Schema, CREATE TABLE SQL, anything else Mermaid.",
+      ),
+    ),
+    name: z.optional(doc(z.string(), "Diagram name.")),
+    parent: z.optional(
+      ref(
+        "Owner of the diagram; default the project, where StarUML adds the container the kind needs (a model, interaction, activity, state machine, data model, flowchart or mind map).",
+      ),
+    ),
+    direction: z.optional(
+      doc(z.enum(DIRECTIONS), "Layout direction; default TB, or Mermaid's."),
+    ),
+    layout: z.optional(
+      doc(
+        z.enum(PRESET_NAMES),
+        "Layout preset for Format > Layout (see /layout_diagram); default flow-<direction>, hierarchy-<direction> for class diagrams.",
+      ),
+    ),
+    autoLayout: z.optional(
+      doc(
+        z.boolean(),
+        "Default true: Format > Layout after building. Sequence diagrams, lanes and a system boundary keep the computed placement.",
+      ),
+    ),
+    upsert: z.optional(
+      doc(
+        z.boolean(),
+        "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members, changed properties and colours, missing nodes and edges are added, and nothing is removed unless prune is set.",
+      ),
+    ),
+    prune: z.optional(
+      doc(
+        z.boolean(),
+        "With upsert: delete the nodes, notes and edges on the diagram that the spec does not have, in the same undo step. An element shown on other diagrams too, or owning one the spec keeps, loses only its view here.",
+      ),
+    ),
+    ...duplicateShape(),
+    dryRun: z.optional(
+      doc(
+        z.boolean(),
+        "Answer what the build would do, with plan listing its creates, updates and deletes (paths, or '$name' placeholders for what it makes) and the exact /batch ops, and change nothing. ids and the diagram carry the placeholders.",
+      ),
+    ),
+    reuse: z.optional(
+      doc(
+        z.boolean(),
+        "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements.",
+      ),
+    ),
+    showNamespace: z.optional(
+      doc(
+        z.boolean(),
+        "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it.",
+      ),
+    ),
+    result: resultField(
+      "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids.",
+    ),
+  });
+
+const buildResponse = () =>
+  z.object({
+    diagram: doc(
+      z.object({
+        _id: z.string(),
+        name: z.nullable(z.string()),
+        _type: z.string(),
+      }),
+      "The diagram built or updated.",
+    ),
+    kind: z.string(),
+    upserted: doc(z.boolean(), "An existing diagram was updated."),
+    created: doc(z.int(), "Nodes and edges added."),
+    updated: doc(z.int(), "Existing nodes given members or properties."),
+    unchanged: doc(z.int(), "Existing nodes and edges left as they were."),
+    shown: z.optional(
+      doc(
+        z.int(),
+        "Nodes among created that show elements which existed elsewhere in the project.",
+      ),
+    ),
+    deleted: z.optional(
+      doc(z.int(), "With prune: elements and views deleted."),
+    ),
+    warnings: z.optional(
+      doc(z.array(z.string()), "What was built differently than written."),
+    ),
+    format: z.optional(doc(z.enum(FORMATS), "The format text was read as.")),
+    layout: doc(
+      z.enum(["engine", "placed"]),
+      "engine: Format > Layout arranged it; placed: the computed placement stands.",
+    ),
+    preset: z.optional(doc(z.string(), "The layout preset applied.")),
+    ids: z.optional(
+      doc(
+        z.record(z.string(), refSchema()),
+        "With result ids or full: model and view ids of each node, by its name (or id) in the spec.",
+      ),
+    ),
+    edges: z.optional(
+      doc(
+        z.array(
+          z.object({
+            key: doc(z.string(), "'from -> to'."),
+            model: z.nullable(z.string()),
+            view: z.string(),
+          }),
+        ),
+        "With result full: each edge's model and view ids.",
+      ),
+    ),
+    dryRun: z.optional(doc(z.boolean(), "Set when nothing was changed.")),
+    plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
+    style: z.optional(styleReportSchema()),
+    quality: z.optional(qualitySchema()),
+  });
+
 export function buildDiagramEndpoint(
   endpoints: () => readonly Endpoint[],
 ): Endpoint {
@@ -1113,295 +1301,179 @@ export function buildDiagramEndpoint(
       "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
-    request: z.object({
-      kind: z.optional(
-        doc(
-          z.enum(KINDS),
-          "Diagram kind; required with spec. With text it is read from the source; 'activity' or 'usecase' reads a Mermaid flowchart as that kind, 'erd' JSON Schema as an ERD, and any kind picks the PlantUML reader.",
-        ),
-      ),
-      spec: z.optional(
-        doc(
-          z.record(z.string(), z.unknown()),
-          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
-        ),
-      ),
-      mermaid: z.optional(
-        doc(
-          z.string().check(z.minLength(1)),
-          "Mermaid source instead of spec. The diagram is named by 'name', else front matter 'title:' or a 'title' line.",
-        ),
-      ),
-      text: z.optional(
-        doc(
-          z.string().check(z.minLength(1)),
-          "Diagram source instead of spec, in format: Mermaid, PlantUML (class, sequence, use case, activity, state, IE entity, mind map, C4-PlantUML), SQL DDL (an ERD from CREATE TABLE and foreign keys) or JSON Schema (a class diagram, or an ERD with kind erd). Constructs a StarUML diagram cannot hold are refused as UNSUPPORTED_SYNTAX.",
-        ),
-      ),
-      format: z.optional(
-        doc(
-          z.enum(FORMATS),
-          "Format of text (or mermaid); detected when omitted: @start... is PlantUML, a JSON object JSON Schema, CREATE TABLE SQL, anything else Mermaid.",
-        ),
-      ),
-      name: z.optional(doc(z.string(), "Diagram name.")),
-      parent: z.optional(
-        ref(
-          "Owner of the diagram; default the project, where StarUML adds the container the kind needs (a model, interaction, activity, state machine, data model, flowchart or mind map).",
-        ),
-      ),
-      direction: z.optional(
-        doc(z.enum(DIRECTIONS), "Layout direction; default TB, or Mermaid's."),
-      ),
-      layout: z.optional(
-        doc(
-          z.enum(PRESET_NAMES),
-          "Layout preset for Format > Layout (see /layout_diagram); default flow-<direction>, hierarchy-<direction> for class diagrams.",
-        ),
-      ),
-      autoLayout: z.optional(
-        doc(
-          z.boolean(),
-          "Default true: Format > Layout after building. Sequence diagrams, lanes and a system boundary keep the computed placement.",
-        ),
-      ),
-      upsert: z.optional(
-        doc(
-          z.boolean(),
-          "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members, changed properties and colours, missing nodes and edges are added, and nothing is removed unless prune is set.",
-        ),
-      ),
-      prune: z.optional(
-        doc(
-          z.boolean(),
-          "With upsert: delete the nodes, notes and edges on the diagram that the spec does not have, in the same undo step. An element shown on other diagrams too, or owning one the spec keeps, loses only its view here.",
-        ),
-      ),
-      ...duplicateShape(),
-      dryRun: z.optional(
-        doc(
-          z.boolean(),
-          "Answer what the build would do, with plan listing its creates, updates and deletes (paths, or '$name' placeholders for what it makes) and the exact /batch ops, and change nothing. ids and the diagram carry the placeholders.",
-        ),
-      ),
-      reuse: z.optional(
-        doc(
-          z.boolean(),
-          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements.",
-        ),
-      ),
-      showNamespace: z.optional(
-        doc(
-          z.boolean(),
-          "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it.",
-        ),
-      ),
-      result: resultField(
-        "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids.",
-      ),
-    }),
+    request: buildRequest(),
     aliases: { parentId: "parent" },
-    response: z.object({
-      diagram: doc(
-        z.object({
-          _id: z.string(),
-          name: z.nullable(z.string()),
-          _type: z.string(),
-        }),
-        "The diagram built or updated.",
+    response: buildResponse(),
+    handle: (input) => buildDiagram(input, endpoints),
+  });
+}
+
+/** Binding a build to existing model elements, for /derive_diagrams. */
+export interface BuildExtras {
+  bind?: ReadonlyMap<string, Element>;
+  bindEdges?: ReadonlyMap<number, Element>;
+  pruneViewsOnly?: boolean;
+  /**
+   * A dry run answers the ops only, without describing each by path:
+   * /derive_diagrams counts them, and naming every target walks the
+   * repository once per op.
+   */
+  opsOnly?: boolean;
+}
+
+export type BuildInput = z.output<ReturnType<typeof buildRequest>>;
+
+/** /build_diagram's work, which /derive_diagrams runs once per diagram. */
+export async function buildDiagram(
+  input: BuildInput,
+  endpoints: () => readonly Endpoint[],
+  extras: BuildExtras = {},
+) {
+  const { kind, spec, title, direction, parsed } = readSource(input);
+  const profile = effectiveProfile().profile;
+  const renames = new Renames(profile);
+  const styleWarnings: string[] = [];
+  const plan = normalizePlan(
+    profile.strict
+      ? withoutStyles(planFor(kind, spec), styleWarnings)
+      : planFor(kind, spec),
+    renames,
+  );
+  const parent =
+    input.parent === undefined
+      ? requireProject()
+      : requireElement(input.parent, "Parent");
+  const raw = input.name ?? title;
+  const name = raw === undefined ? undefined : multiline(raw);
+  if (input.prune && !input.upsert) {
+    throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
+  }
+  const diagram = input.upsert ? findDiagram(kind, name, parent) : null;
+  const built = opsFor(
+    plan,
+    { diagram, parent, name },
+    direction ?? defaultDirection(kind),
+    input.autoLayout ?? true,
+    input.layout ??
+      (input.direction === undefined && parsed?.direction === undefined
+        ? presetFor(profile, kind)
+        : undefined),
+    {
+      prune: input.prune,
+      reuse: input.reuse ?? true,
+      allowDuplicateNames: input.allowDuplicateNames,
+      showNamespace: input.showNamespace,
+      ...extras,
+    },
+  );
+  const warnings = [
+    ...(parsed?.warnings ?? []),
+    ...built.warnings,
+    ...styleWarnings,
+  ];
+  const summary = {
+    kind,
+    upserted: diagram !== null,
+    updated: built.updated,
+    unchanged: built.unchanged,
+    layout: built.layout,
+    ...(built.preset && { preset: built.preset }),
+    ...(built.shown > 0 && { shown: built.shown }),
+    ...(input.prune && { deleted: built.deleted }),
+    ...(parsed && input.text !== undefined && { format: parsed.format }),
+    ...(warnings.length > 0 && { warnings }),
+  };
+  if (input.dryRun) {
+    // What applying would answer, with "$name" placeholders for what
+    // does not exist yet; nothing is run.
+    const ids: Record<string, { model: string | null; view: string }> =
+      Object.fromEntries(built.reused);
+    for (const [as, key] of built.created) {
+      ids[key] = { model: `$${as}.model`, view: `$${as}.view` };
+    }
+    return {
+      diagram: diagram
+        ? (({ _id, _type, name }) => ({ _id, _type, name }))(summarize(diagram))
+        : {
+            _id: "$diagram",
+            _type: DIAGRAM_TYPES[kind],
+            name: name ?? null,
+          },
+      ...summary,
+      created: built.created.size + built.edgeOps.length,
+      ...shaped(
+        input.result,
+        ids,
+        built.edgeOps.map(({ key, as }) => ({
+          key,
+          model: `$${as}.model`,
+          view: `$${as}.view`,
+        })),
       ),
-      kind: z.string(),
-      upserted: doc(z.boolean(), "An existing diagram was updated."),
-      created: doc(z.int(), "Nodes and edges added."),
-      updated: doc(z.int(), "Existing nodes given members or properties."),
-      unchanged: doc(z.int(), "Existing nodes and edges left as they were."),
-      shown: z.optional(
-        doc(
-          z.int(),
-          "Nodes among created that show elements which existed elsewhere in the project.",
-        ),
-      ),
-      deleted: z.optional(
-        doc(z.int(), "With prune: elements and views deleted."),
-      ),
-      warnings: z.optional(
-        doc(z.array(z.string()), "What was built differently than written."),
-      ),
-      format: z.optional(doc(z.enum(FORMATS), "The format text was read as.")),
-      layout: doc(
-        z.enum(["engine", "placed"]),
-        "engine: Format > Layout arranged it; placed: the computed placement stands.",
-      ),
-      preset: z.optional(doc(z.string(), "The layout preset applied.")),
-      ids: z.optional(
-        doc(
-          z.record(z.string(), refSchema()),
-          "With result ids or full: model and view ids of each node, by its name (or id) in the spec.",
-        ),
-      ),
-      edges: z.optional(
-        doc(
-          z.array(
-            z.object({
-              key: doc(z.string(), "'from -> to'."),
-              model: z.nullable(z.string()),
-              view: z.string(),
-            }),
-          ),
-          "With result full: each edge's model and view ids.",
-        ),
-      ),
-      dryRun: z.optional(doc(z.boolean(), "Set when nothing was changed.")),
-      plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
-      style: z.optional(styleReportSchema()),
-      quality: z.optional(qualitySchema()),
-    }),
-    handle: async (input) => {
-      const { kind, spec, title, direction, parsed } = readSource(input);
-      const profile = effectiveProfile().profile;
-      const renames = new Renames(profile);
-      const styleWarnings: string[] = [];
-      const plan = normalizePlan(
-        profile.strict
-          ? withoutStyles(planFor(kind, spec), styleWarnings)
-          : planFor(kind, spec),
-        renames,
-      );
-      const parent =
-        input.parent === undefined
-          ? requireProject()
-          : requireElement(input.parent, "Parent");
-      const raw = input.name ?? title;
-      const name = raw === undefined ? undefined : multiline(raw);
-      if (input.prune && !input.upsert) {
-        throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
-      }
-      const diagram = input.upsert ? findDiagram(kind, name, parent) : null;
-      const built = opsFor(
-        plan,
-        { diagram, parent, name },
-        direction ?? defaultDirection(kind),
-        input.autoLayout ?? true,
-        input.layout ??
-          (input.direction === undefined && parsed?.direction === undefined
-            ? presetFor(profile, kind)
-            : undefined),
-        {
-          prune: input.prune,
-          reuse: input.reuse ?? true,
-          allowDuplicateNames: input.allowDuplicateNames,
-          showNamespace: input.showNamespace,
-        },
-      );
-      const warnings = [
-        ...(parsed?.warnings ?? []),
-        ...built.warnings,
-        ...styleWarnings,
-      ];
-      const summary = {
-        kind,
-        upserted: diagram !== null,
-        updated: built.updated,
-        unchanged: built.unchanged,
-        layout: built.layout,
-        ...(built.preset && { preset: built.preset }),
-        ...(built.shown > 0 && { shown: built.shown }),
-        ...(input.prune && { deleted: built.deleted }),
-        ...(parsed && input.text !== undefined && { format: parsed.format }),
-        ...(warnings.length > 0 && { warnings }),
-      };
-      if (input.dryRun) {
-        // What applying would answer, with "$name" placeholders for what
-        // does not exist yet; nothing is run.
-        const ids: Record<string, { model: string | null; view: string }> =
-          Object.fromEntries(built.reused);
-        for (const [as, key] of built.created) {
-          ids[key] = { model: `$${as}.model`, view: `$${as}.view` };
+      style: styleReport(profile, renames, 0),
+      dryRun: true,
+      plan: extras.opsOnly
+        ? { ops: built.ops, creates: [], updates: [], deletes: [] }
+        : planOf(built.ops),
+    };
+  }
+  const specStyled = plan.nodes.filter(coloured).map((n) => n.key);
+  const { byName, target, styled, quality } = await oneStep(
+    "build diagram",
+    async () => {
+      let data: BatchData = { results: [] };
+      if (built.ops.length > 0) {
+        try {
+          data = await batchRunner.run(endpoints(), built.ops);
+        } catch (err) {
+          const e = err as ApiError;
+          throw new ApiError(e.code, `build_diagram: ${e.message}`, e.details);
         }
-        return {
-          diagram: diagram
-            ? (({ _id, _type, name }) => ({ _id, _type, name }))(
-                summarize(diagram),
-              )
-            : {
-                _id: "$diagram",
-                _type: DIAGRAM_TYPES[kind],
-                name: name ?? null,
-              },
-          ...summary,
-          created: built.created.size + built.edgeOps.length,
-          ...shaped(
-            input.result,
-            ids,
-            built.edgeOps.map(({ key, as }) => ({
-              key,
-              model: `$${as}.model`,
-              view: `$${as}.view`,
-            })),
-          ),
-          style: styleReport(profile, renames, 0),
-          dryRun: true,
-          plan: planOf(built.ops),
-        };
       }
-      const specStyled = plan.nodes.filter(coloured).map((n) => n.key);
-      const { byName, target, styled, quality } = await oneStep(
-        "build diagram",
-        async () => {
-          let data: BatchData = { results: [] };
-          if (built.ops.length > 0) {
-            try {
-              data = await batchRunner.run(endpoints(), built.ops);
-            } catch (err) {
-              const e = err as ApiError;
-              throw new ApiError(
-                e.code,
-                `build_diagram: ${e.message}`,
-                e.details,
-              );
-            }
-          }
-          const byName = new Map(
-            data.results.flatMap((r) => (r.as ? [[r.as, r.data]] : [])),
-          ) as Map<string, BuiltRef>;
-          const target = diagram ?? requireElement(byName.get("diagram")!._id!);
-          // Colours the spec gives a node win over the profile's, unless
-          // the profile is strict (then the spec's were dropped above).
-          const keep = new Set(
-            specStyled.map((key) => viewIdOf(key, built, byName)),
-          );
-          const styled = styleViews(
-            target,
-            styledViews(target).filter((v) => !keep.has(v._id)),
-            profile,
-          );
-          return {
-            byName,
-            target,
-            styled,
-            quality: improve(target, profile),
-          };
-        },
+      const byName = new Map(
+        data.results.flatMap((r) => (r.as ? [[r.as, r.data]] : [])),
+      ) as Map<string, BuiltRef>;
+      const target = diagram ?? requireElement(byName.get("diagram")!._id!);
+      // Colours the spec gives a node win over the profile's, unless
+      // the profile is strict (then the spec's were dropped above).
+      const keep = new Set(
+        specStyled.map((key) => viewIdOf(key, built, byName)),
       );
-      const ids: Record<string, { model: string | null; view: string }> = {};
-      for (const [key, ref] of built.reused) ids[key] = ref;
-      for (const [as, key] of built.created) {
-        const r = byName.get(as)!;
-        ids[key] = { model: r.model?._id ?? null, view: r.view!._id };
-      }
-      const edges = built.edgeOps.map(({ key, as }) => {
-        const r = byName.get(as)!;
-        return { key, model: r.model?._id ?? null, view: r.view!._id };
-      });
-      const { _id, _type, name: diagramName } = summarize(target);
+      const styled = styleViews(
+        target,
+        styledViews(target).filter((v) => !keep.has(v._id)),
+        profile,
+      );
       return {
-        diagram: { _id, _type, name: diagramName },
-        ...summary,
-        created: built.created.size + edges.length,
-        ...shaped(input.result, ids, edges),
-        style: styleReport(profile, renames, styled),
-        quality,
+        byName,
+        target,
+        styled,
+        // An upsert that changed nothing leaves the picture as it was
+        // arranged; it is only scored.
+        quality:
+          built.ops.length > 0
+            ? improve(target, profile)
+            : scoredAsIs(target, profile),
       };
     },
+  );
+  const ids: Record<string, { model: string | null; view: string }> = {};
+  for (const [key, ref] of built.reused) ids[key] = ref;
+  for (const [as, key] of built.created) {
+    const r = byName.get(as)!;
+    ids[key] = { model: r.model?._id ?? null, view: r.view!._id };
+  }
+  const edges = built.edgeOps.map(({ key, as }) => {
+    const r = byName.get(as)!;
+    return { key, model: r.model?._id ?? null, view: r.view!._id };
   });
+  const { _id, _type, name: diagramName } = summarize(target);
+  return {
+    diagram: { _id, _type, name: diagramName },
+    ...summary,
+    created: built.created.size + edges.length,
+    ...shaped(input.result, ids, edges),
+    style: styleReport(profile, renames, styled),
+    quality,
+  };
 }

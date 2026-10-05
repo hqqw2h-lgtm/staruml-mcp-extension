@@ -27,6 +27,8 @@ import { ERROR_CODES, ERROR_STATUS } from "../errors.js";
 import { isMetaClass, lineage, relationshipKind } from "../metamodel.js";
 import { serializeValue } from "../serialize.js";
 import type { MetaAttribute } from "../types.js";
+import { DRAWING_ENDPOINTS } from "../style/guard.js";
+import { effectiveProfile } from "../style/profile.js";
 import { EXTENSION_NAME, EXTENSION_VERSION } from "../version.js";
 
 const SECTIONS = ["factory", "metamodel", "toolbox", "endpoints"] as const;
@@ -179,6 +181,16 @@ const introspectResponse = z.object({
   metamodel: z.optional(z.record(z.string(), metaTypeSchema())),
   toolbox: z.optional(toolboxSchema()),
   endpoints: z.optional(z.array(manifestEntrySchema())),
+  capabilities: z.optional(
+    doc(
+      z.object({
+        set: z.enum(["all", "oo"]),
+        strict: z.boolean(),
+        hidden: doc(z.array(z.string()), "Endpoints the set leaves out."),
+      }),
+      "With capabilities: the set listed and what it hides.",
+    ),
+  ),
   errors: z.optional(
     z.object({
       status: doc(z.record(z.string(), z.int()), "HTTP status per error code."),
@@ -367,6 +379,12 @@ export function introspectEndpoint(endpoints: () => readonly Endpoint[]) {
           "List inherited attributes with each type; default false (own attributes and supers).",
         ),
       ),
+      capabilities: z.optional(
+        doc(
+          z.enum(["all", "oo"]),
+          "Endpoints to list: all (default), or oo, the model-first set; under a strict style profile oo leaves out every endpoint that draws (styles, positions, sizes, free-form diagrams), so an agent given that set cannot draw.",
+        ),
+      ),
     }),
     response: introspectResponse,
     handle: (input) => {
@@ -411,7 +429,15 @@ export function introspectEndpoint(endpoints: () => readonly Endpoint[]) {
       }
       if (include.has("toolbox")) out.toolbox = describeToolbox();
       if (include.has("endpoints")) {
-        out.endpoints = manifest(endpoints());
+        const strict = effectiveProfile().profile.strict;
+        const hidden: string[] =
+          input.capabilities === "oo" && strict ? [...DRAWING_ENDPOINTS] : [];
+        out.endpoints = manifest(endpoints()).filter(
+          (e) => !hidden.includes(e.path),
+        );
+        if (input.capabilities !== undefined) {
+          out.capabilities = { set: input.capabilities, strict, hidden };
+        }
         out.errors = {
           status: { ...ERROR_STATUS },
           schema: z.toJSONSchema(errorBodySchema()),

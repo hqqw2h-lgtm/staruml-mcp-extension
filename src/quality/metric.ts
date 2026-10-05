@@ -49,6 +49,8 @@ export interface GNode {
   parent: string | null;
   /** Nodes it may touch by design: an edge label and its edge's ends. */
   attachedTo?: readonly string[];
+  /** An edge's label: no obstacle for other edges, which may pass it. */
+  label?: boolean;
 }
 
 export interface GEdge {
@@ -263,7 +265,7 @@ export function measure(g: Geometry): Metrics {
   }
   const solidArea = solid.reduce((n, b) => n + b.width * b.height, 0);
   let nodeEdgeCrossings = 0;
-  const obstacles = solid.filter((n) => !n.through);
+  const obstacles = solid.filter((n) => !n.through && !n.label);
   for (const e of g.edges) {
     for (const n of obstacles) {
       if (endOf(e, n, byId)) continue;
@@ -314,7 +316,8 @@ export function measure(g: Geometry): Metrics {
     edgeCrossings,
     lengthVariation: mean > 0 ? sd / mean : 0,
     bends: g.edges.reduce((n, e) => n + Math.max(0, e.points.length - 2), 0),
-    alignment: alignmentOf(solid),
+    // Labels sit where their edges put them; boxes are what lines up.
+    alignment: alignmentOf(solid.filter((n) => !n.label)),
     whitespace: all.length > 0 ? whitespace : 1,
     aspect:
       width > 0 && height > 0

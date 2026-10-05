@@ -229,6 +229,8 @@ export interface Engine {
    * show the diagram the views are on: moveViews and resizeNode traverse
    * editor.diagram to carry connected edges along.
    */
+  /** Inserts `views` into `diagram.ownedViews` as one operation. */
+  addViews(diagram: Element, views: View[]): unknown;
   /** `direction` is one of Diagram.LD_* ("TB", "BT", "LR", "RL"). */
   layoutDiagram(
     editor: unknown,

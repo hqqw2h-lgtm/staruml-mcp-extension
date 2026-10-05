@@ -32,7 +32,7 @@
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 40,
+     "left": 140,
      "top": 185,
      "width": 160,
      "height": 90,
@@ -47,7 +47,7 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 40,
+     "left": 140,
      "top": 340,
      "width": 160,
      "height": 80,

@@ -181,6 +181,15 @@ function generateClasses(): Record<string, Ctor> {
           super();
           for (const attr of attrs) this[attr.name] = initialValue(this, attr);
         }
+        /** View.initialize (core/core.js): an edge runs from (x1, y1) to (x2, y2). */
+        initialize(_c: null, x1: number, y1: number, x2: number, y2: number) {
+          this.points = {
+            points: [
+              { x: x1, y: y1 },
+              { x: x2, y: y2 },
+            ],
+          };
+        }
       },
     }[name]!;
     classes[name] = cls;
@@ -776,8 +785,14 @@ export class Factory {
       this.repository.index(view);
       return view;
     };
+    // viewForSequenceDiagramFn (uml-factory.js) shows lifelines and
+    // messages with the sequence view classes and draws no relationship
+    // of its own accord.
+    const onSequence = is(diagram, "UMLSequenceDiagram");
+    const viewType = (name: string) =>
+      (onSequence && SEQUENCE_VIEWS[name]) || META[name]!.view!;
     const edge = (rel: MockElement, tail: View, head: View) => {
-      const view = create<View>(META[rel.constructor.name]!.view!);
+      const view = create<View>(viewType(rel.constructor.name));
       view.model = rel as Element;
       view.tail = tail;
       view.head = head;
@@ -794,14 +809,16 @@ export class Factory {
       const [a, b] = ends(model);
       return edge(model, viewOf(a)!, viewOf(b)!);
     }
-    const view = create<View>(META[model.constructor.name]!.view!);
+    const view = create<View>(viewType(model.constructor.name));
     view.model = model as Element;
     view.left = options.x ?? 0;
     view.top = options.y ?? 0;
     view.width = 100;
     view.height = 50;
     add(view);
-    for (const rel of this.repository.getRelationshipsOf(model)) {
+    for (const rel of onSequence
+      ? []
+      : this.repository.getRelationshipsOf(model)) {
       const [a, b] = ends(rel);
       const other = a === model ? b : a;
       const otherView = viewOf(other);
@@ -1057,6 +1074,14 @@ export class Engine {
     );
   }
 
+  addViews(diagram: MockElement, views: MockElement[]): void {
+    for (const view of views) {
+      attach(diagram, "ownedViews", view);
+      this.repository.index(view);
+    }
+    this.repository.setModified(true);
+  }
+
   deleteElements(models: MockElement[], views: MockElement[]): void {
     const all = new Set<MockElement>([...models, ...views]);
     let changed = true;
@@ -1094,7 +1119,6 @@ stub(Engine, [
   "_determineDeletingElements",
   "_determineOutsideElements",
   "addModelAndView",
-  "addViews",
   "modifyEdge",
   "moveDown",
   "moveParasiticView",

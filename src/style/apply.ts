@@ -26,7 +26,7 @@ import { doc } from "../endpoint.js";
 import { inStarUML } from "../errors.js";
 import type { Kind, Plan } from "../build/spec.js";
 import { editorShowing, LINE_STYLES } from "../handlers/views.js";
-import type { ModelSpec } from "../model/spec.js";
+import type { ModelSpec, ModelViews } from "../model/spec.js";
 import { modelTypeOf } from "../handlers/elements.js";
 import { resolveCreateType } from "../toolbox.js";
 import type { Element, View } from "../types.js";
@@ -253,6 +253,49 @@ export function normalizeModelSpec(
       ...l,
       ...(l.subject !== undefined && { subject: ref(l.subject) }),
     })),
+    views: normalizeViews(spec.views, classes, packages, cases),
+  };
+}
+
+/** The view sections' names of renamed classes, packages and use cases. */
+function normalizeViews(
+  views: ModelViews,
+  classes: ReadonlyMap<string, string>,
+  packages: ReadonlyMap<string, string>,
+  cases: ReadonlyMap<string, string>,
+): ModelViews {
+  const map = (m: ReadonlyMap<string, string>, list?: string[]) =>
+    list?.map((n) => m.get(n) ?? n);
+  return {
+    ...views,
+    ...(views.classViews && {
+      classViews: views.classViews.map((v) => ({
+        ...v,
+        ...(v.contexts && { contexts: map(packages, v.contexts) }),
+        ...(v.classes && { classes: map(classes, v.classes) }),
+        ...(v.exclude && { exclude: map(classes, v.exclude) }),
+        ...(v.also && { also: map(classes, v.also) }),
+      })),
+    }),
+    ...(views.useCaseViews && {
+      useCaseViews: views.useCaseViews.map((v) => ({
+        ...v,
+        ...(v.cases && { cases: map(cases, v.cases) }),
+      })),
+    }),
+    ...(views.contexts && {
+      contexts: Object.fromEntries(
+        Object.entries(views.contexts).map(([k, n]) => [
+          k,
+          packages.get(n) ?? n,
+        ]),
+      ),
+    }),
+    ...(views.subjects && {
+      subjects: Object.fromEntries(
+        Object.entries(views.subjects).map(([u, s]) => [cases.get(u) ?? u, s]),
+      ),
+    }),
   };
 }
 

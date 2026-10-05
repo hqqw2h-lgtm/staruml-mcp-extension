@@ -123,7 +123,10 @@ export function geometryOf(diagram: Element): Geometry {
       width: b.width,
       height: b.height,
       area: false,
-      through: true,
+      // A message's label sits over the lifelines it spans; on a box or
+      // on another label it hides text.
+      through: false,
+      label: true,
       parent: null,
       attachedTo: edges[i]!.ends,
     });

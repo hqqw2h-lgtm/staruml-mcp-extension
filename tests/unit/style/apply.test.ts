@@ -134,7 +134,14 @@ describe("naming in authoring", () => {
         package: { pattern: "lowercase", fix: "lower" },
       },
     });
+    spec.views.contexts = { bill: "Billing", far: "Nowhere" };
+    spec.views.subjects = { "pay bill": "Store", Elsewhere: "Store" };
     const out = normalizeModelSpec(spec, renames);
+    expect(out.views.contexts).toEqual({ bill: "billing", far: "Nowhere" });
+    expect(out.views.subjects).toEqual({
+      "Pay bill": "Store",
+      Elsewhere: "Store",
+    });
     expect(
       out.packages.map((p) => [p.key, p.name, p.parent, p.dependsOn]),
     ).toEqual([

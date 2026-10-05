@@ -72,12 +72,12 @@ const RELATION_ALIASES: Record<string, RelationType> = {
 };
 
 const memberList = () =>
-  z.optional(z.array(z.union([z.string(), z.object({ name: name() })])));
+  z.optional(z.array(z.union([z.string(), z.strictObject({ name: name() })])));
 
 const packageSchema = () =>
   z.union([
     name(),
-    z.object({
+    z.strictObject({
       id: z.optional(
         doc(name(), "Key classes use in context; default the name."),
       ),
@@ -95,7 +95,7 @@ const packageSchema = () =>
   ]);
 
 const classSchema = () =>
-  z.object({
+  z.strictObject({
     name: name(),
     context: z.optional(
       doc(name(), "Owning package by id or name; package is a synonym."),
@@ -116,7 +116,7 @@ const classSchema = () =>
   });
 
 const relationSchema = () =>
-  z.object({
+  z.strictObject({
     from: name(),
     to: name(),
     type: doc(
@@ -143,7 +143,7 @@ export type MessageKind = (typeof MESSAGE_KINDS)[number];
 const messageSchema = () =>
   z.union([
     z.array(z.string()).check(z.minLength(2), z.maxLength(4)),
-    z.object({
+    z.strictObject({
       from: name(),
       to: name(),
       text: z.optional(z.string()),
@@ -162,7 +162,7 @@ const STATE_TYPES = [
 export type StateType = (typeof STATE_TYPES)[number];
 
 export const modelSpecSchema = () =>
-  z.object({
+  z.strictObject({
     system: z.optional(doc(name(), "Name of the model; default 'Model'.")),
     name: z.optional(doc(name(), "Synonym of system.")),
     summary: z.optional(doc(z.string(), "The model's documentation.")),
@@ -181,7 +181,7 @@ export const modelSpecSchema = () =>
       z.array(
         z.union([
           name(),
-          z.object({
+          z.strictObject({
             name: name(),
             kind: z.optional(z.string()),
             goals: z.optional(z.array(z.string())),
@@ -194,7 +194,7 @@ export const modelSpecSchema = () =>
       z.array(
         z.union([
           name(),
-          z.object({
+          z.strictObject({
             name: name(),
             system: z.optional(
               z.nullable(doc(z.string(), "The subject it belongs to.")),
@@ -210,7 +210,7 @@ export const modelSpecSchema = () =>
     collaborations: z.optional(
       doc(
         z.array(
-          z.object({
+          z.strictObject({
             name: name(),
             context: z.optional(name()),
             package: z.optional(name()),
@@ -218,7 +218,7 @@ export const modelSpecSchema = () =>
               z.array(
                 z.union([
                   name(),
-                  z.object({
+                  z.strictObject({
                     name: name(),
                     kind: z.optional(z.string()),
                     type: z.optional(
@@ -239,7 +239,7 @@ export const modelSpecSchema = () =>
             ),
             fragments: z.optional(
               z.array(
-                z.object({
+                z.strictObject({
                   operator: z.enum([
                     "alt",
                     "opt",
@@ -269,7 +269,7 @@ export const modelSpecSchema = () =>
     lifecycles: z.optional(
       doc(
         z.array(
-          z.object({
+          z.strictObject({
             name: name(),
             subject: z.optional(
               doc(name(), "Classifier whose behavior it is."),
@@ -278,7 +278,7 @@ export const modelSpecSchema = () =>
               z.array(
                 z.union([
                   name(),
-                  z.object({
+                  z.strictObject({
                     id: z.optional(name()),
                     name: z.optional(z.string()),
                     type: z.optional(z.enum(STATE_TYPES)),
@@ -289,7 +289,7 @@ export const modelSpecSchema = () =>
             ),
             transitions: z.optional(
               z.array(
-                z.object({
+                z.strictObject({
                   from: name(),
                   to: name(),
                   trigger: z.optional(z.string()),
@@ -303,18 +303,216 @@ export const modelSpecSchema = () =>
         "State machines, owned by their subject.",
       ),
     ),
+    ...viewSections(),
   });
 
-/** Sections an analysis spec may carry that describe diagrams, not the model. */
-export const DIAGRAM_SECTIONS = {
-  classViews: "class diagrams: /build_diagram kind class",
-  useCaseViews: "use case diagrams: /build_diagram kind usecase",
-  activities: "activity diagrams: /build_diagram kind activity",
-  erd: "an ERD: /build_diagram kind erd",
-  components: "a C4 or component diagram: /build_diagram kind c4 or component",
-  deployments: "deployment diagrams: /build_diagram kind deployment",
-  features: "a mind map: /build_diagram kind mindmap",
-} as const;
+/** A relationship written as a tuple, [from, to, ...] , or as an object. */
+const link = <T extends z.ZodMiniType>(object: T) =>
+  z.union([z.array(z.string()).check(z.minLength(2), z.maxLength(5)), object]);
+
+const ACTIVITY_NODES = [
+  "action",
+  "initial",
+  "final",
+  "flowFinal",
+  "decision",
+  "merge",
+  "fork",
+  "join",
+  "object",
+] as const;
+
+export interface Feature {
+  name: string;
+  children?: Feature[];
+}
+
+const featureSchema: z.ZodMiniType<Feature> = z.strictObject({
+  name: name(),
+  get children() {
+    return z.optional(z.array(featureSchema));
+  },
+});
+
+/**
+ * Sections of an analysis that are not classes and collaborations but are
+ * still the model's, not drawings: which classes a class view groups, use
+ * case groupings, activities, the data model, the C4 elements, deployment
+ * topologies and a feature tree. None carries a position, a size or a
+ * colour; /derive_diagrams draws them (issue #33).
+ */
+const viewSections = () => ({
+  classViews: z.optional(
+    doc(
+      z.array(
+        z.strictObject({
+          name: name(),
+          contexts: z.optional(
+            doc(names(), "Packages whose classes it shows, by id or name."),
+          ),
+          classes: z.optional(doc(names(), "Classes it shows besides.")),
+          exclude: z.optional(names()),
+          also: z.optional(
+            doc(names(), "Classes from elsewhere it shows too."),
+          ),
+          note: z.optional(z.string()),
+        }),
+      ),
+      "Class diagrams by what they show; /derive_diagrams draws one each when the policy says views.",
+    ),
+  ),
+  useCaseViews: z.optional(
+    doc(
+      z.array(
+        z.strictObject({
+          name: name(),
+          actor: z.optional(name()),
+          actors: z.optional(names()),
+          cases: z.optional(names()),
+          extraActors: z.optional(names()),
+        }),
+      ),
+      "Use case diagrams by actor; default one per system (subject).",
+    ),
+  ),
+  activities: z.optional(
+    z.array(
+      z.strictObject({
+        name: name(),
+        lanes: z.optional(names()),
+        nodes: z.array(
+          z.strictObject({
+            id: z.optional(name()),
+            name: z.optional(z.string()),
+            type: z.optional(z.enum(ACTIVITY_NODES)),
+            lane: z.optional(name()),
+          }),
+        ),
+        flows: z.array(
+          link(
+            z.strictObject({
+              from: name(),
+              to: name(),
+              guard: z.optional(z.string()),
+            }),
+          ),
+        ),
+      }),
+    ),
+  ),
+  erd: z.optional(
+    doc(
+      z.strictObject({
+        name: z.optional(name()),
+        entities: z.array(
+          z.strictObject({
+            name: name(),
+            columns: z.optional(z.array(z.string())),
+          }),
+        ),
+        relationships: z.optional(
+          z.array(
+            link(
+              z.strictObject({
+                from: name(),
+                to: name(),
+                fromCardinality: z.optional(z.string()),
+                toCardinality: z.optional(z.string()),
+                name: z.optional(z.string()),
+                identifying: z.optional(z.boolean()),
+              }),
+            ),
+          ),
+        ),
+      }),
+      "Tables: columns as 'id uuid PK'; relationships as [from, to, fromCardinality, toCardinality].",
+    ),
+  ),
+  components: z.optional(
+    doc(
+      z.strictObject({
+        name: z.optional(name()),
+        elements: z.array(
+          z.strictObject({
+            id: z.optional(name()),
+            name: name(),
+            type: z.enum(["person", "system", "container", "component"]),
+            kind: z.optional(z.string()),
+            technology: z.optional(z.string()),
+            description: z.optional(z.string()),
+            external: z.optional(z.boolean()),
+          }),
+        ),
+        relations: z.optional(
+          z.array(
+            link(
+              z.strictObject({
+                from: name(),
+                to: name(),
+                label: z.optional(z.string()),
+                technology: z.optional(z.string()),
+                description: z.optional(z.string()),
+              }),
+            ),
+          ),
+        ),
+      }),
+      "C4 people, systems, containers and components; relations as [from, to, label, technology].",
+    ),
+  ),
+  deployments: z.optional(
+    z.array(
+      z.strictObject({
+        name: name(),
+        nodes: z.array(
+          z.strictObject({
+            name: name(),
+            kind: z.optional(
+              doc(z.string(), "device, node, executionEnvironment."),
+            ),
+            parent: z.optional(name()),
+            contains: z.optional(doc(names(), "Artifacts deployed on it.")),
+          }),
+        ),
+        links: z.optional(
+          z.array(
+            link(
+              z.strictObject({
+                from: name(),
+                to: name(),
+                name: z.optional(z.string()),
+              }),
+            ),
+          ),
+        ),
+      }),
+    ),
+  ),
+  features: z.optional(
+    doc(featureSchema, "A feature tree, drawn as a mind map."),
+  ),
+});
+
+/** The view sections as /build_model stores them with the model. */
+export type ModelViews = z.output<
+  z.ZodMiniObject<ReturnType<typeof viewSections>>
+> & {
+  /** Package names by the ids the spec gives them, where they differ. */
+  contexts?: Record<string, string>;
+  /** Each use case's system (subject), which the model does not relate. */
+  subjects?: Record<string, string>;
+  /** Each collaboration's fragments with their message ranges, by name. */
+  fragments?: Record<
+    string,
+    {
+      operator: string;
+      guard?: string;
+      operands: string[];
+      from?: number;
+      to?: number;
+    }[]
+  >;
+};
 
 export interface PackageSpec {
   key: string;
@@ -415,8 +613,8 @@ export interface ModelSpec {
   useCases: UseCaseSpec[];
   collaborations: CollaborationSpec[];
   lifecycles: LifecycleSpec[];
-  /** Sections left to /build_diagram, with what to build them as. */
-  skipped: { section: string; reason: string }[];
+  /** The sections /derive_diagrams draws, stored with the model. */
+  views: ModelViews;
 }
 
 type Raw = z.output<ReturnType<typeof modelSpecSchema>>;
@@ -461,11 +659,6 @@ export function parseModelSpec(input: unknown): ModelSpec {
       "spec: pass contexts or packages, not both",
     );
   }
-  const skipped = Object.entries(DIAGRAM_SECTIONS)
-    .filter(
-      ([section]) => (input as Record<string, unknown>)[section] !== undefined,
-    )
-    .map(([section, reason]) => ({ section, reason }));
   const packages = (raw.contexts ?? raw.packages ?? []).map(
     (p): PackageSpec => {
       if (typeof p === "string")
@@ -650,6 +843,46 @@ export function parseModelSpec(input: unknown): ModelSpec {
     };
   });
   const doc = documentation(raw.summary);
+  const views: ModelViews = Object.fromEntries(
+    (
+      [
+        "classViews",
+        "useCaseViews",
+        "activities",
+        "erd",
+        "components",
+        "deployments",
+        "features",
+      ] as const
+    ).flatMap((k) => (raw[k] === undefined ? [] : [[k, raw[k]]])),
+  );
+  const contexts = packages.filter((p) => p.key !== p.name);
+  if (contexts.length > 0) {
+    views.contexts = Object.fromEntries(contexts.map((p) => [p.key, p.name]));
+  }
+  const subjects = useCases.filter((u) => u.subject !== undefined);
+  if (subjects.length > 0) {
+    views.subjects = Object.fromEntries(
+      subjects.map((u) => [u.name, u.subject!]),
+    );
+  }
+  const ranged = (raw.collaborations ?? []).filter((c) =>
+    (c.fragments ?? []).some((f) => f.from !== undefined),
+  );
+  if (ranged.length > 0) {
+    views.fragments = Object.fromEntries(
+      ranged.map((c) => [
+        multiline(c.name),
+        c.fragments!.map((f) => ({
+          operator: f.operator,
+          ...(f.guard !== undefined && { guard: f.guard }),
+          operands: f.operands ?? [],
+          ...(f.from !== undefined && { from: f.from }),
+          ...(f.to !== undefined && { to: f.to }),
+        })),
+      ]),
+    );
+  }
   return {
     name: multiline(raw.system ?? raw.name ?? "Model"),
     ...(doc !== undefined && { documentation: doc }),
@@ -660,6 +893,6 @@ export function parseModelSpec(input: unknown): ModelSpec {
     useCases,
     collaborations,
     lifecycles,
-    skipped,
+    views,
   };
 }

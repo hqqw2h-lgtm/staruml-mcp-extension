@@ -122,6 +122,35 @@ describeLive("quality loop", () => {
     expect(laid.quality.score).toBeGreaterThanOrEqual(80);
   });
 
+  it("restores a snapshot taken before the loop runs", async () => {
+    const built = ok(
+      await call<{ diagram: { _id: string } }>("/build_diagram", {
+        kind: "class",
+        spec: {
+          classes: [{ name: "P" }, { name: "Q" }, { name: "R" }],
+          relations: [{ from: "Q", to: "P", type: "generalization" }],
+        },
+      }),
+      "build",
+    );
+    ok(await call("/snapshot", { label: "loop" }), "snapshot");
+    ok(
+      await call("/improve_diagram", { ref: built.diagram._id, dryRun: true }),
+      "dry",
+    );
+    ok(await call("/improve_diagram", { ref: built.diagram._id }), "improve");
+    ok(await call("/layout_diagram", { diagram: built.diagram._id }), "layout");
+    const restored = ok(
+      await call<{ undone: number; remaining: Record<string, number> }>(
+        "/restore_snapshot",
+        { snapshot: "loop" },
+      ),
+      "restore",
+    );
+    expect(restored.undone).toBeLessThanOrEqual(2);
+    expect(restored.remaining).toEqual({ added: 0, changed: 0, removed: 0 });
+  });
+
   it("is how a strict profile rearranges a diagram", async () => {
     ok(await call("/set_style_profile", { patch: { strict: true } }), "strict");
     const built = ok(

@@ -190,6 +190,53 @@ function separate(diagram: Element, m: Mover): void {
   }
 }
 
+/**
+ * Overlapping boxes in lanes pushed apart downwards only, so each stays in
+ * its lane (the lane is the column that says who acts).
+ */
+function separateInLanes(diagram: Element, m: Mover): void {
+  const views = nodeViews(diagram)
+    .filter((v) => !AREA.test(v.constructor.name))
+    .sort((a, b) => box(a).top - box(b).top || box(a).left - box(b).left);
+  for (let i = 0; i < views.length; i++) {
+    for (let j = i + 1; j < views.length; j++) {
+      const [a, b] = [box(views[i]!), box(views[j]!)];
+      const w =
+        Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+      const h =
+        Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+      if (w > 1 && h > 1) m.move([views[j]!], 0, Math.round(h + GAP / 2));
+    }
+  }
+}
+
+/** Whether a box's centre is inside another's (a class still in its package). */
+function insideBox(view: View, holder: View): boolean {
+  const c = centre(box(view));
+  const b = box(holder);
+  return (
+    c.x > b.left &&
+    c.x < b.left + b.width &&
+    c.y > b.top &&
+    c.y < b.top + b.height
+  );
+}
+
+/** The lane (or partition) a box's centre is in, if any. */
+function laneOf(diagram: Element, view: View): View | undefined {
+  const c = centre(box(view));
+  return nodeViews(diagram).find((l) => {
+    if (!/Swimlane|Partition/.test(l.constructor.name)) return false;
+    const b = box(l);
+    return (
+      c.x > b.left &&
+      c.x < b.left + b.width &&
+      c.y > b.top &&
+      c.y < b.top + b.height
+    );
+  });
+}
+
 /** Every top-level box on the profile's grid. */
 function snap(diagram: Element, profile: Profile, m: Mover): void {
   const { size, snap } = profile.visuals.grid;
@@ -295,12 +342,20 @@ function sequence(diagram: Element, m: Mover): void {
   // on a diagram with notes; otherwise they take their order in time, at
   // one pitch, when the build's order differs.
   const notes = nodeViews(diagram).some((v) => v instanceof type.UMLNoteView);
-  if (!notes && wanted.some((l, i) => l !== current[i])) {
-    const pitch = Math.max(...lifelines.map((l) => box(l).width)) + GAP * 1.5;
-    const x0 = box(current[0]!).left;
-    wanted.forEach((l, i) =>
-      m.move([l], Math.round(x0 + i * pitch - box(l).left), 0),
-    );
+  // StarUML widens a lifeline to its name when it draws it, so heads the
+  // build placed at one pitch can run into each other.
+  const crowded = current.some(
+    (l, i) =>
+      i > 0 &&
+      box(l).left <
+        box(current[i - 1]!).left + box(current[i - 1]!).width + GAP / 2,
+  );
+  if (!notes && (crowded || wanted.some((l, i) => l !== current[i]))) {
+    let x = box(current[0]!).left;
+    for (const l of wanted) {
+      m.move([l], Math.round(x - box(l).left), 0);
+      x += box(l).width + GAP * 1.5;
+    }
   }
   const frame = (diagram.ownedViews as View[]).find(
     (v) => v.model === diagram && v instanceof type.UMLFrameView,
@@ -396,6 +451,19 @@ function alignChains(diagram: Element, vertical: boolean, m: Mover): void {
   }
 }
 
+/** The preset a kind is laid out with: asked, the profile's, else the build's default. */
+function presetOf(
+  kind: Kind | null,
+  profile: Profile,
+  asked: LayoutPresetName | undefined,
+): LayoutPresetName {
+  return (
+    asked ??
+    (kind ? presetFor(profile, kind) : undefined) ??
+    (kind === "class" || kind === "package" ? "hierarchy-down" : "flow-down")
+  );
+}
+
 /** Whether a kind's flow runs down (else to the right), by its preset. */
 function vertical(kind: Kind, profile: Profile): boolean {
   const preset = presetFor(profile, kind);
@@ -454,6 +522,23 @@ export function assess(diagram: Element, profile: Profile) {
   return { metrics, score, findings };
 }
 
+/** The loop's answer for a built diagram left as it is: its score, no steps. */
+export function scoredAsIs(diagram: Element, profile: Profile): Quality {
+  const { score, findings } = assess(diagram, profile);
+  // Only a build calls it, and a build's diagram is of a kind it builds.
+  const target = thresholdFor(profile, kindOf(diagram)!);
+  return {
+    score,
+    rating: ratingOf(score),
+    before: score,
+    target,
+    passes: score >= target,
+    iterations: 0,
+    steps: [],
+    findings,
+  };
+}
+
 const AUTOFIXED = new Set<LayoutRule>(["L001", "L002", "L003", "L004", "L005"]);
 
 /**
@@ -499,14 +584,45 @@ export function improve(
     }
   };
   if (options.relayout && !placed && solids(diagram).length > 1) {
-    const preset =
-      options.preset ??
-      (kind ? presetFor(profile, kind) : undefined) ??
-      (kind === "class" || kind === "package" ? "hierarchy-down" : "flow-down");
+    const preset = presetOf(kind, profile, options.preset);
     attempt(`layout ${preset}`, () =>
       applyLayout(diagram, { preset, fit: true }),
     );
   }
+  /**
+   * Boxes an edge runs through step aside, each by the smallest of a few
+   * moves that raises the score and keeps the box in its lane.
+   */
+  const dodge = () => {
+    for (const f of lintLayout(diagram, new Set<LayoutRule>(["L004"]))) {
+      const view = app.repository.get(f.ids[1]!) as View;
+      // A port or pin sits on its holder's border and moves with it.
+      if (/Port|Pin/.test(view.constructor.name)) continue;
+      const holder = view.containerView as View | null;
+      const b = box(view);
+      const lane = laneOf(diagram, view);
+      for (const [dx, dy] of [
+        [b.width / 2 + GAP / 2, 0],
+        [-(b.width / 2 + GAP / 2), 0],
+        [b.width + GAP, 0],
+        [-(b.width + GAP), 0],
+        [0, b.height + GAP],
+      ] as const) {
+        const s0 = score();
+        const r = record();
+        m.move([view], Math.round(dx), Math.round(dy));
+        if (
+          score() > s0 &&
+          laneOf(diagram, view) === lane &&
+          (!holder || insideBox(view, holder))
+        ) {
+          r.stop();
+          break;
+        }
+        r.revert();
+      }
+    }
+  };
   let iterations = 0;
   while (iterations < max) {
     iterations++;
@@ -531,9 +647,32 @@ export function improve(
     }
     // Where a note sits on a sequence diagram says which lifeline it is
     // about, and a lane says who acts; a placed diagram keeps its boxes.
+    if (placed && kind === "activity") {
+      attempt("separate in lanes", () => separateInLanes(diagram, m));
+    }
+    if (kind !== "sequence" && kind !== "mindmap") {
+      attempt("dodge", dodge);
+    }
     if (!placed) {
       attempt("separate", () => separate(diagram, m));
       attempt("autofix", () => autofix(diagram, iterations > 1, m));
+      if (
+        (kind === "class" || kind === "package") &&
+        iterations === 1 &&
+        measure(geometryOf(diagram)).nodeEdgeCrossings > 0
+      ) {
+        // Edges through boxes on a class diagram's layout are long edges
+        // StarUML routes straight; more room between ranks and nodes
+        // often frees them.
+        attempt("spread", () =>
+          applyLayout(diagram, {
+            preset: presetOf(kind, profile, options.preset),
+            fit: true,
+            nodeSeparation: 100,
+            rankSeparation: 120,
+          }),
+        );
+      }
       attempt("snap", () => snap(diagram, profile, m));
       attempt("trim", () => trim(diagram, m));
     }

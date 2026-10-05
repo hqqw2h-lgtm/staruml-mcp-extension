@@ -26,7 +26,7 @@ import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError } from "../errors.js";
 import { requireDiagram, requireElement, requireProject } from "../lookup.js";
 import { calledName, type Change, planModel } from "../model/plan.js";
-import { parseModelSpec, RELATIONS } from "../model/spec.js";
+import { modelSpecSchema, parseModelSpec, RELATIONS } from "../model/spec.js";
 import { pathOf } from "../refs.js";
 import {
   normalizeModelSpec,
@@ -77,17 +77,19 @@ export function buildModelEndpoint(
 ): Endpoint {
   return defineEndpoint({
     path: "/build_model",
-    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. Diagram sections (classViews, erd, ...) are left to /build_diagram and listed in skipped. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.`,
+    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. The spec is strict (additionalProperties false, no geometry or colour fields); its view sections (classViews, useCaseViews, activities, erd, components, deployments, features) are stored with the model as a hidden tag for /derive_diagrams. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.`,
     readOnly: false,
     destructive: false,
     request: z.object({
       spec: doc(
-        z.record(z.string(), z.unknown()),
-        `{system, summary, contexts: [{id, name, responsibility, dependsOn}], classes: [{name, context, kind: class|abstract|interface|enum, responsibility, knows, does, collaboratesWith, attributes: ['+id: UUID'], operations: ['+save(e: T): T'], literals}], relationships: [{from, to, type, name, fromMult, toMult}], actors: [{name, kind, goals}], useCases: [{name, system, actors, includes, extends}], collaborations: [{name, participants, messages: [[from, to, text, kind]], fragments}], lifecycles: [{name, subject, states, transitions: [{from, to, trigger, guard, effect}]}]}. Relationship direction: ${Object.entries(
+        modelSpecSchema(),
+        `The object model, no diagrams and no geometry: an unknown field (a position, a size, a colour) is refused. Relationship direction: ${Object.entries(
           RELATIONS,
         )
           .map(([k, v]) => `${k}: ${v}`)
-          .join("; ")}.`,
+          .join(
+            "; ",
+          )}. classViews, useCaseViews, activities, erd, components, deployments and features are stored with the model for /derive_diagrams.`,
       ),
       parent: z.optional(ref("Owner of the model; default the project.")),
       upsert: z.optional(
@@ -138,7 +140,7 @@ export function buildModelEndpoint(
       skipped: z.optional(
         doc(
           z.array(z.object({ section: z.string(), reason: z.string() })),
-          "Spec sections that describe diagrams, with what builds them.",
+          "Not answered since the spec became strict (issue #33): every section is the model's; kept for older clients.",
         ),
       ),
       dryRun: z.optional(z.boolean()),
@@ -165,7 +167,6 @@ export function buildModelEndpoint(
         ...((mode === "full" || input.dryRun) && {
           changes: { created: plan.created, updated: plan.updated },
         }),
-        ...(spec.skipped.length > 0 && { skipped: spec.skipped }),
         style: styleReport(profile, renames, 0),
       };
       const model = {

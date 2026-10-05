@@ -428,7 +428,7 @@ describe("assess and geometry", () => {
     const hidden = { ...label, visible: false };
     let g = geometryOf(d);
     expect(g.nodes.find((n) => n.id === "LBL")).toMatchObject({
-      through: true,
+      label: true,
       attachedTo: [built.ids.A!.view, built.ids.B!.view],
     });
     edge.nameLabel = hidden as unknown as Element;
@@ -628,5 +628,144 @@ describe("edges of the loop", () => {
       relayout: false,
     });
     expect(i.diagram._id).toBe(built.diagram._id);
+  });
+});
+
+describe("snapshots across the quality loop", () => {
+  it("restores a snapshot taken before /improve_diagram, its dry run and a layout", async () => {
+    const built = await build({
+      kind: "class",
+      spec: {
+        classes: [{ name: "A" }, { name: "B" }, { name: "C" }],
+        relations: [{ from: "B", to: "A", type: "generalization" }],
+      },
+    });
+    for (const k of ["A", "B", "C"]) place(built.ids[k]!.view, 300, 300);
+    const at = () => get(built.ids.B!.view).left;
+    await ok(ep("/snapshot"), { label: "before" });
+    await ok(ep("/improve_diagram"), { ref: built.diagram._id, dryRun: true });
+    await ok(ep("/improve_diagram"), { ref: built.diagram._id });
+    expect(at()).not.toBe(300);
+    await ok(ep("/layout_diagram"), { diagram: built.diagram._id });
+    const restored = await ok<{ undone: number }>(ep("/restore_snapshot"), {
+      snapshot: "before",
+    });
+    expect(restored.undone).toBe(2);
+    expect(at()).toBe(300);
+  });
+});
+
+describe("lanes and self messages", () => {
+  it("pushes overlapping boxes in a lane down, keeping them in their lane", async () => {
+    const built = await build({
+      kind: "activity",
+      spec: {
+        lanes: ["Shop"],
+        nodes: [
+          { id: "a", name: "Pick", lane: "Shop" },
+          { id: "b", name: "Pack", lane: "Shop" },
+        ],
+        flows: [{ from: "a", to: "b" }],
+      },
+    });
+    const a = get(built.ids.a!.view);
+    place(built.ids.b!.view, a.left as number, (a.top as number) + 5);
+    const q = improve(get(built.diagram._id), standard());
+    expect(q.steps).toContain("separate in lanes");
+    expect(get(built.ids.b!.view).top as number).toBeGreaterThan(
+      (a.top as number) + (a.height as number),
+    );
+  });
+
+  it("draws a message to its own lifeline when StarUML's factory draws none", async () => {
+    const built = await build({
+      kind: "sequence",
+      spec: { messages: [{ from: "A", to: "B", text: "go()" }] },
+    });
+    const d = get(built.diagram._id);
+    const lifeline = get(built.ids.A!.view);
+    const line = create("UMLLinePartView");
+    line.left = 70;
+    line._parent = lifeline as never;
+    lifeline.linePart = line;
+    const self = await ok<{
+      model: { _id: string };
+      view: { _id: string } | null;
+    }>(ep("/create_relationship"), {
+      type: "UMLMessage",
+      tail: (lifeline.model as Element)._id,
+      head: (lifeline.model as Element)._id,
+    });
+    const factory = env.app.factory.createViewOf.bind(env.app.factory);
+    env.app.factory.createViewOf = () => null as never;
+    const shown = await ok<{ view: { _id: string } }>(ep("/create_view_of"), {
+      ref: self.model._id,
+      diagram: d._id,
+      y: 220,
+    });
+    const view = get(shown.view._id);
+    expect(view).toMatchObject({ tail: line, head: line });
+    expect((view.points as { points: { y: number }[] }).points[0]!.y).toBe(220);
+    // A message between two lifelines, or without a line part, is not drawn so.
+    const other = await ok<{
+      model: { _id: string };
+      view: { _id: string } | null;
+    }>(ep("/create_relationship"), {
+      type: "UMLMessage",
+      tail: (lifeline.model as Element)._id,
+      head: (get(built.ids.B!.view).model as Element)._id,
+    });
+    await fails(
+      ep("/create_view_of"),
+      { ref: other.model._id, diagram: d._id },
+      "STARUML_ERROR",
+    );
+    lifeline.linePart = null;
+    await ok(ep("/delete_element"), { ref: shown.view._id });
+    await fails(
+      ep("/create_view_of"),
+      {
+        ref: self.model._id,
+        diagram: d._id,
+      },
+      "STARUML_ERROR",
+    );
+    env.app.factory.createViewOf = factory;
+  });
+});
+
+describe("dodging", () => {
+  it("leaves a port an edge runs over on its component's border", async () => {
+    const built = await build({
+      kind: "component",
+      spec: {
+        components: [{ name: "Hub", ports: ["p"] }, "Left", "Right"],
+        dependencies: [{ from: "Left", to: "Right" }],
+      },
+    });
+    const d = get(built.diagram._id);
+    const port = (d.ownedViews as View[]).find((v) =>
+      /Port/.test(v.constructor.name),
+    )!;
+    const [l, r] = [get(built.ids.Left!.view), get(built.ids.Right!.view)];
+    place(l._id, 0, 300);
+    place(r._id, 600, 300);
+    // The port right on the line between them.
+    port.left = 300;
+    port.top = (l.top as number) + (l.height as number) / 2 - 5;
+    port.width = 10;
+    port.height = 10;
+    const dep = (d.ownedViews as View[]).find(
+      (v) => v.constructor.name === "UMLDependencyView",
+    )!;
+    const y = (port.top as number) + 5;
+    dep.points = {
+      points: [
+        { x: 50, y },
+        { x: 650, y },
+      ],
+    } as never;
+    const q = improve(d, standard(), { relayout: false, maxIterations: 1 });
+    expect(q.steps).not.toContain("dodge");
   });
 });

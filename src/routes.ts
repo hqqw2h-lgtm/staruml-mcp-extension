@@ -134,6 +134,11 @@ import {
 } from "./handlers/style.js";
 import { profiled } from "./style/authoring.js";
 import {
+  deriveDiagramsEndpoint,
+  explainModel,
+  modelLint,
+} from "./handlers/oo.js";
+import {
   diagramQuality,
   improveDiagram,
   withQuality,
@@ -226,6 +231,9 @@ export const endpoints: readonly Endpoint[] = [
   buildModelEndpoint(() => endpoints),
   syncOperationsEndpoint(() => endpoints),
   checkMessages,
+  deriveDiagramsEndpoint(() => endpoints),
+  explainModel,
+  modelLint,
 
   listPatterns,
   describePattern,

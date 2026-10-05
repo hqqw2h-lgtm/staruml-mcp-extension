@@ -23271,7 +23271,7 @@
     },
     {
       "path": "/build_model",
-      "description": "Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (owns, has, uses, isA, implements, knows, association), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. Diagram sections (classViews, erd, ...) are left to /build_diagram and listed in skipped. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.",
+      "description": "Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (owns, has, uses, isA, implements, knows, association), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. The spec is strict (additionalProperties false, no geometry or colour fields); its view sections (classViews, useCaseViews, activities, erd, components, deployments, features) are stored with the model as a hidden tag for /derive_diagrams. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -23280,9 +23280,714 @@
         "properties": {
           "spec": {
             "type": "object",
-            "propertyNames": { "type": "string" },
-            "additionalProperties": {},
-            "description": "{system, summary, contexts: [{id, name, responsibility, dependsOn}], classes: [{name, context, kind: class|abstract|interface|enum, responsibility, knows, does, collaboratesWith, attributes: ['+id: UUID'], operations: ['+save(e: T): T'], literals}], relationships: [{from, to, type, name, fromMult, toMult}], actors: [{name, kind, goals}], useCases: [{name, system, actors, includes, extends}], collaborations: [{name, participants, messages: [[from, to, text, kind]], fragments}], lifecycles: [{name, subject, states, transitions: [{from, to, trigger, guard, effect}]}]}. Relationship direction: owns: composition: from is the whole (end1, composite), to the part; has: aggregation: from is the whole (end1, shared), to the part; uses: dependency: from is the client, to the supplier; isA: generalization: from is the specific, to the general; implements: interface realization: from implements the interface to; knows: directed association: from navigates to to; association: association with no navigability or aggregation."
+            "properties": {
+              "system": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of the model; default 'Model'."
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Synonym of system."
+              },
+              "summary": {
+                "type": "string",
+                "description": "The model's documentation."
+              },
+              "contexts": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    { "type": "string", "minLength": 1 },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Key classes use in context; default the name."
+                        },
+                        "name": { "type": "string", "minLength": 1 },
+                        "parent": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Package this one is nested in, by id or name."
+                        },
+                        "responsibility": { "type": "string" },
+                        "documentation": { "type": "string" },
+                        "stereotype": { "type": "string" },
+                        "dependsOn": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 },
+                          "description": "Packages it depends on, by id or name."
+                        }
+                      },
+                      "required": ["name"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "description": "Packages (bounded contexts)."
+              },
+              "packages": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    { "type": "string", "minLength": 1 },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Key classes use in context; default the name."
+                        },
+                        "name": { "type": "string", "minLength": 1 },
+                        "parent": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Package this one is nested in, by id or name."
+                        },
+                        "responsibility": { "type": "string" },
+                        "documentation": { "type": "string" },
+                        "stereotype": { "type": "string" },
+                        "dependsOn": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 },
+                          "description": "Packages it depends on, by id or name."
+                        }
+                      },
+                      "required": ["name"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "description": "Synonym of contexts."
+              },
+              "classes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "context": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Owning package by id or name; package is a synonym."
+                    },
+                    "package": { "type": "string", "minLength": 1 },
+                    "kind": {
+                      "type": "string",
+                      "enum": ["class", "abstract", "interface", "enum"]
+                    },
+                    "stereotype": { "type": "string" },
+                    "responsibility": { "type": "string" },
+                    "documentation": { "type": "string" },
+                    "knows": { "type": "array", "items": { "type": "string" } },
+                    "does": { "type": "array", "items": { "type": "string" } },
+                    "collaboratesWith": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "attributes": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          { "type": "string" },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string", "minLength": 1 }
+                            },
+                            "required": ["name"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "operations": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          { "type": "string" },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string", "minLength": 1 }
+                            },
+                            "required": ["name"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "literals": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "isLeaf": { "type": "boolean" },
+                    "isActive": { "type": "boolean" }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                },
+                "description": "Classes, interfaces, enumerations; members as '+name: Type' and '+op(p: T): R'. responsibility, knows, does and collaboratesWith become the documentation."
+              },
+              "relationships": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": { "type": "string", "minLength": 1 },
+                    "to": { "type": "string", "minLength": 1 },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "owns",
+                        "has",
+                        "uses",
+                        "isA",
+                        "implements",
+                        "knows",
+                        "association",
+                        "composition",
+                        "aggregation",
+                        "dependency",
+                        "generalization",
+                        "realization",
+                        "directed"
+                      ],
+                      "description": "owns: composition: from is the whole (end1, composite), to the part; has: aggregation: from is the whole (end1, shared), to the part; uses: dependency: from is the client, to the supplier; isA: generalization: from is the specific, to the general; implements: interface realization: from implements the interface to; knows: directed association: from navigates to to; association: association with no navigability or aggregation"
+                    },
+                    "name": { "type": "string" },
+                    "fromMult": { "type": "string" },
+                    "toMult": { "type": "string" },
+                    "fromMultiplicity": { "type": "string" },
+                    "toMultiplicity": { "type": "string" },
+                    "fromRole": { "type": "string" },
+                    "toRole": { "type": "string" }
+                  },
+                  "required": ["from", "to", "type"],
+                  "additionalProperties": false
+                }
+              },
+              "actors": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    { "type": "string", "minLength": 1 },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1 },
+                        "kind": { "type": "string" },
+                        "goals": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "documentation": { "type": "string" }
+                      },
+                      "required": ["name"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "useCases": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    { "type": "string", "minLength": 1 },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1 },
+                        "system": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "description": "The subject it belongs to."
+                            },
+                            { "type": "null" }
+                          ]
+                        },
+                        "actors": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "includes": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "extends": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "documentation": { "type": "string" }
+                      },
+                      "required": ["name"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "collaborations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "context": { "type": "string", "minLength": 1 },
+                    "package": { "type": "string", "minLength": 1 },
+                    "participants": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          { "type": "string", "minLength": 1 },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string", "minLength": 1 },
+                              "kind": { "type": "string" },
+                              "type": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Classifier the lifeline is; default the class or actor of its name."
+                              }
+                            },
+                            "required": ["name"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "minItems": 2,
+                            "maxItems": 4,
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "from": { "type": "string", "minLength": 1 },
+                              "to": { "type": "string", "minLength": 1 },
+                              "text": { "type": "string" },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "sync",
+                                  "async",
+                                  "reply",
+                                  "create",
+                                  "delete"
+                                ]
+                              }
+                            },
+                            "required": ["from", "to"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "description": "[from, to, text, kind] or {from, to, text, kind}; kind sync (default), async, reply, create, delete."
+                    },
+                    "fragments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "operator": {
+                            "type": "string",
+                            "enum": [
+                              "alt",
+                              "opt",
+                              "loop",
+                              "par",
+                              "break",
+                              "critical",
+                              "neg",
+                              "strict",
+                              "seq",
+                              "ignore",
+                              "consider",
+                              "assert"
+                            ]
+                          },
+                          "guard": { "type": "string" },
+                          "operands": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          "from": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "to": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": ["operator"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                },
+                "description": "Interactions: lifelines for the participants and their messages, in a collaboration."
+              },
+              "lifecycles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "subject": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Classifier whose behavior it is."
+                    },
+                    "states": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          { "type": "string", "minLength": 1 },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string", "minLength": 1 },
+                              "name": { "type": "string" },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "state",
+                                  "initial",
+                                  "final",
+                                  "choice",
+                                  "fork",
+                                  "join"
+                                ]
+                              },
+                              "parent": { "type": "string", "minLength": 1 }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "transitions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "from": { "type": "string", "minLength": 1 },
+                          "to": { "type": "string", "minLength": 1 },
+                          "trigger": { "type": "string" },
+                          "guard": { "type": "string" },
+                          "effect": { "type": "string" }
+                        },
+                        "required": ["from", "to"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                },
+                "description": "State machines, owned by their subject."
+              },
+              "classViews": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "contexts": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 },
+                      "description": "Packages whose classes it shows, by id or name."
+                    },
+                    "classes": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 },
+                      "description": "Classes it shows besides."
+                    },
+                    "exclude": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "also": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 },
+                      "description": "Classes from elsewhere it shows too."
+                    },
+                    "note": { "type": "string" }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                },
+                "description": "Class diagrams by what they show; /derive_diagrams draws one each when the policy says views."
+              },
+              "useCaseViews": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "actor": { "type": "string", "minLength": 1 },
+                    "actors": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "cases": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "extraActors": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 }
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                },
+                "description": "Use case diagrams by actor; default one per system (subject)."
+              },
+              "activities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "lanes": {
+                      "type": "array",
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "name": { "type": "string" },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "action",
+                              "initial",
+                              "final",
+                              "flowFinal",
+                              "decision",
+                              "merge",
+                              "fork",
+                              "join",
+                              "object"
+                            ]
+                          },
+                          "lane": { "type": "string", "minLength": 1 }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "flows": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "minItems": 2,
+                            "maxItems": 5,
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "from": { "type": "string", "minLength": 1 },
+                              "to": { "type": "string", "minLength": 1 },
+                              "guard": { "type": "string" }
+                            },
+                            "required": ["from", "to"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["name", "nodes", "flows"],
+                  "additionalProperties": false
+                }
+              },
+              "erd": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "entities": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1 },
+                        "columns": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      },
+                      "required": ["name"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "relationships": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "minItems": 2,
+                          "maxItems": 5,
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "from": { "type": "string", "minLength": 1 },
+                            "to": { "type": "string", "minLength": 1 },
+                            "fromCardinality": { "type": "string" },
+                            "toCardinality": { "type": "string" },
+                            "name": { "type": "string" },
+                            "identifying": { "type": "boolean" }
+                          },
+                          "required": ["from", "to"],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": ["entities"],
+                "additionalProperties": false,
+                "description": "Tables: columns as 'id uuid PK'; relationships as [from, to, fromCardinality, toCardinality]."
+              },
+              "components": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "elements": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "minLength": 1 },
+                        "name": { "type": "string", "minLength": 1 },
+                        "type": {
+                          "type": "string",
+                          "enum": ["person", "system", "container", "component"]
+                        },
+                        "kind": { "type": "string" },
+                        "technology": { "type": "string" },
+                        "description": { "type": "string" },
+                        "external": { "type": "boolean" }
+                      },
+                      "required": ["name", "type"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "relations": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "minItems": 2,
+                          "maxItems": 5,
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "from": { "type": "string", "minLength": 1 },
+                            "to": { "type": "string", "minLength": 1 },
+                            "label": { "type": "string" },
+                            "technology": { "type": "string" },
+                            "description": { "type": "string" }
+                          },
+                          "required": ["from", "to"],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": ["elements"],
+                "additionalProperties": false,
+                "description": "C4 people, systems, containers and components; relations as [from, to, label, technology]."
+              },
+              "deployments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": { "type": "string", "minLength": 1 },
+                          "kind": {
+                            "type": "string",
+                            "description": "device, node, executionEnvironment."
+                          },
+                          "parent": { "type": "string", "minLength": 1 },
+                          "contains": {
+                            "type": "array",
+                            "items": { "type": "string", "minLength": 1 },
+                            "description": "Artifacts deployed on it."
+                          }
+                        },
+                        "required": ["name"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "minItems": 2,
+                            "maxItems": 5,
+                            "type": "array",
+                            "items": { "type": "string" }
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "from": { "type": "string", "minLength": 1 },
+                              "to": { "type": "string", "minLength": 1 },
+                              "name": { "type": "string" }
+                            },
+                            "required": ["from", "to"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["name", "nodes"],
+                  "additionalProperties": false
+                }
+              },
+              "features": { "$ref": "#/$defs/__schema0" }
+            },
+            "additionalProperties": false,
+            "description": "The object model, no diagrams and no geometry: an unknown field (a position, a size, a colour) is refused. Relationship direction: owns: composition: from is the whole (end1, composite), to the part; has: aggregation: from is the whole (end1, shared), to the part; uses: dependency: from is the client, to the supplier; isA: generalization: from is the specific, to the general; implements: interface realization: from implements the interface to; knows: directed association: from navigates to to; association: association with no navigability or aggregation. classViews, useCaseViews, activities, erd, components, deployments and features are stored with the model for /derive_diagrams."
           },
           "parent": {
             "type": "string",
@@ -23303,7 +24008,22 @@
             "description": "terse (default): counts by element type. ids: also the id of each package, classifier, collaboration and state machine by path. full: also every created and updated element."
           }
         },
-        "required": ["spec"]
+        "required": ["spec"],
+        "$defs": {
+          "__schema0": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "children": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/__schema0" }
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": false,
+            "description": "A feature tree, drawn as a mind map."
+          }
+        }
       },
       "response": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -23408,7 +24128,7 @@
               "required": ["section", "reason"],
               "additionalProperties": false
             },
-            "description": "Spec sections that describe diagrams, with what builds them."
+            "description": "Not answered since the spec became strict (issue #33): every section is the model's; kept for older clients."
           },
           "dryRun": { "type": "boolean" },
           "plan": {
@@ -23745,6 +24465,340 @@
           }
         },
         "required": ["checked", "ok", "problems"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/derive_diagrams",
+      "description": "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, and the activities, ERD, C4 containers, deployments and feature mind map /build_model stored with the model. Each diagram shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds limits which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The model (or a package of it) to derive from; its model's stored views apply. Id or path."
+          },
+          "kinds": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "package",
+                "class",
+                "sequence",
+                "usecase",
+                "statemachine",
+                "activity",
+                "erd",
+                "c4",
+                "deployment",
+                "mindmap"
+              ]
+            },
+            "description": "Only these diagram kinds; default all."
+          },
+          "policy": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "Fields of the style profile's policy for this call: classDiagrams (views|perPackage), hideGetters, neighbours, packageOverview."
+          },
+          "dryRun": { "type": "boolean" },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of scope.",
+            "x-alias-of": "scope",
+            "deprecated": true
+          }
+        },
+        "required": ["scope"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "model": { "type": ["string", "null"] },
+          "diagrams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string" },
+                "name": { "type": "string" },
+                "diagram": {
+                  "type": "string",
+                  "description": "Its id; '$diagram' on a dry run that makes it."
+                },
+                "created": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "updated": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "unchanged": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deleted": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "ops": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "With dryRun: the ops applying it runs."
+                },
+                "quality": {
+                  "type": "object",
+                  "properties": {
+                    "score": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "rating": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "passes": { "type": "boolean" }
+                  },
+                  "required": ["score", "rating", "passes"],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "kind",
+                "name",
+                "diagram",
+                "created",
+                "updated",
+                "unchanged"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "diagrams": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "created": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "updated": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unchanged": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deleted": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "diagrams",
+              "created",
+              "updated",
+              "unchanged",
+              "deleted"
+            ],
+            "additionalProperties": false
+          },
+          "quality": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "mean": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passing": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "failing": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["min", "mean", "passing", "failing"],
+            "additionalProperties": false,
+            "description": "Over the diagrams built: lowest and mean score, how many reach their threshold, which do not."
+          },
+          "dryRun": { "type": "boolean" }
+        },
+        "required": ["model", "diagrams", "counts"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/explain_model",
+      "description": "The model as compact text to reason about: per package each class with its responsibilities (documentation), what it owns, has, knows, is, implements and uses, and its operations; each collaboration's messages; each lifecycle's transitions; each actor's use cases. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A model or package; default the project. Id or path."
+          },
+          "maxChars": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 9007199254740991,
+            "description": "Default 20000; longer text is cut."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of scope.",
+            "x-alias-of": "scope",
+            "deprecated": true
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "truncated": { "type": "boolean" }
+        },
+        "required": ["text", "truncated"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/model_lint",
+      "description": "Review the object design: god classes (M001, more than 20 members), feature envy (M002, an operation working only on another class's data), cyclic package dependencies (M003), anaemic entities (M004, data without behaviour), interfaces with one implementation (M005), unused classes (M006), operations no collaboration calls (M007, when the scope has collaborations). Each finding has a rule id, the element's id and path and a one-line fix. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A model or package; default the project. Id or path."
+          },
+          "rules": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["off", "error", "warning", "info"]
+            },
+            "description": "Per rule id or name: off, or the severity to report it with."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Most findings to list, most severe first; default 100. count is always the full number."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of scope.",
+            "x-alias-of": "scope",
+            "deprecated": true
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "warning": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "info": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["error", "warning", "info"],
+            "additionalProperties": false
+          },
+          "truncated": { "type": "boolean" },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": { "type": "string" },
+                "name": { "type": "string" },
+                "severity": {
+                  "type": "string",
+                  "enum": ["error", "warning", "info"]
+                },
+                "message": { "type": "string" },
+                "id": { "type": "string" },
+                "path": { "type": ["string", "null"] },
+                "fix": { "type": "string" }
+              },
+              "required": [
+                "rule",
+                "name",
+                "severity",
+                "message",
+                "id",
+                "path",
+                "fix"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["count", "counts", "truncated", "findings"],
         "additionalProperties": false
       }
     },
@@ -25223,6 +26277,11 @@
           "inherited": {
             "type": "boolean",
             "description": "List inherited attributes with each type; default false (own attributes and supers)."
+          },
+          "capabilities": {
+            "type": "string",
+            "enum": ["all", "oo"],
+            "description": "Endpoints to list: all (default), or oo, the model-first set; under a strict style profile oo leaves out every endpoint that draws (styles, positions, sizes, free-form diagrams), so an agent given that set cannot draw."
           }
         }
       },
@@ -25487,6 +26546,21 @@
               ],
               "additionalProperties": false
             }
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "set": { "type": "string", "enum": ["all", "oo"] },
+              "strict": { "type": "boolean" },
+              "hidden": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Endpoints the set leaves out."
+              }
+            },
+            "required": ["set", "strict", "hidden"],
+            "additionalProperties": false,
+            "description": "With capabilities: the set listed and what it hides."
           },
           "errors": {
             "type": "object",

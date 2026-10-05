@@ -317,7 +317,7 @@ describe("/build_model", () => {
     ]);
   });
 
-  it("ingests the ThingsBoard analysis whole, leaving its diagram sections to build_diagram", async () => {
+  it("ingests the ThingsBoard analysis whole, storing its view sections with the model", async () => {
     const data = await ok<Built>(buildModel, { spec: tb });
     expect(data.counts.created).toMatchObject({
       UMLPackage: 15,
@@ -332,7 +332,12 @@ describe("/build_model", () => {
       UMLStateMachine: 3,
       UMLTransition: 32,
     });
-    expect(data.skipped!.map((s) => s.section)).toEqual([
+    expect(data.skipped).toBeUndefined();
+    // The sections /derive_diagrams draws travel with the model.
+    const tag = (named("UMLModel", "ThingsBoard").tags as Element[]).find(
+      (t) => t.name === "mcp.modelViews",
+    )!;
+    expect(Object.keys(JSON.parse(String(tag.value)))).toEqual([
       "classViews",
       "useCaseViews",
       "activities",
@@ -340,6 +345,9 @@ describe("/build_model", () => {
       "components",
       "deployments",
       "features",
+      "contexts",
+      "subjects",
+      "fragments",
     ]);
     // The device lifecycle is the Device class's, not the Device actor's.
     expect(

@@ -47,8 +47,8 @@
      "containerView": {
       "$ref": "#4"
      },
-     "left": 20,
-     "top": 120,
+     "left": 60,
+     "top": 222,
      "width": 180,
      "height": 82,
      "showNamespace": false,
@@ -64,8 +64,8 @@
      "containerView": {
       "$ref": "#4"
      },
-     "left": 20,
-     "top": 220,
+     "left": 60,
+     "top": 94,
      "width": 180,
      "height": 54,
      "showNamespace": false,
@@ -81,8 +81,8 @@
      "containerView": {
       "$ref": "#4"
      },
-     "left": 20,
-     "top": 320,
+     "left": 300,
+     "top": 243,
      "width": 180,
      "height": 40,
      "showNamespace": false,
@@ -98,8 +98,8 @@
      "containerView": {
       "$ref": "#4"
      },
-     "left": 20,
-     "top": 420,
+     "left": 300,
+     "top": 87,
      "width": 180,
      "height": 68,
      "showNamespace": false,
@@ -113,8 +113,8 @@
       "$ref": "#15"
      },
      "containerView": null,
-     "left": 40,
-     "top": 540,
+     "left": 420,
+     "top": 490,
      "width": 215,
      "height": 68,
      "showNamespace": false,
@@ -128,8 +128,8 @@
       "$ref": "#17"
      },
      "containerView": null,
-     "left": 40,
-     "top": 640,
+     "left": 180,
+     "top": 850,
      "width": 180,
      "height": 40,
      "showNamespace": false,
@@ -141,8 +141,8 @@
      "_type": "UMLNoteView",
      "model": null,
      "containerView": null,
-     "left": 40,
-     "top": 740,
+     "left": 720,
+     "top": 160,
      "width": 140,
      "height": 40
     },
@@ -151,8 +151,8 @@
      "_type": "UMLNoteView",
      "model": null,
      "containerView": null,
-     "left": 40,
-     "top": 840,
+     "left": 1240,
+     "top": 160,
      "width": 140,
      "height": 40
     },

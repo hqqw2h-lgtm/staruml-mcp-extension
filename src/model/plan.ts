@@ -47,6 +47,9 @@ import type {
 
 export type { Change, ModelOp } from "./planner.js";
 
+/** The hidden Tag on a model holding its view sections, as JSON. */
+export const VIEWS_TAG = "mcp.modelViews";
+
 export interface ModelPlan {
   ops: ModelOp[];
   created: Change[];
@@ -199,6 +202,17 @@ export function planModel(spec: ModelSpec, options: PlanOptions): ModelPlan {
     }),
   });
   p.refs.set(root.path, root.ref);
+
+  // The sections /derive_diagrams draws travel with the model.
+  if (Object.keys(spec.views).length > 0) {
+    p.element(
+      root,
+      "Tag",
+      VIEWS_TAG,
+      { kind: "string", value: JSON.stringify(spec.views), hidden: true },
+      "tags",
+    );
+  }
 
   // Packages.
   const { ordered, byKey } = packagesInOrder(spec);

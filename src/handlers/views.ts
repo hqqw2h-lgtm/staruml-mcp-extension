@@ -662,6 +662,44 @@ export const setZOrder = defineEndpoint({
   },
 });
 
+interface Initializable {
+  initialize(
+    canvas: null,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+  ): void;
+}
+
+/**
+ * A message from a lifeline to itself, shown as viewForSequenceDiagramFn
+ * would: it looks for the source and target views with an else-if
+ * (uml-factory.js 7.1.1), so a message whose ends are one lifeline never
+ * finds its target and is not drawn. This draws it the same way, on the
+ * lifeline's line part, as one operation.
+ */
+function selfMessage(model: Element, diagram: Element, y: number): View | null {
+  if (!(model instanceof type.UMLMessage) || model.source !== model.target) {
+    return null;
+  }
+  const lifeline = (diagram.ownedViews as View[]).find(
+    (v) => v.model === model.source && v instanceof type.UMLSeqLifelineView,
+  );
+  const line = lifeline?.linePart as View | undefined;
+  if (!line) return null;
+  const Message = type.UMLSeqMessageView as unknown as new () => View &
+    Initializable;
+  const view = new Message();
+  view.tail = line;
+  view.head = line;
+  view.model = model;
+  const x = (line as unknown as { left: number }).left;
+  view.initialize(null, x, y, x, y);
+  inStarUML(() => app.engine.addViews(diagram, [view]));
+  return app.repository.get(view._id) as View;
+}
+
 /** The ends of a relationship, which must be shown before it can be. */
 function endsOf(model: Element): Element[] {
   if (model instanceof type.DirectedRelationship) {
@@ -713,6 +751,10 @@ export const createViewOf = defineEndpoint({
       }
     }
     const editor = editorShowing(diagram);
+    // viewForSequenceDiagramFn connects a message to its lifelines' line
+    // parts, which a lifeline view gets when it is first drawn
+    // (uml-factory.js 7.1.1); a lifeline shown in this same batch has none.
+    if (model instanceof type.UMLMessage) app.diagrams.repaint();
     const view =
       inStarUML(() =>
         app.factory.createViewOf({
@@ -722,7 +764,9 @@ export const createViewOf = defineEndpoint({
           y: input.y ?? 100,
           editor,
         }),
-      ) ?? shown(model);
+      ) ??
+      selfMessage(model, diagram, input.y ?? 100) ??
+      shown(model);
     if (!view) {
       throw new ApiError(
         "STARUML_ERROR",

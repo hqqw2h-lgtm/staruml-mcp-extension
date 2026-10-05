@@ -56,7 +56,9 @@ describeLive("/build_model", () => {
       UMLStateMachine: 3,
       UMLTransition: 32,
     });
-    expect(built.data.skipped!.map((s) => s.section)).toContain("classViews");
+    // The view sections are the model's now, stored for /derive_diagrams.
+    expect(built.data.skipped).toBeUndefined();
+    expect(built.data.counts.created).toMatchObject({ Tag: 1 });
 
     // Elements are where the spec puts them, with their semantics.
     const tenant = await call<{

@@ -90,6 +90,8 @@ const ATOMIC_OVERHEAD_BUDGET = Number(
 
 const BUILDS = Number(process.env.BUILDS ?? 50);
 const UPSERT_BUDGET_MS = Number(process.env.UPSERT_BUDGET_MS ?? 50);
+const QUALITY_RUNS = Number(process.env.QUALITY_RUNS ?? 20);
+const IMPROVE_BUDGET_MS = Number(process.env.IMPROVE_BUDGET_MS ?? 500);
 
 const agent = new http.Agent({ keepAlive: true, maxSockets: CONCURRENCY });
 
@@ -241,6 +243,18 @@ const MODEL_SPEC = {
   ],
 };
 
+/** A model /derive_diagrams plans in the read mix; its names are its own. */
+const DERIVE_SPEC = {
+  system: "LoadModel",
+  contexts: [{ id: "cart", name: "Carts" }],
+  classes: [
+    { name: "Basket", context: "cart", operations: ["+add(i: Item): void"] },
+    { name: "Item", context: "cart", attributes: ["+qty: int"] },
+  ],
+  relationships: [{ from: "Basket", to: "Item", type: "owns" }],
+  collaborations: [{ name: "Fill", messages: [["Basket", "Item", "qty()"]] }],
+};
+
 const BUILD_SPEC = {
   classes: [
     {
@@ -276,6 +290,32 @@ const SEARCHES = [
   "clsdgm",
   "UMLClass",
 ];
+
+/**
+ * /improve_diagram dry runs, sequentially: each lays the diagram out and
+ * runs the loop before undoing it, so it is timed on its own budget rather
+ * than the read mix's.
+ */
+async function qualityPhase(diagram, errors) {
+  const times = [];
+  for (let i = 0; i < QUALITY_RUNS; i++) {
+    const res = await post("/improve_diagram", { ref: diagram, dryRun: true });
+    times.push(res.handlerMs);
+    if (res.status !== 200 || !res.json?.data?.dryRun) {
+      errors.push(
+        `/improve_diagram -> ${res.status} ${JSON.stringify(res.json).slice(0, 300)}`,
+      );
+    }
+  }
+  times.sort((a, b) => a - b);
+  return {
+    runs: QUALITY_RUNS,
+    handlerMs: {
+      p50: +percentile(times, 50).toFixed(2),
+      p99: +percentile(times, 99).toFixed(2),
+    },
+  };
+}
 
 async function buildPhase(errors) {
   const times = {
@@ -335,6 +375,7 @@ async function main() {
       ],
     },
   });
+  await post("/build_model", { spec: DERIVE_SPEC });
   await post("/snapshot", { label: "load" });
   const mix = [
     () => ["/find_elements", { type: "UMLClass" }],
@@ -390,7 +431,12 @@ async function main() {
     () => ["/get_project_info", {}],
     () => ["/get_style_profile", {}],
     () => ["/diagram_quality", { ref: "Export" }],
-    () => ["/improve_diagram", { ref: "Export", dryRun: true }],
+    () => [
+      "/derive_diagrams",
+      { scope: "LoadModel", dryRun: true, kinds: ["class", "sequence"] },
+    ],
+    () => ["/model_lint", { scope: "LoadModel" }],
+    () => ["/explain_model", { scope: "LoadModel", maxChars: 2000 }],
     () => ["/explain_style_violation", { ref: "Order" }],
     () => ["/apply_style_profile", { scope: "Export", dryRun: true }],
     (i) => [
@@ -464,6 +510,7 @@ async function main() {
   const elapsed = (performance.now() - started) / 1000;
   const writes = await writePhase(modelId, errors);
   const builds = await buildPhase(errors);
+  const quality = await qualityPhase(exportId, errors);
   agent.destroy();
   await post("/new_project", {}).catch(() => {});
 
@@ -496,8 +543,10 @@ async function main() {
     ),
     writes,
     builds,
+    quality,
     budgets: {
       upsertHandlerP99Ms: UPSERT_BUDGET_MS,
+      improveHandlerP99Ms: IMPROVE_BUDGET_MS,
       p99Ms: P99_BUDGET_MS,
       handlerMaxMs: HANDLER_BUDGET_MS,
       atomicOverhead: ATOMIC_OVERHEAD_BUDGET,
@@ -515,6 +564,9 @@ async function main() {
   }
   if (!(writes.atomicOverhead <= ATOMIC_OVERHEAD_BUDGET)) {
     failures.push(`atomic overhead ${writes.atomicOverhead}`);
+  }
+  if (!(quality.handlerMs.p99 <= IMPROVE_BUDGET_MS)) {
+    failures.push(`improve_diagram handler p99 ${quality.handlerMs.p99} ms`);
   }
   if (!(builds.upsertHandlerMs.p99 <= UPSERT_BUDGET_MS)) {
     failures.push(`upsert handler p99 ${builds.upsertHandlerMs.p99} ms`);
