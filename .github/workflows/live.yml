@@ -11,6 +11,9 @@ on:
       concurrency:
         description: Load test concurrency
         default: "50"
+      soakOps:
+        description: Soak test creates (each deleted again)
+        default: "2000"
 
 jobs:
   live:
@@ -46,3 +49,13 @@ jobs:
 
       - name: Load test
         run: npm run test:load -- --requests ${{ inputs.requests }} --concurrency ${{ inputs.concurrency }}
+
+      - name: Soak test
+        timeout-minutes: 60
+        run: npm run test:soak -- --ops ${{ inputs.soakOps }} --json soak.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak
+          path: soak.json

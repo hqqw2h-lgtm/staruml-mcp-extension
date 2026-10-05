@@ -65,7 +65,7 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 
 | Group         | Endpoints                                                                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Catalogue     | `/introspect`, `/search_types`, `/debug`                                                                                                                                                   |
+| Catalogue     | `/introspect`, `/search_types`, `/performance_stats`, `/debug`                                                                                                                             |
 | Commands      | `/get_all_commands`, `/describe_commands`, `/execute_command`                                                                                                                              |
 | Project       | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`, `/list_templates`, `/new_from_template`, `/get_project_metadata`, `/set_project_metadata`       |
 | Workspace     | `/get_preference`, `/set_preference`, `/export_fragment`, `/import_fragment`, `/export_xmi`, `/import_xmi`, `/quick_find`, `/list_working_diagrams`, `/close_diagrams`, `/list_extensions` |
@@ -175,6 +175,10 @@ Every `/build_diagram`, `/apply_pattern` (its class diagram) and `/layout_diagra
 - `/list_working_diagrams` lists the editor's tabs and the current one; `/close_diagrams {diagrams?, keep?}` closes some, or all but `keep`.
 - `/list_extensions` lists every extension folder (essential, default, dev, user) with name, title, version, description and the registered commands its menus name.
 - `/get_project_metadata` and `/set_project_metadata {name, author, company, copyright, version, documentation}` read and set the project's own fields, the set as one undo step.
+
+### Performance (issue #26)
+
+Every request that writes runs without selecting what it creates in the Model Explorer: each selection change made StarUML 7.1.1 slower for the rest of the session (a create went from 15 to 75 ms over 2000 creates; now it stays near 4.5 ms, and a nine-class build takes ~350 ms instead of 1.3–1.5 s, whatever the session did before). `mcp-ext.ui.selectCreated` selects a request's last created element again. `/performance_stats` reports repository listeners, undo depth, elements, tabs, queued explorer animations and heap; `npm run test:soak` runs 2000 creates and deletes and fails when the last 100 creates take 25 % longer than the first 100. Numbers and what remains StarUML's own: [docs/performance.md](docs/performance.md).
 
 ### Commands and code generation
 

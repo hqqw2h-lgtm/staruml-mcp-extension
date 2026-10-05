@@ -109,6 +109,16 @@
         }
       ],
       "default": "uml-standard"
+    },
+    "mcp-ext.ui": {
+      "text": "Editor",
+      "type": "section"
+    },
+    "mcp-ext.ui.selectCreated": {
+      "text": "Select Created Elements",
+      "description": "Select the last element a request creates in the Model Explorer, as creating it by hand does. Off by default: every selection change costs StarUML 7.1.1 a little more than the one before (about 0.03 ms more per selection, never given back during a session), which made each create take 75 ms after 2000 of them instead of 3 ms.",
+      "type": "check",
+      "default": false
     }
   }
 }

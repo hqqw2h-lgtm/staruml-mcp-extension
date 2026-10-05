@@ -102,6 +102,7 @@ export const SETTABLE = [
   "gcp.",
   "wireframe.",
   "mcp-ext.limits.",
+  "mcp-ext.ui.",
   PREF.logLevel,
 ];
 
@@ -186,7 +187,7 @@ export const getPreference = defineEndpoint({
 export const setPreference = defineEndpoint({
   path: "/set_preference",
   description:
-    "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
+    "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.*, mcp-ext.ui.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
   readOnly: false,
   destructive: false,
   request: z.object({

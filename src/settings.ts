@@ -39,6 +39,7 @@ export const PREF = {
   maxBatchOps: "mcp-ext.limits.maxBatchOps",
   timeoutSeconds: "mcp-ext.limits.timeoutSeconds",
   commandsPerMinute: "mcp-ext.limits.commandsPerMinute",
+  selectCreated: "mcp-ext.ui.selectCreated",
 } as const;
 
 /** Defaults repeated from preference.json for a StarUML that has not registered it. */

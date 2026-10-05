@@ -42,6 +42,7 @@
     "test:coverage": "vitest run --coverage",
     "test:live": "vitest run --mode live",
     "test:load": "node scripts/load-test.mjs",
+    "test:soak": "node scripts/soak-test.mjs",
     "visual:update": "VISUAL_UPDATE=1 vitest run --mode live tests/integration/visual.live.test.ts",
     "snapshot:introspect": "node scripts/snapshot-introspect.mjs",
     "docs:commands": "node scripts/commands-doc.mjs"

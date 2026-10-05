@@ -35,6 +35,8 @@ import {
   reverseCode,
 } from "./handlers/codegen.js";
 import { debug } from "./handlers/debug.js";
+import { performanceStats } from "./handlers/performance.js";
+import { quieted } from "./quiet.js";
 import { exportText } from "./handlers/export-text.js";
 import { describeDiagram, validateModel } from "./handlers/describe.js";
 import { lintDiagram } from "./handlers/lint.js";
@@ -283,9 +285,15 @@ export const endpoints: readonly Endpoint[] = [
   improveDiagram,
 
   introspectEndpoint(() => endpoints),
+  performanceStats,
   debug,
 ];
 
+/**
+ * Each request that writes runs quietly (issue #26): repaint once, select
+ * once, no explorer animations. /batch and the builds call the endpoints
+ * of the list directly, inside their own quiet request.
+ */
 export const routes: Readonly<Record<string, Handler>> = Object.fromEntries(
-  endpoints.map((e) => [e.path, e.handler]),
+  endpoints.map((e) => [e.path, quieted(e).handler]),
 );

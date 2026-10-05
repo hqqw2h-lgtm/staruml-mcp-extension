@@ -1273,7 +1273,14 @@ function fontWith(view: MockElement, part: number, value: string): CustomValue {
 
 /** ui/diagram-editor.js, for the selection calls the extension makes. */
 export class DiagramEditor {
-  constructor(private readonly selections: SelectionManager) {}
+  constructor(
+    private readonly selections: SelectionManager,
+    private readonly paint: () => void = () => {},
+  ) {}
+  /** Draws whatever DiagramManager's suspension says, as the canvas does. */
+  repaint(): void {
+    this.paint();
+  }
   selectView(view: View): void {
     this.selections.select(view.model ? [view.model] : [], [view]);
   }
@@ -1293,10 +1300,19 @@ export class DiagramManager {
   grid = false;
   snap = true;
   repaints = 0;
+  doRepaint = true;
   diagramEditor: DiagramEditor;
 
   constructor(private readonly selections = new SelectionManager()) {
-    this.diagramEditor = new DiagramEditor(selections);
+    this.diagramEditor = new DiagramEditor(selections, () => this.paint());
+  }
+
+  suspendRepaint(): void {
+    this.doRepaint = false;
+  }
+  resumeRepaint(): void {
+    this.doRepaint = true;
+    this.repaint();
   }
 
   getCurrentDiagram(): MockElement | null {
@@ -1358,6 +1374,10 @@ export class DiagramManager {
    * at the default height of 30, and a region view per region of a state.
    */
   repaint(): void {
+    if (this.doRepaint) this.paint();
+  }
+  /** What drawing computes: the compartments StarUML makes on first paint. */
+  paint(): void {
     this.repaints++;
     for (const view of (this.current?.ownedViews ?? []) as View[]) {
       const items = is(view, "UMLCombinedFragmentView")
@@ -1430,12 +1450,10 @@ stub(DiagramManager, [
   "previousDiagram",
   "restoreDiagramOrigin",
   "restoreWorkingDiagrams",
-  "resumeRepaint",
   "saveWorkingDiagrams",
   "selectAll",
   "selectInDiagram",
   "setActiveHandler",
-  "suspendRepaint",
   "toggleGrid",
   "toggleSnapToGrid",
   "updateDiagram",
@@ -1925,4 +1943,5 @@ export function installMockApp(): MockEnvironment {
 export const MOCK_ONLY_MEMBERS: Readonly<Record<string, readonly string[]>> = {
   repository: REPOSITORY_HELPERS,
   engine: ENGINE_HELPERS,
+  diagrams: ["paint"],
 };

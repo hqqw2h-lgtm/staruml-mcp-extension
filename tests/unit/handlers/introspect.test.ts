@@ -34,6 +34,26 @@ describe("/introspect", () => {
     });
   });
 
+  it("keeps catalogue sections while the registries stay, and starts again when one grows (issue #26)", async () => {
+    const first = await ok<{ toolbox: unknown }>(introspect, {
+      include: ["toolbox"],
+    });
+    const again = await ok<{ toolbox: unknown }>(introspect, {
+      include: ["toolbox"],
+    });
+    expect(again.toolbox).toBe(first.toolbox);
+    env.app.toolbox.items.Extra = {
+      id: "Extra",
+      groupId: "g",
+      title: "Extra",
+      rubberband: "rect",
+    } as never;
+    const grown = await ok<{ toolbox: unknown }>(introspect, {
+      include: ["toolbox"],
+    });
+    expect(grown.toolbox).not.toBe(first.toolbox);
+  });
+
   it("returns every section by default", async () => {
     const data = await ok<Introspection>(introspect);
     expect(Object.keys(data).sort()).toEqual([

@@ -350,6 +350,30 @@ export function manifest(endpoints: readonly Endpoint[]) {
   >[];
 }
 
+let catalogue: { key: unknown[]; sections: Map<string, unknown> } | null = null;
+
+/**
+ * A catalogue section, computed once while the registries stay the ones
+ * the extensions filled at start-up (issue #26): the metamodel section
+ * alone took ~30 ms of the renderer per call. A new registry, or one
+ * grown by a late registration, starts the cache again.
+ */
+function cached<T>(name: string, compute: () => T): T {
+  const key = [
+    meta,
+    app.toolbox.items,
+    app.factory,
+    Object.keys(meta).length,
+    Object.keys(app.toolbox.items).length,
+    app.factory.getModelAndViewIds().length,
+  ];
+  if (!catalogue || catalogue.key.some((k, i) => k !== key[i])) {
+    catalogue = { key, sections: new Map() };
+  }
+  if (!catalogue.sections.has(name)) catalogue.sections.set(name, compute());
+  return catalogue.sections.get(name) as T;
+}
+
 /**
  * `endpoints` is a thunk because the endpoint list includes this endpoint.
  */
@@ -402,12 +426,12 @@ export function introspectEndpoint(endpoints: () => readonly Endpoint[]) {
         extension: { name: EXTENSION_NAME, version: EXTENSION_VERSION },
       };
       if (include.has("factory")) {
-        out.factory = {
+        out.factory = cached("factory", () => ({
           modelIds: [...ids.model].sort(),
           diagramIds: [...ids.diagram].sort(),
           modelAndViewIds: [...ids.modelAndView].sort(),
           modelAndView: [...ids.modelAndView].sort().map(describeModelAndView),
-        };
+        }));
       }
       if (include.has("metamodel")) {
         const sets: FactoryIds = {
@@ -418,16 +442,20 @@ export function introspectEndpoint(endpoints: () => readonly Endpoint[]) {
         const names = (input.types ?? Object.keys(meta)).filter((name) =>
           Object.hasOwn(meta, name),
         );
-        out.metamodel = Object.fromEntries(
-          names
-            .sort()
-            .map((name) => [
-              name,
-              describeType(name, sets, input.inherited === true),
-            ]),
+        out.metamodel = cached(
+          `metamodel ${input.inherited === true} ${names.sort().join(",")}`,
+          () =>
+            Object.fromEntries(
+              names.map((name) => [
+                name,
+                describeType(name, sets, input.inherited === true),
+              ]),
+            ),
         );
       }
-      if (include.has("toolbox")) out.toolbox = describeToolbox();
+      if (include.has("toolbox")) {
+        out.toolbox = cached("toolbox", describeToolbox);
+      }
       if (include.has("endpoints")) {
         const strict = effectiveProfile().profile.strict;
         const hidden: string[] =

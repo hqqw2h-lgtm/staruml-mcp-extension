@@ -18135,7 +18135,7 @@
     },
     {
       "path": "/set_preference",
-      "description": "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
+      "description": "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.*, mcp-ext.ui.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -27200,6 +27200,76 @@
           }
         },
         "required": ["staruml", "extension"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/performance_stats",
+      "description": "Diagnostics of the write path: repository listeners per event, undo and redo depth, elements indexed, editor tabs open, animations queued in the model explorer, and the renderer's heap. A count that grows over a session while the model does not points at what slows it.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "listeners": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "description": "Repository listeners by event."
+          },
+          "undo": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "redo": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "elements": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Elements, views and diagrams indexed by id."
+          },
+          "workingDiagrams": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "explorerAnimations": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Scroll animations queued in the model explorer (jQuery fx queue)."
+          },
+          "heapUsedMiB": { "type": "number" },
+          "quiet": {
+            "type": "boolean",
+            "description": "A writing request is running."
+          }
+        },
+        "required": [
+          "listeners",
+          "undo",
+          "redo",
+          "elements",
+          "workingDiagrams",
+          "explorerAnimations",
+          "heapUsedMiB",
+          "quiet"
+        ],
         "additionalProperties": false
       }
     },

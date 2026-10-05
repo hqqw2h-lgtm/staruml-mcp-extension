@@ -3955,7 +3955,8 @@ var PREF = {
   maxBodyKiB: "mcp-ext.limits.maxBodyKiB",
   maxBatchOps: "mcp-ext.limits.maxBatchOps",
   timeoutSeconds: "mcp-ext.limits.timeoutSeconds",
-  commandsPerMinute: "mcp-ext.limits.commandsPerMinute"
+  commandsPerMinute: "mcp-ext.limits.commandsPerMinute",
+  selectCreated: "mcp-ext.ui.selectCreated"
 };
 var DEFAULTS = {
   logLevel: "info",
@@ -6903,8 +6904,8 @@ function ownerField(owner, childType) {
   for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
     if (attr.kind !== "objs" || !app.metamodels.isKindOf(childType, attr.type))
       continue;
-    const depth2 = lineage(attr.type).length;
-    if (!best || depth2 > best.depth) best = { name: attr.name, depth: depth2 };
+    const depth3 = lineage(attr.type).length;
+    if (!best || depth3 > best.depth) best = { name: attr.name, depth: depth3 };
   }
   return best?.name ?? null;
 }
@@ -7239,12 +7240,12 @@ function serialize(elem, projection = {}) {
   if (!wanted || wanted.has("_parent")) {
     out._parent = elem._parent ? elem._parent._id : null;
   }
-  const depth2 = projection.depth ?? 0;
+  const depth3 = projection.depth ?? 0;
   for (const attr of app.metamodels.getMetaAttributes(out._type)) {
     if (!reported(attr) || wanted && !wanted.has(attr.name)) continue;
     const value = elem[attr.name];
     if (value === void 0) continue;
-    out[attr.name] = convert(attr, value, { ...projection, depth: depth2 });
+    out[attr.name] = convert(attr, value, { ...projection, depth: depth3 });
   }
   return out;
 }
@@ -11609,7 +11610,7 @@ function usecaseDiagram(lines2) {
   const noteAliases = /* @__PURE__ */ new Map();
   const warnings = [];
   let system;
-  let depth2 = 0;
+  let depth3 = 0;
   const declare = (list7, key2, name4) => {
     names4.set(key2, name4);
     if (!actors.includes(name4) && !useCases2.includes(name4)) list7.push(name4);
@@ -11649,9 +11650,9 @@ function usecaseDiagram(lines2) {
       const name4 = named(adornments(m[2]).rest).name;
       if (system === void 0) system = name4;
       else warnings.push(`only one system boundary is drawn; ${name4} is not`);
-      depth2++;
-    } else if (text4 === "}" && depth2 > 0) {
-      depth2--;
+      depth3++;
+    } else if (text4 === "}" && depth3 > 0) {
+      depth3--;
     } else if (m = UC_RELATION.exec(text4)) {
       const [, a, arrow, b, text22] = m;
       if (noteAliases.has(a) || noteAliases.has(b)) {
@@ -12058,7 +12059,7 @@ function mindmap2(lines2) {
   for (let i = 0; i < lines2.length; i++) {
     const { no, text: text4 } = lines2[i];
     const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
-    const depth2 = m[1].length;
+    const depth3 = m[1].length;
     let name4 = m[3];
     if (name4.startsWith(":")) {
       name4 = name4.slice(1);
@@ -12069,15 +12070,15 @@ ${lines2[++i].text}`;
       name4 = name4.replace(/;$/, "");
     }
     const node2 = { name: multiline(name4), children: [] };
-    if (depth2 === 1) {
+    if (depth3 === 1) {
       if (root) refuse(no, "a mind map has one root in StarUML");
       root = node2;
     } else {
-      const parent = stack[depth2 - 2] ?? fail3(no, "a level is skipped");
+      const parent = stack[depth3 - 2] ?? fail3(no, "a level is skipped");
       parent.children.push(node2);
     }
-    stack[depth2 - 1] = node2;
-    stack.length = depth2;
+    stack[depth3 - 1] = node2;
+    stack.length = depth3;
   }
   const strip = (n) => ({
     name: n.name,
@@ -12232,16 +12233,16 @@ function statements(source) {
 }
 function items(text4) {
   const out = [];
-  let depth2 = 0;
+  let depth3 = 0;
   let quote = null;
   let current = "";
   for (const ch of text4) {
     if (quote) {
       if (ch === quote) quote = null;
     } else if (ch === "'" || ch === '"' || ch === "`") quote = ch;
-    else if (ch === "(") depth2++;
-    else if (ch === ")") depth2--;
-    else if (ch === "," && depth2 === 0) {
+    else if (ch === "(") depth3++;
+    else if (ch === ")") depth3--;
+    else if (ch === "," && depth3 === 0) {
       out.push(current.trim());
       current = "";
       continue;
@@ -19701,6 +19702,89 @@ var debug = defineEndpoint({
   }
 });
 
+// src/quiet.ts
+var depth2 = 0;
+var quiet = () => depth2 > 0;
+async function quietly(run) {
+  const explorer = depth2 === 0 ? app.modelExplorer : void 0;
+  const own2 = explorer && Object.getOwnPropertyDescriptor(explorer, "select");
+  let last = null;
+  if (explorer) {
+    explorer.select = (elem) => {
+      last = elem;
+    };
+  }
+  depth2++;
+  try {
+    return await run();
+  } finally {
+    depth2--;
+    if (explorer) {
+      if (own2) Object.defineProperty(explorer, "select", own2);
+      else delete explorer.select;
+      explorer.$viewContent?.stop?.(true, true);
+      if (last && app.preferences.get(PREF.selectCreated, false) === true && app.repository.get(last._id)) {
+        explorer.select(last, false);
+      }
+    }
+  }
+}
+function quieted(endpoint) {
+  if (endpoint.readOnly) return endpoint;
+  return {
+    ...endpoint,
+    handler: (body) => quietly(() => endpoint.handler(body))
+  };
+}
+
+// src/handlers/performance.ts
+var EVENTS = [
+  "beforeExecuteOperation",
+  "operationExecuted",
+  "created",
+  "updated",
+  "deleted"
+];
+var performanceStats = defineEndpoint({
+  path: "/performance_stats",
+  description: "Diagnostics of the write path: repository listeners per event, undo and redo depth, elements indexed, editor tabs open, animations queued in the model explorer, and the renderer's heap. A count that grows over a session while the model does not points at what slows it.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: object({
+    listeners: doc(
+      record(string2(), int()),
+      "Repository listeners by event."
+    ),
+    undo: int(),
+    redo: int(),
+    elements: doc(int(), "Elements, views and diagrams indexed by id."),
+    workingDiagrams: int(),
+    explorerAnimations: doc(
+      int(),
+      "Scroll animations queued in the model explorer (jQuery fx queue)."
+    ),
+    heapUsedMiB: number2(),
+    quiet: doc(boolean2(), "A writing request is running.")
+  }),
+  handle: () => {
+    const repo = app.repository;
+    const explorer = app.modelExplorer;
+    return {
+      listeners: Object.fromEntries(
+        EVENTS.map((e) => [e, repo.listenerCount?.(e) ?? 0])
+      ),
+      undo: repo._undoStack?.stack.length ?? 0,
+      redo: repo._redoStack?.stack.length ?? 0,
+      elements: Object.keys(app.repository.getIdMap()).length,
+      workingDiagrams: app.diagrams.getWorkingDiagrams().length,
+      explorerAnimations: explorer?.$viewContent?.queue?.("fx").length ?? 0,
+      heapUsedMiB: Math.round(process.memoryUsage().heapUsed / 1048576 * 10) / 10,
+      quiet: quiet()
+    };
+  }
+});
+
 // src/app-modules.ts
 var import_node_fs2 = require("node:fs");
 var import_node_module2 = require("node:module");
@@ -20816,7 +20900,7 @@ function sequenceDiagram3(spec, notes) {
     warnings.push(`a ${f.operator} fragment has no Mermaid block`);
     return false;
   });
-  const depth2 = () => "  ".repeat(1 + open.length);
+  const depth3 = () => "  ".repeat(1 + open.length);
   const open = [];
   const note = (n) => {
     if (n.on.length === 0) {
@@ -20825,7 +20909,7 @@ function sequenceDiagram3(spec, notes) {
     }
     const where2 = n.side === "over" ? "over" : `${n.side} of`;
     lines2.push(
-      `${depth2()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text3(n.text)}`
+      `${depth3()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text3(n.text)}`
     );
   };
   const operand = (f, k, level) => lines2.push(
@@ -20841,19 +20925,19 @@ function sequenceDiagram3(spec, notes) {
     fragments.forEach((f, j) => {
       if (f.from !== i) return;
       lines2.push(
-        `${depth2()}${f.operator}${f.guard ? ` ${text3(f.guard)}` : ""}`
+        `${depth3()}${f.operator}${f.guard ? ` ${text3(f.guard)}` : ""}`
       );
       open.push(j);
     });
     lines2.push(
-      `${depth2()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text3(m.text)}`
+      `${depth3()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text3(m.text)}`
     );
     while (open.length > 0 && fragments[open.at(-1)].to === i) {
       const f = fragments[open.pop()];
       if (!f.operandStarts) {
         f.operands.forEach((_, k) => operand(f, k, open.length + 1));
       }
-      lines2.push(`${depth2()}end`);
+      lines2.push(`${depth3()}end`);
     }
   });
   for (const n of notes)
@@ -21044,11 +21128,11 @@ function flowchart2(spec, direction2) {
 function mindmap3(roots) {
   const lines2 = ["mindmap"];
   const warnings = [];
-  const write = (node2, depth2) => {
+  const write = (node2, depth3) => {
     const name4 = text3(node2.name);
     const label4 = /[()[\]{}]/.test(name4) ? `n["${name4}"]` : name4 || '[" "]';
-    lines2.push(`${"  ".repeat(depth2)}${label4}`);
-    for (const child of node2.children) write(child, depth2 + 1);
+    lines2.push(`${"  ".repeat(depth3)}${label4}`);
+    for (const child of node2.children) write(child, depth3 + 1);
   };
   if (roots.length > 1) {
     warnings.push(`${roots.length - 1} more root nodes are not written`);
@@ -21555,9 +21639,9 @@ function erDiagram4(spec) {
 }
 function mindmap4(roots) {
   const lines2 = [];
-  const write = (node2, depth2) => {
-    lines2.push(`${"*".repeat(depth2)} ${one(node2.name)}`);
-    for (const child of node2.children) write(child, depth2 + 1);
+  const write = (node2, depth3) => {
+    lines2.push(`${"*".repeat(depth3)} ${one(node2.name)}`);
+    for (const child of node2.children) write(child, depth3 + 1);
   };
   for (const root of roots) write(root, 1);
   return lines2;
@@ -29555,6 +29639,22 @@ function manifest(endpoints2) {
   }
   return manifestCache.entries;
 }
+var catalogue = null;
+function cached2(name4, compute) {
+  const key2 = [
+    meta,
+    app.toolbox.items,
+    app.factory,
+    Object.keys(meta).length,
+    Object.keys(app.toolbox.items).length,
+    app.factory.getModelAndViewIds().length
+  ];
+  if (!catalogue || catalogue.key.some((k, i) => k !== key2[i])) {
+    catalogue = { key: key2, sections: /* @__PURE__ */ new Map() };
+  }
+  if (!catalogue.sections.has(name4)) catalogue.sections.set(name4, compute());
+  return catalogue.sections.get(name4);
+}
 function introspectEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/introspect",
@@ -29603,12 +29703,12 @@ function introspectEndpoint(endpoints2) {
         extension: { name: EXTENSION_NAME, version: EXTENSION_VERSION }
       };
       if (include.has("factory")) {
-        out.factory = {
+        out.factory = cached2("factory", () => ({
           modelIds: [...ids2.model].sort(),
           diagramIds: [...ids2.diagram].sort(),
           modelAndViewIds: [...ids2.modelAndView].sort(),
           modelAndView: [...ids2.modelAndView].sort().map(describeModelAndView)
-        };
+        }));
       }
       if (include.has("metamodel")) {
         const sets = {
@@ -29619,14 +29719,19 @@ function introspectEndpoint(endpoints2) {
         const names4 = (input.types ?? Object.keys(meta)).filter(
           (name4) => Object.hasOwn(meta, name4)
         );
-        out.metamodel = Object.fromEntries(
-          names4.sort().map((name4) => [
-            name4,
-            describeType2(name4, sets, input.inherited === true)
-          ])
+        out.metamodel = cached2(
+          `metamodel ${input.inherited === true} ${names4.sort().join(",")}`,
+          () => Object.fromEntries(
+            names4.map((name4) => [
+              name4,
+              describeType2(name4, sets, input.inherited === true)
+            ])
+          )
         );
       }
-      if (include.has("toolbox")) out.toolbox = describeToolbox();
+      if (include.has("toolbox")) {
+        out.toolbox = cached2("toolbox", describeToolbox);
+      }
       if (include.has("endpoints")) {
         const strict = effectiveProfile().profile.strict;
         const hidden = input.capabilities === "oo" && strict ? [...DRAWING_ENDPOINTS] : [];
@@ -31510,6 +31615,7 @@ var SETTABLE = [
   "gcp.",
   "wireframe.",
   "mcp-ext.limits.",
+  "mcp-ext.ui.",
   PREF.logLevel
 ];
 var settable = (key2) => SETTABLE.some((p) => p.endsWith(".") ? key2.startsWith(p) : key2 === p);
@@ -31573,7 +31679,7 @@ var getPreference = defineEndpoint({
 });
 var setPreference = defineEndpoint({
   path: "/set_preference",
-  description: "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
+  description: "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.*, mcp-ext.ui.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
   readOnly: false,
   destructive: false,
   request: object({
@@ -33648,10 +33754,11 @@ var endpoints = [
   diagramQuality,
   improveDiagram,
   introspectEndpoint(() => endpoints),
+  performanceStats,
   debug
 ];
 var routes = Object.fromEntries(
-  endpoints.map((e) => [e.path, e.handler])
+  endpoints.map((e) => [e.path, quieted(e).handler])
 );
 
 // src/main.ts
