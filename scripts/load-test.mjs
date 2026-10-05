@@ -45,6 +45,7 @@
  * ATOMIC_OVERHEAD_BUDGET.
  *
  * Environment: STARUML_EXT_URL (default http://localhost:58322),
+ * STARUML_EXT_TOKEN (when StarUML requires an access token),
  * P99_BUDGET_MS (default 250), HANDLER_BUDGET_MS (default 50), SEED (default
  * 200), WRITE_BATCHES (default 200), ATOMIC_OVERHEAD_BUDGET (default 1.25).
  */
@@ -64,6 +65,7 @@ const BASE = new URL(process.env.STARUML_EXT_URL ?? "http://localhost:58322");
 const P99_BUDGET_MS = Number(process.env.P99_BUDGET_MS ?? 250);
 const HANDLER_BUDGET_MS = Number(process.env.HANDLER_BUDGET_MS ?? 50);
 const SEED = Number(process.env.SEED ?? 200);
+const TOKEN = process.env.STARUML_EXT_TOKEN;
 const WRITE_BATCHES = Number(process.env.WRITE_BATCHES ?? 200);
 const ATOMIC_OVERHEAD_BUDGET = Number(
   process.env.ATOMIC_OVERHEAD_BUDGET ?? 1.25,
@@ -85,6 +87,7 @@ function post(path, body) {
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload),
+          ...(TOKEN && { Authorization: `Bearer ${TOKEN}` }),
         },
       },
       (res) => {

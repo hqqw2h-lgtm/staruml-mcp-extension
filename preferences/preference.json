@@ -18,6 +18,42 @@
       "type": "number",
       "default": 58322
     },
+    "mcp-ext.server.logLevel": {
+      "text": "Log Level",
+      "description": "What the extension writes to the developer console (Debug > Show DevTools): errors, plus startup, plus one line per request.",
+      "type": "dropdown",
+      "options": [
+        {
+          "value": "error",
+          "text": "Errors"
+        },
+        {
+          "value": "info",
+          "text": "Info"
+        },
+        {
+          "value": "debug",
+          "text": "Every request"
+        }
+      ],
+      "default": "info"
+    },
+    "mcp-ext.security": {
+      "text": "Security",
+      "type": "section"
+    },
+    "mcp-ext.token": {
+      "text": "Access Token",
+      "description": "When set, every request needs the header 'Authorization: Bearer <token>'. Tools > MCP Extension > Generate Access Token creates one. Applies to the next request.",
+      "type": "string",
+      "default": ""
+    },
+    "mcp-ext.security.allowedOrigins": {
+      "text": "Allowed Origins",
+      "description": "Requests from web pages carry an Origin header and are refused unless the origin is listed here, comma-separated, e.g. 'http://localhost:3000'.",
+      "type": "string",
+      "default": ""
+    },
     "mcp-ext.limits": {
       "text": "Limits",
       "type": "section"
@@ -33,6 +69,18 @@
       "description": "Most ops one /batch request may carry; more get 413. Applies to the next request.",
       "type": "number",
       "default": 500
+    },
+    "mcp-ext.limits.timeoutSeconds": {
+      "text": "Request Timeout (s)",
+      "description": "Seconds before a request that is still waiting (exports, commands) is answered 504; the work itself is not cancelled.",
+      "type": "number",
+      "default": 60
+    },
+    "mcp-ext.limits.commandsPerMinute": {
+      "text": "Commands per Minute",
+      "description": "Most /execute_command calls in any minute, from all clients together; more get 429.",
+      "type": "number",
+      "default": 60
     }
   }
 }

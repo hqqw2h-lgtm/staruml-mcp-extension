@@ -14,6 +14,18 @@ export const BASE_URL = process.env.STARUML_EXT_URL ?? "http://localhost:58322";
 
 export const describeLive = describe.skipIf(!LIVE);
 
+/** Set STARUML_EXT_TOKEN when StarUML has an access token (mcp-ext.token). */
+export function headers(
+  extra: Record<string, string> = {},
+): Record<string, string> {
+  const token = process.env.STARUML_EXT_TOKEN;
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...extra,
+  };
+}
+
 export interface Envelope<T = Record<string, unknown>> {
   status: number;
   success: boolean;
@@ -47,6 +59,7 @@ function loadContract(): Promise<Contract> {
   contract ??= (async () => {
     const res = await fetch(BASE_URL + "/introspect", {
       method: "POST",
+      headers: headers(),
       body: JSON.stringify({ include: ["endpoints"] }),
     });
     const { data } = (await res.json()) as {
@@ -72,7 +85,7 @@ export async function call<T = Record<string, unknown>>(
 ): Promise<Envelope<T>> {
   const res = await fetch(BASE_URL + path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as Omit<Envelope<T>, "status">;

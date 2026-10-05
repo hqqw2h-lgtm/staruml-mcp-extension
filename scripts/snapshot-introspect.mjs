@@ -31,7 +31,8 @@
  *
  *   node scripts/snapshot-introspect.mjs
  *
- * Environment: STARUML_EXT_URL (default http://localhost:58322).
+ * Environment: STARUML_EXT_URL (default http://localhost:58322),
+ * STARUML_EXT_TOKEN when StarUML requires an access token.
  */
 import { writeFileSync } from "node:fs";
 import { format } from "prettier";
@@ -39,7 +40,12 @@ import { format } from "prettier";
 const base = process.env.STARUML_EXT_URL ?? "http://localhost:58322";
 const res = await fetch(`${base}/introspect`, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    ...(process.env.STARUML_EXT_TOKEN && {
+      Authorization: `Bearer ${process.env.STARUML_EXT_TOKEN}`,
+    }),
+  },
   body: "{}",
 });
 const body = await res.json();

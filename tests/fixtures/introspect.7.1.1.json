@@ -21065,13 +21065,18 @@
       "INVALID_JSON": 400,
       "BODY_READ_FAILED": 400,
       "UNKNOWN_TYPE": 400,
+      "UNAUTHORIZED": 401,
+      "FORBIDDEN_ORIGIN": 403,
       "NOT_FOUND": 404,
       "UNKNOWN_ENDPOINT": 404,
       "METHOD_NOT_ALLOWED": 405,
       "PAYLOAD_TOO_LARGE": 413,
+      "UNSUPPORTED_MEDIA_TYPE": 415,
       "NO_PROJECT": 409,
       "STARUML_ERROR": 422,
-      "INTERNAL": 500
+      "RATE_LIMITED": 429,
+      "INTERNAL": 500,
+      "TIMEOUT": 504
     },
     "schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -21085,13 +21090,18 @@
             "INVALID_JSON",
             "BODY_READ_FAILED",
             "UNKNOWN_TYPE",
+            "UNAUTHORIZED",
+            "FORBIDDEN_ORIGIN",
             "NOT_FOUND",
             "UNKNOWN_ENDPOINT",
             "METHOD_NOT_ALLOWED",
             "PAYLOAD_TOO_LARGE",
+            "UNSUPPORTED_MEDIA_TYPE",
             "NO_PROJECT",
             "STARUML_ERROR",
-            "INTERNAL"
+            "RATE_LIMITED",
+            "INTERNAL",
+            "TIMEOUT"
           ]
         },
         "error": { "type": "string" },

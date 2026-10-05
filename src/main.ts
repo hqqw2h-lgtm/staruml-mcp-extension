@@ -24,7 +24,15 @@
 import { ExtensionHttpServer } from "./http-server.js";
 import { errorMessage } from "./errors.js";
 import { routes } from "./routes.js";
-import { maxBodyBytes, PREF } from "./settings.js";
+import { randomBytes } from "node:crypto";
+import type { LogLevel } from "./http-server.js";
+import {
+  allowedOrigins,
+  logs,
+  PREF,
+  preferencePolicy,
+  token,
+} from "./settings.js";
 import { EXTENSION_NAME, EXTENSION_VERSION } from "./version.js";
 
 /** One above StarUML's built-in API server (58321) so both can run side by side. */
@@ -49,9 +57,15 @@ export async function init(): Promise<void> {
     showServerInfo,
     "MCP Extension: Server Info",
   );
+  app.commands.register(
+    "mcp-ext:set-token",
+    setToken,
+    "MCP Extension: Generate Access Token",
+  );
 
   if (app.preferences.get(PREF_ENABLED, true) !== true) {
-    console.log(
+    log(
+      "info",
       `${LOG_PREFIX} HTTP server disabled by preference ${PREF_ENABLED}`,
     );
     return;
@@ -63,7 +77,8 @@ export async function init(): Promise<void> {
     (port as number) < 0 ||
     (port as number) > 65535
   ) {
-    console.error(
+    log(
+      "error",
       `${LOG_PREFIX} ${PREF_PORT} must be an integer in 0..65535, got ${String(port)}`,
     );
     return;
@@ -72,14 +87,14 @@ export async function init(): Promise<void> {
   const candidate = new ExtensionHttpServer({
     port: port as number,
     handlers: routes,
-    policy: { maxBodyBytes },
-    onLog: (level, msg) =>
-      level === "error" ? console.error(msg) : console.log(msg),
+    policy: preferencePolicy(),
+    onLog: log,
   });
   try {
     await candidate.start();
   } catch (err) {
-    console.error(
+    log(
+      "error",
       `${LOG_PREFIX} failed to listen on port ${String(port)}: ${errorMessage(err)}`,
     );
     return;
@@ -94,12 +109,45 @@ export async function shutdown(): Promise<void> {
   await running?.stop();
 }
 
+/** StarUML's developer console, filtered by the log level preference. */
+export function log(level: LogLevel, message: string): void {
+  if (!logs(level)) return;
+  if (level === "error") console.error(message);
+  else console.log(message);
+}
+
 export function showServerInfo(): void {
   const address = server?.address;
   const status = address
     ? `Listening on http://${address.address}:${address.port}`
     : "HTTP server is not running";
+  const origins = allowedOrigins();
+  const access = [
+    token()
+      ? "Access token: required (Authorization: Bearer <token>)"
+      : "Access token: none; any local process can call the endpoints",
+    `Allowed browser origins: ${origins.length > 0 ? origins.join(", ") : "none"}`,
+  ].join("\n");
   app.dialogs.showInfoDialog(
-    `${EXTENSION_NAME} v${EXTENSION_VERSION}\n\n${status}\n\nEndpoints:\n  ${Object.keys(routes).sort().join("\n  ")}`,
+    `${EXTENSION_NAME} v${EXTENSION_VERSION}\n\n${status}\n${access}\n\nEndpoints:\n  ${Object.keys(routes).sort().join("\n  ")}`,
   );
+}
+
+/**
+ * Stores `value` as the access token; an empty string removes it. Without
+ * an argument, as from the menu, a random token is generated and shown once
+ * so it can be copied into the MCP server's configuration.
+ */
+export function setToken(value?: unknown): string {
+  const next =
+    typeof value === "string"
+      ? value.trim()
+      : randomBytes(24).toString("base64url");
+  app.preferences.set(PREF.token, next);
+  if (value === undefined) {
+    app.dialogs.showInfoDialog(
+      `New access token:\n\n${next}\n\nClients must send 'Authorization: Bearer ${next}'. It is stored in Preferences > MCP Extension.`,
+    );
+  }
+  return next ? "set" : "cleared";
 }

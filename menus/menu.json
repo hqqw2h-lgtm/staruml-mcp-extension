@@ -11,6 +11,11 @@
               "label": "Server Info...",
               "id": "tools.mcp-ext.server-info",
               "command": "mcp-ext:server-info"
+            },
+            {
+              "label": "Generate Access Token...",
+              "id": "tools.mcp-ext.set-token",
+              "command": "mcp-ext:set-token"
             }
           ]
         }

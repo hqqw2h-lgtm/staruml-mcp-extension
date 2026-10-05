@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import recorded from "../fixtures/introspect.7.1.1.json";
-import { BASE_URL, call, describeLive } from "./support.js";
+import { BASE_URL, call, describeLive, headers } from "./support.js";
 
 // Issue #5: the catalogue and manifest the MCP server is generated from. The
 // unit-test mock is built from the recorded copy, so a difference here means
@@ -17,7 +17,9 @@ describeLive("/introspect against StarUML 7.1.1", () => {
   });
 
   it("lists the same endpoints in the manifest as on GET /", async () => {
-    const root = (await (await fetch(BASE_URL + "/")).json()) as {
+    const root = (await (
+      await fetch(BASE_URL + "/", { headers: headers() })
+    ).json()) as {
       endpoints: string[];
     };
     expect(recorded.endpoints.map((e) => e.path).sort()).toEqual(

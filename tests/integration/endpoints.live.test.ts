@@ -5,6 +5,7 @@ import {
   BASE_URL,
   call,
   describeLive,
+  headers,
   liveDir,
   type Summary,
 } from "./support.js";
@@ -35,6 +36,7 @@ describeLive("endpoints against StarUML 7.1.1", () => {
     });
     const res = await fetch(BASE_URL + "/find_elements", {
       method: "POST",
+      headers: headers(),
       body: "{",
     });
     expect(res.status).toBe(400);

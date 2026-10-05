@@ -5,8 +5,10 @@ import { ExtensionHttpServer } from "../../src/http-server.js";
 import {
   DEFAULT_PORT,
   init,
+  log,
   PREF_ENABLED,
   PREF_PORT,
+  setToken,
   showServerInfo,
   shutdown,
 } from "../../src/main.js";
@@ -65,6 +67,7 @@ describe("init", () => {
     });
     await fetch(`http://127.0.0.1:${port}/get_all_commands`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
     });
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("/get_all_commands threw"),
@@ -76,9 +79,32 @@ describe("init", () => {
     await init();
     const res = await fetch(
       `http://127.0.0.1:${boundPort()}/get_all_commands`,
-      { method: "POST", body: JSON.stringify({ pad: "x".repeat(1100) }) },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pad: "x".repeat(1100) }),
+      },
     );
     expect(res.status).toBe(413);
+  });
+
+  it("applies the access preferences to requests", async () => {
+    app.preferences.set(PREF.token, " tok ");
+    app.preferences.set(PREF.commandsPerMinute, 1);
+    await init();
+    const url = `http://127.0.0.1:${boundPort()}/execute_command`;
+    const call = (authorization: string) =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authorization,
+        },
+        body: JSON.stringify({ id: "nope" }),
+      });
+    expect((await call("Bearer nope")).status).toBe(401);
+    expect((await call("Bearer tok")).status).toBe(404);
+    expect((await call("Bearer tok")).status).toBe(429);
   });
 
   it("stays off when disabled, but keeps the command", async () => {
@@ -135,6 +161,26 @@ describe("package files", () => {
     expect(app.preferences.get(PREF_PORT)).toBe(DEFAULT_PORT);
     expect(app.preferences.get(PREF.maxBodyKiB)).toBe(DEFAULTS.maxBodyKiB);
     expect(app.preferences.get(PREF.maxBatchOps)).toBe(DEFAULTS.maxBatchOps);
+    expect(app.preferences.get(PREF.logLevel)).toBe(DEFAULTS.logLevel);
+    expect(app.preferences.get(PREF.timeoutSeconds)).toBe(
+      DEFAULTS.timeoutSeconds,
+    );
+    expect(app.preferences.get(PREF.commandsPerMinute)).toBe(
+      DEFAULTS.commandsPerMinute,
+    );
+    expect(app.preferences.get(PREF.token)).toBe("");
+    expect(app.preferences.get(PREF.allowedOrigins)).toBe("");
+  });
+
+  it("offers every log level the code knows in the dropdown", () => {
+    const item = preference.schema[PREF.logLevel] as {
+      options: { value: string }[];
+    };
+    expect(item.options.map((o) => o.value)).toEqual([
+      "error",
+      "info",
+      "debug",
+    ]);
   });
 
   it("only points menu items at commands init() registers", async () => {
@@ -155,11 +201,58 @@ describe("package files", () => {
 });
 
 describe("showServerInfo", () => {
-  it("says when the server is not running", () => {
+  it("says when the server is not running, and that no token is set", () => {
     showServerInfo();
-    expect(app.dialogs.shown[0]!.message).toContain(
-      "HTTP server is not running",
+    const { message } = app.dialogs.shown[0]!;
+    expect(message).toContain("HTTP server is not running");
+    expect(message).toContain(
+      "Access token: none; any local process can call the endpoints",
     );
+    expect(message).toContain("Allowed browser origins: none");
+  });
+
+  it("shows the access settings", () => {
+    app.preferences.set(PREF.token, "x");
+    app.preferences.set(PREF.allowedOrigins, "http://a, http://b");
+    showServerInfo();
+    const { message } = app.dialogs.shown[0]!;
+    expect(message).toContain("Access token: required");
+    expect(message).toContain("Allowed browser origins: http://a, http://b");
+  });
+});
+
+describe("mcp-ext:set-token", () => {
+  it("generates and shows a token when run from the menu", () => {
+    expect(setToken()).toBe("set");
+    const stored = app.preferences.get(PREF.token) as string;
+    expect(stored).toMatch(/^[\w-]{32}$/);
+    expect(app.dialogs.shown[0]!.message).toContain(`Bearer ${stored}`);
+  });
+
+  it("stores a given token, and clears it with an empty one, silently", () => {
+    expect(setToken(" abc ")).toBe("set");
+    expect(app.preferences.get(PREF.token)).toBe("abc");
+    expect(setToken("")).toBe("cleared");
+    expect(app.preferences.get(PREF.token)).toBe("");
+    expect(app.dialogs.shown).toEqual([]);
+  });
+
+  it("generates a token for a non-string argument", () => {
+    setToken(42);
+    expect(app.preferences.get(PREF.token)).toMatch(/^[\w-]{32}$/);
+  });
+});
+
+describe("log", () => {
+  it("filters by the log level preference", () => {
+    app.preferences.set(PREF.logLevel, "error");
+    log("info", "quiet");
+    log("error", "loud");
+    expect(console.log).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("loud");
+    app.preferences.set(PREF.logLevel, "debug");
+    log("debug", "chatty");
+    expect(console.log).toHaveBeenCalledWith("chatty");
   });
 });
 

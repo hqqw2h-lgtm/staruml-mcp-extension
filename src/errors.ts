@@ -32,18 +32,28 @@ export const ERROR_STATUS = {
   BODY_READ_FAILED: 400,
   /** A type name that is not in the metamodel or has no factory function. */
   UNKNOWN_TYPE: 400,
+  /** A bearer token is configured and the request lacks it or has another. */
+  UNAUTHORIZED: 401,
+  /** The request carries an Origin header not in mcp-ext.security.allowedOrigins. */
+  FORBIDDEN_ORIGIN: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
   METHOD_NOT_ALLOWED: 405,
   /** Body over mcp-ext.limits.maxBodyKiB, or a batch over mcp-ext.limits.maxBatchOps. */
   PAYLOAD_TOO_LARGE: 413,
+  /** A POST without Content-Type: application/json. */
+  UNSUPPORTED_MEDIA_TYPE: 415,
   /** The operation needs an open project, or a saved one. */
   NO_PROJECT: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
+  /** Over mcp-ext.limits.commandsPerMinute; Retry-After says when to retry. */
+  RATE_LIMITED: 429,
   /** A defect in this extension; details are in StarUML's developer console. */
   INTERNAL: 500,
+  /** No answer within mcp-ext.limits.timeoutSeconds; the call may still complete. */
+  TIMEOUT: 504,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_STATUS;

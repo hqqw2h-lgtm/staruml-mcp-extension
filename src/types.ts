@@ -359,6 +359,8 @@ export interface Toolbox {
 export interface PreferenceManager {
   /** Stored value, else the schema default, else `defaultValue`, else null. */
   get(key: string, defaultValue?: unknown): unknown;
+  /** Stores the value for the next get; the dialog shows it too. */
+  set(key: string, value: unknown): void;
 }
 
 /** dialogs/dialog-manager.js; docs: developing-extensions/using-dialogs */

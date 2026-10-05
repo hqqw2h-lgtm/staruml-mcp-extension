@@ -56,12 +56,15 @@ __export(main_exports, {
   PREF_ENABLED: () => PREF_ENABLED,
   PREF_PORT: () => PREF_PORT,
   init: () => init,
+  log: () => log,
+  setToken: () => setToken,
   showServerInfo: () => showServerInfo,
   shutdown: () => shutdown
 });
 module.exports = __toCommonJS(main_exports);
 
 // src/http-server.ts
+var import_node_crypto = require("node:crypto");
 var import_node_http = __toESM(require("node:http"));
 var import_node_perf_hooks = require("node:perf_hooks");
 
@@ -73,18 +76,28 @@ var ERROR_STATUS = {
   BODY_READ_FAILED: 400,
   /** A type name that is not in the metamodel or has no factory function. */
   UNKNOWN_TYPE: 400,
+  /** A bearer token is configured and the request lacks it or has another. */
+  UNAUTHORIZED: 401,
+  /** The request carries an Origin header not in mcp-ext.security.allowedOrigins. */
+  FORBIDDEN_ORIGIN: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
   METHOD_NOT_ALLOWED: 405,
   /** Body over mcp-ext.limits.maxBodyKiB, or a batch over mcp-ext.limits.maxBatchOps. */
   PAYLOAD_TOO_LARGE: 413,
+  /** A POST without Content-Type: application/json. */
+  UNSUPPORTED_MEDIA_TYPE: 415,
   /** The operation needs an open project, or a saved one. */
   NO_PROJECT: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
+  /** Over mcp-ext.limits.commandsPerMinute; Retry-After says when to retry. */
+  RATE_LIMITED: 429,
   /** A defect in this extension; details are in StarUML's developer console. */
-  INTERNAL: 500
+  INTERNAL: 500,
+  /** No answer within mcp-ext.limits.timeoutSeconds; the call may still complete. */
+  TIMEOUT: 504
 };
 var ERROR_CODES = Object.keys(ERROR_STATUS);
 var ApiError = class extends Error {
@@ -123,11 +136,35 @@ var EXTENSION_VERSION = "0.3.0";
 
 // src/http-server.ts
 var UNLIMITED = {
-  maxBodyBytes: () => Number.POSITIVE_INFINITY
+  maxBodyBytes: () => Number.POSITIVE_INFINITY,
+  token: () => "",
+  allowedOrigins: () => [],
+  timeoutMs: () => Number.POSITIVE_INFINITY,
+  throttle: () => 0
 };
-function createRequestListener(handlers, log, policy = UNLIMITED) {
+var JSON_TYPE = /^application\/json\s*(;|$)/i;
+function createRequestListener(handlers, log2, policy = UNLIMITED) {
   return async (req, res) => {
     const path = req.url.split("?")[0];
+    const received = import_node_perf_hooks.performance.now();
+    res.on(
+      "finish",
+      () => log2(
+        "debug",
+        `[${EXTENSION_NAME}] ${req.method} ${path} ${res.statusCode} ${(import_node_perf_hooks.performance.now() - received).toFixed(1)} ms`
+      )
+    );
+    const origin = req.headers.origin;
+    if (origin !== void 0 && !policy.allowedOrigins().includes(origin)) {
+      sendError(res, "FORBIDDEN_ORIGIN", `Origin ${origin} is not allowed`);
+      return;
+    }
+    const token2 = policy.token();
+    if (token2 && !bearerMatches(req.headers.authorization, token2)) {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="staruml"');
+      sendError(res, "UNAUTHORIZED", "Missing or wrong bearer token");
+      return;
+    }
     if (req.method === "GET" && path === "/") {
       sendJson(res, 200, {
         name: EXTENSION_NAME,
@@ -143,6 +180,14 @@ function createRequestListener(handlers, log, policy = UNLIMITED) {
     const handler = Object.hasOwn(handlers, path) ? handlers[path] : void 0;
     if (!handler) {
       sendError(res, "UNKNOWN_ENDPOINT", `No handler for ${path}`);
+      return;
+    }
+    if (!JSON_TYPE.test(req.headers["content-type"] ?? "")) {
+      sendError(
+        res,
+        "UNSUPPORTED_MEDIA_TYPE",
+        "Content-Type must be application/json"
+      );
       return;
     }
     let raw;
@@ -172,13 +217,30 @@ function createRequestListener(handlers, log, policy = UNLIMITED) {
       sendError(res, "INVALID_JSON", "Request body must be a JSON object");
       return;
     }
+    const retryAfter = policy.throttle(path);
+    if (retryAfter > 0) {
+      res.setHeader("Retry-After", String(retryAfter));
+      sendError(res, "RATE_LIMITED", `Too many calls to ${path}`);
+      return;
+    }
     const started = import_node_perf_hooks.performance.now();
     try {
-      const result = await handler(body);
+      const result = await withTimeout(
+        Promise.resolve(handler(body)),
+        policy.timeoutMs()
+      );
+      if (result === TIMED_OUT) {
+        sendError(
+          res,
+          "TIMEOUT",
+          `${path} did not answer within ${policy.timeoutMs()} ms; it may still complete`
+        );
+        return;
+      }
       const status = result.success ? 200 : ERROR_STATUS[result.code];
       sendJson(res, status, result, started);
     } catch (err) {
-      log(
+      log2(
         "error",
         `[${EXTENSION_NAME}] handler ${path} threw: ${stackOf(err)}`
       );
@@ -190,6 +252,21 @@ function createRequestListener(handlers, log, policy = UNLIMITED) {
       sendJson(res, 500, body2, started);
     }
   };
+}
+function bearerMatches(header, token2) {
+  const match = /^Bearer (.+)$/i.exec(header ?? "");
+  if (!match) return false;
+  const digest = (text3) => (0, import_node_crypto.createHash)("sha256").update(text3).digest();
+  return (0, import_node_crypto.timingSafeEqual)(digest(match[1]), digest(token2));
+}
+var TIMED_OUT = /* @__PURE__ */ Symbol("timed out");
+function withTimeout(promise, ms) {
+  if (!Number.isFinite(ms)) return promise;
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 var ExtensionHttpServer = class {
   server = null;
@@ -274,17 +351,17 @@ function sendError(res, code, error2) {
   sendJson(res, ERROR_STATUS[code], body);
 }
 function sendJson(res, status, body, handlerStarted) {
-  const text2 = JSON.stringify(body);
+  const text3 = JSON.stringify(body);
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(text2)
+    "Content-Length": Buffer.byteLength(text3)
   };
   if (handlerStarted !== void 0) {
     const ms = import_node_perf_hooks.performance.now() - handlerStarted;
     headers["Server-Timing"] = `handler;dur=${ms.toFixed(3)}`;
   }
   res.writeHead(status, headers);
-  res.end(text2);
+  res.end(text3);
 }
 function stackOf(err) {
   return err instanceof Error ? String(err.stack) : String(err);
@@ -3607,23 +3684,89 @@ function doc(schema, description) {
 var PREF = {
   enabled: "mcp-ext.server.enabled",
   port: "mcp-ext.server.port",
+  logLevel: "mcp-ext.server.logLevel",
+  token: "mcp-ext.token",
+  allowedOrigins: "mcp-ext.security.allowedOrigins",
   maxBodyKiB: "mcp-ext.limits.maxBodyKiB",
-  maxBatchOps: "mcp-ext.limits.maxBatchOps"
+  maxBatchOps: "mcp-ext.limits.maxBatchOps",
+  timeoutSeconds: "mcp-ext.limits.timeoutSeconds",
+  commandsPerMinute: "mcp-ext.limits.commandsPerMinute"
 };
 var DEFAULTS = {
+  logLevel: "info",
   /** Large enough for a batch of several hundred element creations. */
   maxBodyKiB: 4096,
-  maxBatchOps: 500
+  maxBatchOps: 500,
+  /** Above the 30 s export_pdf waits for pdfkit, so its own error wins. */
+  timeoutSeconds: 60,
+  commandsPerMinute: 60
 };
+var THROTTLED = ["/execute_command"];
 function positiveInt(key, fallback) {
   const value = app.preferences.get(key, fallback);
   return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+function text(key) {
+  const value = app.preferences.get(key, "");
+  return typeof value === "string" ? value.trim() : "";
 }
 function maxBodyBytes() {
   return positiveInt(PREF.maxBodyKiB, DEFAULTS.maxBodyKiB) * 1024;
 }
 function maxBatchOps() {
   return positiveInt(PREF.maxBatchOps, DEFAULTS.maxBatchOps);
+}
+function token() {
+  return text(PREF.token);
+}
+function allowedOrigins() {
+  return text(PREF.allowedOrigins).split(/[\s,]+/).filter((o) => o.length > 0);
+}
+function timeoutMs() {
+  return positiveInt(PREF.timeoutSeconds, DEFAULTS.timeoutSeconds) * 1e3;
+}
+var LEVELS = ["error", "info", "debug"];
+function logLevel() {
+  const value = app.preferences.get(PREF.logLevel, DEFAULTS.logLevel);
+  return LEVELS.includes(value) ? value : DEFAULTS.logLevel;
+}
+function logs(level) {
+  return LEVELS.indexOf(level) <= LEVELS.indexOf(logLevel());
+}
+var MINUTE_MS = 6e4;
+var RateLimiter = class {
+  constructor(limit, now = Date.now) {
+    this.limit = limit;
+    this.now = now;
+  }
+  limit;
+  now;
+  calls = /* @__PURE__ */ new Map();
+  /** Seconds to wait, or 0 after recording the call. */
+  take(path) {
+    const now = this.now();
+    const recent = (this.calls.get(path) ?? []).filter(
+      (t) => t > now - MINUTE_MS
+    );
+    if (recent.length >= this.limit()) {
+      this.calls.set(path, recent);
+      return Math.ceil((recent[0] + MINUTE_MS - now) / 1e3);
+    }
+    recent.push(now);
+    this.calls.set(path, recent);
+    return 0;
+  }
+};
+function preferencePolicy(limiter = new RateLimiter(
+  () => positiveInt(PREF.commandsPerMinute, DEFAULTS.commandsPerMinute)
+)) {
+  return {
+    maxBodyBytes,
+    token,
+    allowedOrigins,
+    timeoutMs,
+    throttle: (path) => THROTTLED.includes(path) ? limiter.take(path) : 0
+  };
 }
 
 // src/handlers/batch.ts
@@ -3657,16 +3800,16 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text2, name, path, results) {
+function lookup(text3, name, path, results) {
   const result = results.get(name);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text2}: no earlier op is named ${name}`
+      `${text3}: no earlier op is named ${name}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text2}: op ${name} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text3}: op ${name} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
@@ -3678,7 +3821,7 @@ function lookup(text2, name, path, results) {
     value = _id ?? $ref;
   }
   if (!["string", "number", "boolean"].includes(typeof value)) {
-    throw new ApiError("INVALID_ARGUMENT", `${text2} does not name a value`);
+    throw new ApiError("INVALID_ARGUMENT", `${text3} does not name a value`);
   }
   return value;
 }
@@ -3929,7 +4072,7 @@ function id(description) {
 function typeName(description) {
   return doc(string2().check(_minLength(1)), description);
 }
-function text(description) {
+function text2(description) {
   return doc(string2(), description);
 }
 function coordinate(description) {
@@ -4508,7 +4651,7 @@ var createDiagram = defineEndpoint({
       "A diagram id of app.factory.getDiagramIds(), e.g. 'UMLClassDiagram', 'UMLSequenceDiagram', 'ERDDiagram'."
     ),
     parentId: id("Owner, usually a UMLModel or UMLPackage."),
-    name: optional(text("Diagram name; StarUML generates one if omitted.")),
+    name: optional(text2("Diagram name; StarUML generates one if omitted.")),
     ...projectionShape()
   }),
   response: elementSchema(),
@@ -4797,7 +4940,7 @@ var findElements = defineEndpoint({
     type: optional(
       typeName("Metamodel class, e.g. 'UMLClass'; subtypes match too.")
     ),
-    name: optional(text("Exact element name.")),
+    name: optional(text2("Exact element name.")),
     limit: optional(
       doc(
         int().check(_gte(1), _lte(MAX_PAGE_SIZE)),
@@ -4850,7 +4993,7 @@ var createElement = defineEndpoint({
       "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
     ),
     parentId: id("Owner element id."),
-    name: optional(text("Element name; StarUML generates one if omitted.")),
+    name: optional(text2("Element name; StarUML generates one if omitted.")),
     field: optional(
       doc(
         string2().check(_minLength(1)),
@@ -5111,7 +5254,7 @@ var createElementWithView = defineEndpoint({
     containerViewId: optional(
       id("View that hosts or contains the new view.")
     ),
-    name: optional(text("Element name; StarUML generates one if omitted.")),
+    name: optional(text2("Element name; StarUML generates one if omitted.")),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     x: coordinate("Left edge in diagram coordinates, default 100."),
     y: coordinate("Top edge, default 100."),
@@ -5272,7 +5415,7 @@ var visibility = () => optional(
 var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "Default none."));
 var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
 var flag = (description) => optional(doc(boolean2(), description));
-var str = (description) => optional(text(description));
+var str = (description) => optional(text2(description));
 function pick2(input, names) {
   const out = {};
   for (const name of names) {
@@ -5322,7 +5465,7 @@ var addAttribute = defineEndpoint({
   destructive: false,
   request: object({
     ownerId: id("Classifier id."),
-    name: text("Attribute name."),
+    name: text2("Attribute name."),
     ...structuralShape(),
     ...projectionShape()
   }),
@@ -5345,7 +5488,7 @@ var PARAMETER = [
   "documentation"
 ];
 var parameterShape = () => ({
-  name: text("Parameter name."),
+  name: text2("Parameter name."),
   type: optional(
     typeValue("A type name, or {$ref: id} of a classifier in the model.")
   ),
@@ -5371,7 +5514,7 @@ var addOperation = defineEndpoint({
   destructive: false,
   request: object({
     ownerId: id("Classifier id."),
-    name: text("Operation name."),
+    name: text2("Operation name."),
     visibility: visibility(),
     isStatic: flag("Class-level operation."),
     isAbstract: flag("Abstract."),
@@ -5447,7 +5590,7 @@ var addEnumerationLiteral = defineEndpoint({
   destructive: false,
   request: object({
     enumerationId: id("UMLEnumeration id."),
-    name: text("Literal name."),
+    name: text2("Literal name."),
     documentation: str("Documentation text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
@@ -5471,7 +5614,7 @@ var addTemplateParameter = defineEndpoint({
   destructive: false,
   request: object({
     ownerId: id("Templated element id."),
-    name: text("Parameter name, e.g. 'T'."),
+    name: text2("Parameter name, e.g. 'T'."),
     parameterType: optional(
       typeValue("Kind of argument, e.g. 'class', or {$ref: id}.")
     ),
@@ -5535,7 +5678,7 @@ var addTag = defineEndpoint({
   destructive: false,
   request: object({
     elementId: id("Element to tag."),
-    name: text("Tag name."),
+    name: text2("Tag name."),
     kind: doc(
       _enum(["string", "number", "boolean", "reference", "enum"]),
       "TagKind; decides which value attribute is set."
@@ -5601,7 +5744,7 @@ var setDocumentation = defineEndpoint({
   destructive: true,
   request: object({
     elementId: id("Element id."),
-    documentation: text("Documentation; replaces the current text."),
+    documentation: text2("Documentation; replaces the current text."),
     ...projectionShape()
   }),
   response: elementSchema(),
@@ -5703,7 +5846,7 @@ var createEdgeWithView = defineEndpoint({
     ),
     tailViewId: id("View at the source end."),
     headViewId: id("View at the target end."),
-    name: optional(text("Relationship name.")),
+    name: optional(text2("Relationship name.")),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...endShape(),
     ...geometryShape(),
@@ -5787,7 +5930,7 @@ var createRelationship = defineEndpoint({
         "Without a diagram: owner list to add to; default the list typed for the relationship, e.g. 'messages' of a UMLInteraction."
       )
     ),
-    name: optional(text("Relationship name.")),
+    name: optional(text2("Relationship name.")),
     properties: properties(
       `${ATTRIBUTE_VALUES_HELP} E.g. {messageSort: "asynchCall"} for a UMLMessage, {guard: "x > 0"} for a UMLControlFlow.`
     ),
@@ -6425,8 +6568,8 @@ function writeFile(path, data) {
 }
 var PDF_WAIT_MS = 3e4;
 var PDF_POLL_MS = 50;
-async function waitForPdf(path, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
+async function waitForPdf(path, timeoutMs2) {
+  const deadline = Date.now() + timeoutMs2;
   for (; ; ) {
     if ((0, import_node_fs.existsSync)(path) && (0, import_node_fs.readFileSync)(path).subarray(-32).includes("%%EOF")) {
       return;
@@ -6434,7 +6577,7 @@ async function waitForPdf(path, timeoutMs) {
     if (Date.now() >= deadline) {
       throw new ApiError(
         "STARUML_ERROR",
-        `PDF was not completed within ${timeoutMs} ms: ${path}`
+        `PDF was not completed within ${timeoutMs2} ms: ${path}`
       );
     }
     await new Promise((resolve) => setTimeout(resolve, PDF_POLL_MS));
@@ -6692,6 +6835,7 @@ var routes = Object.fromEntries(
 );
 
 // src/main.ts
+var import_node_crypto2 = require("node:crypto");
 var DEFAULT_PORT = 58322;
 var PREF_ENABLED = PREF.enabled;
 var PREF_PORT = PREF.port;
@@ -6703,15 +6847,22 @@ async function init() {
     showServerInfo,
     "MCP Extension: Server Info"
   );
+  app.commands.register(
+    "mcp-ext:set-token",
+    setToken,
+    "MCP Extension: Generate Access Token"
+  );
   if (app.preferences.get(PREF_ENABLED, true) !== true) {
-    console.log(
+    log(
+      "info",
       `${LOG_PREFIX} HTTP server disabled by preference ${PREF_ENABLED}`
     );
     return;
   }
   const port = app.preferences.get(PREF_PORT, DEFAULT_PORT);
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    console.error(
+    log(
+      "error",
       `${LOG_PREFIX} ${PREF_PORT} must be an integer in 0..65535, got ${String(port)}`
     );
     return;
@@ -6719,13 +6870,14 @@ async function init() {
   const candidate = new ExtensionHttpServer({
     port,
     handlers: routes,
-    policy: { maxBodyBytes },
-    onLog: (level, msg) => level === "error" ? console.error(msg) : console.log(msg)
+    policy: preferencePolicy(),
+    onLog: log
   });
   try {
     await candidate.start();
   } catch (err) {
-    console.error(
+    log(
+      "error",
       `${LOG_PREFIX} failed to listen on port ${String(port)}: ${errorMessage(err)}`
     );
     return;
@@ -6737,17 +6889,42 @@ async function shutdown() {
   server = null;
   await running?.stop();
 }
+function log(level, message) {
+  if (!logs(level)) return;
+  if (level === "error") console.error(message);
+  else console.log(message);
+}
 function showServerInfo() {
   const address = server?.address;
   const status = address ? `Listening on http://${address.address}:${address.port}` : "HTTP server is not running";
+  const origins = allowedOrigins();
+  const access = [
+    token() ? "Access token: required (Authorization: Bearer <token>)" : "Access token: none; any local process can call the endpoints",
+    `Allowed browser origins: ${origins.length > 0 ? origins.join(", ") : "none"}`
+  ].join("\n");
   app.dialogs.showInfoDialog(
     `${EXTENSION_NAME} v${EXTENSION_VERSION}
 
 ${status}
+${access}
 
 Endpoints:
   ${Object.keys(routes).sort().join("\n  ")}`
   );
+}
+function setToken(value) {
+  const next = typeof value === "string" ? value.trim() : (0, import_node_crypto2.randomBytes)(24).toString("base64url");
+  app.preferences.set(PREF.token, next);
+  if (value === void 0) {
+    app.dialogs.showInfoDialog(
+      `New access token:
+
+${next}
+
+Clients must send 'Authorization: Bearer ${next}'. It is stored in Preferences > MCP Extension.`
+    );
+  }
+  return next ? "set" : "cleared";
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
@@ -6755,6 +6932,8 @@ Endpoints:
   PREF_ENABLED,
   PREF_PORT,
   init,
+  log,
+  setToken,
   showServerInfo,
   shutdown
 });

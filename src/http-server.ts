@@ -21,6 +21,7 @@
  *
  */
 
+import { createHash, timingSafeEqual } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -34,18 +35,36 @@ export type Handler = (
   body: Record<string, unknown>,
 ) => Promise<HandlerResult> | HandlerResult;
 
-export type LogLevel = "info" | "error";
+export type LogLevel = "error" | "info" | "debug";
 export type Logger = (level: LogLevel, message: string) => void;
 
-/** Request limits, read per request so a preference change applies to the next one. */
+/**
+ * Access rules and limits. Every member is called per request, so a
+ * preference change applies to the next request without a restart.
+ */
 export interface RequestPolicy {
   maxBodyBytes(): number;
+  /** Bearer token every request must carry; empty for none. */
+  token(): string;
+  /** Origin header values let through; any other Origin is refused. */
+  allowedOrigins(): readonly string[];
+  /** How long a response may take before the client gets 504. */
+  timeoutMs(): number;
+  /** Seconds until `path` may be called again, or 0 when it may be now; counts the call when it is let through. */
+  throttle(path: string): number;
 }
 
-/** No limits; for tests and embedders that enforce their own. */
+/** No access rules or limits; for tests and embedders that enforce their own. */
 export const UNLIMITED: RequestPolicy = {
   maxBodyBytes: () => Number.POSITIVE_INFINITY,
+  token: () => "",
+  allowedOrigins: () => [],
+  timeoutMs: () => Number.POSITIVE_INFINITY,
+  throttle: () => 0,
 };
+
+/** Media types a body is accepted as: JSON, with parameters such as charset. */
+const JSON_TYPE = /^application\/json\s*(;|$)/i;
 
 export interface HttpServerOptions {
   port: number;
@@ -74,6 +93,29 @@ export function createRequestListener(
   return async (req, res) => {
     // IncomingMessage.url is always set on requests produced by http.Server.
     const path = req.url!.split("?")[0]!;
+    const received = performance.now();
+    res.on("finish", () =>
+      log(
+        "debug",
+        `[${EXTENSION_NAME}] ${req.method} ${path} ${res.statusCode} ${(performance.now() - received).toFixed(1)} ms`,
+      ),
+    );
+
+    // Browsers send Origin on cross-origin requests; scripts and the MCP
+    // server do not. A page on any site could otherwise reach this loopback
+    // port (the CORS simple-request rules let a text/plain POST through).
+    const origin = req.headers.origin;
+    if (origin !== undefined && !policy.allowedOrigins().includes(origin)) {
+      sendError(res, "FORBIDDEN_ORIGIN", `Origin ${origin} is not allowed`);
+      return;
+    }
+
+    const token = policy.token();
+    if (token && !bearerMatches(req.headers.authorization, token)) {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="staruml"');
+      sendError(res, "UNAUTHORIZED", "Missing or wrong bearer token");
+      return;
+    }
 
     if (req.method === "GET" && path === "/") {
       sendJson(res, 200, {
@@ -92,6 +134,17 @@ export function createRequestListener(
     const handler = Object.hasOwn(handlers, path) ? handlers[path] : undefined;
     if (!handler) {
       sendError(res, "UNKNOWN_ENDPOINT", `No handler for ${path}`);
+      return;
+    }
+
+    // Also what makes a browser preflight a cross-origin POST, which the
+    // Origin check above then refuses.
+    if (!JSON_TYPE.test(req.headers["content-type"] ?? "")) {
+      sendError(
+        res,
+        "UNSUPPORTED_MEDIA_TYPE",
+        "Content-Type must be application/json",
+      );
       return;
     }
 
@@ -126,9 +179,27 @@ export function createRequestListener(
       return;
     }
 
+    const retryAfter = policy.throttle(path);
+    if (retryAfter > 0) {
+      res.setHeader("Retry-After", String(retryAfter));
+      sendError(res, "RATE_LIMITED", `Too many calls to ${path}`);
+      return;
+    }
+
     const started = performance.now();
     try {
-      const result = await handler(body as Record<string, unknown>);
+      const result = await withTimeout(
+        Promise.resolve(handler(body as Record<string, unknown>)),
+        policy.timeoutMs(),
+      );
+      if (result === TIMED_OUT) {
+        sendError(
+          res,
+          "TIMEOUT",
+          `${path} did not answer within ${policy.timeoutMs()} ms; it may still complete`,
+        );
+        return;
+      }
       const status = result.success ? 200 : ERROR_STATUS[result.code];
       sendJson(res, status, result, started);
     } catch (err) {
@@ -145,6 +216,36 @@ export function createRequestListener(
       sendJson(res, 500, body, started);
     }
   };
+}
+
+/**
+ * Compares digests so the comparison takes the same time whatever the
+ * token's length or how much of it matches.
+ */
+function bearerMatches(header: string | undefined, token: string): boolean {
+  const match = /^Bearer (.+)$/i.exec(header ?? "");
+  if (!match) return false;
+  const digest = (text: string) => createHash("sha256").update(text).digest();
+  return timingSafeEqual(digest(match[1]!), digest(token));
+}
+
+const TIMED_OUT = Symbol("timed out");
+
+/**
+ * Handlers run on StarUML's renderer thread and cannot be cancelled; a
+ * timeout only answers the client. It can fire while a handler awaits
+ * (file export, commands), not during synchronous work.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+): Promise<T | typeof TIMED_OUT> {
+  if (!Number.isFinite(ms)) return promise;
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 export class ExtensionHttpServer {

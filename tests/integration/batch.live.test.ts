@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { BASE_URL, call, describeLive, type Summary } from "./support.js";
+import {
+  BASE_URL,
+  call,
+  describeLive,
+  headers,
+  type Summary,
+} from "./support.js";
 
 interface Result {
   path: string;
@@ -150,7 +156,7 @@ describeLive("/batch", () => {
     expect(res).toMatchObject({ status: 413, code: "PAYLOAD_TOO_LARGE" });
     const big = await fetch(BASE_URL + "/batch", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headers(),
       body: JSON.stringify({ pad: "x".repeat(4 * 1024 * 1024 + 1) }),
     });
     expect(big.status).toBe(413);

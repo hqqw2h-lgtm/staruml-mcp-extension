@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import surface from "../fixtures/app-surface.7.1.1.json";
-import { BASE_URL, call, describeLive } from "./support.js";
+import { BASE_URL, call, describeLive, headers } from "./support.js";
 
 // Guards the unit-test mock: it is checked against this fixture, and this
 // checks the fixture against the running StarUML.
@@ -14,7 +14,7 @@ describeLive("StarUML runtime surface", () => {
   });
 
   it("answers GET / with the endpoint list", async () => {
-    const res = await fetch(BASE_URL + "/");
+    const res = await fetch(BASE_URL + "/", { headers: headers() });
     const json = (await res.json()) as { name: string; endpoints: string[] };
     expect(json.name).toBe("staruml-mcp-extension");
     expect(json.endpoints).toContain("/create_edge_with_view");

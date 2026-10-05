@@ -32,18 +32,36 @@ If you only want to curl StarUML from your own scripts, install just this extens
 
 **File → Preferences → MCP Extension** (`preferences/preference.json`):
 
-| Key                          | Default | Meaning                                        |
-| ---------------------------- | ------- | ---------------------------------------------- |
-| `mcp-ext.server.enabled`     | `true`  | Start the HTTP server when StarUML starts      |
-| `mcp-ext.server.port`        | `58322` | Loopback port; `0` lets the OS pick a free one |
-| `mcp-ext.limits.maxBodyKiB`  | `4096`  | Largest request body                           |
-| `mcp-ext.limits.maxBatchOps` | `500`   | Most ops in one `/batch`                       |
+| Key                                | Default | Meaning                                                                      |
+| ---------------------------------- | ------- | ---------------------------------------------------------------------------- |
+| `mcp-ext.server.enabled`           | `true`  | Start the HTTP server when StarUML starts                                    |
+| `mcp-ext.server.port`              | `58322` | Loopback port; `0` lets the OS pick a free one                               |
+| `mcp-ext.server.logLevel`          | `info`  | Developer console output: `error`, `info`, or `debug` (one line per request) |
+| `mcp-ext.token`                    | empty   | When set, every request needs `Authorization: Bearer <token>`                |
+| `mcp-ext.security.allowedOrigins`  | empty   | Browser origins let through, comma-separated                                 |
+| `mcp-ext.limits.maxBodyKiB`        | `4096`  | Largest request body                                                         |
+| `mcp-ext.limits.maxBatchOps`       | `500`   | Most ops in one `/batch`                                                     |
+| `mcp-ext.limits.timeoutSeconds`    | `60`    | Answer `504` to a request still waiting after this long                      |
+| `mcp-ext.limits.commandsPerMinute` | `60`    | `/execute_command` calls per minute, all clients together                    |
 
-Enabled and port take effect after a restart, the limits on the next request. **Tools → MCP Extension → Server Info...** shows the bound address and the endpoint list.
+Enabled and port take effect after a restart, the others on the next request. **Tools → MCP Extension → Server Info...** shows the bound address, whether a token is required, the allowed origins and the endpoint list; **Generate Access Token...** stores a random token and shows it once.
+
+### Access rules
+
+The server listens on 127.0.0.1 only, but any local process, and any web page through the browser, can reach a loopback port. Every request is checked in this order:
+
+1. An `Origin` header (sent by browsers, not by scripts or the MCP server) not in `allowedOrigins`: `403 FORBIDDEN_ORIGIN`.
+2. With `mcp-ext.token` set, a missing or different `Authorization: Bearer` token: `401 UNAUTHORIZED`, also for `GET /`.
+3. A `POST` without `Content-Type: application/json` (parameters such as `charset` are fine): `415 UNSUPPORTED_MEDIA_TYPE`. Browsers cannot send that type cross-origin without a preflight, which is refused.
+4. A body over `maxBodyKiB`: `413 PAYLOAD_TOO_LARGE`.
+5. `/execute_command` over `commandsPerMinute`: `429 RATE_LIMITED` with `Retry-After`.
+6. No answer within `timeoutSeconds`: `504 TIMEOUT`. Handlers run on StarUML's UI thread and cannot be cancelled, so the call may still complete; only waits (exports, commands) can time out.
+
+Clients pass the token as a header, e.g. `curl -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d '{}' localhost:58322/get_project_info`. The live tests, load test and `snapshot:introspect` read it from `STARUML_EXT_TOKEN`.
 
 ## Endpoints
 
-All `POST` + JSON body. Base URL: `http://localhost:58322`; `GET /` lists the endpoints.
+All `POST` with `Content-Type: application/json` and a JSON object body. Base URL: `http://localhost:58322`; `GET /` lists the endpoints.
 
 | Group         | Endpoints                                                                                                                                                                     |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
