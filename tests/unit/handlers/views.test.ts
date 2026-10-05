@@ -54,7 +54,7 @@ describe("/layout_diagram", () => {
     expect(data).toEqual({ _id: env.mainDiagram._id, direction: "TB" });
     expect(view(a.view._id).top).toBe(20);
     expect(view(b.view._id).top).toBe(120);
-    expect(env.app.repository.undoStack).toHaveLength(1);
+    expect(env.app.repository._undoStack.size()).toBe(1);
   });
 
   it("opens the named diagram and passes direction, separations and edge style", async () => {
@@ -227,7 +227,7 @@ describe("/set_view_style", () => {
       stereotypeDisplay: "icon",
       autoResize: true,
     });
-    expect(env.app.repository.undoStack).toHaveLength(7);
+    expect(env.app.repository._undoStack.size()).toBe(7);
   });
 
   it("maps line style names to EdgeView.LS_*", async () => {

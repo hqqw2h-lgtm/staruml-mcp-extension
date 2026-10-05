@@ -30,13 +30,23 @@
  * Replaces the open project with a fresh one seeded with SEED classes, then
  * fires read-only requests at a fixed concurrency: summaries, full and
  * field-projected elements, owned elements expanded one level, paged
- * find_elements, and /introspect sections. Exits non-zero on any
- * transport error or non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or
- * when any single handler held the renderer thread longer than
- * HANDLER_BUDGET_MS (taken from the Server-Timing header the server sets).
+ * find_elements, /introspect sections and a read-only /batch of five
+ * lookups. Exits non-zero on any transport error or non-2xx answer, when
+ * client p99 exceeds P99_BUDGET_MS, or when any single handler held the
+ * renderer thread longer than HANDLER_BUDGET_MS (taken from the
+ * Server-Timing header the server sets).
+ *
+ * A second, sequential phase sends WRITE_BATCHES /batch requests that each
+ * create a class with an attribute and an operation, alternating atomic and
+ * non-atomic. StarUML's own cost per created element grows with the model
+ * (the explorer and diagrams update on every operation), so writes get no
+ * absolute budget; what is checked is the atomic batch's overhead, the ratio
+ * of its median handler time to the non-atomic one, against
+ * ATOMIC_OVERHEAD_BUDGET.
  *
  * Environment: STARUML_EXT_URL (default http://localhost:58322),
- * P99_BUDGET_MS (default 250), HANDLER_BUDGET_MS (default 50), SEED (default 200).
+ * P99_BUDGET_MS (default 250), HANDLER_BUDGET_MS (default 50), SEED (default
+ * 200), WRITE_BATCHES (default 200), ATOMIC_OVERHEAD_BUDGET (default 1.25).
  */
 import http from "node:http";
 import { performance } from "node:perf_hooks";
@@ -54,6 +64,10 @@ const BASE = new URL(process.env.STARUML_EXT_URL ?? "http://localhost:58322");
 const P99_BUDGET_MS = Number(process.env.P99_BUDGET_MS ?? 250);
 const HANDLER_BUDGET_MS = Number(process.env.HANDLER_BUDGET_MS ?? 50);
 const SEED = Number(process.env.SEED ?? 200);
+const WRITE_BATCHES = Number(process.env.WRITE_BATCHES ?? 200);
+const ATOMIC_OVERHEAD_BUDGET = Number(
+  process.env.ATOMIC_OVERHEAD_BUDGET ?? 1.25,
+);
 
 const agent = new http.Agent({ keepAlive: true, maxSockets: CONCURRENCY });
 
@@ -123,6 +137,45 @@ function percentile(sorted, p) {
   ];
 }
 
+async function writePhase(modelId, errors) {
+  const times = { true: [], false: [] };
+  for (let i = 0; i < WRITE_BATCHES; i++) {
+    const atomic = i % 2 === 0;
+    const res = await post("/batch", {
+      atomic,
+      ops: [
+        {
+          path: "/create_element",
+          as: "c",
+          body: { type: "UMLClass", parentId: modelId, name: `W${i}` },
+        },
+        { path: "/add_attribute", body: { ownerId: "$c", name: "id" } },
+        { path: "/add_operation", body: { ownerId: "$c", name: "run" } },
+      ],
+    });
+    times[atomic].push(res.handlerMs);
+    if (res.status !== 200 || res.json?.data?.failed !== 0) {
+      errors.push(`/batch write -> ${res.status} ${JSON.stringify(res.json)}`);
+    }
+  }
+  const stats = (list) => {
+    list.sort((a, b) => a - b);
+    return {
+      p50: +percentile(list, 50).toFixed(3),
+      p99: +percentile(list, 99).toFixed(3),
+    };
+  };
+  const atomic = stats(times.true);
+  const separate = stats(times.false);
+  return {
+    batches: WRITE_BATCHES,
+    opsPerBatch: 3,
+    atomicHandlerMs: atomic,
+    nonAtomicHandlerMs: separate,
+    atomicOverhead: +(atomic.p50 / separate.p50).toFixed(3),
+  };
+}
+
 async function main() {
   const ids = await seed();
   const [modelId, ...classIds] = ids;
@@ -153,10 +206,21 @@ async function main() {
       },
     ],
     () => ["/introspect", { include: ["factory", "toolbox"] }],
+    (i) => [
+      "/batch",
+      {
+        atomic: false,
+        ops: Array.from({ length: 5 }, (_, k) => ({
+          path: "/get_element_by_id",
+          body: { id: classIds[(i + k) % classIds.length] },
+        })),
+      },
+    ],
   ];
 
   const latencies = [];
   const handlerTimes = [];
+  const byPath = new Map();
   const errors = [];
   let next = 0;
 
@@ -167,6 +231,8 @@ async function main() {
         const res = await post(path, body);
         latencies.push(res.ms);
         handlerTimes.push(res.handlerMs);
+        if (!byPath.has(path)) byPath.set(path, []);
+        byPath.get(path).push(res.handlerMs);
         if (res.status !== 200 || !res.json?.success) {
           errors.push(`${path} -> ${res.status} ${JSON.stringify(res.json)}`);
         }
@@ -179,6 +245,7 @@ async function main() {
   const started = performance.now();
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   const elapsed = (performance.now() - started) / 1000;
+  const writes = await writePhase(modelId, errors);
   agent.destroy();
   await post("/new_project", {}).catch(() => {});
 
@@ -200,7 +267,21 @@ async function main() {
       p99: +percentile(handlerTimes, 99).toFixed(3),
       max: +handlerTimes.at(-1).toFixed(3),
     },
-    budgets: { p99Ms: P99_BUDGET_MS, handlerMaxMs: HANDLER_BUDGET_MS },
+    handlerP99MsByPath: Object.fromEntries(
+      [...byPath].map(([path, times]) => [
+        path,
+        +percentile(
+          times.sort((a, b) => a - b),
+          99,
+        ).toFixed(3),
+      ]),
+    ),
+    writes,
+    budgets: {
+      p99Ms: P99_BUDGET_MS,
+      handlerMaxMs: HANDLER_BUDGET_MS,
+      atomicOverhead: ATOMIC_OVERHEAD_BUDGET,
+    },
   };
   console.log(JSON.stringify(report, null, 2));
 
@@ -211,6 +292,9 @@ async function main() {
     failures.push(`p99 ${report.clientMs.p99} ms`);
   if (!(report.handlerMs.max <= HANDLER_BUDGET_MS)) {
     failures.push(`handler max ${report.handlerMs.max} ms`);
+  }
+  if (!(writes.atomicOverhead <= ATOMIC_OVERHEAD_BUDGET)) {
+    failures.push(`atomic overhead ${writes.atomicOverhead}`);
   }
   if (failures.length > 0) {
     console.error(`FAIL: ${failures.join("; ")}`);

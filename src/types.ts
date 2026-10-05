@@ -119,6 +119,9 @@ export interface Repository {
   undo(): void;
   redo(): void;
   isModified(): boolean;
+  /** Repository is an EventEmitter; "operationExecuted" follows each recorded operation, undo and redo. */
+  on(event: string, listener: (operation: Operation) => void): unknown;
+  off(event: string, listener: (operation: Operation) => void): unknown;
 }
 
 /** core/repository.js OperationBuilder._getBase plus the recorded ops. */

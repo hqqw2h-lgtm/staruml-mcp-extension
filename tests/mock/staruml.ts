@@ -30,6 +30,7 @@
  * - engine.deleteElements cascades to children, relationships and views;
  * - commands.execute returns false for an unknown id.
  */
+import { EventEmitter } from "node:events";
 import introspect from "../fixtures/introspect.7.1.1.json";
 
 export interface MetaAttribute {
@@ -249,7 +250,25 @@ export class MetamodelManager {
 }
 stub(MetamodelManager, ["assert", "register", "validateMetaType"]);
 
-export class Repository {
+/** core/repository.js's Stack, the undo and redo history. */
+class Stack<T> {
+  items: T[] = [];
+  push(item: T): void {
+    this.items.push(item);
+  }
+  pop(): T | undefined {
+    return this.items.pop();
+  }
+  size(): number {
+    return this.items.length;
+  }
+  clear(): void {
+    this.items = [];
+  }
+}
+
+/** core/repository.js extends EventEmitter; only operationExecuted is emitted here. */
+export class Repository extends EventEmitter {
   _idMap: Record<string, MockElement> = {};
   _modified = false;
 
@@ -340,8 +359,8 @@ export class Repository {
   getOperationBuilder(): OperationBuilder {
     return new OperationBuilder();
   }
-  undoStack: Operation[] = [];
-  redoStack: Operation[] = [];
+  _undoStack = new Stack<Operation>();
+  _redoStack = new Stack<Operation>();
   /**
    * Field assignments and reorders are recorded and undoable, as in
    * core/repository.js; element creation and deletion are modelled directly
@@ -351,24 +370,27 @@ export class Repository {
     if (operation.ops.length === 0) return;
     applyOps(operation);
     if (operation.bypass !== true) {
-      this.undoStack.push(operation);
-      this.redoStack = [];
+      this._undoStack.push(operation);
+      this._redoStack.clear();
+      this.emit("operationExecuted", operation);
     }
     this.setModified(true);
   }
   undo(): void {
-    const operation = this.undoStack.pop();
+    const operation = this._undoStack.pop();
     if (!operation) return;
     for (const op of [...operation.ops].reverse()) op.revert!();
-    this.redoStack.push(operation);
+    this._redoStack.push(operation);
     this.setModified(true);
+    this.emit("operationExecuted", operation);
   }
   redo(): void {
-    const operation = this.redoStack.pop();
+    const operation = this._redoStack.pop();
     if (!operation) return;
     applyOps(operation);
-    this.undoStack.push(operation);
+    this._undoStack.push(operation);
     this.setModified(true);
+    this.emit("operationExecuted", operation);
   }
 
   /** Test helper, not on the real prototype: registers an element and its subtree. */

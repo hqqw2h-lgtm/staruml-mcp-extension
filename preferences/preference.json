@@ -17,6 +17,22 @@
       "description": "Loopback port the HTTP server listens on. Takes effect after a restart.",
       "type": "number",
       "default": 58322
+    },
+    "mcp-ext.limits": {
+      "text": "Limits",
+      "type": "section"
+    },
+    "mcp-ext.limits.maxBodyKiB": {
+      "text": "Max Request Body (KiB)",
+      "description": "Largest request body accepted, in KiB; larger requests get 413. Applies to the next request.",
+      "type": "number",
+      "default": 4096
+    },
+    "mcp-ext.limits.maxBatchOps": {
+      "text": "Max Batch Ops",
+      "description": "Most ops one /batch request may carry; more get 413. Applies to the next request.",
+      "type": "number",
+      "default": 500
     }
   }
 }

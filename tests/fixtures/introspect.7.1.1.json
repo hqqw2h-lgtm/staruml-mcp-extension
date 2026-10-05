@@ -20426,6 +20426,89 @@
       }
     },
     {
+      "path": "/batch",
+      "description": "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each.",
+      "readOnly": false,
+      "destructive": true,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ops": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^\\/",
+                  "description": "Endpoint path, e.g. '/create_element_with_view'."
+                },
+                "body": {
+                  "type": "object",
+                  "propertyNames": { "type": "string" },
+                  "additionalProperties": {},
+                  "description": "The endpoint's request body. Strings '$name' and '$name.field' are replaced by ids from earlier results."
+                },
+                "as": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][\\w-]*$",
+                  "description": "Name later ops use to refer to this op's result."
+                }
+              },
+              "required": ["path"]
+            },
+            "description": "Calls in order. The limit is the mcp-ext.limits.maxBatchOps preference, default 500."
+          },
+          "atomic": {
+            "type": "boolean",
+            "description": "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf and /export_html."
+          }
+        },
+        "required": ["ops"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "atomic": { "type": "boolean" },
+          "succeeded": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Ops that succeeded."
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Ops that failed; always 0 for an atomic batch."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "string" },
+                "as": { "type": "string" },
+                "success": { "type": "boolean" },
+                "data": { "description": "The op's response data." },
+                "code": { "type": "string" },
+                "error": { "type": "string" },
+                "details": {}
+              },
+              "required": ["path", "success"],
+              "additionalProperties": false
+            },
+            "description": "One entry per op, in order: the op's data, or its error code and message."
+          }
+        },
+        "required": ["atomic", "succeeded", "failed", "results"],
+        "additionalProperties": false
+      }
+    },
+    {
       "path": "/introspect",
       "description": "StarUML and extension versions, factory ids, the metamodel catalogue, the diagram editor's toolbox, and this endpoint manifest with JSON Schemas.",
       "readOnly": true,
@@ -20985,6 +21068,7 @@
       "NOT_FOUND": 404,
       "UNKNOWN_ENDPOINT": 404,
       "METHOD_NOT_ALLOWED": 405,
+      "PAYLOAD_TOO_LARGE": 413,
       "NO_PROJECT": 409,
       "STARUML_ERROR": 422,
       "INTERNAL": 500
@@ -21004,6 +21088,7 @@
             "NOT_FOUND",
             "UNKNOWN_ENDPOINT",
             "METHOD_NOT_ALLOWED",
+            "PAYLOAD_TOO_LARGE",
             "NO_PROJECT",
             "STARUML_ERROR",
             "INTERNAL"

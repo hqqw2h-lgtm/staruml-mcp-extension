@@ -37,11 +37,22 @@ export type Handler = (
 export type LogLevel = "info" | "error";
 export type Logger = (level: LogLevel, message: string) => void;
 
+/** Request limits, read per request so a preference change applies to the next one. */
+export interface RequestPolicy {
+  maxBodyBytes(): number;
+}
+
+/** No limits; for tests and embedders that enforce their own. */
+export const UNLIMITED: RequestPolicy = {
+  maxBodyBytes: () => Number.POSITIVE_INFINITY,
+};
+
 export interface HttpServerOptions {
   port: number;
   host?: string;
   handlers: Readonly<Record<string, Handler>>;
   onLog?: Logger;
+  policy?: RequestPolicy;
 }
 
 type RequestListener = (
@@ -58,6 +69,7 @@ type RequestListener = (
 export function createRequestListener(
   handlers: Readonly<Record<string, Handler>>,
   log: Logger,
+  policy: RequestPolicy = UNLIMITED,
 ): RequestListener {
   return async (req, res) => {
     // IncomingMessage.url is always set on requests produced by http.Server.
@@ -85,8 +97,15 @@ export function createRequestListener(
 
     let raw: string;
     try {
-      raw = await readBody(req);
+      raw = await readBody(req, policy.maxBodyBytes());
     } catch (err) {
+      if (err instanceof BodyTooLarge) {
+        // The rest of the body is drained, not read; closing keeps the
+        // client from reusing a connection with unread bytes on it.
+        res.setHeader("Connection", "close");
+        sendError(res, "PAYLOAD_TOO_LARGE", err.message);
+        return;
+      }
       sendError(
         res,
         "BODY_READ_FAILED",
@@ -140,7 +159,11 @@ export class ExtensionHttpServer {
     // Loopback only: the endpoints mutate the open model and are unauthenticated.
     this.host = options.host ?? "127.0.0.1";
     this.log = options.onLog ?? (() => {});
-    this.listener = createRequestListener(options.handlers, this.log);
+    this.listener = createRequestListener(
+      options.handlers,
+      this.log,
+      options.policy,
+    );
   }
 
   /** Bound port, which differs from the configured one when that was 0. */
@@ -175,14 +198,37 @@ export class ExtensionHttpServer {
   }
 }
 
-function readBody(req: IncomingMessage): Promise<string> {
+export class BodyTooLarge extends Error {
+  constructor(limit: number) {
+    super(
+      `Request body exceeds ${limit} bytes (preference mcp-ext.limits.maxBodyKiB)`,
+    );
+  }
+}
+
+/** Counts bytes, not characters, so the limit means the same for any text. */
+function readBody(req: IncomingMessage, limit: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    let data = "";
-    req.setEncoding("utf-8");
-    req.on("data", (chunk: string) => {
-      data += chunk;
-    });
-    req.on("end", () => resolve(data));
+    const declared = Number(req.headers["content-length"]);
+    if (declared > limit) {
+      req.resume();
+      reject(new BodyTooLarge(limit));
+      return;
+    }
+    const chunks: Buffer[] = [];
+    let size = 0;
+    const onData = (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > limit) {
+        req.off("data", onData);
+        req.resume();
+        reject(new BodyTooLarge(limit));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    req.on("data", onData);
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     req.on("error", reject);
   });
 }

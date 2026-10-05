@@ -24,14 +24,14 @@
 import { ExtensionHttpServer } from "./http-server.js";
 import { errorMessage } from "./errors.js";
 import { routes } from "./routes.js";
+import { maxBodyBytes, PREF } from "./settings.js";
 import { EXTENSION_NAME, EXTENSION_VERSION } from "./version.js";
 
 /** One above StarUML's built-in API server (58321) so both can run side by side. */
 export const DEFAULT_PORT = 58322;
 
-/** Keys declared in preferences/preference.json, which StarUML registers before init(). */
-export const PREF_ENABLED = "mcp-ext.server.enabled";
-export const PREF_PORT = "mcp-ext.server.port";
+export const PREF_ENABLED = PREF.enabled;
+export const PREF_PORT = PREF.port;
 
 const LOG_PREFIX = `[${EXTENSION_NAME}]`;
 
@@ -72,6 +72,7 @@ export async function init(): Promise<void> {
   const candidate = new ExtensionHttpServer({
     port: port as number,
     handlers: routes,
+    policy: { maxBodyBytes },
     onLog: (level, msg) =>
       level === "error" ? console.error(msg) : console.log(msg),
   });

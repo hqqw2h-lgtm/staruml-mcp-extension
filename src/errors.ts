@@ -36,6 +36,8 @@ export const ERROR_STATUS = {
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
   METHOD_NOT_ALLOWED: 405,
+  /** Body over mcp-ext.limits.maxBodyKiB, or a batch over mcp-ext.limits.maxBatchOps. */
+  PAYLOAD_TOO_LARGE: 413,
   /** The operation needs an open project, or a saved one. */
   NO_PROJECT: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */

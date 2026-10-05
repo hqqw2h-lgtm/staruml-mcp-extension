@@ -1,3 +1,4 @@
+import http from "node:http";
 import { PassThrough } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -24,8 +25,15 @@ let server: ExtensionHttpServer | null = null;
 let base = "";
 const log = vi.fn();
 
-async function start(): Promise<void> {
-  server = new ExtensionHttpServer({ port: 0, handlers, onLog: log });
+async function start(maxBodyBytes?: number): Promise<void> {
+  server = new ExtensionHttpServer({
+    port: 0,
+    handlers,
+    onLog: log,
+    ...(maxBodyBytes !== undefined && {
+      policy: { maxBodyBytes: () => maxBodyBytes },
+    }),
+  });
   await server.start();
   base = `http://127.0.0.1:${server.address!.port}`;
 }
@@ -174,12 +182,53 @@ describe("ExtensionHttpServer", () => {
   });
 });
 
+describe("body size limit", () => {
+  it("accepts a body at the limit", async () => {
+    await start(9);
+    const res = await post("/ok", '{"a":"b"}');
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a declared length over the limit before reading it", async () => {
+    await start(8);
+    const res = await post("/ok", '{"a":"bc"}');
+    expect(res.status).toBe(413);
+    expect(res.headers.get("connection")).toBe("close");
+    expect(await res.json()).toEqual({
+      success: false,
+      code: "PAYLOAD_TOO_LARGE",
+      error:
+        "Request body exceeds 8 bytes (preference mcp-ext.limits.maxBodyKiB)",
+    });
+  });
+
+  it("counts the bytes of a chunked body", async () => {
+    await start(8);
+    const { port } = server!.address!;
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request(
+        { port, path: "/ok", method: "POST", host: "127.0.0.1" },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode!);
+        },
+      );
+      req.on("error", reject);
+      req.write('{"a":');
+      req.write('"0123456789"}');
+      req.end();
+    });
+    expect(status).toBe(413);
+  });
+});
+
 describe("createRequestListener", () => {
   it("answers 400 when the request body stream errors", async () => {
     const listener = createRequestListener(handlers, () => {});
     const req = Object.assign(new PassThrough(), {
       method: "POST",
       url: "/ok",
+      headers: {},
     });
     const res = { writeHead: vi.fn(), end: vi.fn() };
     const done = listener(

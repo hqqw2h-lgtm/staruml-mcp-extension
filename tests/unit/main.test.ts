@@ -10,6 +10,7 @@ import {
   showServerInfo,
   shutdown,
 } from "../../src/main.js";
+import { DEFAULTS, PREF } from "../../src/settings.js";
 import { installMockApp, type MockApp } from "../mock/staruml.js";
 
 let app: MockApp;
@@ -57,13 +58,27 @@ describe("init", () => {
   it("routes server errors to console.error", async () => {
     await init();
     const port = boundPort();
-    delete (globalThis as { app?: unknown }).app;
+    Object.defineProperty(app.commands, "commands", {
+      get() {
+        throw new Error("registry gone");
+      },
+    });
     await fetch(`http://127.0.0.1:${port}/get_all_commands`, {
       method: "POST",
     });
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("/get_all_commands threw"),
     );
+  });
+
+  it("enforces the body size preference", async () => {
+    app.preferences.set(PREF.maxBodyKiB, 1);
+    await init();
+    const res = await fetch(
+      `http://127.0.0.1:${boundPort()}/get_all_commands`,
+      { method: "POST", body: JSON.stringify({ pad: "x".repeat(1100) }) },
+    );
+    expect(res.status).toBe(413);
   });
 
   it("stays off when disabled, but keeps the command", async () => {
@@ -118,6 +133,8 @@ describe("package files", () => {
     expect(app.preferences.get(PREF_ENABLED)).toBe(true);
     app.preferences.stored.clear();
     expect(app.preferences.get(PREF_PORT)).toBe(DEFAULT_PORT);
+    expect(app.preferences.get(PREF.maxBodyKiB)).toBe(DEFAULTS.maxBodyKiB);
+    expect(app.preferences.get(PREF.maxBatchOps)).toBe(DEFAULTS.maxBatchOps);
   });
 
   it("only points menu items at commands init() registers", async () => {

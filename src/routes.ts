@@ -22,6 +22,7 @@
  */
 
 import type { Endpoint } from "./endpoint.js";
+import { batchEndpoint } from "./handlers/batch.js";
 import { executeCommand, getAllCommands } from "./handlers/commands.js";
 import { debug } from "./handlers/debug.js";
 import { introspectEndpoint } from "./handlers/introspect.js";
@@ -142,6 +143,8 @@ export const endpoints: readonly Endpoint[] = [
   undo,
   redo,
   isModified,
+
+  batchEndpoint(() => endpoints),
 
   introspectEndpoint(() => endpoints),
   debug,

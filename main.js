@@ -77,6 +77,8 @@ var ERROR_STATUS = {
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
   METHOD_NOT_ALLOWED: 405,
+  /** Body over mcp-ext.limits.maxBodyKiB, or a batch over mcp-ext.limits.maxBatchOps. */
+  PAYLOAD_TOO_LARGE: 413,
   /** The operation needs an open project, or a saved one. */
   NO_PROJECT: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
@@ -120,7 +122,10 @@ var EXTENSION_NAME = "staruml-mcp-extension";
 var EXTENSION_VERSION = "0.3.0";
 
 // src/http-server.ts
-function createRequestListener(handlers, log) {
+var UNLIMITED = {
+  maxBodyBytes: () => Number.POSITIVE_INFINITY
+};
+function createRequestListener(handlers, log, policy = UNLIMITED) {
   return async (req, res) => {
     const path = req.url.split("?")[0];
     if (req.method === "GET" && path === "/") {
@@ -142,8 +147,13 @@ function createRequestListener(handlers, log) {
     }
     let raw;
     try {
-      raw = await readBody(req);
+      raw = await readBody(req, policy.maxBodyBytes());
     } catch (err) {
+      if (err instanceof BodyTooLarge) {
+        res.setHeader("Connection", "close");
+        sendError(res, "PAYLOAD_TOO_LARGE", err.message);
+        return;
+      }
       sendError(
         res,
         "BODY_READ_FAILED",
@@ -192,7 +202,11 @@ var ExtensionHttpServer = class {
     this.host = options.host ?? "127.0.0.1";
     this.log = options.onLog ?? (() => {
     });
-    this.listener = createRequestListener(options.handlers, this.log);
+    this.listener = createRequestListener(
+      options.handlers,
+      this.log,
+      options.policy
+    );
   }
   /** Bound port, which differs from the configured one when that was 0. */
   get address() {
@@ -223,14 +237,35 @@ var ExtensionHttpServer = class {
     return new Promise((resolve) => server2.close(() => resolve()));
   }
 };
-function readBody(req) {
+var BodyTooLarge = class extends Error {
+  constructor(limit) {
+    super(
+      `Request body exceeds ${limit} bytes (preference mcp-ext.limits.maxBodyKiB)`
+    );
+  }
+};
+function readBody(req, limit) {
   return new Promise((resolve, reject) => {
-    let data = "";
-    req.setEncoding("utf-8");
-    req.on("data", (chunk) => {
-      data += chunk;
-    });
-    req.on("end", () => resolve(data));
+    const declared = Number(req.headers["content-length"]);
+    if (declared > limit) {
+      req.resume();
+      reject(new BodyTooLarge(limit));
+      return;
+    }
+    const chunks = [];
+    let size = 0;
+    const onData = (chunk) => {
+      size += chunk.length;
+      if (size > limit) {
+        req.off("data", onData);
+        req.resume();
+        reject(new BodyTooLarge(limit));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    req.on("data", onData);
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     req.on("error", reject);
   });
 }
@@ -3568,6 +3603,250 @@ function doc(schema, description) {
   return schema;
 }
 
+// src/settings.ts
+var PREF = {
+  enabled: "mcp-ext.server.enabled",
+  port: "mcp-ext.server.port",
+  maxBodyKiB: "mcp-ext.limits.maxBodyKiB",
+  maxBatchOps: "mcp-ext.limits.maxBatchOps"
+};
+var DEFAULTS = {
+  /** Large enough for a batch of several hundred element creations. */
+  maxBodyKiB: 4096,
+  maxBatchOps: 500
+};
+function positiveInt(key, fallback) {
+  const value = app.preferences.get(key, fallback);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+function maxBodyBytes() {
+  return positiveInt(PREF.maxBodyKiB, DEFAULTS.maxBodyKiB) * 1024;
+}
+function maxBatchOps() {
+  return positiveInt(PREF.maxBatchOps, DEFAULTS.maxBatchOps);
+}
+
+// src/handlers/batch.ts
+var NOT_ATOMIC = /* @__PURE__ */ new Set([
+  "/batch",
+  "/undo",
+  "/redo",
+  "/new_project",
+  "/open_project",
+  "/save_project",
+  "/save_project_as",
+  "/execute_command",
+  "/export_pdf",
+  "/export_html"
+]);
+var NAME = /^[A-Za-z_][\w-]*$/;
+var REFERENCE = /^\$([A-Za-z_][\w-]*)((?:\.[A-Za-z_$][\w$]*)*)$/;
+function resolveReferences(value, results) {
+  if (typeof value === "string") {
+    if (value.startsWith("$$")) return value.slice(1);
+    const match = REFERENCE.exec(value);
+    return match ? lookup(value, match[1], match[2], results) : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => resolveReferences(v, results));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, resolveReferences(v, results)])
+    );
+  }
+  return value;
+}
+function lookup(text2, name, path, results) {
+  const result = results.get(name);
+  if (!result) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${text2}: no earlier op is named ${name}`
+    );
+  }
+  if (!result.success) {
+    throw new ApiError("INVALID_ARGUMENT", `${text2}: op ${name} failed`);
+  }
+  let value = result.data;
+  for (const segment of path.split(".").slice(1)) {
+    const key = segment === "id" ? "_id" : segment;
+    value = value !== null && typeof value === "object" ? value[key] : void 0;
+  }
+  if (value !== null && typeof value === "object") {
+    const { _id, $ref } = value;
+    value = _id ?? $ref;
+  }
+  if (!["string", "number", "boolean"].includes(typeof value)) {
+    throw new ApiError("INVALID_ARGUMENT", `${text2} does not name a value`);
+  }
+  return value;
+}
+var opSchema = () => object({
+  path: doc(
+    string2().check(_regex(/^\//)),
+    "Endpoint path, e.g. '/create_element_with_view'."
+  ),
+  body: optional(
+    doc(
+      record(string2(), unknown()),
+      "The endpoint's request body. Strings '$name' and '$name.field' are replaced by ids from earlier results."
+    )
+  ),
+  as: optional(
+    doc(
+      string2().check(_regex(NAME)),
+      "Name later ops use to refer to this op's result."
+    )
+  )
+});
+var resultSchema = () => object({
+  path: string2(),
+  as: optional(string2()),
+  success: boolean2(),
+  data: optional(doc(unknown(), "The op's response data.")),
+  code: optional(string2()),
+  error: optional(string2()),
+  details: optional(unknown())
+});
+function checkPlan(ops, endpoints2, atomic) {
+  const max = maxBatchOps();
+  if (ops.length > max) {
+    throw new ApiError(
+      "PAYLOAD_TOO_LARGE",
+      `A batch takes at most ${max} ops (preference mcp-ext.limits.maxBatchOps); got ${ops.length}`
+    );
+  }
+  const names = /* @__PURE__ */ new Set();
+  ops.forEach((op, i) => {
+    if (!endpoints2.has(op.path)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `ops.${i}.path: no endpoint ${op.path}`
+      );
+    }
+    if (op.path === "/batch" || atomic && NOT_ATOMIC.has(op.path)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `ops.${i}.path: ${op.path} cannot run in ${atomic ? "an atomic" : "a"} batch`
+      );
+    }
+    if (op.as !== void 0) {
+      if (names.has(op.as)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `ops.${i}.as: ${op.as} is used twice`
+        );
+      }
+      names.add(op.as);
+    }
+  });
+}
+async function runOp(op, endpoint, results) {
+  let outcome;
+  try {
+    const body = resolveReferences(op.body ?? {}, results);
+    outcome = await endpoint.handler(body);
+  } catch (err) {
+    outcome = err instanceof ApiError ? err.toBody() : { success: false, code: "INTERNAL", error: String(err) };
+  }
+  if (op.as !== void 0) results.set(op.as, outcome);
+  return {
+    path: op.path,
+    ...op.as !== void 0 && { as: op.as },
+    ...outcome
+  };
+}
+async function recording(run) {
+  const operations = [];
+  const listener = (operation) => operations.push(operation);
+  app.repository.on("operationExecuted", listener);
+  try {
+    return { value: await run(), operations };
+  } finally {
+    app.repository.off("operationExecuted", listener);
+  }
+}
+var history = () => app.repository;
+function squash(operations) {
+  const builder = app.repository.getOperationBuilder();
+  builder.begin("batch");
+  builder.end();
+  const merged = builder.getOperation();
+  merged.ops = operations.flatMap((o) => o.ops);
+  const { _undoStack } = history();
+  for (let i = 0; i < operations.length; i++) _undoStack.pop();
+  _undoStack.push(merged);
+}
+function rollBack(operations) {
+  for (let i = 0; i < operations.length; i++) app.repository.undo();
+  history()._redoStack.clear();
+}
+function batchEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/batch",
+    description: "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each.",
+    readOnly: false,
+    destructive: true,
+    request: object({
+      ops: doc(
+        array(opSchema()).check(_minLength(1)),
+        "Calls in order. The limit is the mcp-ext.limits.maxBatchOps preference, default 500."
+      ),
+      atomic: optional(
+        doc(
+          boolean2(),
+          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf and /export_html."
+        )
+      )
+    }),
+    response: object({
+      atomic: boolean2(),
+      succeeded: doc(int(), "Ops that succeeded."),
+      failed: doc(int(), "Ops that failed; always 0 for an atomic batch."),
+      results: doc(
+        array(resultSchema()),
+        "One entry per op, in order: the op's data, or its error code and message."
+      )
+    }),
+    handle: async (input) => {
+      const atomic = input.atomic ?? true;
+      const byPath = new Map(
+        endpoints2().map((e) => [e.path, e])
+      );
+      checkPlan(input.ops, byPath, atomic);
+      const resultsByName = /* @__PURE__ */ new Map();
+      const { value: results, operations } = await recording(async () => {
+        const out = [];
+        for (const op of input.ops) {
+          const result = await runOp(op, byPath.get(op.path), resultsByName);
+          out.push(result);
+          if (atomic && !result.success) break;
+        }
+        return out;
+      });
+      const failures = results.filter((r) => !r.success);
+      if (atomic && failures.length > 0) {
+        rollBack(operations);
+        const failed = failures[0];
+        const index = results.length - 1;
+        throw new ApiError(
+          failed.code,
+          `ops.${index} ${failed.path} failed, batch rolled back: ${failed.error}`,
+          { index, results }
+        );
+      }
+      if (atomic && operations.length > 1) squash(operations);
+      return {
+        atomic,
+        succeeded: results.length - failures.length,
+        failed: failures.length,
+        results
+      };
+    }
+  });
+}
+
 // src/serialize.ts
 var MAX_DEPTH = 8;
 function isElement(value) {
@@ -6404,6 +6683,7 @@ var endpoints = [
   undo,
   redo,
   isModified,
+  batchEndpoint(() => endpoints),
   introspectEndpoint(() => endpoints),
   debug
 ];
@@ -6413,8 +6693,8 @@ var routes = Object.fromEntries(
 
 // src/main.ts
 var DEFAULT_PORT = 58322;
-var PREF_ENABLED = "mcp-ext.server.enabled";
-var PREF_PORT = "mcp-ext.server.port";
+var PREF_ENABLED = PREF.enabled;
+var PREF_PORT = PREF.port;
 var LOG_PREFIX = `[${EXTENSION_NAME}]`;
 var server = null;
 async function init() {
@@ -6439,6 +6719,7 @@ async function init() {
   const candidate = new ExtensionHttpServer({
     port,
     handlers: routes,
+    policy: { maxBodyBytes },
     onLog: (level, msg) => level === "error" ? console.error(msg) : console.log(msg)
   });
   try {

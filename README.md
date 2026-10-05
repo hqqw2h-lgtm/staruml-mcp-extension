@@ -32,12 +32,14 @@ If you only want to curl StarUML from your own scripts, install just this extens
 
 **File → Preferences → MCP Extension** (`preferences/preference.json`):
 
-| Key                      | Default | Meaning                                        |
-| ------------------------ | ------- | ---------------------------------------------- |
-| `mcp-ext.server.enabled` | `true`  | Start the HTTP server when StarUML starts      |
-| `mcp-ext.server.port`    | `58322` | Loopback port; `0` lets the OS pick a free one |
+| Key                          | Default | Meaning                                        |
+| ---------------------------- | ------- | ---------------------------------------------- |
+| `mcp-ext.server.enabled`     | `true`  | Start the HTTP server when StarUML starts      |
+| `mcp-ext.server.port`        | `58322` | Loopback port; `0` lets the OS pick a free one |
+| `mcp-ext.limits.maxBodyKiB`  | `4096`  | Largest request body                           |
+| `mcp-ext.limits.maxBatchOps` | `500`   | Most ops in one `/batch`                       |
 
-Both take effect after a restart. **Tools → MCP Extension → Server Info...** shows the bound address and the endpoint list.
+Enabled and port take effect after a restart, the limits on the next request. **Tools → MCP Extension → Server Info...** shows the bound address and the endpoint list.
 
 ## Endpoints
 
@@ -82,20 +84,29 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 - `/export_diagram` renders PNG or JPEG the way **File → Export Diagram As** does (`engine/diagram-export.js`), with `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) and `background` (default transparent, white for JPEG), and SVG through StarUML's own SVG export. It answers base64 or writes `path`. StarUML's licence watermarks apply as in the menu.
 - `/export_pdf` and `/export_html` write what the CLI's `pdf` and `html` commands write, to an absolute path.
 
+### `/batch`
+
+`{ops: [{path, body, as?}], atomic?}` runs endpoint calls in order. A string `"$name"` anywhere in a later `body` becomes the id of the result saved `as: "name"`; `"$name.view"` and `"$name.model"` pick the parts of a `create_*_with_view` result, and any path into the result works (`.id` means `_id`). `"$$"` escapes a literal `$`.
+
+- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`.
+- `atomic: false`: every op runs; `results` has each op's `data` or `code`/`error`, and `succeeded`/`failed` count them.
+- At most `mcp-ext.limits.maxBatchOps` ops (default 500) and `mcp-ext.limits.maxBodyKiB` of body (default 4096, for every endpoint); over either is `413 PAYLOAD_TOO_LARGE`.
+
 ### Responses
 
 Success is `{success: true, data}`. Failure is `{success: false, code, error, details?}`; branch on `code`, `error` is prose. Stack traces are only logged to StarUML's developer console.
 
-| `code`                             | Status | Meaning                                                                      |
-| ---------------------------------- | ------ | ---------------------------------------------------------------------------- |
-| `INVALID_ARGUMENT`                 | 400    | Body does not match the endpoint's schema; `details` lists `{path, message}` |
-| `INVALID_JSON`, `BODY_READ_FAILED` | 400    | Body is not a JSON object                                                    |
-| `UNKNOWN_TYPE`                     | 400    | Type name not in the metamodel, or no factory function for it                |
-| `NOT_FOUND`, `UNKNOWN_ENDPOINT`    | 404    | No element (of the expected kind) with that id; no such path                 |
-| `METHOD_NOT_ALLOWED`               | 405    | Not `POST`                                                                   |
-| `NO_PROJECT`                       | 409    | No project open, or it has no file yet                                       |
-| `STARUML_ERROR`                    | 422    | StarUML refused, e.g. a factory precondition                                 |
-| `INTERNAL`                         | 500    | Defect in the extension                                                      |
+| `code`                             | Status | Meaning                                                                             |
+| ---------------------------------- | ------ | ----------------------------------------------------------------------------------- |
+| `INVALID_ARGUMENT`                 | 400    | Body does not match the endpoint's schema; `details` lists `{path, message}`        |
+| `INVALID_JSON`, `BODY_READ_FAILED` | 400    | Body is not a JSON object                                                           |
+| `UNKNOWN_TYPE`                     | 400    | Type name not in the metamodel, or no factory function for it                       |
+| `NOT_FOUND`, `UNKNOWN_ENDPOINT`    | 404    | No element (of the expected kind) with that id; no such path                        |
+| `METHOD_NOT_ALLOWED`               | 405    | Not `POST`                                                                          |
+| `PAYLOAD_TOO_LARGE`                | 413    | Body over `mcp-ext.limits.maxBodyKiB`, or a batch over `mcp-ext.limits.maxBatchOps` |
+| `NO_PROJECT`                       | 409    | No project open, or it has no file yet                                              |
+| `STARUML_ERROR`                    | 422    | StarUML refused, e.g. a factory precondition                                        |
+| `INTERNAL`                         | 500    | Defect in the extension                                                             |
 
 ### Elements
 
@@ -121,14 +132,14 @@ Restart StarUML (or **Debug → Reload**) to load the new build.
 
 ## Development
 
-| Command                 | What it checks                                                                                                                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run typecheck`     | `tsc --noEmit` over `src/` and `tests/`                                                                                                                                        |
-| `npm run lint`          | ESLint flat config                                                                                                                                                             |
-| `npm run format:check`  | Prettier defaults                                                                                                                                                              |
-| `npm run test:coverage` | Unit tests against an in-memory `app` (`tests/mock/staruml.ts`), 100% line/branch gate                                                                                         |
-| `npm run test:live`     | End-to-end against a running StarUML with this build installed; replaces the open project. `STARUML_LIVE_DIR` sets where `.mdj` files are written                              |
-| `npm run test:load`     | 5000 requests at concurrency 50; fails on any error, p99 over `P99_BUDGET_MS` (250) or a handler holding the renderer over `HANDLER_BUDGET_MS` (50), read from `Server-Timing` |
+| Command                 | What it checks                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`     | `tsc --noEmit` over `src/` and `tests/`                                                                                                                                                                                                                                                                                                                              |
+| `npm run lint`          | ESLint flat config                                                                                                                                                                                                                                                                                                                                                   |
+| `npm run format:check`  | Prettier defaults                                                                                                                                                                                                                                                                                                                                                    |
+| `npm run test:coverage` | Unit tests against an in-memory `app` (`tests/mock/staruml.ts`), 100% line/branch gate                                                                                                                                                                                                                                                                               |
+| `npm run test:live`     | End-to-end against a running StarUML with this build installed; replaces the open project. `STARUML_LIVE_DIR` sets where `.mdj` files are written                                                                                                                                                                                                                    |
+| `npm run test:load`     | 5000 read requests at concurrency 50; fails on any error, p99 over `P99_BUDGET_MS` (250) or a handler holding the renderer over `HANDLER_BUDGET_MS` (50), read from `Server-Timing`. Then `WRITE_BATCHES` (200) writing `/batch` requests, alternating atomic and not; fails when the atomic median exceeds `ATOMIC_OVERHEAD_BUDGET` (1.25) times the non-atomic one |
 
 The mock mirrors the 7.1.1 prototypes recorded in `tests/fixtures/app-surface.7.1.1.json`; the live suite compares that fixture with `POST /debug` so the mock cannot drift from StarUML.
 
