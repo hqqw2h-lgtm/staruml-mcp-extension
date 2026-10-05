@@ -52,6 +52,11 @@ All `POST` + JSON body. Base URL: `http://localhost:58322`; `GET /` lists the en
 | Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
 | Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
 | Diagrams      | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                                        |
+| Views         | `/layout_diagram`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`                                                                                           |
+| Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                   |
+| Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                  |
+| Export        | `/export_diagram`, `/export_pdf`, `/export_html`                                                                                                                              |
+| History       | `/undo`, `/redo`, `/is_modified`                                                                                                                                              |
 
 ### `/introspect`
 
@@ -70,6 +75,12 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 - `create_element_with_view` takes `containerViewId` for views placed on or inside another view (ports, parts, pins, BPMN boundary events, timing diagram parts).
 - `create_relationship` sets the ends: source/target, or end1/end2 with `tailEnd`/`headEnd` attributes. With `diagramId` it draws the edge through StarUML's factory and its connection rules; without, it creates the model only.
 - `update_element` with `op`: `set` (references as id or `{$ref}`), `add`/`remove` on reference lists, `reorder` within a list, `relocate` to another owner. Each call is one undo step.
+
+### Views and export
+
+- View edits go through StarUML's engine (`layoutDiagram`, `moveViews`, `resizeNode`, `setFillColor`, ...), which needs the editor to show the views' diagram, so they make that diagram current. Each is one undo step; `/set_view_style` is one step per property given.
+- `/export_diagram` renders PNG or JPEG the way **File → Export Diagram As** does (`engine/diagram-export.js`), with `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) and `background` (default transparent, white for JPEG), and SVG through StarUML's own SVG export. It answers base64 or writes `path`. StarUML's licence watermarks apply as in the menu.
+- `/export_pdf` and `/export_html` write what the CLI's `pdf` and `html` commands write, to an absolute path.
 
 ### Responses
 

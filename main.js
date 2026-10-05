@@ -475,6 +475,18 @@ function parsedType(data) {
   }
   return t;
 }
+function issue(...args) {
+  const [iss, input, inst] = args;
+  if (typeof iss === "string") {
+    return {
+      message: iss,
+      code: "custom",
+      input,
+      inst
+    };
+  }
+  return { ...iss };
+}
 function members(proto, table) {
   for (const key in table) {
     const desc = Object.getOwnPropertyDescriptor(table, key);
@@ -942,6 +954,45 @@ var $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (ins
       minimum: def.minimum,
       inclusive: true,
       input,
+      inst,
+      continue: !def.abort
+    });
+  };
+});
+var $ZodCheckStringFormat = /* @__PURE__ */ $constructor("$ZodCheckStringFormat", (inst, def) => {
+  var _a3, _b;
+  $ZodCheck.init(inst, def);
+  if (def.pattern)
+    (_a3 = inst._zod).check ?? (_a3.check = (payload) => {
+      def.pattern.lastIndex = 0;
+      if (def.pattern.test(payload.value))
+        return;
+      payload.issues.push({
+        origin: "string",
+        code: "invalid_format",
+        format: def.format,
+        input: payload.value,
+        ...def.pattern ? { pattern: def.pattern.toString() } : {},
+        inst,
+        continue: !def.abort
+      });
+    });
+  else
+    (_b = inst._zod).check ?? (_b.check = () => {
+    });
+});
+var $ZodCheckRegex = /* @__PURE__ */ $constructor("$ZodCheckRegex", (inst, def) => {
+  $ZodCheckStringFormat.init(inst, def);
+  inst._zod.check = (payload) => {
+    def.pattern.lastIndex = 0;
+    if (def.pattern.test(payload.value))
+      return;
+    payload.issues.push({
+      origin: "string",
+      code: "invalid_format",
+      format: "regex",
+      input: payload.value,
+      pattern: def.pattern.toString(),
       inst,
       continue: !def.abort
     });
@@ -1694,6 +1745,39 @@ var $ZodNullable = /* @__PURE__ */ $constructor("$ZodNullable", (inst, def) => {
     return def.innerType._zod.run(payload, ctx);
   };
 });
+var $ZodCustom = /* @__PURE__ */ $constructor("$ZodCustom", (inst, def) => {
+  $ZodCheck.init(inst, def);
+  $ZodType.init(inst, def);
+  inst._zod.parse = (payload, _) => {
+    return payload;
+  };
+  inst._zod.check = (payload) => {
+    const input = payload.value;
+    const r = def.fn(input);
+    if (r instanceof Promise) {
+      return r.then((r2) => handleRefineResult(r2, payload, input, inst));
+    }
+    handleRefineResult(r, payload, input, inst);
+    return;
+  };
+});
+function handleRefineResult(result, payload, input, inst) {
+  if (!result) {
+    const _iss = {
+      code: "custom",
+      input,
+      inst,
+      // incorporates params.error into issue reporting
+      path: [...inst._zod.def.path ?? []],
+      // incorporates params.error into issue reporting
+      continue: !inst._zod.def.abort
+      // params: inst._zod.def.params,
+    };
+    if (inst._zod.def.params)
+      _iss.params = inst._zod.def.params;
+    payload.issues.push(issue(_iss));
+  }
+}
 
 // node_modules/zod/v4/locales/en.js
 var error = () => {
@@ -1915,6 +1999,15 @@ function _lte(value, params) {
   });
 }
 // @__NO_SIDE_EFFECTS__
+function _gt(value, params) {
+  return new $ZodCheckGreaterThan({
+    check: "greater_than",
+    ...normalizeParams(params),
+    value,
+    inclusive: false
+  });
+}
+// @__NO_SIDE_EFFECTS__
 function _gte(value, params) {
   return new $ZodCheckGreaterThan({
     check: "greater_than",
@@ -1924,12 +2017,35 @@ function _gte(value, params) {
   });
 }
 // @__NO_SIDE_EFFECTS__
+function _positive(params) {
+  return /* @__PURE__ */ _gt(0, params);
+}
+// @__NO_SIDE_EFFECTS__
 function _minLength(minimum, params) {
   return new $ZodCheckMinLength({
     check: "min_length",
     ...normalizeParams(params),
     minimum
   });
+}
+// @__NO_SIDE_EFFECTS__
+function _regex(pattern, params) {
+  return new $ZodCheckRegex({
+    check: "string_format",
+    format: "regex",
+    ...normalizeParams(params),
+    pattern
+  });
+}
+// @__NO_SIDE_EFFECTS__
+function _refine(Class, fn, _params) {
+  const schema = new Class({
+    type: "custom",
+    check: "custom",
+    fn,
+    ...normalizeParams(_params)
+  });
+  return schema;
 }
 
 // node_modules/zod/v4/core/to-json-schema.js
@@ -3410,6 +3526,14 @@ function nullable(innerType) {
     innerType
   });
 }
+var ZodMiniCustom = /* @__PURE__ */ $constructor("ZodMiniCustom", (inst, def) => {
+  $ZodCustom.init(inst, def);
+  ZodMiniType.init(inst, def);
+});
+// @__NO_SIDE_EFFECTS__
+function refine(fn, _params = {}) {
+  return _refine(ZodMiniCustom, fn, _params);
+}
 
 // src/endpoint.ts
 config(en_default());
@@ -3596,8 +3720,8 @@ var getAllCommands = defineEndpoint({
   request: object({}),
   response: object({ count: int(), ids: array(string2()) }),
   handle: () => {
-    const ids = Object.keys(app.commands.commands).sort();
-    return { count: ids.length, ids };
+    const ids2 = Object.keys(app.commands.commands).sort();
+    return { count: ids2.length, ids: ids2 };
   }
 });
 var executeCommand = defineEndpoint({
@@ -3898,7 +4022,7 @@ function describeAttribute(attr) {
     ...attr.options && { options: [...attr.options] }
   };
 }
-function describeType(name, ids, inherited) {
+function describeType(name, ids2, inherited) {
   const metaType = meta[name];
   if (metaType.kind === "enum") {
     return {
@@ -3929,9 +4053,9 @@ function describeType(name, ids, inherited) {
     isView: app.metamodels.isKindOf(name, "View"),
     isDiagram,
     creatable: {
-      model: ids.model.has(name),
-      modelAndView: ids.modelAndView.has(name),
-      diagram: ids.diagram.has(name)
+      model: ids2.model.has(name),
+      modelAndView: ids2.modelAndView.has(name),
+      diagram: ids2.diagram.has(name)
     }
   };
 }
@@ -4014,7 +4138,7 @@ function introspectEndpoint(endpoints2) {
     response: introspectResponse,
     handle: (input) => {
       const include = new Set(input.include ?? SECTIONS);
-      const ids = {
+      const ids2 = {
         model: app.factory.getModelIds(),
         modelAndView: app.factory.getModelAndViewIds(),
         diagram: app.factory.getDiagramIds()
@@ -4028,17 +4152,17 @@ function introspectEndpoint(endpoints2) {
       };
       if (include.has("factory")) {
         out.factory = {
-          modelIds: [...ids.model].sort(),
-          diagramIds: [...ids.diagram].sort(),
-          modelAndViewIds: [...ids.modelAndView].sort(),
-          modelAndView: [...ids.modelAndView].sort().map(describeModelAndView)
+          modelIds: [...ids2.model].sort(),
+          diagramIds: [...ids2.diagram].sort(),
+          modelAndViewIds: [...ids2.modelAndView].sort(),
+          modelAndView: [...ids2.modelAndView].sort().map(describeModelAndView)
         };
       }
       if (include.has("metamodel")) {
         const sets = {
-          model: new Set(ids.model),
-          modelAndView: new Set(ids.modelAndView),
-          diagram: new Set(ids.diagram)
+          model: new Set(ids2.model),
+          modelAndView: new Set(ids2.modelAndView),
+          diagram: new Set(ids2.diagram)
         };
         const names = (input.types ?? Object.keys(meta)).filter(
           (name) => Object.hasOwn(meta, name)
@@ -5435,6 +5559,802 @@ var createRelationship = defineEndpoint({
   }
 });
 
+// src/handlers/views.ts
+var LINE_STYLES = {
+  rectilinear: 0,
+  oblique: 1,
+  roundrect: 2,
+  curve: 3
+};
+var STEREOTYPE_DISPLAYS = [
+  "none",
+  "label",
+  "decoration",
+  "decoration-label",
+  "icon",
+  "icon-label"
+];
+var LAYOUT_DIRECTIONS = ["TB", "BT", "LR", "RL"];
+var lineStyle = (description) => doc(
+  _enum(Object.keys(LINE_STYLES)),
+  description
+);
+var color = (description) => optional(
+  doc(
+    string2().check(_regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)),
+    description
+  )
+);
+var viewIds = () => doc(
+  array(string2().check(_minLength(1))).check(_minLength(1)),
+  "View ids, all on one diagram."
+);
+function requireViewsOnOneDiagram(ids2) {
+  const views = ids2.map((i) => requireView(i));
+  const diagram = diagramOf(views[0]);
+  const stray = views.find((v) => diagramOf(v) !== diagram);
+  if (stray) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `View ${stray._id} is not on diagram ${diagram._id} like ${views[0]._id}`
+    );
+  }
+  return { views, diagram };
+}
+function editorShowing(diagram) {
+  if (app.diagrams.getCurrentDiagram() !== diagram) {
+    inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
+  }
+  return app.diagrams.getEditor();
+}
+var viewsResult = () => object({
+  diagram: doc(string2(), "Id of the diagram the views are on."),
+  views: array(elementSchema())
+});
+function projectionOr(input, fields) {
+  return input.fields !== void 0 || input.summary !== void 0 ? input : { ...input, fields };
+}
+function viewsResponse(diagram, views, projection) {
+  return {
+    diagram: diagram._id,
+    views: views.map((v) => serialize(v, projection))
+  };
+}
+var GEOMETRY = ["left", "top", "width", "height"];
+var layoutDiagram = defineEndpoint({
+  path: "/layout_diagram",
+  description: "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. Opens the diagram in the editor.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    id: optional(id("Diagram id; default the current diagram.")),
+    direction: optional(
+      doc(
+        _enum(LAYOUT_DIRECTIONS),
+        "Rank direction: TB top to bottom (default), BT, LR, RL."
+      )
+    ),
+    separations: optional(
+      doc(
+        object({
+          node: number2().check(_gte(0)),
+          edge: number2().check(_gte(0)),
+          rank: number2().check(_gte(0))
+        }),
+        "Spacing in diagram units between nodes, edges and ranks; StarUML's defaults when omitted."
+      )
+    ),
+    edgeLineStyle: optional(
+      lineStyle("Line style applied to edges by the layout.")
+    )
+  }),
+  response: object({ _id: string2(), direction: string2() }),
+  handle: (input) => {
+    const diagram = input.id === void 0 ? app.diagrams.getCurrentDiagram() : requireDiagram(input.id);
+    if (!diagram) {
+      throw new ApiError("NOT_FOUND", "No diagram is open; pass 'id'");
+    }
+    const direction2 = input.direction ?? "TB";
+    const editor = editorShowing(diagram);
+    inStarUML(
+      () => app.engine.layoutDiagram(
+        editor,
+        diagram,
+        direction2,
+        input.separations,
+        input.edgeLineStyle === void 0 ? void 0 : LINE_STYLES[input.edgeLineStyle]
+      )
+    );
+    return { _id: diagram._id, direction: direction2 };
+  }
+});
+var moveViews = defineEndpoint({
+  path: "/move_views",
+  description: "Move views by an offset, carrying contained views and connected edges along, as one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ids: viewIds(),
+    dx: doc(number2(), "Horizontal offset in diagram units."),
+    dy: doc(number2(), "Vertical offset in diagram units."),
+    ...projectionShape()
+  }),
+  response: viewsResult(),
+  handle: (input) => {
+    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const editor = editorShowing(diagram);
+    inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
+    return viewsResponse(diagram, views, projectionOr(input, GEOMETRY));
+  }
+});
+var resizeNode = defineEndpoint({
+  path: "/resize_node",
+  description: "Set a node view's bounds; omitted values keep the current ones. Connected edges follow, as one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    id: id("Node view id."),
+    left: optional(doc(number2(), "Left edge in diagram units.")),
+    top: optional(doc(number2(), "Top edge in diagram units.")),
+    width: optional(doc(number2().check(_positive()), "Width.")),
+    height: optional(doc(number2().check(_positive()), "Height.")),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const node = requireView(input.id);
+    if (!(node instanceof type.NodeView)) {
+      throw new ApiError("NOT_FOUND", `Node view not found: ${input.id}`);
+    }
+    const bounds = node;
+    const left = input.left ?? bounds.left;
+    const top = input.top ?? bounds.top;
+    const right = left + (input.width ?? bounds.width);
+    const bottom = top + (input.height ?? bounds.height);
+    const editor = editorShowing(diagramOf(node));
+    inStarUML(
+      () => app.engine.resizeNode(editor, node, left, top, right, bottom)
+    );
+    return serialize(node, projectionOr(input, GEOMETRY));
+  }
+});
+var setViewStyle = defineEndpoint({
+  path: "/set_view_style",
+  description: "Change how views are drawn: colours, font, edge line style, stereotype display, auto-resize (the Format menu). Each given property is one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ids: viewIds(),
+    fillColor: color("Fill colour, CSS hex such as '#ffcc00'."),
+    lineColor: color("Line colour."),
+    fontColor: color("Text colour."),
+    fontFace: optional(
+      doc(string2().check(_minLength(1)), "Font family, e.g. 'Arial'.")
+    ),
+    fontSize: optional(
+      doc(number2().check(_positive()), "Font size in points.")
+    ),
+    lineStyle: optional(lineStyle("Edge line style; edges only.")),
+    stereotypeDisplay: optional(
+      doc(
+        _enum(STEREOTYPE_DISPLAYS),
+        "How a UML node view shows its stereotype."
+      )
+    ),
+    autoResize: optional(
+      doc(boolean2(), "Grow node views to fit their content.")
+    ),
+    ...projectionShape()
+  }),
+  response: viewsResult(),
+  handle: (input) => {
+    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const editor = editorShowing(diagram);
+    const e = app.engine;
+    const changes = [
+      ["fillColor", () => e.setFillColor(editor, views, input.fillColor)],
+      ["lineColor", () => e.setLineColor(editor, views, input.lineColor)],
+      ["fontColor", () => e.setFontColor(editor, views, input.fontColor)],
+      ["fontFace", () => e.setFontFace(editor, views, input.fontFace)],
+      ["fontSize", () => e.setFontSize(editor, views, input.fontSize)],
+      [
+        "lineStyle",
+        () => e.setLineStyle(editor, views, LINE_STYLES[input.lineStyle])
+      ],
+      [
+        "stereotypeDisplay",
+        () => e.setStereotypeDisplay(editor, views, input.stereotypeDisplay)
+      ],
+      ["autoResize", () => e.setAutoResize(editor, views, input.autoResize)]
+    ];
+    const given = changes.filter(([key]) => input[key] !== void 0);
+    if (given.length === 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `Pass at least one of ${changes.map(([key]) => key).join(", ")}`
+      );
+    }
+    for (const [, apply] of given) inStarUML(apply);
+    const fields = given.map(
+      ([key]) => key === "fontFace" || key === "fontSize" ? "font" : key
+    );
+    return viewsResponse(
+      diagram,
+      views,
+      projectionOr(input, [...new Set(fields)])
+    );
+  }
+});
+var setZOrder = defineEndpoint({
+  path: "/set_z_order",
+  description: "Bring views to the front or send them to the back of their diagram, as one undoable operation. Views nested in another view keep their order.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ids: viewIds(),
+    position: doc(_enum(["front", "back"]), "Where to move the views.")
+  }),
+  response: object({
+    diagram: string2(),
+    order: doc(
+      array(string2()),
+      "The diagram's top-level view ids, back to front, after the change."
+    )
+  }),
+  handle: (input) => {
+    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const owned = diagram.ownedViews;
+    const builder = app.repository.getOperationBuilder();
+    builder.begin(
+      input.position === "front" ? "bring to front" : "send to back"
+    );
+    const topLevel = views.filter((v) => v._parent === diagram);
+    const ordered = input.position === "front" ? topLevel : topLevel.reverse();
+    for (const view of ordered) {
+      builder.fieldReorder(
+        diagram,
+        "ownedViews",
+        view,
+        input.position === "front" ? owned.length - 1 : 0
+      );
+    }
+    builder.end();
+    inStarUML(() => app.repository.doOperation(builder.getOperation()));
+    return { diagram: diagram._id, order: owned.map((v) => v._id) };
+  }
+});
+
+// src/handlers/editor.ts
+var getSelection = defineEndpoint({
+  path: "/get_selection",
+  description: "What is selected in the UI: model elements (in the model explorer or as the models of selected views) and views.",
+  readOnly: true,
+  destructive: false,
+  request: object(projectionShape()),
+  response: object({
+    models: array(elementSchema()),
+    views: array(elementSchema())
+  }),
+  handle: (input) => ({
+    models: app.selections.getSelectedModels().map((m) => serialize(m, input)),
+    views: app.selections.getSelectedViews().map((v) => serialize(v, input))
+  })
+});
+var ids = (description) => optional(doc(array(string2().check(_minLength(1))), description));
+var setSelection = defineEndpoint({
+  path: "/set_selection",
+  description: "Select views in the diagram editor and/or model elements, replacing the selection; both empty or omitted clears it. Selecting views opens their diagram.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    viewIds: ids("Views to select, all on one diagram."),
+    modelIds: ids("Model elements to select besides the views' models."),
+    ...projectionShape()
+  }),
+  response: object({
+    models: array(elementSchema()),
+    views: array(elementSchema())
+  }),
+  handle: (input) => {
+    const extra = (input.modelIds ?? []).map((i) => requireElement(i));
+    const picked = input.viewIds && input.viewIds.length > 0 ? requireViewsOnOneDiagram(input.viewIds) : null;
+    const views = picked ? picked.views : [];
+    inStarUML(() => {
+      app.diagrams.deselectAll();
+      if (picked) {
+        editorShowing(picked.diagram);
+        const editor = app.diagrams.diagramEditor;
+        editor.selectView(views[0]);
+        for (const view of views.slice(1)) editor.selectAdditionalView(view);
+      }
+      const models = [];
+      for (const m of [...views.map((v) => v.model), ...extra]) {
+        if (m && !models.includes(m)) models.push(m);
+      }
+      app.selections.select(models, views);
+    });
+    return {
+      models: app.selections.getSelectedModels().map((m) => serialize(m, input)),
+      views: app.selections.getSelectedViews().map((v) => serialize(v, input))
+    };
+  }
+});
+var editorState = () => object({
+  currentDiagram: doc(
+    nullable(string2()),
+    "Id of the diagram shown in the editor."
+  ),
+  workingDiagrams: doc(
+    array(string2()),
+    "Ids of the diagrams open as editor tabs, in tab order."
+  ),
+  zoom: doc(number2(), "Zoom scale, 1 = 100%."),
+  topLeft: doc(
+    nullable(object({ x: number2(), y: number2() })),
+    "Diagram coordinates shown at the viewport's top-left corner; null without a current diagram."
+  ),
+  gridVisible: boolean2(),
+  snapToGrid: boolean2()
+});
+function describeEditor() {
+  const current = app.diagrams.getCurrentDiagram();
+  return {
+    currentDiagram: current ? current._id : null,
+    workingDiagrams: app.diagrams.getWorkingDiagrams().map((d) => d._id),
+    zoom: app.diagrams.getZoomLevel(),
+    // DiagramEditor.setOrigin records the canvas origin on the diagram; it
+    // clamps it to <= 0, the negated scroll offset in diagram units (7.1.1).
+    topLeft: current ? {
+      x: Math.abs(current._originX ?? 0),
+      y: Math.abs(current._originY ?? 0)
+    } : null,
+    gridVisible: app.diagrams.isGridVisible(),
+    snapToGrid: app.diagrams.getSnapToGrid()
+  };
+}
+var getEditorState = defineEndpoint({
+  path: "/get_editor_state",
+  description: "The diagram editor's state: current and open diagrams, zoom, scroll position, grid.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: editorState(),
+  handle: describeEditor
+});
+var setEditorState = defineEndpoint({
+  path: "/set_editor_state",
+  description: "Change the diagram editor's view: show a diagram, zoom, scroll, grid. Nothing here changes the model or the undo history; gridVisible and snapToGrid are stored as StarUML preferences, as the View menu does.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    diagramId: optional(id("Diagram to open and show first.")),
+    zoom: optional(
+      doc(
+        number2().check(_gte(0.1), _lte(3)),
+        "Zoom scale between 0.1 and 3 (DiagramEditor.setZoomScale's range)."
+      )
+    ),
+    center: optional(
+      doc(
+        object({ x: number2(), y: number2() }),
+        "Diagram point to centre the viewport on, in diagram units."
+      )
+    ),
+    gridVisible: optional(boolean2()),
+    snapToGrid: optional(boolean2())
+  }),
+  response: editorState(),
+  handle: (input) => {
+    const diagram = input.diagramId === void 0 ? null : requireDiagram(input.diagramId);
+    inStarUML(() => {
+      if (diagram) app.diagrams.setCurrentDiagram(diagram);
+      if (input.zoom !== void 0) app.diagrams.setZoomLevel(input.zoom);
+      if (input.center) app.diagrams.scrollTo(input.center.x, input.center.y);
+      if (input.gridVisible === true) app.diagrams.showGrid();
+      if (input.gridVisible === false) app.diagrams.hideGrid();
+      if (input.snapToGrid !== void 0) {
+        app.diagrams.setSnapToGrid(input.snapToGrid);
+      }
+    });
+    return describeEditor();
+  }
+});
+
+// src/handlers/export.ts
+var import_node_fs = require("node:fs");
+var import_node_path2 = require("node:path");
+
+// src/app-modules.ts
+var import_node_module = require("node:module");
+var import_node_path = require("node:path");
+function appModule(relative) {
+  const resources = process.resourcesPath;
+  if (!resources) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      "StarUML's modules are only available inside StarUML"
+    );
+  }
+  const appRequire = (0, import_node_module.createRequire)((0, import_node_path.join)(resources, "app", "src", "index.js"));
+  return appRequire(`./${relative}`);
+}
+function diagramExport() {
+  return appModule("engine/diagram-export.js");
+}
+
+// src/handlers/export.ts
+var BOUNDING_BOX_EXPAND = 10;
+var RASTER_MARGIN = 30;
+var PRO_DIAGRAM_TYPES = [
+  "SysMLRequirementDiagram",
+  "SysMLBlockDefinitionDiagram",
+  "SysMLInternalBlockDiagram",
+  "SysMLParametricDiagram",
+  "BPMNDiagram",
+  "WFWireframeDiagram",
+  "AWSDiagram",
+  "GCPDiagram"
+];
+var MAX_SCALE = 4;
+var MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
+function watermarkFor(diagram) {
+  const status = app.licenseStore.getLicenseStatus();
+  if (status.trial) return [70, 12, "UNREGISTERED"];
+  if (status.edition !== "PRO" && PRO_DIAGRAM_TYPES.includes(diagram.constructor.name)) {
+    return [45, 12, "PRO ONLY"];
+  }
+  return null;
+}
+function renderRaster(diagram, format, scale, background) {
+  const element = document.createElement("canvas");
+  const Canvas = type.Canvas;
+  const Point = type.Point;
+  const ZoomFactor = type.ZoomFactor;
+  const canvas = new Canvas(element.getContext("2d"));
+  const box = diagram.getBoundingBoxWithChildren(canvas);
+  box.expand(BOUNDING_BOX_EXPAND);
+  canvas.origin = new Point(-box.x1, -box.y1);
+  canvas.zoomFactor = new ZoomFactor(1, 1);
+  canvas.ratio = scale;
+  element.width = Math.ceil((box.getWidth() + RASTER_MARGIN) * scale);
+  element.height = Math.ceil((box.getHeight() + RASTER_MARGIN) * scale);
+  const fill = background ?? (format === "jpeg" ? "#ffffff" : void 0);
+  if (fill) {
+    const context = element.getContext("2d");
+    context.fillStyle = fill;
+    context.fillRect(0, 0, element.width, element.height);
+  }
+  const mark = watermarkFor(diagram);
+  if (mark) {
+    diagram.drawWatermark(canvas, element.width, element.height, ...mark);
+  }
+  diagram.arrangeDiagram(canvas);
+  diagram.drawDiagram(canvas, false);
+  const base642 = element.toDataURL(MIME[format]).replace(/^data:image\/(png|jpeg);base64,/, "");
+  return {
+    data: Buffer.from(base642, "base64"),
+    width: element.width,
+    height: element.height
+  };
+}
+function renderSvg(diagram, background) {
+  const selected = diagram.selectedViews;
+  diagram.selectedViews = [];
+  let svg;
+  try {
+    svg = diagramExport().getSVGImageData(diagram);
+  } finally {
+    diagram.selectedViews = selected;
+  }
+  if (background) {
+    svg = svg.replace(
+      /<svg\b[^>]*>/,
+      (open) => `${open}<rect width="100%" height="100%" fill="${background}"/>`
+    );
+  }
+  const size = (attr) => Number(new RegExp(`<svg\\b[^>]*\\b${attr}="([\\d.]+)`).exec(svg)?.[1] ?? 0);
+  return {
+    data: Buffer.from(svg, "utf-8"),
+    width: size("width"),
+    height: size("height")
+  };
+}
+var absolutePath = (description) => doc(
+  string2().check(refine((p) => (0, import_node_path2.isAbsolute)(p), "must be an absolute path")),
+  description
+);
+function currentOr(id2) {
+  if (id2 !== void 0) return requireDiagram(id2);
+  const current = app.diagrams.getCurrentDiagram();
+  if (!current)
+    throw new ApiError("NOT_FOUND", "No diagram is open; pass 'id'");
+  return current;
+}
+var exportDiagram = defineEndpoint({
+  path: "/export_diagram",
+  description: "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    id: optional(doc(string2(), "Diagram id; default the current diagram.")),
+    format: optional(
+      doc(_enum(["png", "jpeg", "svg"]), "Image format; default png.")
+    ),
+    scale: optional(
+      doc(
+        number2().check(_positive(), _lte(MAX_SCALE)),
+        `Pixels per diagram unit for PNG and JPEG, up to ${MAX_SCALE}; default 1. File > Export uses the display's pixel ratio. SVG is unscaled.`
+      )
+    ),
+    background: optional(
+      doc(
+        string2().check(_regex(/^(#[0-9a-f]{3,8}|[a-z]+)$/i)),
+        "CSS colour behind the diagram, e.g. '#ffffff'. Default transparent, white for JPEG."
+      )
+    ),
+    path: optional(
+      absolutePath(
+        "Absolute file to write; overwritten, parent directories created. Omit to receive the image in the response."
+      )
+    )
+  }),
+  response: object({
+    diagram: string2(),
+    format: string2(),
+    mimeType: string2(),
+    width: doc(number2(), "Pixels; SVG user units for svg."),
+    height: number2(),
+    bytes: doc(int(), "Size of the encoded image."),
+    path: optional(
+      doc(string2(), "The file written, when 'path' was given.")
+    ),
+    base64: optional(
+      doc(string2(), "The image, when 'path' was not given.")
+    )
+  }),
+  handle: (input) => {
+    const diagram = currentOr(input.id);
+    const format = input.format ?? "png";
+    const image = inStarUML(
+      () => format === "svg" ? renderSvg(diagram, input.background) : renderRaster(diagram, format, input.scale ?? 1, input.background)
+    );
+    const meta3 = {
+      diagram: diagram._id,
+      format,
+      mimeType: MIME[format],
+      width: image.width,
+      height: image.height,
+      bytes: image.data.length
+    };
+    if (input.path === void 0) {
+      return { ...meta3, base64: image.data.toString("base64") };
+    }
+    writeFile(input.path, image.data);
+    return { ...meta3, path: input.path };
+  }
+});
+function writeFile(path, data) {
+  try {
+    (0, import_node_fs.mkdirSync)((0, import_node_path2.dirname)(path), { recursive: true });
+    (0, import_node_fs.writeFileSync)(path, data);
+  } catch (err) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `Cannot write ${path}: ${err.message}`
+    );
+  }
+}
+var PDF_WAIT_MS = 3e4;
+var PDF_POLL_MS = 50;
+async function waitForPdf(path, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (; ; ) {
+    if ((0, import_node_fs.existsSync)(path) && (0, import_node_fs.readFileSync)(path).subarray(-32).includes("%%EOF")) {
+      return;
+    }
+    if (Date.now() >= deadline) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `PDF was not completed within ${timeoutMs} ms: ${path}`
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, PDF_POLL_MS));
+  }
+}
+var exportPdf = defineEndpoint({
+  path: "/export_pdf",
+  description: "Write diagrams to a PDF file, one page each, as File > Print to PDF and the CLI's pdf command do.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    path: absolutePath("Absolute .pdf file to write; overwritten."),
+    ids: optional(
+      doc(
+        array(string2().check(_minLength(1))).check(_minLength(1)),
+        "Diagram ids in page order; default every diagram in the project."
+      )
+    ),
+    size: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "pdfkit page size, e.g. 'A4' (default), 'LETTER', 'A3'."
+      )
+    ),
+    layout: optional(
+      doc(_enum(["landscape", "portrait"]), "Default landscape.")
+    ),
+    showName: optional(
+      doc(boolean2(), "Print each diagram's path name; default true.")
+    )
+  }),
+  response: object({
+    path: string2(),
+    pages: int(),
+    bytes: int()
+  }),
+  handle: async (input) => {
+    requireProject();
+    const diagrams = input.ids ? input.ids.map((i) => requireDiagram(i)) : app.repository.getInstancesOf("Diagram");
+    if (diagrams.length === 0) {
+      throw new ApiError("NOT_FOUND", "The project has no diagrams");
+    }
+    writeFile(input.path, Buffer.alloc(0));
+    inStarUML(
+      () => diagramExport().exportToPDF(diagrams, input.path, {
+        size: input.size ?? "A4",
+        layout: input.layout ?? "landscape",
+        showName: input.showName ?? true
+      })
+    );
+    await waitForPdf(input.path, PDF_WAIT_MS);
+    return {
+      path: input.path,
+      pages: diagrams.length,
+      bytes: (0, import_node_fs.readFileSync)(input.path).length
+    };
+  }
+});
+var exportHtml = defineEndpoint({
+  path: "/export_html",
+  description: "Write HTML documentation of the whole project, with diagram images, into a directory (File > Export > HTML Docs).",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    path: absolutePath(
+      "Absolute directory to write into; created if missing. index.html is its entry page."
+    )
+  }),
+  response: object({ path: string2(), index: string2() }),
+  handle: async (input) => {
+    requireProject();
+    const command = "html-export:export";
+    if (!Object.hasOwn(app.commands.commands, command)) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        "The bundled html-export extension is not loaded"
+      );
+    }
+    const index = (0, import_node_path2.join)(input.path, "index.html");
+    (0, import_node_fs.rmSync)(index, { force: true });
+    await app.commands.execute(command, input.path);
+    if (!(0, import_node_fs.existsSync)(index)) {
+      throw new ApiError("STARUML_ERROR", `HTML export wrote no ${index}`);
+    }
+    return { path: input.path, index };
+  }
+});
+
+// src/handlers/history.ts
+var state = () => object({
+  modified: doc(
+    boolean2(),
+    "Whether the project has changes not yet saved to its file."
+  )
+});
+var undo = defineEndpoint({
+  path: "/undo",
+  description: "Undo the last change (Edit > Undo). Every endpoint that changes the model is one step; an atomic /batch is one step.",
+  readOnly: false,
+  destructive: true,
+  request: object({}),
+  response: state(),
+  handle: () => {
+    inStarUML(() => app.repository.undo());
+    return { modified: app.repository.isModified() };
+  }
+});
+var redo = defineEndpoint({
+  path: "/redo",
+  description: "Redo the last undone change (Edit > Redo).",
+  readOnly: false,
+  destructive: true,
+  request: object({}),
+  response: state(),
+  handle: () => {
+    inStarUML(() => app.repository.redo());
+    return { modified: app.repository.isModified() };
+  }
+});
+var isModified = defineEndpoint({
+  path: "/is_modified",
+  description: "Whether the project has unsaved changes.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: state(),
+  handle: () => ({ modified: app.repository.isModified() })
+});
+
+// src/handlers/queries.ts
+var listResult = () => object({ count: int(), elements: array(elementSchema()) });
+function listOf(elements, projection) {
+  return {
+    count: elements.length,
+    elements: elements.map((e) => serialize(e, projection))
+  };
+}
+var getViewsOf = defineEndpoint({
+  path: "/get_views_of",
+  description: "Every view of a model element, on any diagram; empty for a model that is in no diagram.",
+  readOnly: true,
+  destructive: false,
+  request: object({ id: id("Model element id."), ...projectionShape() }),
+  response: listResult(),
+  handle: (input) => listOf(app.repository.getViewsOf(requireElement(input.id)), input)
+});
+var getEdgeViewsOf = defineEndpoint({
+  path: "/get_edge_views_of",
+  description: "Edge views attached to a view at either end.",
+  readOnly: true,
+  destructive: false,
+  request: object({ id: id("View id."), ...projectionShape() }),
+  response: listResult(),
+  handle: (input) => listOf(app.repository.getEdgeViewsOf(requireView(input.id)), input)
+});
+var getRelationshipsOf = defineEndpoint({
+  path: "/get_relationships_of",
+  description: "Relationships (generalizations, associations, dependencies, ...) that have the element at an end.",
+  readOnly: true,
+  destructive: false,
+  request: object({ id: id("Model element id."), ...projectionShape() }),
+  response: listResult(),
+  handle: (input) => listOf(app.repository.getRelationshipsOf(requireElement(input.id)), input)
+});
+var getRefsTo = defineEndpoint({
+  path: "/get_refs_to",
+  description: "Every element holding a reference to the element: typed attributes, relationship ends, views showing it. Check before deleting.",
+  readOnly: true,
+  destructive: false,
+  request: object({ id: id("Element id."), ...projectionShape() }),
+  response: listResult(),
+  handle: (input) => listOf(app.repository.getRefsTo(requireElement(input.id)), input)
+});
+var getConnectedNodeViews = defineEndpoint({
+  path: "/get_connected_node_views",
+  description: "Node views at the other end of a view's edges, optionally only edges of one view type.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    id: id("View id."),
+    edgeType: optional(
+      typeName(
+        "Edge view type to follow, e.g. 'UMLAssociationView'; default every EdgeView."
+      )
+    ),
+    ...projectionShape()
+  }),
+  response: listResult(),
+  handle: (input) => {
+    const view = requireView(input.id);
+    const edgeType = input.edgeType ?? "EdgeView";
+    requireTypeName(edgeType);
+    const nodes = inStarUML(
+      () => app.repository.getConnectedNodeViews(view, type[edgeType])
+    );
+    return listOf(nodes, input);
+  }
+});
+
 // src/routes.ts
 var endpoints = [
   getAllCommands,
@@ -5464,6 +6384,26 @@ var endpoints = [
   createDiagram,
   switchDiagram,
   closeDiagram,
+  getViewsOf,
+  getEdgeViewsOf,
+  getRelationshipsOf,
+  getRefsTo,
+  getConnectedNodeViews,
+  layoutDiagram,
+  moveViews,
+  resizeNode,
+  setViewStyle,
+  setZOrder,
+  getSelection,
+  setSelection,
+  getEditorState,
+  setEditorState,
+  exportDiagram,
+  exportPdf,
+  exportHtml,
+  undo,
+  redo,
+  isModified,
   introspectEndpoint(() => endpoints),
   debug
 ];

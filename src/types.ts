@@ -89,7 +89,7 @@ export interface OperationBuilder {
     index: number,
   ): void;
   end(): void;
-  getOperation(): unknown;
+  getOperation(): Operation;
 }
 
 /** core/repository.js */
@@ -100,9 +100,33 @@ export interface Repository {
   findAll(predicate: (elem: Element) => boolean): Element[];
   getViewsOf(model: Element): View[];
   getEdgeViewsOf(view: Element): View[];
+  /** Relationships whose ends (source/target or end1/end2.reference) name `model`. */
+  getRelationshipsOf(model: Element): Element[];
+  /** Every element holding a reference to `elem`, from the reverse reference index. */
+  getRefsTo(elem: Element): Element[];
+  /** Node views at the far end of `view`'s edges that are instances of `edgeType`. */
+  getConnectedNodeViews(
+    view: Element,
+    edgeType: abstract new (...args: never[]) => unknown,
+  ): View[];
   getOperationBuilder(): OperationBuilder;
-  /** Applies and records an operation; logs, rather than throws, what fails inside. */
-  doOperation(operation: unknown): void;
+  /**
+   * Applies an operation and pushes it on the undo stack unless it is empty
+   * or `bypass`; logs, rather than throws, what fails inside.
+   */
+  doOperation(operation: Operation): void;
+  /** Reverts the top of the undo stack; a no-op on an empty stack. */
+  undo(): void;
+  redo(): void;
+  isModified(): boolean;
+}
+
+/** core/repository.js OperationBuilder._getBase plus the recorded ops. */
+export interface Operation {
+  id?: string;
+  name: string;
+  bypass?: boolean;
+  ops: unknown[];
 }
 
 /** Options accepted by Factory.createModelAndView in 7.x. */
@@ -174,6 +198,41 @@ export interface Engine {
    * exists; the element is appended to `newOwner[field]`.
    */
   relocate(elem: Element, newOwner: Element, field: string): void;
+  /*
+   * View edits. Each returns null after a console.error when a required
+   * argument is missing and otherwise records one operation. `editor` must
+   * show the diagram the views are on: moveViews and resizeNode traverse
+   * editor.diagram to carry connected edges along.
+   */
+  /** `direction` is one of Diagram.LD_* ("TB", "BT", "LR", "RL"). */
+  layoutDiagram(
+    editor: unknown,
+    diagram: Element,
+    direction: string,
+    separations?: { node: number; edge: number; rank: number },
+    edgeLineStyle?: number,
+  ): unknown;
+  moveViews(editor: unknown, views: View[], dx: number, dy: number): unknown;
+  /** Absolute diagram coordinates of the new bounds. */
+  resizeNode(
+    editor: unknown,
+    node: View,
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+  ): unknown;
+  /** Colours are CSS colour strings, e.g. "#ffffff". */
+  setFillColor(editor: unknown, views: View[], color: string): unknown;
+  setLineColor(editor: unknown, views: View[], color: string): unknown;
+  setFontColor(editor: unknown, views: View[], color: string): unknown;
+  setFontFace(editor: unknown, views: View[], face: string): unknown;
+  setFontSize(editor: unknown, views: View[], size: number): unknown;
+  /** One of EdgeView.LS_*: 0 rectilinear, 1 oblique, 2 roundrect, 3 curve. */
+  setLineStyle(editor: unknown, views: View[], lineStyle: number): unknown;
+  /** One of UMLGeneralNodeView.SD_*, e.g. "label", "icon". */
+  setStereotypeDisplay(editor: unknown, views: View[], value: string): unknown;
+  setAutoResize(editor: unknown, views: View[], autoResize: boolean): unknown;
 }
 
 /** ui/diagram-manager.js */
@@ -181,6 +240,47 @@ export interface DiagramManager {
   setCurrentDiagram(diagram: Element): void;
   closeDiagram(diagram: Element): void;
   getEditor(): unknown;
+  getCurrentDiagram(): Element | null;
+  /** The editor's tabs, in tab order; the live array, not a copy. */
+  getWorkingDiagrams(): Element[];
+  /** DiagramEditor.setZoomScale clamps to 0.1..3. */
+  setZoomLevel(scale: number): void;
+  getZoomLevel(): number;
+  /** Centres the viewport on (x, y) in diagram coordinates. */
+  scrollTo(x: number, y: number): void;
+  /** Show/hide also store the diagramEditor.showGrid preference. */
+  showGrid(): void;
+  hideGrid(): void;
+  isGridVisible(): boolean;
+  setSnapToGrid(allow: boolean): void;
+  getSnapToGrid(): boolean;
+  repaint(): void;
+  deselectAll(): void;
+}
+
+/**
+ * ui/diagram-editor.js, reached as app.diagrams.diagramEditor the way
+ * default-commands.js does. selectView replaces the selection and
+ * selectAdditionalView extends it; both emit selectionChanged, which the
+ * diagram manager forwards to app.selections.
+ */
+export interface DiagramEditor {
+  selectView(view: View): void;
+  selectAdditionalView(view: View): void;
+}
+
+/** engine/selection-manager.js */
+export interface SelectionManager {
+  getSelectedModels(): Element[];
+  getSelectedViews(): View[];
+  /** Replaces both lists and fires selectionChanged when either differs. */
+  select(models: Element[], views: View[]): void;
+  deselectAll(): void;
+}
+
+/** engine/license-store.js; diagram-export.js decides on watermarks from it. */
+export interface LicenseStore {
+  getLicenseStatus(): { trial?: boolean; edition?: string };
 }
 
 /** Attribute kinds accepted by MetamodelManager.validateMetaType (core/metamodel-manager.js). */
@@ -269,7 +369,9 @@ export interface StarUMLApp {
   repository: Repository;
   factory: Factory;
   engine: Engine;
-  diagrams: DiagramManager;
+  diagrams: DiagramManager & { diagramEditor: DiagramEditor };
+  selections: SelectionManager;
+  licenseStore: LicenseStore;
   dialogs: Dialogs;
   preferences: PreferenceManager;
   metamodels: MetamodelManager;

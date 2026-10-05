@@ -303,6 +303,26 @@ export class Repository {
       return false;
     });
   }
+  /** The reverse of every ref/refs attribute and relationship end that names `elem`. */
+  getRefsTo(elem: MockElement): MockElement[] {
+    return this.findAll((e) => {
+      for (const attr of metaAttributes(e.constructor.name)) {
+        const value = e[attr.name];
+        if (attr.kind === "ref" && value === elem) return true;
+        if (attr.kind === "refs" && (value as unknown[]).includes(elem))
+          return true;
+      }
+      return false;
+    });
+  }
+  getConnectedNodeViews(
+    view: MockElement,
+    edgeType: new () => MockElement,
+  ): View[] {
+    return this.getEdgeViewsOf(view)
+      .filter((e) => e instanceof edgeType)
+      .map((e) => (e.head === view ? e.tail! : e.head!));
+  }
   isElement(value: unknown): boolean {
     return value instanceof MockElement;
   }
@@ -320,13 +340,34 @@ export class Repository {
   getOperationBuilder(): OperationBuilder {
     return new OperationBuilder();
   }
-  /** Only field reorders are modelled; Engine methods are modelled directly. */
+  undoStack: Operation[] = [];
+  redoStack: Operation[] = [];
+  /**
+   * Field assignments and reorders are recorded and undoable, as in
+   * core/repository.js; element creation and deletion are modelled directly
+   * by Factory and Engine and are not undoable here.
+   */
   doOperation(operation: Operation): void {
-    for (const op of operation.ops) {
-      const list = op.elem[op.field] as MockElement[];
-      list.splice(list.indexOf(op.value), 1);
-      list.splice(op.index, 0, op.value);
+    if (operation.ops.length === 0) return;
+    applyOps(operation);
+    if (operation.bypass !== true) {
+      this.undoStack.push(operation);
+      this.redoStack = [];
     }
+    this.setModified(true);
+  }
+  undo(): void {
+    const operation = this.undoStack.pop();
+    if (!operation) return;
+    for (const op of [...operation.ops].reverse()) op.revert!();
+    this.redoStack.push(operation);
+    this.setModified(true);
+  }
+  redo(): void {
+    const operation = this.redoStack.pop();
+    if (!operation) return;
+    applyOps(operation);
+    this.undoStack.push(operation);
     this.setModified(true);
   }
 
@@ -352,26 +393,49 @@ stub(Repository, [
   "extractChanged",
   "generateGuid",
   "getConnectedHeadNodeViews",
-  "getConnectedNodeViews",
   "getConnectedTailNodeViews",
-  "getRefsTo",
   "lookupAndFind",
   "readObject",
-  "redo",
   "search",
-  "undo",
   "writeObject",
 ]);
 const REPOSITORY_HELPERS = ["index", "unindex"];
 
-interface Operation {
+interface Op {
+  kind: "assign" | "reorder";
+  elem: MockElement;
+  field: string;
+  value: unknown;
+  index?: number;
+  /** Set when applied, so the op can be reverted. */
+  revert?: () => void;
+}
+
+export interface Operation {
   name: string;
-  ops: {
-    elem: MockElement;
-    field: string;
-    value: MockElement;
-    index: number;
-  }[];
+  bypass?: boolean;
+  ops: Op[];
+}
+
+function applyOps(operation: Operation): void {
+  for (const op of operation.ops) {
+    if (op.kind === "assign") {
+      const old = op.elem[op.field];
+      op.elem[op.field] = op.value;
+      op.revert = () => {
+        op.elem[op.field] = old;
+      };
+    } else {
+      const list = op.elem[op.field] as unknown[];
+      const from = list.indexOf(op.value);
+      list.splice(from, 1);
+      list.splice(op.index!, 0, op.value);
+      op.revert = () => {
+        list.splice(list.indexOf(op.value), 1);
+        list.splice(from, 0, op.value);
+      };
+    }
+  }
 }
 
 /** core/repository.js OperationBuilder, for the operations the extension builds. */
@@ -386,7 +450,10 @@ export class OperationBuilder {
     value: MockElement,
     index: number,
   ): void {
-    this.operation!.ops.push({ elem, field, value, index });
+    this.operation!.ops.push({ kind: "reorder", elem, field, value, index });
+  }
+  fieldAssign(elem: MockElement, field: string, value: unknown): void {
+    this.operation!.ops.push({ kind: "assign", elem, field, value });
   }
   end(): void {}
   getOperation(): Operation | null {
@@ -654,6 +721,128 @@ export class Engine {
       this.setProperty(elem, field, value);
   }
 
+  /** Records one undoable operation assigning `values` to each element. */
+  private assign(
+    name: string,
+    entries: [MockElement, Record<string, unknown>][],
+  ): void {
+    const builder = this.repository.getOperationBuilder();
+    builder.begin(name);
+    for (const [elem, values] of entries) {
+      for (const [field, value] of Object.entries(values))
+        builder.fieldAssign(elem, field, value);
+    }
+    builder.end();
+    this.repository.doOperation(builder.getOperation()!);
+  }
+
+  /** Stands in for dagre: lays node views out in one rank along `direction`. */
+  layoutDiagram(
+    editor: unknown,
+    diagram: MockElement,
+    direction: string,
+  ): null | undefined {
+    if (!editor || !diagram) return null;
+    const nodes = (diagram.ownedViews as MockElement[]).filter((v) =>
+      is(v, "NodeView"),
+    );
+    const horizontal = direction === "LR" || direction === "RL";
+    this.assign(
+      "layout diagram",
+      nodes.map((v, i) => [
+        v,
+        horizontal
+          ? { left: 20 + i * 150, top: 20 }
+          : { left: 20, top: 20 + i * 100 },
+      ]),
+    );
+    return undefined;
+  }
+
+  moveViews(
+    editor: unknown,
+    views: MockElement[],
+    dx: number,
+    dy: number,
+  ): null | undefined {
+    if (!editor || !views) return null;
+    this.assign(
+      "move views",
+      views
+        .filter((v) => is(v, "NodeView"))
+        .map((v) => [
+          v,
+          { left: (v.left as number) + dx, top: (v.top as number) + dy },
+        ]),
+    );
+    return undefined;
+  }
+
+  resizeNode(
+    editor: unknown,
+    node: MockElement,
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+  ): null | undefined {
+    if (!editor || !node) return null;
+    this.assign("resize node", [
+      [node, { left, top, width: right - left, height: bottom - top }],
+    ]);
+    return undefined;
+  }
+
+  setFillColor(editor: unknown, views: MockElement[], color: string): void {
+    this.setViewField(editor, views, "fillColor", color);
+  }
+  setLineColor(editor: unknown, views: MockElement[], color: string): void {
+    this.setViewField(editor, views, "lineColor", color);
+  }
+  setFontColor(editor: unknown, views: MockElement[], color: string): void {
+    this.setViewField(editor, views, "fontColor", color);
+  }
+  /** The real ones assign a new Font; the mock keeps Font's "face;size;style" form. */
+  setFontFace(editor: unknown, views: MockElement[], face: string): void {
+    this.assign(
+      "change font face",
+      views.map((v) => [v, { font: fontWith(v, 0, face) }]),
+    );
+    void editor;
+  }
+  setFontSize(editor: unknown, views: MockElement[], size: number): void {
+    this.assign(
+      "change font size",
+      views.map((v) => [v, { font: fontWith(v, 1, String(size)) }]),
+    );
+    void editor;
+  }
+  setLineStyle(editor: unknown, views: MockElement[], lineStyle: number): void {
+    this.setViewField(editor, views, "lineStyle", lineStyle);
+  }
+  setStereotypeDisplay(
+    editor: unknown,
+    views: MockElement[],
+    value: string,
+  ): void {
+    this.setViewField(editor, views, "stereotypeDisplay", value);
+  }
+  setAutoResize(editor: unknown, views: MockElement[], value: boolean): void {
+    this.setViewField(editor, views, "autoResize", value);
+  }
+  private setViewField(
+    editor: unknown,
+    views: MockElement[],
+    field: string,
+    value: unknown,
+  ): void {
+    if (!editor) throw new Error("mock: engine view edit without an editor");
+    this.assign(
+      `change ${field}`,
+      views.map((v) => [v, { [field]: value }]),
+    );
+  }
+
   deleteElements(models: MockElement[], views: MockElement[]): void {
     const all = new Set<MockElement>([...models, ...views]);
     let changed = true;
@@ -692,30 +881,50 @@ stub(Engine, [
   "_determineOutsideElements",
   "addModelAndView",
   "addViews",
-  "layoutDiagram",
   "modifyEdge",
   "moveDown",
   "moveParasiticView",
   "moveUp",
-  "moveViews",
   "moveViewsChangingContainer",
   "reconnectEdge",
-  "resizeNode",
-  "setAutoResize",
   "setElemsProperty",
-  "setFillColor",
   "setFont",
-  "setFontColor",
-  "setFontFace",
-  "setFontSize",
-  "setLineColor",
-  "setLineStyle",
-  "setStereotypeDisplay",
 ]);
+const ENGINE_HELPERS = ["assign", "setViewField"];
+
+function fontWith(view: MockElement, part: number, value: string): CustomValue {
+  const parts = (view.font as CustomValue).text.split(";");
+  parts[part] = value;
+  return new CustomValue(parts.join(";"));
+}
+
+/** ui/diagram-editor.js, for the selection calls the extension makes. */
+export class DiagramEditor {
+  constructor(private readonly selections: SelectionManager) {}
+  selectView(view: View): void {
+    this.selections.select(view.model ? [view.model] : [], [view]);
+  }
+  selectAdditionalView(view: View): void {
+    const views = [...this.selections.getSelectedViews(), view] as View[];
+    this.selections.select(
+      views.flatMap((v) => (v.model ? [v.model] : [])),
+      views,
+    );
+  }
+}
 
 export class DiagramManager {
   current: MockElement | null = null;
   working: MockElement[] = [];
+  zoom = 1;
+  grid = false;
+  snap = true;
+  repaints = 0;
+  diagramEditor: DiagramEditor;
+
+  constructor(private readonly selections = new SelectionManager()) {
+    this.diagramEditor = new DiagramEditor(selections);
+  }
 
   getCurrentDiagram(): MockElement | null {
     return this.current;
@@ -739,6 +948,42 @@ export class DiagramManager {
   getWorkingDiagrams(): MockElement[] {
     return [...this.working];
   }
+  setZoomLevel(scale: number): void {
+    this.zoom = Math.min(3, Math.max(0.1, scale));
+  }
+  getZoomLevel(): number {
+    return this.zoom;
+  }
+  /**
+   * The real one centres a viewport whose size the mock fixes at 800x600,
+   * and DiagramEditor.setOrigin records the origin on the current diagram.
+   */
+  scrollTo(x: number, y: number): void {
+    if (!this.current) return;
+    this.current._originX = -Math.max(0, Math.floor(x - 400 / this.zoom));
+    this.current._originY = -Math.max(0, Math.floor(y - 300 / this.zoom));
+  }
+  showGrid(): void {
+    this.grid = true;
+  }
+  hideGrid(): void {
+    this.grid = false;
+  }
+  isGridVisible(): boolean {
+    return this.grid;
+  }
+  setSnapToGrid(allow: boolean): void {
+    this.snap = allow;
+  }
+  getSnapToGrid(): boolean {
+    return this.snap;
+  }
+  repaint(): void {
+    this.repaints++;
+  }
+  deselectAll(): void {
+    this.selections.deselectAll();
+  }
   /** The editor's canvas is only measured by the factory functions. */
   getEditor(): { canvas: { gridFactor: { width: number; height: number } } } {
     return { canvas: { gridFactor: { width: 5, height: 5 } } };
@@ -756,31 +1001,21 @@ stub(DiagramManager, [
   "_triggerViewMovedEvent",
   "appReady",
   "closeOthers",
-  "deselectAll",
   "getDiagramArea",
   "getHiddenEditor",
   "getScrollPosition",
-  "getSnapToGrid",
   "getViewportSize",
-  "getZoomLevel",
-  "hideGrid",
   "htmlReady",
-  "isGridVisible",
   "needRepaint",
   "nextDiagram",
   "previousDiagram",
-  "repaint",
   "restoreDiagramOrigin",
   "restoreWorkingDiagrams",
   "resumeRepaint",
   "saveWorkingDiagrams",
-  "scrollTo",
   "selectAll",
   "selectInDiagram",
   "setActiveHandler",
-  "setSnapToGrid",
-  "setZoomLevel",
-  "showGrid",
   "suspendRepaint",
   "toggleGrid",
   "toggleSnapToGrid",
@@ -1016,18 +1251,42 @@ stub(PreferenceManager, [
   "setViewState",
 ]);
 
-export class SelectionManager {}
+/** engine/selection-manager.js, minus the change events. */
+export class SelectionManager {
+  selectedModels: MockElement[] = [];
+  selectedViews: MockElement[] = [];
+  getSelectedModels(): MockElement[] {
+    return this.selectedModels;
+  }
+  getSelectedViews(): MockElement[] {
+    return this.selectedViews;
+  }
+  select(models: MockElement[], views: MockElement[]): void {
+    this.selectedModels = models;
+    this.selectedViews = views;
+  }
+  deselectAll(): void {
+    this.select([], []);
+  }
+}
 stub(SelectionManager, [
-  "deselectAll",
   "getSelected",
-  "getSelectedModels",
-  "getSelectedViews",
   "isChanged",
-  "select",
   "selectModel",
   "selectViews",
   "triggerEvent",
 ]);
+
+/** engine/license-store.js; the mock is licensed unless a test says otherwise. */
+export class LicenseStore {
+  status: { trial?: boolean; edition?: string } = {
+    trial: false,
+    edition: "PRO",
+  };
+  getLicenseStatus(): { trial?: boolean; edition?: string } {
+    return this.status;
+  }
+}
 
 export class Dialogs {
   shown: { kind: string; message: string }[] = [];
@@ -1116,6 +1375,7 @@ export interface MockApp {
   diagrams: DiagramManager;
   preferences: PreferenceManager;
   selections: SelectionManager;
+  licenseStore: LicenseStore;
   dialogs: Dialogs;
   metamodels: MetamodelManager;
   toolbox: Toolbox;
@@ -1135,6 +1395,7 @@ export interface MockEnvironment {
 export function installMockApp(): MockEnvironment {
   const disk: MockDisk = new Map();
   const repository = new Repository();
+  const selections = new SelectionManager();
   const app: MockApp = {
     version: "7.1.1",
     metadata: { apiVersion: "7.1.1" },
@@ -1143,9 +1404,10 @@ export function installMockApp(): MockEnvironment {
     repository,
     factory: new Factory(repository),
     engine: new Engine(repository),
-    diagrams: new DiagramManager(),
+    diagrams: new DiagramManager(selections),
     preferences: new PreferenceManager(),
-    selections: new SelectionManager(),
+    selections,
+    licenseStore: new LicenseStore(),
     dialogs: new Dialogs(),
     metamodels: new MetamodelManager(),
     toolbox: new Toolbox(),
@@ -1171,4 +1433,5 @@ export function installMockApp(): MockEnvironment {
 
 export const MOCK_ONLY_MEMBERS: Readonly<Record<string, readonly string[]>> = {
   repository: REPOSITORY_HELPERS,
+  engine: ENGINE_HELPERS,
 };

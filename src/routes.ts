@@ -60,6 +60,28 @@ import {
   createEdgeWithView,
   createRelationship,
 } from "./handlers/relationships.js";
+import {
+  getEditorState,
+  getSelection,
+  setEditorState,
+  setSelection,
+} from "./handlers/editor.js";
+import { exportDiagram, exportHtml, exportPdf } from "./handlers/export.js";
+import { isModified, redo, undo } from "./handlers/history.js";
+import {
+  getConnectedNodeViews,
+  getEdgeViewsOf,
+  getRefsTo,
+  getRelationshipsOf,
+  getViewsOf,
+} from "./handlers/queries.js";
+import {
+  layoutDiagram,
+  moveViews,
+  resizeNode,
+  setViewStyle,
+  setZOrder,
+} from "./handlers/views.js";
 import type { Handler } from "./http-server.js";
 
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
@@ -95,6 +117,31 @@ export const endpoints: readonly Endpoint[] = [
   createDiagram,
   switchDiagram,
   closeDiagram,
+
+  getViewsOf,
+  getEdgeViewsOf,
+  getRelationshipsOf,
+  getRefsTo,
+  getConnectedNodeViews,
+
+  layoutDiagram,
+  moveViews,
+  resizeNode,
+  setViewStyle,
+  setZOrder,
+
+  getSelection,
+  setSelection,
+  getEditorState,
+  setEditorState,
+
+  exportDiagram,
+  exportPdf,
+  exportHtml,
+
+  undo,
+  redo,
+  isModified,
 
   introspectEndpoint(() => endpoints),
   debug,
