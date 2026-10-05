@@ -617,6 +617,10 @@ export class Factory {
     if (!MODEL_IDS.includes(options.id)) return null;
     assertParent(options.parent, options.id);
     const model = create(options.id);
+    if (options.id === "UMLStateMachine") {
+      // stateMachineFn (uml-factory.js) makes the machine with one region.
+      attach(model, "regions", create("UMLRegion"));
+    }
     options.modelInitializer?.(model);
     // Engine.addModel only logs for a field the parent lacks, and the
     // factory then answers repository.get() of the never-added model.

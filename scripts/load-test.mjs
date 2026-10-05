@@ -36,7 +36,8 @@
  * "Order.total", "Order#place()", the diagram by name) rather than by id,
  * /lint_diagram and /uml_lint over them, and the read-only planning
  * endpoints: /diff_diagram, a /build_diagram dryRun and /diff_since of a
- * snapshot taken after seeding. Exits non-zero on any transport error or
+ * snapshot taken after seeding, a /build_model dryRun of a small object
+ * spec and /check_messages over the seeded package. Exits non-zero on any transport error or
  * non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or when any single
  * handler held the renderer thread longer than HANDLER_BUDGET_MS (taken
  * from the Server-Timing header the server sets).
@@ -195,6 +196,39 @@ async function writePhase(modelId, errors) {
   };
 }
 
+/** An object-level spec /build_model plans (dry run) in the read mix. */
+const MODEL_SPEC = {
+  system: "Planned",
+  contexts: [
+    { id: "sales", name: "Sales", dependsOn: ["catalog"] },
+    { id: "catalog", name: "Catalog" },
+  ],
+  classes: [
+    {
+      name: "Order",
+      context: "sales",
+      responsibility: "A purchase",
+      attributes: ["-id: long", "+total: double"],
+      operations: ["+place(): void"],
+    },
+    { name: "Line", context: "sales", attributes: ["+qty: int"] },
+    { name: "Product", context: "catalog", kind: "abstract" },
+    { name: "Book", context: "catalog" },
+  ],
+  relationships: [
+    { from: "Order", to: "Line", type: "owns", fromMult: "1", toMult: "1..*" },
+    { from: "Line", to: "Product", type: "knows" },
+    { from: "Book", to: "Product", type: "isA" },
+  ],
+  collaborations: [
+    {
+      name: "Checkout",
+      participants: ["Order", "Line"],
+      messages: [["Order", "Line", "total()"]],
+    },
+  ],
+};
+
 const BUILD_SPEC = {
   classes: [
     {
@@ -308,6 +342,8 @@ async function main() {
       },
     ],
     () => ["/diff_since", { snapshot: "load", limit: 20 }],
+    () => ["/build_model", { spec: MODEL_SPEC, dryRun: true }],
+    () => ["/check_messages", { scope: "Load" }],
     () => ["/get_project_info", {}],
     (i) => [
       "/get_element_by_id",

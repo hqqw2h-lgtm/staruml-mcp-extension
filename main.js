@@ -28,8 +28,8 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
-  for (var name2 in all)
-    __defProp(target, name2, { get: all[name2], enumerable: true });
+  for (var name3 in all)
+    __defProp(target, name3, { get: all[name3], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -741,7 +741,7 @@ function newError(Definition) {
   return new Definition();
 }
 // @__NO_SIDE_EFFECTS__
-function $constructor(name2, initializer2, proto, params) {
+function $constructor(name3, initializer2, proto, params) {
   const zodProto = {};
   function Internals(def) {
     this.def = def;
@@ -759,10 +759,10 @@ function $constructor(name2, initializer2, proto, params) {
       } finally {
         _zodDesc.value = void 0;
       }
-    } else if (inst._zod.traits.has(name2)) {
+    } else if (inst._zod.traits.has(name3)) {
       return;
     }
-    inst._zod.traits.add(name2);
+    inst._zod.traits.add(name3);
     initializer2(inst, def);
     if (initialized) {
       const own2 = Object.getPrototypeOf(inst);
@@ -788,7 +788,7 @@ function $constructor(name2, initializer2, proto, params) {
   const Parent = params?.Parent ?? Object;
   class Definition extends Parent {
   }
-  Object.defineProperty(Definition, "name", { value: name2 });
+  Object.defineProperty(Definition, "name", { value: name3 });
   function _(def) {
     const inst = params?.Parent ? newError(Definition) : this;
     init2(inst, def);
@@ -809,10 +809,10 @@ function $constructor(name2, initializer2, proto, params) {
     value: (inst) => {
       if (params?.Parent && inst instanceof params.Parent)
         return true;
-      return inst?._zod?.traits?.has(name2);
+      return inst?._zod?.traits?.has(name3);
     }
   });
-  Object.defineProperty(_, "name", { value: name2 });
+  Object.defineProperty(_, "name", { value: name3 });
   return _;
 }
 var $ZodAsyncError = class extends Error {
@@ -2805,8 +2805,8 @@ var contributors = {
 function aggregateChecks(schema) {
   const agg = {};
   const def = schema._zod.def;
-  const list3 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
-  for (const ch of list3)
+  const list4 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  for (const ch of list4)
     contributors[ch._zod.def.check]?.(agg, ch._zod.def);
   const bag = schema._zod.bag;
   if (bag.minimum !== void 0)
@@ -3255,12 +3255,12 @@ function rewriteKeyNames(ctx) {
   const rewrites = /* @__PURE__ */ new Map();
   for (const record2 of pendingRecords.get(ctx) ?? []) {
     const seen = ctx.seen.get(record2);
-    const names3 = (seen?.def ?? seen?.schema)?.propertyNames;
-    if (!names3 || names3 === true || rewrites.has(names3))
+    const names4 = (seen?.def ?? seen?.schema)?.propertyNames;
+    if (!names4 || names4 === true || rewrites.has(names4))
       continue;
-    const rewritten = stringifyKeyNames(bySchema, names3, /* @__PURE__ */ new Set());
-    if (rewritten !== names3)
-      rewrites.set(names3, rewritten);
+    const rewritten = stringifyKeyNames(bySchema, names4, /* @__PURE__ */ new Set());
+    if (rewritten !== names4)
+      rewrites.set(names4, rewritten);
   }
   if (!rewrites.size)
     return;
@@ -3864,6 +3864,11 @@ function preferencePolicy(limiter = new RateLimiter(
 var NOT_ATOMIC = /* @__PURE__ */ new Set([
   "/batch",
   "/build_diagram",
+  "/build_model",
+  "/sync_operations",
+  "/apply_pattern",
+  "/apply_preset",
+  "/apply_theme",
   "/undo",
   "/redo",
   "/restore_snapshot",
@@ -3896,16 +3901,16 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text4, name2, path, results) {
-  const result = results.get(name2);
+function lookup(text4, name3, path, results) {
+  const result = results.get(name3);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text4}: no earlier op is named ${name2}`
+      `${text4}: no earlier op is named ${name3}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text4}: op ${name2} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text4}: op ${name3} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
@@ -3959,15 +3964,14 @@ var resultSchema = () => object({
   error: optional(string2()),
   details: optional(unknown())
 });
-function checkPlan(ops, endpoints2, atomic) {
-  const max = maxBatchOps();
+function checkPlan(ops, endpoints2, atomic, max) {
   if (ops.length > max) {
     throw new ApiError(
       "PAYLOAD_TOO_LARGE",
       `A batch takes at most ${max} ops (preference mcp-ext.limits.maxBatchOps); got ${ops.length}`
     );
   }
-  const names3 = /* @__PURE__ */ new Set();
+  const names4 = /* @__PURE__ */ new Set();
   ops.forEach((op, i) => {
     if (!endpoints2.has(op.path)) {
       throw new ApiError(
@@ -3982,13 +3986,13 @@ function checkPlan(ops, endpoints2, atomic) {
       );
     }
     if (op.as !== void 0) {
-      if (names3.has(op.as)) {
+      if (names4.has(op.as)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
           `ops.${i}.as: ${op.as} is used twice`
         );
       }
-      names3.add(op.as);
+      names4.add(op.as);
     }
   });
 }
@@ -4058,6 +4062,38 @@ function rollBack(operations) {
   for (let i = 0; i < operations.length; i++) app.repository.undo();
   history()._redoStack.clear();
 }
+async function runBatch(endpoints2, ops, atomic = true, max = maxBatchOps()) {
+  const byPath = new Map(endpoints2.map((e) => [e.path, e]));
+  checkPlan(ops, byPath, atomic, max);
+  const resultsByName = /* @__PURE__ */ new Map();
+  const { value: results, operations } = await recording(async () => {
+    const out = [];
+    for (const op of ops) {
+      const result = await runOp(op, byPath.get(op.path), resultsByName);
+      out.push(result);
+      if (atomic && !result.success) break;
+    }
+    return out;
+  });
+  const failures = results.filter((r) => !r.success);
+  if (atomic && failures.length > 0) {
+    rollBack(operations);
+    const failed = failures[0];
+    const index = results.length - 1;
+    throw new ApiError(
+      failed.code,
+      `ops.${index} ${failed.path} failed, batch rolled back: ${failed.error}`,
+      { index, results }
+    );
+  }
+  if (atomic && operations.length > 1) squash(operations);
+  return {
+    atomic,
+    succeeded: results.length - failures.length,
+    failed: failures.length,
+    results
+  };
+}
 function batchEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/batch",
@@ -4072,7 +4108,7 @@ function batchEndpoint(endpoints2) {
       atomic: optional(
         doc(
           boolean2(),
-          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
+          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme."
         )
       ),
       result: optional(
@@ -4093,46 +4129,19 @@ function batchEndpoint(endpoints2) {
     }),
     handle: async (input) => {
       const atomic = input.atomic ?? true;
-      const byPath = new Map(
-        endpoints2().map((e) => [e.path, e])
-      );
-      checkPlan(input.ops, byPath, atomic);
-      const resultsByName = /* @__PURE__ */ new Map();
-      const { value: results, operations } = await recording(async () => {
-        const out = [];
-        for (const op of input.ops) {
-          const result = await runOp(op, byPath.get(op.path), resultsByName);
-          out.push(result);
-          if (atomic && !result.success) break;
-        }
-        return out;
-      });
-      const failures = results.filter((r) => !r.success);
-      if (atomic && failures.length > 0) {
-        rollBack(operations);
-        const failed = failures[0];
-        const index = results.length - 1;
-        throw new ApiError(
-          failed.code,
-          `ops.${index} ${failed.path} failed, batch rolled back: ${failed.error}`,
-          { index, results }
-        );
-      }
-      if (atomic && operations.length > 1) squash(operations);
+      const run = await runBatch(endpoints2(), input.ops, atomic);
       const mode = input.result ?? "terse";
       return {
-        atomic,
-        succeeded: results.length - failures.length,
-        failed: failures.length,
-        results: results.map((r) => shapeResult(r, mode))
+        ...run,
+        results: run.results.map((r) => shapeResult(r, mode))
       };
     }
   });
 }
 
 // src/build/members.ts
-function multiline(name2) {
-  return name2.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
+function multiline(name3) {
+  return name3.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
 }
 var VISIBILITY = {
   "+": "public",
@@ -4192,11 +4201,11 @@ function parseOperation(source) {
   const vis = visibility(mod.text);
   const open = vis.text.indexOf("(");
   const close = vis.text.lastIndexOf(")");
-  const name2 = vis.text.slice(0, open).trim();
+  const name3 = vis.text.slice(0, open).trim();
   const params = vis.text.slice(open + 1, close).trim();
   const returnType = vis.text.slice(close + 1).replace(/^\s*:/, "").trim();
   return {
-    name: name2,
+    name: name3,
     ...params && {
       parameters: params.split(",").map((p) => typedName(p.trim()))
     },
@@ -4284,12 +4293,12 @@ function parseJsonSchema(source, as) {
     named3.set(rootName, root);
     pointers.set(root, "#");
   }
-  for (const [name2, schema] of Object.entries(defs)) {
+  for (const [name3, schema] of Object.entries(defs)) {
     if (!isObject2(schema)) {
-      return fail(`#/${defsKey}/${name2}`, "is not a schema");
+      return fail(`#/${defsKey}/${name3}`, "is not a schema");
     }
-    named3.set(name2, schema);
-    pointers.set(schema, `#/${defsKey}/${name2}`);
+    named3.set(name3, schema);
+    pointers.set(schema, `#/${defsKey}/${name3}`);
   }
   if (named3.size === 0)
     fail("", "no object schema: give the root properties, or $defs");
@@ -4303,11 +4312,11 @@ function parseJsonSchema(source, as) {
         "UNSUPPORTED_SYNTAX"
       );
     }
-    const name2 = decodeURIComponent(
+    const name3 = decodeURIComponent(
       m[2].replace(/~1/g, "/").replace(/~0/g, "~")
     );
-    if (!named3.has(name2)) fail(pointer, `$ref ${ref3} names no definition`);
-    return name2;
+    if (!named3.has(name3)) fail(pointer, `$ref ${ref3} names no definition`);
+    return name3;
   };
   const shape = (s, pointer) => {
     for (const keyword of ["oneOf", "not", "$dynamicRef", "$recursiveRef"]) {
@@ -4351,9 +4360,9 @@ function parseJsonSchema(source, as) {
   const entities2 = [];
   const relationships = [];
   const done = /* @__PURE__ */ new Set();
-  const visit = (name2, s, pointer) => {
-    if (done.has(name2)) return;
-    done.add(name2);
+  const visit = (name3, s, pointer) => {
+    if (done.has(name3)) return;
+    done.add(name3);
     let own2 = s;
     if (Array.isArray(s.allOf)) {
       const parts = s.allOf;
@@ -4381,11 +4390,11 @@ function parseJsonSchema(source, as) {
       for (const base of bases) {
         const parent = target(base.$ref, `${pointer}/allOf`);
         if (kind2 === "class")
-          relations.push({ from: name2, to: parent, type: "generalization" });
+          relations.push({ from: name3, to: parent, type: "generalization" });
         else
           relationships.push({
             from: parent,
-            to: name2,
+            to: name3,
             fromCardinality: "1",
             toCardinality: "0..1",
             identifying: true
@@ -4395,13 +4404,13 @@ function parseJsonSchema(source, as) {
     if (Array.isArray(own2.enum) && !isObject2(own2.properties)) {
       if (kind2 === "class") {
         classes.push({
-          name: name2,
+          name: name3,
           kind: "enum",
           literals: own2.enum.map(String)
         });
       } else {
         entities2.push({
-          name: name2,
+          name: name3,
           columns: [{ name: "value", type: "varchar", primaryKey: true }]
         });
       }
@@ -4418,7 +4427,7 @@ function parseJsonSchema(source, as) {
       const optional2 = !required2.has(prop) || sh.nullable;
       let other = sh.ref;
       if (sh.inline) {
-        other = typeof sh.inline.title === "string" ? sh.inline.title : `${name2}${pascal(prop)}`;
+        other = typeof sh.inline.title === "string" ? sh.inline.title : `${name3}${pascal(prop)}`;
         named3.set(other, sh.inline);
         visit(other, sh.inline, at);
       }
@@ -4431,14 +4440,14 @@ function parseJsonSchema(source, as) {
           });
         } else if (sh.inline) {
           relations.push({
-            from: name2,
+            from: name3,
             to: other,
             type: "composition",
             toMultiplicity: sh.many ? "*" : optional2 ? "0..1" : "1"
           });
         } else {
           relations.push({
-            from: name2,
+            from: name3,
             to: other,
             type: "directed",
             name: prop,
@@ -4453,7 +4462,7 @@ function parseJsonSchema(source, as) {
         });
       } else if (sh.many) {
         relationships.push({
-          from: name2,
+          from: name3,
           to: other,
           fromCardinality: "1",
           toCardinality: "0..*",
@@ -4469,7 +4478,7 @@ function parseJsonSchema(source, as) {
         keys.push([key, other]);
         relationships.push({
           from: other,
-          to: name2,
+          to: name3,
           fromCardinality: optional2 ? "0..1" : "1",
           toCardinality: "0..*",
           identifying: false
@@ -4477,14 +4486,14 @@ function parseJsonSchema(source, as) {
       }
     }
     if (kind2 === "class") {
-      classes.push({ name: name2, ...attributes2.length > 0 && { attributes: attributes2 } });
+      classes.push({ name: name3, ...attributes2.length > 0 && { attributes: attributes2 } });
     } else {
-      entities2.push({ name: name2, columns });
+      entities2.push({ name: name3, columns });
     }
   };
   const keys = [];
-  for (const [name2, schema] of [...named3])
-    visit(name2, schema, pointers.get(schema));
+  for (const [name3, schema] of [...named3])
+    visit(name3, schema, pointers.get(schema));
   for (const [column, other] of keys) {
     const type2 = entities2.find((e) => e.name === other).columns.find((c) => c.primaryKey)?.type;
     if (type2 !== void 0) column.type = type2;
@@ -4684,8 +4693,8 @@ var Styles = class {
   line(text4) {
     let m;
     if (m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text4)) {
-      for (const name2 of m[1].split(","))
-        this.defs.set(name2, cssColors(m[2]));
+      for (const name3 of m[1].split(","))
+        this.defs.set(name3, cssColors(m[2]));
     } else if (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text4)) {
       for (const id2 of m[1].split(",")) this.use(id2.trim(), m[2]);
     } else if (m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text4)) {
@@ -4765,8 +4774,8 @@ function classDiagram(lines) {
   const notes = [];
   const styles = new Styles();
   let namespace;
-  const entry = (name2) => {
-    const key = name2.replace(/~.*~$/, "");
+  const entry = (name3) => {
+    const key = name3.replace(/~.*~$/, "");
     let e = classes.get(key);
     if (!e) {
       e = { name: key, attributes: [], operations: [], literals: [] };
@@ -4881,13 +4890,13 @@ function sequenceDiagram(lines) {
   for (const { no, text: text4 } of lines) {
     let m;
     if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
-      const name2 = multiline(m[3] ?? m[2]);
-      aliases2.set(m[2], name2);
-      participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+      const name3 = multiline(m[3] ?? m[2]);
+      aliases2.set(m[2], name3);
+      participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
-      const name2 = multiline(m[3] ?? m[2]);
-      aliases2.set(m[2], name2);
-      participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+      const name3 = multiline(m[3] ?? m[2]);
+      aliases2.set(m[2], name3);
+      participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text4)) {
       open.push({
         operator: m[1],
@@ -5112,10 +5121,10 @@ function activitySpec(lines) {
 function usecaseSpec(lines) {
   const { direction: direction2, nodes, flows, styles } = flowchart(lines);
   const round = /* @__PURE__ */ new Set(["connector", "alternate", "terminator"]);
-  const names3 = new Map(nodes.map((n) => [n.id, n.name]));
+  const names4 = new Map(nodes.map((n) => [n.id, n.name]));
   const colors = styles.resolve(
     nodes.map((n) => n.id),
-    (id2) => names3.get(id2)
+    (id2) => names4.get(id2)
   );
   const system = nodes.find((n) => n.lane)?.lane;
   return {
@@ -5128,8 +5137,8 @@ function usecaseSpec(lines) {
         const label4 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
         const type2 = label4 === "include" || label4 === "extend" || label4 === "generalization" ? label4 : "association";
         return {
-          from: names3.get(f.from),
-          to: names3.get(f.to),
+          from: names4.get(f.from),
+          to: names4.get(f.to),
           type: type2,
           ...type2 === "association" && f.label && { name: f.label }
         };
@@ -5153,8 +5162,8 @@ var RIGHT_CARD = {
 function erDiagram(lines) {
   const entities2 = /* @__PURE__ */ new Map();
   const relationships = [];
-  const entity2 = (name2) => {
-    const key = unquote(name2);
+  const entity2 = (name3) => {
+    const key = unquote(name3);
     if (!entities2.has(key)) entities2.set(key, []);
     return entities2.get(key);
   };
@@ -5197,8 +5206,8 @@ function erDiagram(lines) {
     }
   }
   return {
-    entities: [...entities2].map(([name2, columns]) => ({
-      name: name2,
+    entities: [...entities2].map(([name3, columns]) => ({
+      name: name3,
       ...columns.length > 0 && { columns }
     })),
     relationships
@@ -5332,7 +5341,7 @@ function requirementDiagram(lines) {
   const elements = [];
   const relations = [];
   const styles = new Styles();
-  const names3 = [];
+  const names4 = [];
   let open = null;
   let isElement2 = false;
   const forward = new RegExp(`^(${NAME2})\\s*-\\s*(\\w+)\\s*->\\s*(${NAME2})$`);
@@ -5379,11 +5388,11 @@ function requirementDiagram(lines) {
       const type2 = REQUIREMENT_KEYWORDS[keyword];
       if (keyword !== "element" && !type2)
         fail2(no, `unknown requirement type ${m[1]}`);
-      const name2 = multiline(unquote(m[2]));
-      if (m[3]) styles.use(name2, m[3]);
-      names3.push(name2);
+      const name3 = multiline(unquote(m[2]));
+      if (m[3]) styles.use(name3, m[3]);
+      names4.push(name3);
       isElement2 = keyword === "element";
-      open = isElement2 ? { name: name2 } : { name: name2, ...type2 !== "requirement" && { type: type2 } };
+      open = isElement2 ? { name: name3 } : { name: name3, ...type2 !== "requirement" && { type: type2 } };
     } else if (m = forward.exec(text4)) {
       relation(m[1], m[2], m[3], no);
     } else if (m = backward.exec(text4)) {
@@ -5394,7 +5403,7 @@ function requirementDiagram(lines) {
   }
   if (open)
     fail2(lines.at(-1).no, `${String(open.name)} is never closed with }`);
-  const colors = styles.resolve(names3, (n) => n);
+  const colors = styles.resolve(names4, (n) => n);
   return {
     requirements,
     elements,
@@ -5609,10 +5618,10 @@ function classDiagram2(lines) {
   const warnings = [];
   const open = [];
   let last;
-  const entry = (key, name2 = key) => {
+  const entry = (key, name3 = key) => {
     let e = classes.get(key);
     if (!e) {
-      e = { name: name2, attributes: [], operations: [], literals: [] };
+      e = { name: name3, attributes: [], operations: [], literals: [] };
       if (open.length > 0) e.package = open.at(-1);
       classes.set(key, e);
     }
@@ -5656,9 +5665,9 @@ function classDiagram2(lines) {
         realization: /\s+implements\s+(.+?)(?=\s+extends\s|$)/.exec(rest)
       };
       const decl = rest.replace(/\s+(extends|implements)\s.*$/, "").replace(/<[^<>]*>$/, "").trim();
-      const { key, name: name2 } = named(decl);
-      const e = entry(key, name2);
-      e.name = name2;
+      const { key, name: name3 } = named(decl);
+      const e = entry(key, name3);
+      e.name = name3;
       const kind2 = CLASS_KINDS[m[1].replace(/\s+/g, " ")];
       if (kind2) e.kind = kind2;
       if (stereotype !== void 0) e.stereotype = stereotype;
@@ -5677,14 +5686,14 @@ function classDiagram2(lines) {
       refuse(no, `${m[1]} is not part of a class diagram build_diagram reads`);
     } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text4)) {
       const { rest } = adornments(m[2]);
-      const { name: name2 } = named(rest);
+      const { name: name3 } = named(rest);
       if (open.length > 0) {
         warnings.push(
-          `package ${name2} is nested in ${open.at(-1)}; StarUML gets it at the top level`
+          `package ${name3} is nested in ${open.at(-1)}; StarUML gets it at the top level`
         );
       }
-      if (!packages.includes(name2)) packages.push(name2);
-      open.push(name2);
+      if (!packages.includes(name3)) packages.push(name3);
+      open.push(name3);
     } else if (text4 === "}" && open.length > 0) {
       open.pop();
     } else if (m = RELATION3.exec(text4)) {
@@ -5702,12 +5711,12 @@ function classDiagram2(lines) {
       entry(ka);
       entry(kb);
       const [from, to, fromMul, toMul] = reversed ? [kb, ka, bCard, aCard] : [ka, kb, aCard, bCard];
-      const name2 = label(text22);
+      const name3 = label(text22);
       relations.push({
         from,
         to,
         type: type2,
-        ...name2 && { name: name2 },
+        ...name3 && { name: name3 },
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
@@ -5797,17 +5806,17 @@ function sequenceDiagram2(lines) {
     } else if (m = /^create\s+(?:(participant|actor|boundary|control|entity|database|collections|queue)\s+)?(.+)$/.exec(
       text4
     )) {
-      const { key, name: name2 } = named(adornments(m[2]).rest);
+      const { key, name: name3 } = named(adornments(m[2]).rest);
       if (!keys.has(key)) {
-        keys.set(key, name2);
-        participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+        keys.set(key, name3);
+        participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
       }
       creating.add(keys.get(key));
     } else if (m = PARTICIPANT.exec(text4)) {
       const rest = adornments(m[2]).rest.replace(/\s+order\s+-?\d+$/, "");
-      const { key, name: name2 } = named(rest);
-      keys.set(key, name2);
-      participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+      const { key, name: name3 } = named(rest);
+      keys.set(key, name3);
+      participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^destroy\s+(.+)$/.exec(text4)) {
       const target = who(m[1]);
       const last = [...messages2].reverse().find((x) => x.to === target);
@@ -5904,17 +5913,17 @@ var UC_RELATION = new RegExp(
 function usecaseDiagram(lines) {
   const actors = [];
   const useCases2 = [];
-  const names3 = /* @__PURE__ */ new Map();
+  const names4 = /* @__PURE__ */ new Map();
   const relations = [];
   const notes = [];
   const noteAliases = /* @__PURE__ */ new Map();
   const warnings = [];
   let system;
   let depth = 0;
-  const declare = (list3, key, name2) => {
-    names3.set(key, name2);
-    if (!actors.includes(name2) && !useCases2.includes(name2)) list3.push(name2);
-    return name2;
+  const declare = (list4, key, name3) => {
+    names4.set(key, name3);
+    if (!actors.includes(name3) && !useCases2.includes(name3)) list4.push(name3);
+    return name3;
   };
   const end = (ref3) => {
     let m = /^\((.+)\)(?:\s+as\s+([\w.]+))?$/.exec(ref3);
@@ -5922,7 +5931,7 @@ function usecaseDiagram(lines) {
     m = /^:(.+):$/.exec(ref3);
     if (m) return declare(actors, m[1], multiline(m[1]));
     const key = unquote(ref3);
-    return names3.get(key) ?? declare(actors, key, multiline(key));
+    return names4.get(key) ?? declare(actors, key, multiline(key));
   };
   for (let i = 0; i < lines.length; i++) {
     const { no, text: text4 } = lines[i];
@@ -5939,17 +5948,17 @@ function usecaseDiagram(lines) {
     } else if ((m = /^actor\/?\s+(.+)$/.exec(text4)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text4))) {
       const rest = adornments(m[1]).rest;
       const colon = /^:(.+):(?:\s+as\s+(\S+))?$/.exec(rest);
-      const { key, name: name2 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
-      declare(actors, key, name2);
+      const { key, name: name3 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
+      declare(actors, key, name3);
     } else if ((m = /^usecase\/?\s+(.+)$/.exec(text4)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text4))) {
       const rest = adornments(m[1]).rest;
       const paren = /^\((.+)\)(?:\s+as\s+(\S+))?$/.exec(rest);
-      const { key, name: name2 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
-      declare(useCases2, key, name2);
+      const { key, name: name3 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
+      declare(useCases2, key, name3);
     } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text4)) {
-      const name2 = named(adornments(m[2]).rest).name;
-      if (system === void 0) system = name2;
-      else warnings.push(`only one system boundary is drawn; ${name2} is not`);
+      const name3 = named(adornments(m[2]).rest).name;
+      if (system === void 0) system = name3;
+      else warnings.push(`only one system boundary is drawn; ${name3} is not`);
       depth++;
     } else if (text4 === "}" && depth > 0) {
       depth--;
@@ -5966,12 +5975,12 @@ function usecaseDiagram(lines) {
       const reversed = core.startsWith("<");
       const [from, to] = reversed ? [end(b), end(a)] : [end(a), end(b)];
       const type2 = general ? "generalization" : tag === "include" || tag === "extend" ? tag : "association";
-      const name2 = label(text22);
+      const name3 = label(text22);
       relations.push({
         from,
         to,
         type: type2,
-        ...type2 === "association" && name2 && { name: name2 }
+        ...type2 === "association" && name3 && { name: name3 }
       });
     } else {
       fail3(no, `cannot read "${text4}"`);
@@ -5998,11 +6007,11 @@ function activityDiagram(lines) {
   let pending;
   let lastNode;
   const stack = [];
-  const node = (type2, name2) => {
+  const node = (type2, name3) => {
     const id2 = `${type2}${nodes.length}`;
     nodes.push({
       id: id2,
-      ...name2 !== void 0 && { name: multiline(name2) },
+      ...name3 !== void 0 && { name: multiline(name3) },
       type: type2,
       ...lane !== void 0 && { lane }
     });
@@ -6297,8 +6306,8 @@ function erDiagram2(lines) {
   const relationships = [];
   let open = null;
   const entity2 = (ref3) => {
-    const { key, name: name2 } = named(ref3);
-    if (!entities2.has(key)) entities2.set(key, { name: name2, columns: [] });
+    const { key, name: name3 } = named(ref3);
+    if (!entities2.has(key)) entities2.set(key, { name: name3, columns: [] });
     return entities2.get(key);
   };
   for (const { no, text: text4 } of lines) {
@@ -6360,16 +6369,16 @@ function mindmap2(lines) {
     const { no, text: text4 } = lines[i];
     const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
     const depth = m[1].length;
-    let name2 = m[3];
-    if (name2.startsWith(":")) {
-      name2 = name2.slice(1);
-      while (!name2.endsWith(";") && i + 1 < lines.length) {
-        name2 += `
+    let name3 = m[3];
+    if (name3.startsWith(":")) {
+      name3 = name3.slice(1);
+      while (!name3.endsWith(";") && i + 1 < lines.length) {
+        name3 += `
 ${lines[++i].text}`;
       }
-      name2 = name2.replace(/;$/, "");
+      name3 = name3.replace(/;$/, "");
     }
-    const node = { name: multiline(name2), children: [] };
+    const node = { name: multiline(name3), children: [] };
     if (depth === 1) {
       if (root) refuse(no, "a mind map has one root in StarUML");
       root = node;
@@ -6538,11 +6547,11 @@ function items(text4) {
   return out;
 }
 var NAME3 = String.raw`(?:"[^"]+"|\`[^\`]+\`|\[[^\]]+\]|[\w$]+)(?:\s*\.\s*(?:"[^"]+"|\`[^\`]+\`|\[[^\]]+\]|[\w$]+))*`;
-function bare(name2) {
-  const last = name2.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
+function bare(name3) {
+  const last = name3.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
   return last.replace(/^["`[]|["`\]]$/g, "");
 }
-var names = (list3) => items(list3).map(bare);
+var names = (list4) => items(list4).map(bare);
 var CONSTRAINT = /\s+(?=(?:not\s+null|null|primary\s+key|unique|references|default|check|constraint|generated|auto_increment|autoincrement|identity|collate|comment|on\s+update)\b)/i;
 var SKIPPED = /^(create\s+(unique\s+)?index|create\s+sequence|create\s+extension|create\s+schema|create\s+database|alter\s+sequence|alter\s+(database|schema|default)|set\s|select\s|comment\s+on|grant\s|revoke\s|insert\s|update\s|delete\s|drop\s|begin|commit|start\s+transaction|use\s|lock\s|unlock\s|analyze|vacuum|pragma|copy\s|\\)/i;
 var REFUSED = /^create\s+(or\s+replace\s+)?(view|materialized\s+view|type|function|procedure|trigger|domain|rule|policy|event|aggregate|operator|cast)\b/i;
@@ -6550,7 +6559,7 @@ function parseSql(source) {
   const tables = /* @__PURE__ */ new Map();
   const keys = [];
   const skipped = /* @__PURE__ */ new Map();
-  const table = (name2) => tables.get(name2.toLowerCase());
+  const table = (name3) => tables.get(name3.toLowerCase());
   const column = (t, def, line) => {
     const m = new RegExp(String.raw`^(${NAME3})\s+([\s\S]+)$`).exec(def) ?? fail4(line, `cannot read column "${def}"`);
     const [typeText2, ...rest] = m[2].split(CONSTRAINT);
@@ -6613,10 +6622,10 @@ function parseSql(source) {
       String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp)\s+|unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME3})\s*\(([\s\S]*)\)[^)]*$`,
       "i"
     ).exec(text4)) {
-      const name2 = bare(m[1]);
-      const t = { name: name2, columns: [], primaryKey: [], unique: [] };
-      if (table(name2)) fail4(line, `table ${name2} is created twice`);
-      tables.set(name2.toLowerCase(), t);
+      const name3 = bare(m[1]);
+      const t = { name: name3, columns: [], primaryKey: [], unique: [] };
+      if (table(name3)) fail4(line, `table ${name3} is created twice`);
+      tables.set(name3.toLowerCase(), t);
       for (const def of items(m[2])) {
         if (/^(constraint|primary\s+key|foreign\s+key|unique|check|exclude|key|index|fulltext|spatial)\b/i.test(
           def
@@ -6676,13 +6685,13 @@ function parseSql(source) {
       tables.set(k.references.toLowerCase(), parent);
     }
     const cols = k.columns.map(
-      (name2) => child.columns.find(
-        (c) => c.name.toLowerCase() === name2.toLowerCase()
-      ) ?? fail4(k.line, `${k.table} has no column ${name2}`)
+      (name3) => child.columns.find(
+        (c) => c.name.toLowerCase() === name3.toLowerCase()
+      ) ?? fail4(k.line, `${k.table} has no column ${name3}`)
     );
     for (const c of cols) c.foreignKey = true;
-    const same = (a, b) => a.length === b.length && a.every((x) => b.some((y) => y.toLowerCase() === x.toLowerCase()));
-    const unique2 = same(k.columns, child.primaryKey) || child.unique.some((u) => same(k.columns, u)) || cols.length === 1 && cols[0].unique === true;
+    const same2 = (a, b) => a.length === b.length && a.every((x) => b.some((y) => y.toLowerCase() === x.toLowerCase()));
+    const unique2 = same2(k.columns, child.primaryKey) || child.unique.some((u) => same2(k.columns, u)) || cols.length === 1 && cols[0].unique === true;
     const inKey = k.columns.every(
       (c) => child.primaryKey.some((p) => p.toLowerCase() === c.toLowerCase())
     );
@@ -8328,12 +8337,12 @@ function sequencePlan(spec) {
     }
   };
 }
-function uniqueNames(names3) {
+function uniqueNames(names4) {
   const seen = /* @__PURE__ */ new Map();
-  return names3.map((name2) => {
-    const n = (seen.get(name2) ?? 0) + 1;
-    seen.set(name2, n);
-    return n === 1 ? name2 : `${name2} ${n}`;
+  return names4.map((name3) => {
+    const n = (seen.get(name3) ?? 0) + 1;
+    seen.set(name3, n);
+    return n === 1 ? name3 : `${name3} ${n}`;
   });
 }
 function withOperandStarts(f) {
@@ -8403,8 +8412,8 @@ var ACTIVITY_TYPES = {
   join: ["UMLJoinNode", 120, 10],
   object: ["UMLObjectNode", 120, 50]
 };
-function nodeName(name2, key, named3) {
-  if (name2 !== void 0) return multiline(name2);
+function nodeName(name3, key, named3) {
+  if (name3 !== void 0) return multiline(name3);
   return named3 ? key : "";
 }
 function activityPlan(spec) {
@@ -8481,13 +8490,13 @@ function statemachinePlan(spec) {
       );
     }
     const [create, width, height] = STATE_CREATE[type2];
-    const name2 = nodeName(o.name, key, type2 === "state");
-    const lines = name2.split("\n");
+    const name3 = nodeName(o.name, key, type2 === "state");
+    const lines = name3.split("\n");
     b.node({
       key,
       type: create,
-      name: name2,
-      width: type2 === "state" ? Math.max(width, textWidth(name2) + 2 * LABEL_PADDING) : width,
+      name: name3,
+      width: type2 === "state" ? Math.max(width, textWidth(name3) + 2 * LABEL_PADDING) : width,
       height: type2 === "state" ? Math.max(height, 30 + LINE_HEIGHT * lines.length) : height
     });
     if (o.parent !== void 0) nested2.push([key, multiline(o.parent), i]);
@@ -8816,8 +8825,8 @@ var MEMBER_FIELDS = [
 ];
 var OPERATION_FIELDS = ["operations", "receptions"];
 var SPECIAL = /[\\/.#@(),]/g;
-function escapeName(name2) {
-  return name2.replace(SPECIAL, (c) => `\\${c}`);
+function escapeName(name3) {
+  return name3.replace(SPECIAL, (c) => `\\${c}`);
 }
 function parsePath(text4, dots = true) {
   const steps = [];
@@ -8873,8 +8882,8 @@ function readParams(text4, from) {
 function fieldOf(elem) {
   const owner = elem._parent;
   for (const field of [...MEMBER_FIELDS, ...OPERATION_FIELDS]) {
-    const list3 = owner[field];
-    if (Array.isArray(list3) && list3.includes(elem)) return field;
+    const list4 = owner[field];
+    if (Array.isArray(list4) && list4.includes(elem)) return field;
   }
   return null;
 }
@@ -8901,15 +8910,15 @@ function pathOf(elem) {
   const parts = [];
   for (let e = elem; e && e._parent; e = e._parent) {
     const field = fieldOf(e);
-    const name2 = escapeName(typeof e.name === "string" ? e.name : "");
+    const name3 = escapeName(typeof e.name === "string" ? e.name : "");
     if (field && OPERATION_FIELDS.includes(field)) {
       parts.unshift(
-        `#${name2}(${parameterTypes(e).map(escapeName).join(", ")})`
+        `#${name3}(${parameterTypes(e).map(escapeName).join(", ")})`
       );
     } else if (field) {
-      parts.unshift(`.${name2}`);
+      parts.unshift(`.${name3}`);
     } else {
-      parts.unshift(`/${name2}`);
+      parts.unshift(`/${name3}`);
     }
   }
   if (parts.length === 0) return null;
@@ -8964,18 +8973,18 @@ function matchPath(parsed, candidates) {
 }
 function nameIndex() {
   let index = null;
-  return (name2) => {
+  return (name3) => {
     if (!index) {
       index = /* @__PURE__ */ new Map();
       for (const elem of Object.values(app.repository.getIdMap())) {
         if (isView(elem)) continue;
         const key = typeof elem.name === "string" ? elem.name : "";
-        const list3 = index.get(key);
-        if (list3) list3.push(elem);
+        const list4 = index.get(key);
+        if (list4) list4.push(elem);
         else index.set(key, [elem]);
       }
     }
-    return index.get(name2) ?? [];
+    return index.get(name3) ?? [];
   };
 }
 function byId(id2) {
@@ -9049,7 +9058,7 @@ function tryResolve(ref3, options = {}) {
     throw err;
   }
 }
-var unique = (list3) => [...new Set(list3)];
+var unique = (list4) => [...new Set(list4)];
 function candidate(elem) {
   return {
     _id: elem._id,
@@ -9072,9 +9081,9 @@ function requireView(ref3, role = "View", diagram) {
     ...diagram && { diagram }
   });
 }
-function requireTypeName(name2) {
-  if (!Object.hasOwn(type, name2)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name2}`);
+function requireTypeName(name3) {
+  if (!Object.hasOwn(type, name3)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name3}`);
   }
 }
 function requireProject() {
@@ -9248,16 +9257,16 @@ function typeValue(description) {
 var ATTRIBUTE_VALUES_HELP = "Initial attribute values by name, as /introspect lists them: plain values for prim/enum attributes, an id or {$ref: id} for references, arrays of those for reference lists.";
 
 // src/metamodel.ts
-function isMetaClass(name2) {
-  return Object.hasOwn(meta, name2) && meta[name2].kind === "class";
+function isMetaClass(name3) {
+  return Object.hasOwn(meta, name3) && meta[name3].kind === "class";
 }
-function lineage(name2) {
+function lineage(name3) {
   const out = [];
-  for (let t = name2; t; t = meta[t]?.super) out.push(t);
+  for (let t = name3; t; t = meta[t]?.super) out.push(t);
   return out;
 }
-function attributeOf(typeName3, name2) {
-  return app.metamodels.getMetaAttributes(typeName3).find((attr) => attr.name === name2);
+function attributeOf(typeName3, name3) {
+  return app.metamodels.getMetaAttributes(typeName3).find((attr) => attr.name === name3);
 }
 function ownerField(owner, childType) {
   let best = null;
@@ -9337,8 +9346,8 @@ function referenced(owner, attr, value) {
 function toModelValue(owner, attr, value) {
   switch (attr.kind) {
     case "prim": {
-      const check = PRIM_CHECKS[attr.type];
-      if (check && !check(value)) invalid(owner, attr, `a ${attr.type}`);
+      const check2 = PRIM_CHECKS[attr.type];
+      if (check2 && !check2(value)) invalid(owner, attr, `a ${attr.type}`);
       return value;
     }
     case "enum": {
@@ -9366,22 +9375,22 @@ function toModelValue(owner, attr, value) {
       );
   }
 }
-function settableAttribute(typeName3, name2) {
-  const attr = name2 === "_id" || name2 === "_parent" ? void 0 : attributeOf(typeName3, name2);
+function settableAttribute(typeName3, name3) {
+  const attr = name3 === "_id" || name3 === "_parent" ? void 0 : attributeOf(typeName3, name3);
   if (!attr) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${typeName3} has no field '${name2}'`
+      `${typeName3} has no field '${name3}'`
     );
   }
   return attr;
 }
 function toModelValues(typeName3, properties2) {
   const out = {};
-  for (const [name2, value] of Object.entries(properties2)) {
-    out[name2] = toModelValue(
+  for (const [name3, value] of Object.entries(properties2)) {
+    out[name3] = toModelValue(
       typeName3,
-      settableAttribute(typeName3, name2),
+      settableAttribute(typeName3, name3),
       value
     );
   }
@@ -9389,14 +9398,15 @@ function toModelValues(typeName3, properties2) {
 }
 
 // src/create.ts
-function initialValues(typeName3, name2, properties2) {
+function initialValues(typeName3, name3, properties2) {
   return toModelValues(typeName3, {
     ...properties2,
-    ...name2 !== void 0 && { name: name2 }
+    ...name3 !== void 0 && { name: name3 }
   });
 }
 function requireModelId(id2) {
   if (!app.factory.getModelIds().includes(id2)) {
+    if (addable(id2)) return;
     throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${id2}`);
   }
   if (!isMetaClass(id2)) {
@@ -9406,10 +9416,26 @@ function requireModelId(id2) {
     );
   }
 }
+function addable(typeName3) {
+  return isMetaClass(typeName3) && Object.hasOwn(type, typeName3) && app.metamodels.isKindOf(typeName3, "Model") && !app.metamodels.isKindOf(typeName3, "Diagram") && !app.metamodels.isKindOf(typeName3, "DirectedRelationship") && !app.metamodels.isKindOf(typeName3, "UndirectedRelationship");
+}
 function createOwned(owner, typeName3, field, values, initialize = () => {
 }) {
   requireModelId(typeName3);
   const into = resolveOwnerField(owner, typeName3, field);
+  if (!app.factory.getModelIds().includes(typeName3)) {
+    const model = instantiate(typeName3);
+    Object.assign(model, values);
+    initialize(model);
+    const stored = inStarUML(() => app.engine.addModel(owner, into, model));
+    if (!stored) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `StarUML did not add ${typeName3} to ${owner.constructor.name}.${into}`
+      );
+    }
+    return stored;
+  }
   const elem = inStarUML(
     () => app.factory.createModel({
       id: typeName3,
@@ -9450,16 +9476,16 @@ function nameSpace(typeName3) {
 function ownedBy(owner) {
   return app.metamodels.getMetaAttributes(owner.constructor.name).filter((a) => a.kind === "objs").flatMap((a) => owner[a.name]);
 }
-function assertUniqueName(owner, typeName3, name2, allow) {
-  if (allow || !name2 || !namedKind(typeName3)) return;
+function assertUniqueName(owner, typeName3, name3, allow) {
+  if (allow || !name3 || !namedKind(typeName3)) return;
   const space = nameSpace(typeName3);
   const clash = ownedBy(owner).find(
-    (e) => e.name === name2 && namedKind(e.constructor.name) !== void 0 && nameSpace(e.constructor.name) === space
+    (e) => e.name === name3 && namedKind(e.constructor.name) !== void 0 && nameSpace(e.constructor.name) === space
   );
   if (clash) {
     throw new ApiError(
       "DUPLICATE_NAME",
-      `${pathOf(owner) ?? "The project"} already has a ${clash.constructor.name} named ${name2} (${pathOf(clash)}); pass allowDuplicateNames: true to add another`,
+      `${pathOf(owner) ?? "The project"} already has a ${clash.constructor.name} named ${name3} (${pathOf(clash)}); pass allowDuplicateNames: true to add another`,
       { existing: candidate(clash) }
     );
   }
@@ -9593,7 +9619,7 @@ var findElements = defineEndpoint({
     )
   }),
   handle: (input) => {
-    const { name: name2, cursor } = input;
+    const { name: name3, cursor } = input;
     let pool;
     if (input.type !== void 0) {
       requireTypeName(input.type);
@@ -9601,7 +9627,7 @@ var findElements = defineEndpoint({
     } else {
       pool = app.repository.findAll(() => true);
     }
-    const matches = (name2 === void 0 ? pool : pool.filter((e) => e.name === name2)).sort((a, b) => compare(a._id, b._id));
+    const matches = (name3 === void 0 ? pool : pool.filter((e) => e.name === name3)).sort((a, b) => compare(a._id, b._id));
     const rest = cursor === void 0 ? matches : matches.filter((e) => compare(e._id, cursor) > 0);
     const limit = input.limit ?? DEFAULT_PAGE_SIZE;
     const page = rest.slice(0, limit);
@@ -9622,7 +9648,7 @@ var createElement = defineEndpoint({
   destructive: false,
   request: object({
     type: typeName2(
-      "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
+      "A model id of /introspect factory.modelIds, e.g. 'UMLClass', or a model class StarUML otherwise makes only with a view, e.g. 'UMLLifeline', 'UMLPseudostate', 'UMLFinalState', 'UMLCombinedFragment', added without one."
     ),
     parent: ref2("Owner element."),
     name: optional(text2("Element name; StarUML generates one if omitted.")),
@@ -9728,11 +9754,11 @@ function changeReferences(elem, attr, op, value) {
     attr,
     Array.isArray(value) ? value : [value]
   );
-  const list3 = elem[attr.name];
+  const list4 = elem[attr.name];
   for (const item of items2) {
-    if (op === "add" && !list3.includes(item)) {
+    if (op === "add" && !list4.includes(item)) {
       inStarUML(() => app.engine.addItem(elem, attr.name, item));
-    } else if (op === "remove" && list3.includes(item)) {
+    } else if (op === "remove" && list4.includes(item)) {
       inStarUML(() => app.engine.removeItem(elem, attr.name, item));
     }
   }
@@ -9748,20 +9774,20 @@ function reorder(elem, attr, value, index) {
   if (index === void 0) {
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
-  const list3 = elem[attr.name];
+  const list4 = elem[attr.name];
   const itemRef = refId(value);
   const itemId = itemRef === null || byId(itemRef) ? itemRef : tryResolve(itemRef)?._id ?? itemRef;
-  const item = list3.find((e) => e._id === itemId);
+  const item = list4.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
       "NOT_FOUND",
       `${String(itemId)} is not in ${typeName3}.${attr.name}`
     );
   }
-  if (index >= list3.length) {
+  if (index >= list4.length) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName3}.${attr.name} (${list3.length} items)`
+      `index ${index} is past the end of ${typeName3}.${attr.name} (${list4.length} items)`
     );
   }
   const builder = app.repository.getOperationBuilder();
@@ -9951,10 +9977,10 @@ var createElementWithView = defineEndpoint({
     return created(view, input);
   }
 });
-function valuesFor(id2, name2, props) {
+function valuesFor(id2, name3, props) {
   const modelType = modelTypeOf(id2);
-  if (modelType) return initialValues(modelType, name2, props);
-  if (name2 !== void 0 || props !== void 0) {
+  if (modelType) return initialValues(modelType, name3, props);
+  if (name3 !== void 0 || props !== void 0) {
     throw new ApiError(
       "INVALID_ARGUMENT",
       `${id2} creates only a view; name and properties do not apply`
@@ -10540,15 +10566,15 @@ function signatureOf(type2) {
   return `${modelTypeOf(createId)}:${typeof kind2 === "string" ? kind2 : ""}`;
 }
 function modelSignature(model) {
-  const name2 = model.constructor.name;
-  return `${name2}:${name2 === "UMLPseudostate" ? String(model.kind) : ""}`;
+  const name3 = model.constructor.name;
+  return `${name3}:${name3 === "UMLPseudostate" ? String(model.kind) : ""}`;
 }
 var Pool = class {
   bySignature = /* @__PURE__ */ new Map();
   add(signature, item) {
-    const list3 = this.bySignature.get(signature) ?? [];
-    list3.push(item);
-    this.bySignature.set(signature, list3);
+    const list4 = this.bySignature.get(signature) ?? [];
+    list4.push(item);
+    this.bySignature.set(signature, list4);
   }
   take(signature) {
     return this.bySignature.get(signature)?.shift();
@@ -10593,7 +10619,7 @@ function existing(diagram) {
   }
   return { nodes, edges, all };
 }
-var names2 = (list3) => new Set((Array.isArray(list3) ? list3 : []).map((e) => e.name));
+var names2 = (list4) => new Set((Array.isArray(list4) ? list4 : []).map((e) => e.name));
 function memberOps(node, owner, model) {
   const ops = [];
   const add = (field, members2, op) => {
@@ -10614,17 +10640,17 @@ function memberOps(node, owner, model) {
   }));
   add(
     "literals",
-    node.literals?.map((name2) => ({ name: name2 })),
-    ({ name: name2 }) => ({
+    node.literals?.map((name3) => ({ name: name3 })),
+    ({ name: name3 }) => ({
       path: "/add_enumeration_literal",
-      body: { ref: owner, name: name2 }
+      body: { ref: owner, name: name3 }
     })
   );
   add("columns", node.columns, (c) => {
-    const { name: name2, ...properties2 } = c;
+    const { name: name3, ...properties2 } = c;
     return {
       path: "/create_element",
-      body: { type: "ERDColumn", parent: owner, name: name2, properties: properties2 }
+      body: { type: "ERDColumn", parent: owner, name: name3, properties: properties2 }
     };
   });
   return ops;
@@ -11057,9 +11083,9 @@ function defaultPreset(kind2, direction2) {
   return `${family}-${SIDES[direction2]}`;
 }
 var defaultDirection = (kind2) => kind2 === "mindmap" ? "LR" : "TB";
-function findDiagram(kind2, name2, parent) {
-  if (name2 === void 0) return null;
-  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name2 && within(d, parent)) ?? null;
+function findDiagram(kind2, name3, parent) {
+  if (name3 === void 0) return null;
+  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name3 && within(d, parent)) ?? null;
 }
 var refSchema = () => object({
   model: nullable(string2()),
@@ -11335,14 +11361,14 @@ function buildDiagramEndpoint(endpoints2) {
       const plan = planFor(kind2, spec);
       const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
       const raw = input.name ?? title;
-      const name2 = raw === void 0 ? void 0 : multiline(raw);
+      const name3 = raw === void 0 ? void 0 : multiline(raw);
       if (input.prune && !input.upsert) {
         throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
       }
-      const diagram = input.upsert ? findDiagram(kind2, name2, parent) : null;
+      const diagram = input.upsert ? findDiagram(kind2, name3, parent) : null;
       const built = opsFor(
         plan,
-        { diagram, parent, name: name2 },
+        { diagram, parent, name: name3 },
         direction2 ?? defaultDirection(kind2),
         input.autoLayout ?? true,
         input.layout,
@@ -11372,12 +11398,12 @@ function buildDiagramEndpoint(endpoints2) {
           ids3[key] = { model: `$${as}.model`, view: `$${as}.view` };
         }
         return {
-          diagram: diagram ? (({ _id: _id2, _type: _type2, name: name3 }) => ({ _id: _id2, _type: _type2, name: name3 }))(
+          diagram: diagram ? (({ _id: _id2, _type: _type2, name: name4 }) => ({ _id: _id2, _type: _type2, name: name4 }))(
             summarize(diagram)
           ) : {
             _id: "$diagram",
             _type: DIAGRAM_TYPES[kind2],
-            name: name2 ?? null
+            name: name3 ?? null
           },
           ...summary,
           created: built.created.size + built.edgeOps.length,
@@ -15278,8 +15304,8 @@ var DialogRefused = class extends Error {
 function dialogMethods() {
   const found = [];
   const dialogs = app.dialogs;
-  for (const name2 of methodNames(dialogs)) {
-    if (name2.startsWith("show")) found.push([dialogs, name2, `dialogs.${name2}`]);
+  for (const name3 of methodNames(dialogs)) {
+    if (name3.startsWith("show")) found.push([dialogs, name3, `dialogs.${name3}`]);
   }
   for (const [key, value] of Object.entries(app)) {
     const host = value;
@@ -15290,24 +15316,24 @@ function dialogMethods() {
   return found;
 }
 function methodNames(host) {
-  const names3 = new Set(Object.keys(host));
-  for (const name2 of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
-    names3.add(name2);
+  const names4 = new Set(Object.keys(host));
+  for (const name3 of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
+    names4.add(name3);
   }
-  return [...names3].filter((n) => typeof host[n] === "function");
+  return [...names4].filter((n) => typeof host[n] === "function");
 }
 async function withoutDialogs(what, run) {
   const attempted = [];
   const restore = [];
-  for (const [host, name2, label4] of dialogMethods()) {
-    const own2 = Object.getOwnPropertyDescriptor(host, name2);
-    host[name2] = () => {
+  for (const [host, name3, label4] of dialogMethods()) {
+    const own2 = Object.getOwnPropertyDescriptor(host, name3);
+    host[name3] = () => {
       attempted.push(label4);
       throw new DialogRefused(label4);
     };
     restore.push(() => {
-      if (own2) Object.defineProperty(host, name2, own2);
-      else delete host[name2];
+      if (own2) Object.defineProperty(host, name3, own2);
+      else delete host[name3];
     });
   }
   let outcome;
@@ -15358,11 +15384,11 @@ function refuseDialog(id2, args) {
   }
   const needed = info?.avoidWith ?? 0;
   if (info?.dialog === "without-args" && args.length < needed) {
-    const names3 = info.args.slice(0, needed).map((a) => a.name);
+    const names4 = info.args.slice(0, needed).map((a) => a.name);
     throw new ApiError(
       "DIALOG_REQUIRED",
-      `${id2} opens a dialog unless given ${names3.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
-      { dialog: "without-args", args: names3 }
+      `${id2} opens a dialog unless given ${names4.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
+      { dialog: "without-args", args: names4 }
     );
   }
 }
@@ -15719,7 +15745,7 @@ var surfaceSchema = () => object({
 var debugResponse = object({
   app_keys: array(string2()),
   ...Object.fromEntries(
-    INTROSPECTED_MANAGERS.map((name2) => [name2, surfaceSchema()])
+    INTROSPECTED_MANAGERS.map((name3) => [name3, surfaceSchema()])
   )
 });
 var debug = defineEndpoint({
@@ -15731,8 +15757,8 @@ var debug = defineEndpoint({
   response: debugResponse,
   handle: () => {
     const data = { app_keys: Object.keys(app).sort() };
-    for (const name2 of INTROSPECTED_MANAGERS) {
-      data[name2] = describeSurface(app[name2]);
+    for (const name3 of INTROSPECTED_MANAGERS) {
+      data[name3] = describeSurface(app[name3]);
     }
     return data;
   }
@@ -15758,7 +15784,7 @@ function appRoot() {
 }
 function extensionRules(dir) {
   if (!(0, import_node_fs2.existsSync)(dir)) return [];
-  return (0, import_node_fs2.readdirSync)(dir).sort().map((name2) => (0, import_node_path2.join)(dir, name2, "rules.js")).filter((file) => (0, import_node_fs2.existsSync)(file));
+  return (0, import_node_fs2.readdirSync)(dir).sort().map((name3) => (0, import_node_path2.join)(dir, name3, "rules.js")).filter((file) => (0, import_node_fs2.existsSync)(file));
 }
 function loadValidationRules(userExtensions) {
   const root = appRoot();
@@ -15808,8 +15834,8 @@ function membersOf(model) {
   ];
 }
 var quoted = (elem) => {
-  const name2 = label2(elem);
-  return name2 ? `"${name2}"` : "(unnamed)";
+  const name3 = label2(elem);
+  return name3 ? `"${name3}"` : "(unnamed)";
 };
 function nodeLine(view) {
   const model = view.model;
@@ -15828,8 +15854,8 @@ function endText(end) {
 }
 function edgeLine(view) {
   const model = view.model;
-  const name2 = label2(model);
-  return `- ${quoted(view.tail.model)}${endText(model.end1)} -[${model.constructor.name}` + (name2 ? ` "${name2}"` : "") + `]->${endText(model.end2)} ${quoted(view.head.model)}`;
+  const name3 = label2(model);
+  return `- ${quoted(view.tail.model)}${endText(model.end1)} -[${model.constructor.name}` + (name3 ? ` "${name3}"` : "") + `]->${endText(model.end2)} ${quoted(view.head.model)}`;
 }
 var describeDiagram = defineEndpoint({
   path: "/describe_diagram",
@@ -15879,9 +15905,9 @@ ${line}`;
     const truncated = shown < lines.length;
     if (truncated) text4 += `
 ... ${lines.length - shown} more lines`;
-    const { _id, _type, name: name2 } = summarize(diagram);
+    const { _id, _type, name: name3 } = summarize(diagram);
     return {
-      diagram: { _id, _type, name: name2 },
+      diagram: { _id, _type, name: name3 },
       nodes: nodes.length,
       edges: edges.length,
       text: text4,
@@ -15964,8 +15990,8 @@ var typeOf = (elem) => elem.constructor.name;
 var nameOf = (elem) => elem.name;
 var str2 = (value) => typeof value === "string" ? value : "";
 function kindOf(diagram) {
-  const name2 = typeOf(diagram);
-  const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name2);
+  const name3 = typeOf(diagram);
+  const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name3);
   return found ? found[0] : null;
 }
 var box = (view) => view;
@@ -16708,19 +16734,19 @@ var MACROS = {
   container: "Container",
   component: "Component"
 };
-function call(name2, alias, args) {
+function call(name3, alias, args) {
   while (args.length > 0 && args.at(-1) === "") args.pop();
   const quoted3 = args.map(
     (a) => `"${a.replace(/"/g, "'").replace(/\r?\n/g, " ")}"`
   );
-  return `${name2}(${[...alias, ...quoted3].join(", ")})`;
+  return `${name3}(${[...alias, ...quoted3].join(", ")})`;
 }
 function c4Macros(spec) {
   const lines = spec.elements.map((e) => {
     const db = e.kind === "database" && e.type !== "person" ? "Db" : "";
-    const name2 = `${MACROS[e.type]}${db}${e.external ? "_Ext" : ""}`;
+    const name3 = `${MACROS[e.type]}${db}${e.external ? "_Ext" : ""}`;
     const technology = e.type === "container" || e.type === "component" ? [e.technology] : [];
-    return call(name2, [e.id], [e.name, ...technology, e.description]);
+    return call(name3, [e.id], [e.name, ...technology, e.description]);
   });
   for (const r of spec.relations) {
     lines.push(
@@ -16731,20 +16757,20 @@ function c4Macros(spec) {
 }
 
 // src/text/mermaid-writer.ts
-var text3 = (name2) => name2.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
-var isWord = (name2) => /^[A-Za-z_][\w.]*$/.test(name2);
+var text3 = (name3) => name3.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
+var isWord = (name3) => /^[A-Za-z_][\w.]*$/.test(name3);
 var Ids = class {
   constructor(prefix) {
     this.prefix = prefix;
   }
   prefix;
   ids = /* @__PURE__ */ new Map();
-  get(name2) {
-    if (isWord(name2)) return name2;
-    let id2 = this.ids.get(name2);
+  get(name3) {
+    if (isWord(name3)) return name3;
+    let id2 = this.ids.get(name3);
     if (!id2) {
       id2 = `${this.prefix}${this.ids.size}`;
-      this.ids.set(name2, id2);
+      this.ids.set(name3, id2);
     }
     return id2;
   }
@@ -17005,7 +17031,7 @@ var RIGHT = {
   "0..*": "o{",
   "1..*": "|{"
 };
-var entity = (name2) => /^[\w-]+$/.test(name2) ? name2 : `"${text3(name2)}"`;
+var entity = (name3) => /^[\w-]+$/.test(name3) ? name3 : `"${text3(name3)}"`;
 function erDiagram3(spec) {
   const lines = ["erDiagram"];
   for (const e of spec.entities) {
@@ -17064,8 +17090,8 @@ function mindmap3(roots) {
   const lines = ["mindmap"];
   const warnings = [];
   const write = (node, depth) => {
-    const name2 = text3(node.name);
-    const label4 = /[()[\]{}]/.test(name2) ? `n["${name2}"]` : name2 || '[" "]';
+    const name3 = text3(node.name);
+    const label4 = /[()[\]{}]/.test(name3) ? `n["${name3}"]` : name3 || '[" "]';
     lines.push(`${"  ".repeat(depth)}${label4}`);
     for (const child of node.children) write(child, depth + 1);
   };
@@ -17083,7 +17109,7 @@ var REQUIREMENT_KEYWORDS2 = {
   physical: "physicalRequirement",
   design: "designConstraint"
 };
-var reqName = (name2) => /^\w+$/.test(name2) ? name2 : `"${text3(name2)}"`;
+var reqName = (name3) => /^\w+$/.test(name3) ? name3 : `"${text3(name3)}"`;
 function requirementDiagram2(spec) {
   const lines = ["requirementDiagram"];
   for (const r of spec.requirements) {
@@ -17149,12 +17175,12 @@ function toMermaid(x, title = "") {
 }
 
 // src/text/plantuml-writer.ts
-var q = (name2) => `"${name2.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
-var one = (name2) => name2.replace(/\r?\n/g, " ");
-function aliases(names3, prefix) {
+var q = (name3) => `"${name3.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
+var one = (name3) => name3.replace(/\r?\n/g, " ");
+function aliases(names4, prefix) {
   const ids2 = /* @__PURE__ */ new Map();
-  for (const n of names3) if (!ids2.has(n)) ids2.set(n, `${prefix}${ids2.size}`);
-  return (name2) => ids2.get(name2);
+  for (const n of names4) if (!ids2.has(n)) ids2.set(n, `${prefix}${ids2.size}`);
+  return (name3) => ids2.get(name3);
 }
 var noteLines = (head, body, indent = "") => [
   `${indent}${head}`,
@@ -17286,7 +17312,7 @@ function usecase2(spec, direction2) {
   for (const u of spec.useCases) {
     if (!u.inSystem) lines.push(`usecase ${q(u.name)} as ${uc(u.name)}`);
   }
-  const ref3 = (name2) => spec.actors.includes(name2) ? actor(name2) : uc(name2);
+  const ref3 = (name3) => spec.actors.includes(name3) ? actor(name3) : uc(name3);
   for (const r of spec.relations) {
     const [from, to] = [ref3(r.from), ref3(r.to)];
     lines.push(
@@ -17679,10 +17705,10 @@ var exportText = defineEndpoint({
       );
     }
     const { extracted, warnings } = extract(diagram, kind2);
-    const { _id, _type, name: name2 } = summarize(diagram);
+    const { _id, _type, name: name3 } = summarize(diagram);
     const out = input.format === "mermaid" ? toMermaid(extracted, diagram.name) : toPlantUml(extracted, diagram.name);
     return {
-      diagram: { _id, _type, name: name2 },
+      diagram: { _id, _type, name: name3 },
       kind: kind2,
       format: input.format,
       text: out.text,
@@ -17777,8 +17803,8 @@ function crosses(p, q2, box2) {
   }
   return true;
 }
-function labelWidth(name2) {
-  const widest = Math.max(...name2.split("\n").map((l) => l.length));
+function labelWidth(name3) {
+  const widest = Math.max(...name3.split("\n").map((l) => l.length));
   return widest * CHAR_WIDTH + LABEL_PADDING2;
 }
 function attached(edge, box2) {
@@ -17821,8 +17847,8 @@ var Findings = class {
   }
 };
 var label3 = (v) => {
-  const name2 = v.model?.name;
-  return typeof name2 === "string" && name2 ? `"${name2.replace(/\n/g, " ")}"` : kind(v);
+  const name3 = v.model?.name;
+  return typeof name3 === "string" && name3 ? `"${name3.replace(/\n/g, " ")}"` : kind(v);
 };
 function stacked(f, boxes) {
   const byOrigin = /* @__PURE__ */ new Map();
@@ -17909,11 +17935,11 @@ function crossings(f, boxes, edges) {
 }
 function overflows(f, boxes) {
   for (const b of boxes) {
-    const name2 = b.view.model?.name;
-    if (typeof name2 !== "string" || !name2 || NAME_OUTSIDE.test(kind(b.view))) {
+    const name3 = b.view.model?.name;
+    if (typeof name3 !== "string" || !name3 || NAME_OUTSIDE.test(kind(b.view))) {
       continue;
     }
-    const width = labelWidth(name2);
+    const width = labelWidth(name3);
     if (width <= b.right - b.left) continue;
     f.add(
       "L005",
@@ -18586,12 +18612,12 @@ function operationsOf(cls, seen = /* @__PURE__ */ new Set()) {
 var CALLS = /* @__PURE__ */ new Set(["synchCall", "asynchCall"]);
 function messages(l) {
   for (const m of l.all("UMLMessage")) {
-    const name2 = m.name.trim();
-    if (!name2 || m.signature || !CALLS.has(String(m.messageSort))) continue;
+    const name3 = m.name.trim();
+    if (!name3 || m.signature || !CALLS.has(String(m.messageSort))) continue;
     const role = m.target?.represent;
     const receiver = role?.type;
     if (!receiver || typeof receiver !== "object") continue;
-    const called = name2.replace(/\(.*$/s, "").trim();
+    const called = name3.replace(/\(.*$/s, "").trim();
     if (operationsOf(receiver).some((o) => o.name === called)) {
       continue;
     }
@@ -18660,8 +18686,8 @@ function naming(l, patterns) {
     for (const typeName3 of NAMING_KINDS[k]) {
       for (const e of l.all(typeName3)) {
         if (e.constructor.name !== typeName3) continue;
-        const name2 = e.name;
-        if (!name2 || re.test(name2)) continue;
+        const name3 = e.name;
+        if (!name3 || re.test(name3)) continue;
         l.add(
           "U012",
           e,
@@ -18755,6 +18781,1472 @@ var umlLint = defineEndpoint({
   }
 });
 
+// src/model/plan.ts
+var CLASS_TYPES2 = {
+  class: "UMLClass",
+  abstract: "UMLClass",
+  interface: "UMLInterface",
+  enum: "UMLEnumeration"
+};
+var MESSAGE_SORTS = {
+  sync: "synchCall",
+  async: "asynchCall",
+  reply: "reply",
+  create: "createMessage",
+  delete: "deleteMessage"
+};
+var STATE_TYPES2 = {
+  state: ["UMLState"],
+  initial: ["UMLPseudostate", "initial"],
+  final: ["UMLFinalState"],
+  choice: ["UMLPseudostate", "choice"],
+  fork: ["UMLPseudostate", "fork"],
+  join: ["UMLPseudostate", "join"]
+};
+var list3 = (value) => Array.isArray(value) ? value : [];
+var isRef = (v) => typeof v === "object" && v !== null && "$ref" in v;
+function same(current, wanted) {
+  if (isRef(wanted)) {
+    return current?._id === wanted.$ref;
+  }
+  if (typeof wanted === "string" && current && typeof current === "object") {
+    return current.name === wanted;
+  }
+  return current === wanted;
+}
+var childPath = (owner, name3, sep2 = "/") => owner ? `${owner}${sep2}${escapeName(name3)}` : escapeName(name3);
+function calledName(text4) {
+  const name3 = text4.replace(/\(.*$/s, "").trim();
+  return /^[A-Za-z_$][\w$]*$/.test(name3) ? name3 : null;
+}
+var Planner = class {
+  constructor(upsert) {
+    this.upsert = upsert;
+  }
+  upsert;
+  ops = [];
+  created = [];
+  updated = [];
+  refs = /* @__PURE__ */ new Map();
+  warnings = [];
+  unchanged = 0;
+  n = 0;
+  /** Existing elements already matched, so two specs never take one. */
+  claimed = /* @__PURE__ */ new Set();
+  alias() {
+    return `m${this.n++}`;
+  }
+  claim(elem) {
+    if (elem) this.claimed.add(elem);
+    return elem;
+  }
+  /** Sets what differs on an existing element. */
+  update(elem, props, path) {
+    const fields = Object.keys(props).filter((k) => !same(elem[k], props[k]));
+    if (fields.length === 0) {
+      this.unchanged++;
+      return;
+    }
+    for (const field of fields) {
+      this.ops.push({
+        path: "/update_element",
+        body: { ref: elem._id, field, value: props[field] }
+      });
+    }
+    this.updated.push({ path, type: elem.constructor.name, fields });
+  }
+  existing(owner, field, test) {
+    return list3(owner.elem?.[field]).find(
+      (e) => !this.claimed.has(e) && test(e)
+    );
+  }
+  /** An element owned by `owner`, matched by type and name, made when missing. */
+  element(owner, type2, name3, props, field = "ownedElements", extra = () => true, fields) {
+    const path = childPath(owner.path, name3);
+    const found = this.claim(
+      this.existing(
+        owner,
+        field,
+        (e) => e.constructor.name === type2 && e.name === name3 && extra(e)
+      )
+    );
+    if (found) {
+      if (!this.upsert) {
+        throw new ApiError(
+          "DUPLICATE_NAME",
+          `${path} exists; pass upsert: true to update it`,
+          { existing: candidate(found) }
+        );
+      }
+      this.update(found, props, path);
+      return { ref: found._id, elem: found, path };
+    }
+    const as = this.alias();
+    this.ops.push({
+      path: "/create_element",
+      as,
+      body: {
+        type: type2,
+        parent: owner.ref,
+        name: name3,
+        field,
+        ...Object.keys(props).length > 0 && { properties: props },
+        ...fields && { fields: ["_parent", ...fields] }
+      }
+    });
+    this.created.push({ path, type: type2 });
+    return { ref: `$${as}`, elem: null, path };
+  }
+  attribute(owner, a, type2, field = "attributes") {
+    const path = childPath(owner.path, a.name, ".");
+    const props = {
+      ...type2 !== void 0 && { type: type2 },
+      ...a.visibility !== void 0 && { visibility: a.visibility },
+      ...a.isStatic !== void 0 && { isStatic: a.isStatic },
+      ...a.multiplicity !== void 0 && { multiplicity: a.multiplicity },
+      ...a.defaultValue !== void 0 && { defaultValue: a.defaultValue }
+    };
+    const found = this.claim(
+      this.existing(owner, field, (e) => e.name === a.name)
+    );
+    if (found) {
+      this.update(found, props, path);
+      return { ref: found._id, elem: found, path };
+    }
+    const as = this.alias();
+    this.ops.push({
+      path: "/add_attribute",
+      as,
+      body: { ref: owner.ref, name: a.name, ...props }
+    });
+    this.created.push({ path, type: "UMLAttribute" });
+    return { ref: `$${as}`, elem: null, path };
+  }
+  operation(owner, o, typeOf2) {
+    const types = (o.parameters ?? []).map((p) => p.type ?? "");
+    const path = `${owner.path}#${escapeName(o.name)}(${types.map(escapeName).join(", ")})`;
+    const props = {
+      ...o.visibility !== void 0 && { visibility: o.visibility },
+      ...o.isStatic !== void 0 && { isStatic: o.isStatic },
+      ...o.isAbstract !== void 0 && { isAbstract: o.isAbstract }
+    };
+    const found = this.claim(
+      this.existing(owner, "operations", (e) => e.name === o.name)
+    );
+    if (found) {
+      this.update(found, props, path);
+      return { ref: found._id, elem: found, path };
+    }
+    const as = this.alias();
+    const returnType = typeOf2(o.returnType);
+    this.ops.push({
+      path: "/add_operation",
+      as,
+      body: {
+        ref: owner.ref,
+        name: o.name,
+        ...props,
+        ...o.parameters && {
+          parameters: o.parameters.map((p) => ({
+            name: p.name,
+            ...p.type !== void 0 && { type: typeOf2(p.type) }
+          }))
+        },
+        ...returnType !== void 0 && { returnType }
+      }
+    });
+    this.created.push({ path, type: "UMLOperation" });
+    return { ref: `$${as}`, elem: null, path };
+  }
+  literal(owner, name3) {
+    const found = this.claim(
+      this.existing(owner, "literals", (e) => e.name === name3)
+    );
+    if (found) {
+      this.unchanged++;
+      return;
+    }
+    this.ops.push({
+      path: "/add_enumeration_literal",
+      body: { ref: owner.ref, name: name3 }
+    });
+    this.created.push({
+      path: childPath(owner.path, name3, "."),
+      type: "UMLEnumerationLiteral"
+    });
+  }
+  /** A model-only relationship, unless the same one already joins the ends. */
+  relationship(type2, tail, head, more = {}) {
+    const path = `${tail.path} -> ${head.path}`;
+    const found = tail.elem && head.elem ? this.claim(
+      findRelationship2(
+        type2,
+        tail.elem,
+        head.elem,
+        more.name ?? "",
+        this.claimed
+      )
+    ) : void 0;
+    if (found) {
+      this.unchanged++;
+      return { ref: found._id, elem: found, path };
+    }
+    const as = this.alias();
+    this.ops.push({
+      path: "/create_relationship",
+      as,
+      body: {
+        type: type2,
+        tail: tail.ref,
+        head: head.ref,
+        ...more.name !== void 0 && { name: more.name },
+        ...more.properties && { properties: more.properties },
+        ...more.tailEnd && { tailEnd: more.tailEnd },
+        ...more.headEnd && { headEnd: more.headEnd }
+      }
+    });
+    this.created.push({ path, type: type2 });
+    return { ref: `$${as}.model`, elem: null, path };
+  }
+  plan(root) {
+    return {
+      ops: this.ops,
+      created: this.created,
+      updated: this.updated,
+      unchanged: this.unchanged,
+      refs: this.refs,
+      root: { ref: root.ref, path: root.path },
+      warnings: this.warnings
+    };
+  }
+};
+function findRelationship2(type2, tail, head, name3, claimed) {
+  return app.repository.getRelationshipsOf(tail).find((r) => {
+    if (claimed.has(r) || r.constructor.name !== type2) return false;
+    const [from, to] = "source" in r ? [r.source, r.target] : [r.end1.reference, r.end2.reference];
+    return r.name === name3 && from === tail && to === head;
+  });
+}
+function associationEnds(r) {
+  const end = (multiplicity, role) => ({
+    ...multiplicity !== void 0 && { multiplicity },
+    ...role !== void 0 && { name: role }
+  });
+  const tail = end(r.fromMultiplicity, r.fromRole);
+  const head = end(r.toMultiplicity, r.toRole);
+  switch (r.type) {
+    case "owns":
+      return {
+        tailEnd: { ...tail, aggregation: "composite" },
+        headEnd: { ...head, navigable: "navigable" }
+      };
+    case "has":
+      return {
+        tailEnd: { ...tail, aggregation: "shared" },
+        headEnd: { ...head, navigable: "navigable" }
+      };
+    case "knows":
+      return {
+        tailEnd: { ...tail, navigable: "notNavigable" },
+        headEnd: { ...head, navigable: "navigable" }
+      };
+    default:
+      return {
+        ...Object.keys(tail).length > 0 && { tailEnd: tail },
+        ...Object.keys(head).length > 0 && { headEnd: head }
+      };
+  }
+}
+var DIRECTED = {
+  uses: "UMLDependency",
+  isA: "UMLGeneralization",
+  implements: "UMLInterfaceRealization"
+};
+function packagesInOrder(spec) {
+  const byKey = /* @__PURE__ */ new Map();
+  for (const p of spec.packages) {
+    byKey.set(p.key, p);
+    if (!byKey.has(p.name)) byKey.set(p.name, p);
+  }
+  const out = [];
+  const state2 = /* @__PURE__ */ new Map();
+  const visit = (p, i) => {
+    if (state2.get(p.key) === "done") return;
+    if (state2.get(p.key) === "open") {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.packages.${i}.parent: ${p.name} would be nested in itself`
+      );
+    }
+    state2.set(p.key, "open");
+    if (p.parent !== void 0) {
+      const parent = byKey.get(p.parent);
+      if (!parent) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.packages.${i}.parent: no package ${p.parent}`
+        );
+      }
+      visit(parent, spec.packages.indexOf(parent));
+    }
+    state2.set(p.key, "done");
+    out.push(p);
+  };
+  spec.packages.forEach((p, i) => visit(p, i));
+  return { ordered: out, byKey };
+}
+function planModel(spec, options) {
+  const p = new Planner(options.upsert);
+  const parentPath = pathOf(options.parent) ?? "";
+  const parent = {
+    ref: options.parent._id,
+    elem: options.parent,
+    path: parentPath
+  };
+  const root = p.element(parent, "UMLModel", spec.name, {
+    ...spec.documentation !== void 0 && {
+      documentation: spec.documentation
+    }
+  });
+  p.refs.set(root.path, root.ref);
+  const { ordered, byKey } = packagesInOrder(spec);
+  const packages = /* @__PURE__ */ new Map();
+  for (const pkg of ordered) {
+    const owner = pkg.parent === void 0 ? root : packages.get(byKey.get(pkg.parent).key);
+    const node = p.element(owner, "UMLPackage", pkg.name, {
+      ...pkg.documentation !== void 0 && {
+        documentation: pkg.documentation
+      },
+      ...pkg.stereotype !== void 0 && { stereotype: pkg.stereotype }
+    });
+    packages.set(pkg.key, node);
+    p.refs.set(node.path, node.ref);
+  }
+  const packageOf = (key, where2) => {
+    if (key === void 0) return root;
+    const pkg = byKey.get(key);
+    if (!pkg) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${where2}: no package or context ${key}; declare it in spec.contexts or spec.packages`
+      );
+    }
+    return packages.get(pkg.key);
+  };
+  const classes = /* @__PURE__ */ new Map();
+  spec.classes.forEach((c, i) => {
+    if (classes.has(c.name)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.classes.${i}: ${c.name} is defined twice`
+      );
+    }
+    const node = p.element(
+      packageOf(c.package, `spec.classes.${i}.context`),
+      CLASS_TYPES2[c.kind],
+      c.name,
+      {
+        ...c.kind === "abstract" && { isAbstract: true },
+        ...c.stereotype !== void 0 && { stereotype: c.stereotype },
+        ...c.documentation !== void 0 && {
+          documentation: c.documentation
+        },
+        ...c.isLeaf !== void 0 && { isLeaf: c.isLeaf },
+        ...c.isActive !== void 0 && { isActive: c.isActive }
+      }
+    );
+    classes.set(c.name, { node, spec: c });
+    p.refs.set(node.path, node.ref);
+  });
+  const actors = /* @__PURE__ */ new Map();
+  for (const a of spec.actors) {
+    const node = p.element(root, "UMLActor", a.name, {
+      ...a.documentation !== void 0 && { documentation: a.documentation }
+    });
+    actors.set(a.name, node);
+    p.refs.set(node.path, node.ref);
+  }
+  const subjects = /* @__PURE__ */ new Map();
+  const useCases2 = /* @__PURE__ */ new Map();
+  for (const u of spec.useCases) {
+    if (u.subject !== void 0 && !subjects.has(u.subject)) {
+      const node2 = p.element(root, "UMLUseCaseSubject", u.subject, {});
+      subjects.set(u.subject, node2);
+      p.refs.set(node2.path, node2.ref);
+    }
+    const node = p.element(root, "UMLUseCase", u.name, {
+      ...u.documentation !== void 0 && { documentation: u.documentation }
+    });
+    useCases2.set(u.name, node);
+    p.refs.set(node.path, node.ref);
+  }
+  const lookup2 = (name3, order = "class") => {
+    const inSpec = order === "class" ? [classes.get(name3)?.node, actors.get(name3)] : [actors.get(name3), classes.get(name3)?.node];
+    const found = [...inSpec, useCases2.get(name3)].find((n) => n !== void 0);
+    if (found) return found;
+    const elem = tryResolve(name3);
+    return elem && elem instanceof type.UMLClassifier ? { ref: elem._id, elem, path: pathOf(elem) } : void 0;
+  };
+  const classifier = (name3, where2, order = "class") => {
+    const found = lookup2(name3, order);
+    if (!found) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${where2}: no class, interface, actor or use case ${name3} in the spec or the model`
+      );
+    }
+    return found;
+  };
+  const typeOf2 = (text4) => {
+    if (text4 === void 0) return void 0;
+    const node = classes.get(text4)?.node;
+    return node ? { $ref: node.ref } : text4;
+  };
+  const operations = /* @__PURE__ */ new Map();
+  for (const { node, spec: c } of classes.values()) {
+    for (const a of c.attributes) p.attribute(node, a, typeOf2(a.type));
+    for (const o of c.operations) {
+      operations.set(`${c.name}#${o.name}`, p.operation(node, o, typeOf2));
+    }
+    for (const l of c.literals) p.literal(node, l);
+  }
+  for (const [key, pkg] of byKey) {
+    if (key !== pkg.key) continue;
+    pkg.dependsOn.forEach((d, k) => {
+      const target = byKey.get(d);
+      if (!target) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.packages.${spec.packages.indexOf(pkg)}.dependsOn.${k}: no package ${d}`
+        );
+      }
+      p.relationship(
+        "UMLDependency",
+        packages.get(pkg.key),
+        packages.get(target.key)
+      );
+    });
+  }
+  spec.relationships.forEach((r, i) => {
+    const tail = classifier(r.from, `spec.relationships.${i}.from`);
+    const head = classifier(r.to, `spec.relationships.${i}.to`);
+    const directed = DIRECTED[r.type];
+    if (directed) {
+      p.relationship(directed, tail, head, {
+        ...r.name !== void 0 && { name: r.name }
+      });
+    } else {
+      p.relationship("UMLAssociation", tail, head, {
+        ...r.name !== void 0 && { name: r.name },
+        ...associationEnds(r)
+      });
+    }
+  });
+  spec.useCases.forEach((u, i) => {
+    const node = useCases2.get(u.name);
+    u.actors.forEach(
+      (a, k) => p.relationship(
+        "UMLAssociation",
+        classifier(a, `spec.useCases.${i}.actors.${k}`, "actor"),
+        node
+      )
+    );
+    u.includes.forEach(
+      (x, k) => p.relationship(
+        "UMLInclude",
+        node,
+        useCase(x, `spec.useCases.${i}.includes.${k}`)
+      )
+    );
+    u.extends.forEach(
+      (x, k) => p.relationship(
+        "UMLExtend",
+        node,
+        useCase(x, `spec.useCases.${i}.extends.${k}`)
+      )
+    );
+  });
+  function useCase(name3, where2) {
+    const node = useCases2.get(name3);
+    if (!node) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${where2}: no use case ${name3} in the spec`
+      );
+    }
+    return node;
+  }
+  spec.collaborations.forEach(
+    (c, i) => collaboration(p, c, `spec.collaborations.${i}`, {
+      owner: packageOf(c.package, `spec.collaborations.${i}.context`),
+      classifier: (name3, actor) => {
+        try {
+          return lookup2(name3, actor ? "actor" : "class");
+        } catch {
+          return void 0;
+        }
+      },
+      operation: (receiver, called) => operations.get(`${receiver}#${called}`)
+    })
+  );
+  spec.lifecycles.forEach(
+    (l, i) => lifecycle(
+      p,
+      l,
+      `spec.lifecycles.${i}`,
+      l.subject === void 0 ? root : classifier(l.subject, `spec.lifecycles.${i}.subject`)
+    )
+  );
+  return p.plan(root);
+}
+function collaboration(p, c, where2, find) {
+  const collab = p.element(find.owner, "UMLCollaboration", c.name, {});
+  p.refs.set(collab.path, collab.ref);
+  const interaction = p.element(
+    collab,
+    "UMLInteraction",
+    c.name,
+    {},
+    "ownedElements"
+  );
+  p.refs.set(interaction.path, interaction.ref);
+  const lifelines = /* @__PURE__ */ new Map();
+  const typeNames = /* @__PURE__ */ new Map();
+  for (const part of c.participants) {
+    const typeNode = find.classifier(part.type ?? part.name, part.actor);
+    if (part.type !== void 0 && !typeNode) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${where2}.participants: no classifier ${part.type} for ${part.name}`
+      );
+    }
+    if (typeNode) typeNames.set(part.name, part.type ?? part.name);
+    const role = p.attribute(
+      collab,
+      { name: part.name },
+      typeNode ? { $ref: typeNode.ref } : void 0
+    );
+    lifelines.set(
+      part.name,
+      p.element(
+        interaction,
+        "UMLLifeline",
+        part.name,
+        { represent: { $ref: role.ref } },
+        "participants"
+      )
+    );
+  }
+  for (const m of c.messages) {
+    const called = calledName(m.text);
+    const receiver = typeNames.get(m.to);
+    const signature = called !== null && receiver !== void 0 && m.kind !== "reply" ? find.operation(receiver, called) : void 0;
+    p.relationship("UMLMessage", lifelines.get(m.from), lifelines.get(m.to), {
+      name: m.text,
+      properties: {
+        messageSort: MESSAGE_SORTS[m.kind],
+        ...signature && { signature: { $ref: signature.ref } }
+      }
+    });
+  }
+  const fragmentNames = uniqueNames(
+    c.fragments.map((f) => f.guard || f.operator)
+  );
+  c.fragments.forEach((f, i) => {
+    const fragment = p.element(
+      interaction,
+      "UMLCombinedFragment",
+      fragmentNames[i],
+      { interactionOperator: f.operator },
+      "fragments"
+    );
+    const guards = [f.guard ?? "", ...f.operands];
+    uniqueNames(guards.map((g) => g || f.operator)).forEach(
+      (name3, k) => p.element(
+        fragment,
+        "UMLInteractionOperand",
+        name3,
+        { guard: guards[k] },
+        "operands"
+      )
+    );
+  });
+}
+function lifecycle(p, l, where2, owner) {
+  const machine = p.element(
+    owner,
+    "UMLStateMachine",
+    l.name,
+    {},
+    "ownedElements",
+    void 0,
+    ["regions"]
+  );
+  p.refs.set(machine.path, machine.ref);
+  const regions = /* @__PURE__ */ new Map();
+  const first = machine.elem?.regions?.[0];
+  if (!machine.elem || first) {
+    regions.set("", {
+      ref: first?._id ?? `${machine.ref}.regions.0`,
+      elem: first ?? null,
+      path: `${machine.path}/`
+    });
+  }
+  const regionOf = (key, holder) => {
+    const known = regions.get(key ?? "");
+    if (known) return known;
+    const region = p.element(holder, "UMLRegion", "", {}, "regions");
+    regions.set(key ?? "", region);
+    return region;
+  };
+  const states = /* @__PURE__ */ new Map();
+  const byKey = new Map(l.states.map((s) => [s.key, s]));
+  const visit = (key, i, seen) => {
+    const known = states.get(key);
+    if (known) return known;
+    const s = byKey.get(key);
+    if (seen.has(key)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${where2}.states.${i}.parent: ${key} would be nested in itself`
+      );
+    }
+    seen.add(key);
+    let holder = machine;
+    if (s.parent !== void 0) {
+      const parent = byKey.get(s.parent);
+      if (!parent || parent.type !== "state") {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${where2}.states.${i}.parent: no state ${s.parent}`
+        );
+      }
+      holder = visit(parent.key, l.states.indexOf(parent), seen);
+    }
+    const [type2, kind2] = STATE_TYPES2[s.type];
+    const node = p.element(
+      regionOf(s.parent, holder),
+      type2,
+      s.name,
+      kind2 !== void 0 ? { kind: kind2 } : {},
+      "vertices",
+      (e) => kind2 === void 0 || e.kind === kind2
+    );
+    states.set(key, node);
+    return node;
+  };
+  l.states.forEach((s, i) => visit(s.key, i, /* @__PURE__ */ new Set()));
+  l.transitions.forEach((t, i) => {
+    const end = (key, side) => {
+      const node = states.get(key);
+      if (!node) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${where2}.transitions.${i}.${side}: no state ${key}`
+        );
+      }
+      return node;
+    };
+    const label4 = [
+      t.trigger ?? "",
+      t.effect !== void 0 ? ` / ${t.effect}` : ""
+    ].join("").trim();
+    p.relationship("UMLTransition", end(t.from, "from"), end(t.to, "to"), {
+      ...label4 && { name: label4 },
+      ...t.guard !== void 0 && { properties: { guard: t.guard } }
+    });
+  });
+}
+
+// src/model/spec.ts
+var name2 = () => string2().check(_minLength(1));
+var names3 = () => array(name2());
+var RELATIONS = {
+  owns: "composition: from is the whole (end1, composite), to the part",
+  has: "aggregation: from is the whole (end1, shared), to the part",
+  uses: "dependency: from is the client, to the supplier",
+  isA: "generalization: from is the specific, to the general",
+  implements: "interface realization: from implements the interface to",
+  knows: "directed association: from navigates to to",
+  association: "association with no navigability or aggregation"
+};
+var RELATION_ALIASES = {
+  composition: "owns",
+  aggregation: "has",
+  dependency: "uses",
+  generalization: "isA",
+  realization: "implements",
+  directed: "knows"
+};
+var memberList = () => optional(array(union([string2(), object({ name: name2() })])));
+var packageSchema = () => union([
+  name2(),
+  object({
+    id: optional(
+      doc(name2(), "Key classes use in context; default the name.")
+    ),
+    name: name2(),
+    parent: optional(
+      doc(name2(), "Package this one is nested in, by id or name.")
+    ),
+    responsibility: optional(string2()),
+    documentation: optional(string2()),
+    stereotype: optional(string2()),
+    dependsOn: optional(
+      doc(names3(), "Packages it depends on, by id or name.")
+    )
+  })
+]);
+var classSchema = () => object({
+  name: name2(),
+  context: optional(
+    doc(name2(), "Owning package by id or name; package is a synonym.")
+  ),
+  package: optional(name2()),
+  kind: optional(_enum(["class", "abstract", "interface", "enum"])),
+  stereotype: optional(string2()),
+  responsibility: optional(string2()),
+  documentation: optional(string2()),
+  knows: optional(array(string2())),
+  does: optional(array(string2())),
+  collaboratesWith: optional(array(string2())),
+  attributes: memberList(),
+  operations: memberList(),
+  literals: optional(names3()),
+  isLeaf: optional(boolean2()),
+  isActive: optional(boolean2())
+});
+var relationSchema = () => object({
+  from: name2(),
+  to: name2(),
+  type: doc(
+    _enum([
+      ...Object.keys(RELATIONS),
+      ...Object.keys(RELATION_ALIASES)
+    ]),
+    Object.entries(RELATIONS).map(([k, v]) => `${k}: ${v}`).join("; ")
+  ),
+  name: optional(string2()),
+  fromMult: optional(string2()),
+  toMult: optional(string2()),
+  fromMultiplicity: optional(string2()),
+  toMultiplicity: optional(string2()),
+  fromRole: optional(string2()),
+  toRole: optional(string2())
+});
+var MESSAGE_KINDS3 = ["sync", "async", "reply", "create", "delete"];
+var messageSchema = () => union([
+  array(string2()).check(_minLength(2), _maxLength(4)),
+  object({
+    from: name2(),
+    to: name2(),
+    text: optional(string2()),
+    kind: optional(_enum(MESSAGE_KINDS3))
+  })
+]);
+var STATE_TYPES3 = [
+  "state",
+  "initial",
+  "final",
+  "choice",
+  "fork",
+  "join"
+];
+var modelSpecSchema = () => object({
+  system: optional(doc(name2(), "Name of the model; default 'Model'.")),
+  name: optional(doc(name2(), "Synonym of system.")),
+  summary: optional(doc(string2(), "The model's documentation.")),
+  contexts: optional(
+    doc(array(packageSchema()), "Packages (bounded contexts).")
+  ),
+  packages: optional(doc(array(packageSchema()), "Synonym of contexts.")),
+  classes: optional(
+    doc(
+      array(classSchema()),
+      "Classes, interfaces, enumerations; members as '+name: Type' and '+op(p: T): R'. responsibility, knows, does and collaboratesWith become the documentation."
+    )
+  ),
+  relationships: optional(array(relationSchema())),
+  actors: optional(
+    array(
+      union([
+        name2(),
+        object({
+          name: name2(),
+          kind: optional(string2()),
+          goals: optional(array(string2())),
+          documentation: optional(string2())
+        })
+      ])
+    )
+  ),
+  useCases: optional(
+    array(
+      union([
+        name2(),
+        object({
+          name: name2(),
+          system: optional(
+            nullable(doc(string2(), "The subject it belongs to."))
+          ),
+          actors: optional(names3()),
+          includes: optional(names3()),
+          extends: optional(names3()),
+          documentation: optional(string2())
+        })
+      ])
+    )
+  ),
+  collaborations: optional(
+    doc(
+      array(
+        object({
+          name: name2(),
+          context: optional(name2()),
+          package: optional(name2()),
+          participants: optional(
+            array(
+              union([
+                name2(),
+                object({
+                  name: name2(),
+                  kind: optional(string2()),
+                  type: optional(
+                    doc(
+                      name2(),
+                      "Classifier the lifeline is; default the class or actor of its name."
+                    )
+                  )
+                })
+              ])
+            )
+          ),
+          messages: optional(
+            doc(
+              array(messageSchema()),
+              "[from, to, text, kind] or {from, to, text, kind}; kind sync (default), async, reply, create, delete."
+            )
+          ),
+          fragments: optional(
+            array(
+              object({
+                operator: _enum([
+                  "alt",
+                  "opt",
+                  "loop",
+                  "par",
+                  "break",
+                  "critical",
+                  "neg",
+                  "strict",
+                  "seq",
+                  "ignore",
+                  "consider",
+                  "assert"
+                ]),
+                guard: optional(string2()),
+                operands: optional(array(string2())),
+                from: optional(int()),
+                to: optional(int())
+              })
+            )
+          )
+        })
+      ),
+      "Interactions: lifelines for the participants and their messages, in a collaboration."
+    )
+  ),
+  lifecycles: optional(
+    doc(
+      array(
+        object({
+          name: name2(),
+          subject: optional(
+            doc(name2(), "Classifier whose behavior it is.")
+          ),
+          states: optional(
+            array(
+              union([
+                name2(),
+                object({
+                  id: optional(name2()),
+                  name: optional(string2()),
+                  type: optional(_enum(STATE_TYPES3)),
+                  parent: optional(name2())
+                })
+              ])
+            )
+          ),
+          transitions: optional(
+            array(
+              object({
+                from: name2(),
+                to: name2(),
+                trigger: optional(string2()),
+                guard: optional(string2()),
+                effect: optional(string2())
+              })
+            )
+          )
+        })
+      ),
+      "State machines, owned by their subject."
+    )
+  )
+});
+var DIAGRAM_SECTIONS = {
+  classViews: "class diagrams: /build_diagram kind class",
+  useCaseViews: "use case diagrams: /build_diagram kind usecase",
+  activities: "activity diagrams: /build_diagram kind activity",
+  erd: "an ERD: /build_diagram kind erd",
+  components: "a C4 or component diagram: /build_diagram kind c4 or component",
+  deployments: "deployment diagrams: /build_diagram kind deployment",
+  features: "a mind map: /build_diagram kind mindmap"
+};
+function documentation(...parts) {
+  const lines = parts.flatMap((p) => {
+    if (p === void 0) return [];
+    if (typeof p === "string") return p.trim() ? [p.trim()] : [];
+    const [label4, items2] = p;
+    return items2 && items2.length > 0 ? [`${label4}: ${items2.join(", ")}.`] : [];
+  });
+  return lines.length > 0 ? lines.join("\n") : void 0;
+}
+var memberText = (m) => typeof m === "string" ? m : m.name;
+function parseModelSpec(input) {
+  const parsed = safeParse(modelSpecSchema(), input);
+  if (!parsed.success) {
+    const issue2 = parsed.error.issues[0];
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `spec.${issue2.path.map(String).join(".")}: ${issue2.message}`,
+      parsed.error.issues
+    );
+  }
+  const raw = parsed.data;
+  if (raw.contexts && raw.packages) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      "spec: pass contexts or packages, not both"
+    );
+  }
+  const skipped = Object.entries(DIAGRAM_SECTIONS).filter(
+    ([section]) => input[section] !== void 0
+  ).map(([section, reason]) => ({ section, reason }));
+  const packages = (raw.contexts ?? raw.packages ?? []).map(
+    (p) => {
+      if (typeof p === "string")
+        return { key: multiline(p), name: multiline(p), dependsOn: [] };
+      const doc3 = documentation(p.responsibility, p.documentation);
+      return {
+        key: p.id ?? multiline(p.name),
+        name: multiline(p.name),
+        ...p.parent !== void 0 && { parent: p.parent },
+        ...doc3 !== void 0 && { documentation: doc3 },
+        ...p.stereotype !== void 0 && { stereotype: p.stereotype },
+        dependsOn: p.dependsOn ?? []
+      };
+    }
+  );
+  const classes = (raw.classes ?? []).map((c, i) => {
+    if (c.context !== void 0 && c.package !== void 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.classes.${i}: pass context or package, not both`
+      );
+    }
+    const doc3 = documentation(
+      c.responsibility,
+      c.documentation,
+      ["Knows", c.knows],
+      ["Does", c.does],
+      ["Collaborates with", c.collaboratesWith]
+    );
+    const pkg = c.context ?? c.package;
+    return {
+      name: multiline(c.name),
+      ...pkg !== void 0 && { package: pkg },
+      kind: c.kind ?? "class",
+      ...c.stereotype !== void 0 && { stereotype: c.stereotype },
+      ...doc3 !== void 0 && { documentation: doc3 },
+      attributes: (c.attributes ?? []).map(
+        (a) => parseAttribute(memberText(a))
+      ),
+      operations: (c.operations ?? []).map((o) => {
+        const text4 = memberText(o);
+        return parseOperation(text4.includes("(") ? text4 : `${text4}()`);
+      }),
+      literals: c.literals ?? [],
+      ...c.isLeaf !== void 0 && { isLeaf: c.isLeaf },
+      ...c.isActive !== void 0 && { isActive: c.isActive }
+    };
+  });
+  const relationships = (raw.relationships ?? []).map((r) => {
+    const from = r.fromMultiplicity ?? r.fromMult;
+    const to = r.toMultiplicity ?? r.toMult;
+    return {
+      from: r.from,
+      to: r.to,
+      type: RELATION_ALIASES[r.type] ?? r.type,
+      ...r.name !== void 0 && { name: r.name },
+      ...from !== void 0 && { fromMultiplicity: from },
+      ...to !== void 0 && { toMultiplicity: to },
+      ...r.fromRole !== void 0 && { fromRole: r.fromRole },
+      ...r.toRole !== void 0 && { toRole: r.toRole }
+    };
+  });
+  const actors = (raw.actors ?? []).map((a) => {
+    if (typeof a === "string") return { name: multiline(a) };
+    const doc3 = documentation(
+      a.documentation,
+      a.kind !== void 0 ? `Kind: ${a.kind}.` : void 0,
+      ["Goals", a.goals]
+    );
+    return {
+      name: multiline(a.name),
+      ...doc3 !== void 0 && { documentation: doc3 }
+    };
+  });
+  const useCases2 = (raw.useCases ?? []).map((u) => {
+    if (typeof u === "string") {
+      return { name: multiline(u), actors: [], includes: [], extends: [] };
+    }
+    return {
+      name: multiline(u.name),
+      ...u.system && { subject: multiline(u.system) },
+      actors: u.actors ?? [],
+      includes: u.includes ?? [],
+      extends: u.extends ?? [],
+      ...u.documentation !== void 0 && { documentation: u.documentation }
+    };
+  });
+  const collaborations = (raw.collaborations ?? []).map(
+    (c, i) => {
+      const participants = (c.participants ?? []).map(
+        (p) => typeof p === "string" ? { name: multiline(p), actor: false } : {
+          name: multiline(p.name),
+          ...p.type !== void 0 && { type: p.type },
+          actor: p.kind === "actor"
+        }
+      );
+      const messages2 = (c.messages ?? []).map((m, k) => {
+        if (!Array.isArray(m)) {
+          return {
+            from: multiline(m.from),
+            to: multiline(m.to),
+            text: m.text ?? "",
+            kind: m.kind ?? "sync"
+          };
+        }
+        const [from, to, text4, kind2] = m;
+        if (!from || !to) {
+          throw new ApiError(
+            "INVALID_ARGUMENT",
+            `spec.collaborations.${i}.messages.${k}: from and to must be names`
+          );
+        }
+        if (kind2 !== void 0 && !MESSAGE_KINDS3.includes(kind2)) {
+          throw new ApiError(
+            "INVALID_ARGUMENT",
+            `spec.collaborations.${i}.messages.${k}: kind ${kind2} is not one of ${MESSAGE_KINDS3.join(", ")}`
+          );
+        }
+        return {
+          from: multiline(from),
+          to: multiline(to),
+          text: text4 ?? "",
+          kind: kind2 ?? "sync"
+        };
+      });
+      for (const m of messages2) {
+        for (const end of [m.from, m.to]) {
+          if (!participants.some((p) => p.name === end)) {
+            participants.push({ name: end, actor: false });
+          }
+        }
+      }
+      const pkg = c.context ?? c.package;
+      return {
+        name: multiline(c.name),
+        ...pkg !== void 0 && { package: pkg },
+        participants,
+        messages: messages2,
+        fragments: (c.fragments ?? []).map((f) => ({
+          operator: f.operator,
+          ...f.guard !== void 0 && { guard: f.guard },
+          operands: f.operands ?? []
+        }))
+      };
+    }
+  );
+  const lifecycles = (raw.lifecycles ?? []).map((l, i) => {
+    const states = (l.states ?? []).map((s, k) => {
+      const o = typeof s === "string" ? { name: s } : s;
+      const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+      if (key === void 0) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.lifecycles.${i}.states.${k}: needs a name or an id`
+        );
+      }
+      const type2 = o.type ?? "state";
+      return {
+        key,
+        name: o.name !== void 0 ? multiline(o.name) : type2 === "state" ? key : "",
+        type: type2,
+        ...o.parent !== void 0 && { parent: o.parent }
+      };
+    });
+    return {
+      name: multiline(l.name),
+      ...l.subject !== void 0 && { subject: l.subject },
+      states,
+      transitions: l.transitions ?? []
+    };
+  });
+  const doc2 = documentation(raw.summary);
+  return {
+    name: multiline(raw.system ?? raw.name ?? "Model"),
+    ...doc2 !== void 0 && { documentation: doc2 },
+    packages,
+    classes,
+    relationships,
+    actors,
+    useCases: useCases2,
+    collaborations,
+    lifecycles,
+    skipped
+  };
+}
+
+// src/handlers/model.ts
+var MODEL_MAX_OPS = 2e4;
+var changeSchema = () => object({
+  path: string2(),
+  type: string2(),
+  fields: optional(array(string2()))
+});
+var countBy = (changes) => {
+  const out = {};
+  for (const c of changes) out[c.type] = (out[c.type] ?? 0) + 1;
+  return out;
+};
+function idOf(result, ref3) {
+  return ref3.startsWith("$") ? result.data._id : ref3;
+}
+function buildModelEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/build_model",
+    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. Diagram sections (classViews, erd, ...) are left to /build_diagram and listed in skipped. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.`,
+    readOnly: false,
+    destructive: false,
+    request: object({
+      spec: doc(
+        record(string2(), unknown()),
+        `{system, summary, contexts: [{id, name, responsibility, dependsOn}], classes: [{name, context, kind: class|abstract|interface|enum, responsibility, knows, does, collaboratesWith, attributes: ['+id: UUID'], operations: ['+save(e: T): T'], literals}], relationships: [{from, to, type, name, fromMult, toMult}], actors: [{name, kind, goals}], useCases: [{name, system, actors, includes, extends}], collaborations: [{name, participants, messages: [[from, to, text, kind]], fragments}], lifecycles: [{name, subject, states, transitions: [{from, to, trigger, guard, effect}]}]}. Relationship direction: ${Object.entries(
+          RELATIONS
+        ).map(([k, v]) => `${k}: ${v}`).join("; ")}.`
+      ),
+      parent: optional(ref2("Owner of the model; default the project.")),
+      upsert: optional(
+        doc(
+          boolean2(),
+          "Update the model of the same name under the parent: elements are matched by owner, type and name, members by name, relationships by type, ends and name; what differs is set, what is missing added, nothing removed."
+        )
+      ),
+      dryRun: optional(
+        doc(
+          boolean2(),
+          "Answer the changes and the exact /batch ops, and change nothing."
+        )
+      ),
+      result: resultField(
+        "terse (default): counts by element type. ids: also the id of each package, classifier, collaboration and state machine by path. full: also every created and updated element."
+      )
+    }),
+    response: object({
+      model: doc(
+        object({ _id: string2(), name: string2(), path: string2() }),
+        "The model built or updated; _id is '$m0' on a dry run that makes it."
+      ),
+      upserted: doc(boolean2(), "The model existed and was updated."),
+      counts: object({
+        created: doc(record(string2(), int()), "Elements made, by type."),
+        updated: doc(
+          record(string2(), int()),
+          "Elements changed, by type."
+        ),
+        unchanged: doc(
+          int(),
+          "Elements the spec names that already were as written."
+        )
+      }),
+      changes: optional(
+        doc(
+          object({
+            created: array(changeSchema()),
+            updated: array(changeSchema())
+          }),
+          "With result full or dryRun: each element made or changed, by path; relationships as 'from -> to'."
+        )
+      ),
+      ids: optional(
+        doc(record(string2(), string2()), "With result ids or full.")
+      ),
+      skipped: optional(
+        doc(
+          array(object({ section: string2(), reason: string2() })),
+          "Spec sections that describe diagrams, with what builds them."
+        )
+      ),
+      dryRun: optional(boolean2()),
+      plan: optional(doc(planSchema(), "With dryRun: what applying runs."))
+    }),
+    handle: async (input) => {
+      const spec = parseModelSpec(input.spec);
+      const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
+      const plan = planModel(spec, { parent, upsert: input.upsert ?? false });
+      const mode = input.result ?? "terse";
+      const report = {
+        upserted: !plan.root.ref.startsWith("$"),
+        counts: {
+          created: countBy(plan.created),
+          updated: countBy(plan.updated),
+          unchanged: plan.unchanged
+        },
+        ...(mode === "full" || input.dryRun) && {
+          changes: { created: plan.created, updated: plan.updated }
+        },
+        ...spec.skipped.length > 0 && { skipped: spec.skipped }
+      };
+      const model = {
+        _id: plan.root.ref,
+        name: spec.name,
+        path: plan.root.path
+      };
+      if (input.dryRun) {
+        return {
+          model,
+          ...report,
+          ...mode !== "terse" && { ids: Object.fromEntries(plan.refs) },
+          dryRun: true,
+          plan: planOf(plan.ops)
+        };
+      }
+      const run = plan.ops.length > 0 ? await runBatch(endpoints2(), plan.ops, true, MODEL_MAX_OPS) : { results: [] };
+      const byAlias = new Map(
+        run.results.flatMap((r) => r.as ? [[r.as, r]] : [])
+      );
+      const resolve = (ref3) => idOf(byAlias.get(ref3.slice(1)), ref3);
+      return {
+        model: { ...model, _id: resolve(plan.root.ref) },
+        ...report,
+        ...mode !== "terse" && {
+          ids: Object.fromEntries(
+            [...plan.refs].map(([path, ref3]) => [path, resolve(ref3)])
+          )
+        }
+      };
+    }
+  });
+}
+function receiverOf(lifeline) {
+  if (!lifeline) return null;
+  const typed = lifeline.represent?.type;
+  if (typed && typeof typed === "object") return typed;
+  const named3 = app.repository.getInstancesOf("UMLClassifier").filter(
+    (c) => c.name === lifeline.name && (c instanceof type.UMLClass || c instanceof type.UMLInterface)
+  );
+  return named3.length === 1 ? named3[0] : null;
+}
+var operationsOf2 = (c) => c.operations;
+function messagesOn(diagram) {
+  if (!(diagram instanceof type.UMLSequenceDiagram)) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${diagram.constructor.name} ${diagram._id} is not a sequence diagram`
+    );
+  }
+  return diagram.ownedViews.filter((v) => v.model instanceof type.UMLMessage).map((v) => v.model);
+}
+function argumentsOf(text4) {
+  const open = text4.indexOf("(");
+  const close = text4.lastIndexOf(")");
+  if (open < 0 || close < open) return [];
+  return text4.slice(open + 1, close).split(",").map((a) => a.trim()).filter(Boolean).map((a) => {
+    const colon = a.indexOf(":");
+    return colon < 0 ? { name: a } : { name: a.slice(0, colon).trim(), type: a.slice(colon + 1).trim() };
+  });
+}
+function check(messages2) {
+  return messages2.filter((m) => m.messageSort !== "reply").map((m) => {
+    const called = calledName(String(m.name ?? ""));
+    const receiver = receiverOf(m.target);
+    const problem = called === null ? "not-a-call" : !receiver ? "no-receiver" : operationsOf2(receiver).some((o) => o.name === called) ? null : "no-operation";
+    return { message: m, receiver, called, problem };
+  });
+}
+var PROBLEMS = {
+  "not-a-call": "The text names no operation, e.g. prose such as 'check limits'.",
+  "no-receiver": "The receiving lifeline has no class or interface: type its role, or name it like one class.",
+  "no-operation": "The receiver has no operation of that name: /sync_operations adds it."
+};
+var checkMessages = defineEndpoint({
+  path: "/check_messages",
+  description: "List the call messages of a sequence diagram (or of every interaction in a scope) that name no operation of their receiver: no-operation (the receiver lacks it; /sync_operations adds it), no-receiver (the lifeline has no class or interface) and not-a-call (prose). Replies are not checked. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    diagram: optional(ref2("Sequence diagram.")),
+    scope: optional(
+      ref2("Instead of diagram: every message owned within this element.")
+    )
+  }),
+  response: object({
+    checked: doc(int(), "Call messages looked at."),
+    ok: doc(int(), "Messages naming an operation of their receiver."),
+    problems: array(
+      object({
+        message: string2(),
+        text: string2(),
+        from: nullable(string2()),
+        to: nullable(string2()),
+        receiver: doc(nullable(string2()), "The receiver's path."),
+        problem: _enum(Object.keys(PROBLEMS)),
+        hint: string2()
+      })
+    )
+  }),
+  handle: (input) => {
+    if (input.diagram === void 0 === (input.scope === void 0)) {
+      throw new ApiError("INVALID_ARGUMENT", "Pass diagram or scope");
+    }
+    let messages2;
+    if (input.diagram !== void 0) {
+      messages2 = messagesOn(requireDiagram(input.diagram));
+    } else {
+      const scope = requireElement(input.scope, "Scope");
+      messages2 = app.repository.getInstancesOf("UMLMessage").filter((m) => {
+        for (let e = m; e; e = e._parent) {
+          if (e === scope) return true;
+        }
+        return false;
+      });
+    }
+    const checked = check(messages2);
+    const problems = checked.filter((c) => c.problem !== null);
+    return {
+      checked: checked.length,
+      ok: checked.length - problems.length,
+      problems: problems.map((c) => ({
+        message: c.message._id,
+        text: String(c.message.name ?? ""),
+        from: c.message.source?.name ?? null,
+        to: c.message.target?.name ?? null,
+        receiver: c.receiver ? pathOf(c.receiver) : null,
+        problem: c.problem,
+        hint: PROBLEMS[c.problem]
+      }))
+    };
+  }
+});
+function syncOperationsEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/sync_operations",
+    description: "Add to each receiver of a sequence diagram's call messages the operations the messages name and it lacks, with the parameters written in the message, and set each message's signature to its operation; one undo step. Messages that are prose or go to a lifeline without a class are listed in skipped. dryRun answers the same without changing anything.",
+    readOnly: false,
+    destructive: false,
+    request: object({
+      diagram: ref2("Sequence diagram."),
+      dryRun: optional(doc(boolean2(), "Answer what would change."))
+    }),
+    response: object({
+      added: array(
+        object({
+          receiver: doc(string2(), "The class or interface, by path."),
+          operation: string2(),
+          parameters: array(string2()),
+          messages: doc(int(), "Messages calling it.")
+        })
+      ),
+      linked: doc(int(), "Messages given their operation as signature."),
+      skipped: array(
+        object({
+          message: string2(),
+          text: string2(),
+          reason: string2()
+        })
+      ),
+      dryRun: optional(boolean2()),
+      plan: optional(planSchema())
+    }),
+    handle: async (input) => {
+      const diagram = requireDiagram(input.diagram);
+      const ops = [];
+      const added = /* @__PURE__ */ new Map();
+      const skipped = [];
+      let linked = 0;
+      for (const c of check(messagesOn(diagram))) {
+        if (c.problem === "not-a-call" || c.problem === "no-receiver") {
+          skipped.push({
+            message: c.message._id,
+            text: String(c.message.name ?? ""),
+            reason: PROBLEMS[c.problem]
+          });
+          continue;
+        }
+        const receiver = c.receiver;
+        const key = `${receiver._id}#${c.called}`;
+        let opRef = operationsOf2(receiver).find(
+          (o) => o.name === c.called
+        )?._id;
+        if (!opRef) {
+          const known = added.get(key);
+          if (known) {
+            known.messages++;
+            opRef = known.ref;
+          } else {
+            const parameters = argumentsOf(String(c.message.name));
+            const as = `op${added.size}`;
+            ops.push({
+              path: "/add_operation",
+              as,
+              body: {
+                ref: receiver._id,
+                name: c.called,
+                ...parameters.length > 0 && { parameters }
+              }
+            });
+            opRef = `$${as}`;
+            added.set(key, {
+              receiver: pathOf(receiver),
+              operation: c.called,
+              parameters: parameters.map((p) => p.name),
+              messages: 1,
+              ref: opRef
+            });
+          }
+        }
+        if (c.message.signature?._id !== opRef) {
+          linked++;
+          ops.push({
+            path: "/update_element",
+            body: { ref: c.message._id, field: "signature", value: opRef }
+          });
+        }
+      }
+      const answer = {
+        added: [...added.values()].map(({ ref: _ref, ...a }) => a),
+        linked,
+        skipped
+      };
+      if (input.dryRun) return { ...answer, dryRun: true, plan: planOf(ops) };
+      if (ops.length > 0) await runBatch(endpoints2(), ops, true, MODEL_MAX_OPS);
+      return answer;
+    }
+  });
+}
+
 // src/handlers/search.ts
 var CATEGORIES = [
   "diagram",
@@ -18777,12 +20269,12 @@ var edgeExample = (type2) => ({
     diagram: "<diagram>"
   }
 });
-function ancestry(name2) {
-  const supers = lineage(name2).slice(1, 4);
+function ancestry(name3) {
+  const supers = lineage(name3).slice(1, 4);
   return supers.length > 0 ? `kind of ${supers.join(" < ")}` : "root type";
 }
-function ownAttributes(name2) {
-  const attrs = (meta[name2].attributes ?? []).filter((a) => !a.transient).map((a) => a.name);
+function ownAttributes(name3) {
+  const attrs = (meta[name3].attributes ?? []).filter((a) => !a.transient).map((a) => a.name);
   if (attrs.length === 0) return "";
   const shown = attrs.slice(0, 6).join(", ");
   return `; own attributes: ${shown}${attrs.length > 6 ? ", ..." : ""}`;
@@ -18837,42 +20329,42 @@ function corpus() {
       example: edgeExample(id2)
     });
   }
-  for (const name2 of Object.keys(meta).sort()) {
-    const metaType = meta[name2];
+  for (const name3 of Object.keys(meta).sort()) {
+    const metaType = meta[name3];
     if (metaType.kind === "enum") {
       entries.push({
-        id: name2,
+        id: name3,
         category: "enum",
         description: `Enumeration: ${(metaType.literals ?? []).join(" | ")}`
       });
       continue;
     }
-    if (app.metamodels.isKindOf(name2, "View")) continue;
-    if (diagramIds.has(name2)) {
+    if (app.metamodels.isKindOf(name3, "View")) continue;
+    if (diagramIds.has(name3)) {
       entries.push({
-        id: name2,
+        id: name3,
         category: "diagram",
-        description: `Diagram, ${ancestry(name2)}; holds ${app.metamodels.getAvailableViewTypes(name2).length} view types`,
+        description: `Diagram, ${ancestry(name3)}; holds ${app.metamodels.getAvailableViewTypes(name3).length} view types`,
         example: {
           path: "/create_diagram",
-          body: { type: name2, parent: "<owner>", name: "<name>" }
+          body: { type: name3, parent: "<owner>", name: "<name>" }
         }
       });
       continue;
     }
-    if (app.metamodels.isKindOf(name2, "Diagram")) continue;
+    if (app.metamodels.isKindOf(name3, "Diagram")) continue;
     const ways = [
-      modelAndView.includes(name2) && "with a view",
-      modelIds.has(name2) && "as a model"
+      modelAndView.includes(name3) && "with a view",
+      modelIds.has(name3) && "as a model"
     ].filter(Boolean);
     entries.push({
-      id: name2,
+      id: name3,
       category: "model",
-      description: `Model element, ${ancestry(name2)}${ownAttributes(name2)}${ways.length > 0 ? `; creatable ${ways.join(" or ")}` : "; not creatable directly"}`,
-      example: modelAndView.includes(name2) ? relationshipKind(name2) ? edgeExample(name2) : nodeExample(name2) : modelIds.has(name2) ? {
+      description: `Model element, ${ancestry(name3)}${ownAttributes(name3)}${ways.length > 0 ? `; creatable ${ways.join(" or ")}` : "; not creatable directly"}`,
+      example: modelAndView.includes(name3) ? relationshipKind(name3) ? edgeExample(name3) : nodeExample(name3) : modelIds.has(name3) ? {
         path: "/create_element",
-        body: { type: name2, parent: "<owner>", name: "<name>" }
-      } : { path: "/find_elements", body: { type: name2 } }
+        body: { type: name3, parent: "<owner>", name: "<name>" }
+      } : { path: "/find_elements", body: { type: name3 } }
     });
   }
   for (const [id2, info] of Object.entries(COMMANDS)) {
@@ -19144,8 +20636,8 @@ function describeAttribute(attr) {
     ...attr.options && { options: [...attr.options] }
   };
 }
-function describeType(name2, ids2, inherited) {
-  const metaType = meta[name2];
+function describeType(name3, ids2, inherited) {
+  const metaType = meta[name3];
   if (metaType.kind === "enum") {
     return {
       kind: "enum",
@@ -19160,24 +20652,24 @@ function describeType(name2, ids2, inherited) {
       creatable: { model: false, modelAndView: false, diagram: false }
     };
   }
-  const isDiagram = app.metamodels.isKindOf(name2, "Diagram");
-  const attributes2 = inherited ? app.metamodels.getMetaAttributes(name2) : metaType.attributes ?? [];
+  const isDiagram = app.metamodels.isKindOf(name3, "Diagram");
+  const attributes2 = inherited ? app.metamodels.getMetaAttributes(name3) : metaType.attributes ?? [];
   return {
     kind: "class",
     super: metaType.super ?? null,
-    supers: lineage(name2).slice(1),
+    supers: lineage(name3).slice(1),
     attributes: attributes2.map(describeAttribute),
-    viewType: app.metamodels.getViewTypeOf(name2),
+    viewType: app.metamodels.getViewTypeOf(name3),
     ...isDiagram && {
-      viewTypes: app.metamodels.getAvailableViewTypes(name2)
+      viewTypes: app.metamodels.getAvailableViewTypes(name3)
     },
-    relationship: relationshipKind(name2),
-    isView: app.metamodels.isKindOf(name2, "View"),
+    relationship: relationshipKind(name3),
+    isView: app.metamodels.isKindOf(name3, "View"),
     isDiagram,
     creatable: {
-      model: ids2.model.has(name2),
-      modelAndView: ids2.modelAndView.has(name2),
-      diagram: ids2.diagram.has(name2)
+      model: ids2.model.has(name3),
+      modelAndView: ids2.modelAndView.has(name3),
+      diagram: ids2.diagram.has(name3)
     }
   };
 }
@@ -19302,13 +20794,13 @@ function introspectEndpoint(endpoints2) {
           modelAndView: new Set(ids2.modelAndView),
           diagram: new Set(ids2.diagram)
         };
-        const names3 = (input.types ?? Object.keys(meta)).filter(
-          (name2) => Object.hasOwn(meta, name2)
+        const names4 = (input.types ?? Object.keys(meta)).filter(
+          (name3) => Object.hasOwn(meta, name3)
         );
         out.metamodel = Object.fromEntries(
-          names3.sort().map((name2) => [
-            name2,
-            describeType(name2, sets, input.inherited === true)
+          names4.sort().map((name3) => [
+            name3,
+            describeType(name3, sets, input.inherited === true)
           ])
         );
       }
@@ -19344,17 +20836,17 @@ var createDiagram = defineEndpoint({
   response: elementSchema(),
   handle: (input) => {
     const parent = requireElement(input.parent, "Parent element");
-    const { name: name2 } = input;
+    const { name: name3 } = input;
     if (app.factory.getDiagramIds().includes(input.type)) {
-      assertUniqueName(parent, input.type, name2, input.allowDuplicateNames);
+      assertUniqueName(parent, input.type, name3, input.allowDuplicateNames);
     }
     const diagram = inStarUML(
       () => app.factory.createDiagram({
         id: input.type,
         parent,
-        ...name2 !== void 0 && {
+        ...name3 !== void 0 && {
           diagramInitializer: (d) => {
-            d.name = name2;
+            d.name = name3;
           }
         }
       })
@@ -19499,10 +20991,10 @@ var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "De
 var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
 var flag = (description) => optional(doc(boolean2(), description));
 var str3 = (description) => optional(text2(description));
-function pick2(input, names3) {
+function pick2(input, names4) {
   const out = {};
-  for (const name2 of names3) {
-    if (input[name2] !== void 0) out[name2] = input[name2];
+  for (const name3 of names4) {
+    if (input[name3] !== void 0) out[name3] = input[name3];
   }
   return out;
 }
@@ -19535,10 +21027,10 @@ var structuralShape = () => ({
   documentation: str3("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
-function featureValues(typeName3, input, names3) {
+function featureValues(typeName3, input, names4) {
   return initialValues(typeName3, input.name, {
     ...input.properties,
-    ...pick2(input, names3)
+    ...pick2(input, names4)
   });
 }
 var addAttribute = defineEndpoint({
@@ -19931,7 +21423,7 @@ var nameShape = () => ({
   )
 });
 function withRoleNames(input) {
-  const end = (values, name2) => name2 === void 0 ? values : { ...values, name: name2 };
+  const end = (values, name3) => name3 === void 0 ? values : { ...values, name: name3 };
   return {
     tailEnd: end(input.tailEnd, input.tailName),
     headEnd: end(input.headEnd, input.headName)
@@ -20461,8 +21953,8 @@ function writeFile(path, data) {
   }
 }
 function fileStem(diagram, taken) {
-  const name2 = typeof diagram.name === "string" ? diagram.name : "";
-  const clean = name2.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  const name3 = typeof diagram.name === "string" ? diagram.name : "";
+  const clean = name3.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
   const stem = clean === "" || taken.has(clean.toLowerCase()) ? `${clean || "diagram"}-${diagram._id}` : clean;
   taken.add(stem.toLowerCase());
   return stem;
@@ -20829,6 +22321,9 @@ var endpoints = [
   takeSnapshot,
   diffSinceEndpoint,
   restoreSnapshot,
+  buildModelEndpoint(() => endpoints),
+  syncOperationsEndpoint(() => endpoints),
+  checkMessages,
   introspectEndpoint(() => endpoints),
   debug
 ];

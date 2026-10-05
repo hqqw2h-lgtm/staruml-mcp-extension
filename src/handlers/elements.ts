@@ -143,7 +143,7 @@ export const createElement = defineEndpoint({
   destructive: false,
   request: z.object({
     type: typeName(
-      "A model id of /introspect factory.modelIds, e.g. 'UMLClass'.",
+      "A model id of /introspect factory.modelIds, e.g. 'UMLClass', or a model class StarUML otherwise makes only with a view, e.g. 'UMLLifeline', 'UMLPseudostate', 'UMLFinalState', 'UMLCombinedFragment', added without one.",
     ),
     parent: ref("Owner element."),
     name: z.optional(text("Element name; StarUML generates one if omitted.")),

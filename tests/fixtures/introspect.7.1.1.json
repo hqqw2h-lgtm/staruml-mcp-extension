@@ -17945,7 +17945,7 @@
           "type": {
             "type": "string",
             "minLength": 1,
-            "description": "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
+            "description": "A model id of /introspect factory.modelIds, e.g. 'UMLClass', or a model class StarUML otherwise makes only with a view, e.g. 'UMLLifeline', 'UMLPseudostate', 'UMLFinalState', 'UMLCombinedFragment', added without one."
           },
           "parent": {
             "type": "string",
@@ -21683,7 +21683,7 @@
           },
           "atomic": {
             "type": "boolean",
-            "description": "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
+            "description": "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme."
           },
           "result": {
             "type": "string",
@@ -22910,6 +22910,448 @@
           }
         },
         "required": ["snapshot", "undone", "remaining"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/build_model",
+      "description": "Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (owns, has, uses, isA, implements, knows, association), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. Diagram sections (classViews, erd, ...) are left to /build_diagram and listed in skipped. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "{system, summary, contexts: [{id, name, responsibility, dependsOn}], classes: [{name, context, kind: class|abstract|interface|enum, responsibility, knows, does, collaboratesWith, attributes: ['+id: UUID'], operations: ['+save(e: T): T'], literals}], relationships: [{from, to, type, name, fromMult, toMult}], actors: [{name, kind, goals}], useCases: [{name, system, actors, includes, extends}], collaborations: [{name, participants, messages: [[from, to, text, kind]], fragments}], lifecycles: [{name, subject, states, transitions: [{from, to, trigger, guard, effect}]}]}. Relationship direction: owns: composition: from is the whole (end1, composite), to the part; has: aggregation: from is the whole (end1, shared), to the part; uses: dependency: from is the client, to the supplier; isA: generalization: from is the specific, to the general; implements: interface realization: from implements the interface to; knows: directed association: from navigates to to; association: association with no navigability or aggregation."
+          },
+          "parent": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Owner of the model; default the project. Id or path."
+          },
+          "upsert": {
+            "type": "boolean",
+            "description": "Update the model of the same name under the parent: elements are matched by owner, type and name, members by name, relationships by type, ends and name; what differs is set, what is missing added, nothing removed."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Answer the changes and the exact /batch ops, and change nothing."
+          },
+          "result": {
+            "type": "string",
+            "enum": ["terse", "ids", "full"],
+            "description": "terse (default): counts by element type. ids: also the id of each package, classifier, collaboration and state machine by path. full: also every created and updated element."
+          }
+        },
+        "required": ["spec"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "name": { "type": "string" },
+              "path": { "type": "string" }
+            },
+            "required": ["_id", "name", "path"],
+            "additionalProperties": false,
+            "description": "The model built or updated; _id is '$m0' on a dry run that makes it."
+          },
+          "upserted": {
+            "type": "boolean",
+            "description": "The model existed and was updated."
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "object",
+                "propertyNames": { "type": "string" },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "description": "Elements made, by type."
+              },
+              "updated": {
+                "type": "object",
+                "propertyNames": { "type": "string" },
+                "additionalProperties": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "description": "Elements changed, by type."
+              },
+              "unchanged": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Elements the spec names that already were as written."
+              }
+            },
+            "required": ["created", "updated", "unchanged"],
+            "additionalProperties": false
+          },
+          "changes": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "type": { "type": "string" },
+                    "fields": { "type": "array", "items": { "type": "string" } }
+                  },
+                  "required": ["path", "type"],
+                  "additionalProperties": false
+                }
+              },
+              "updated": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "type": { "type": "string" },
+                    "fields": { "type": "array", "items": { "type": "string" } }
+                  },
+                  "required": ["path", "type"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["created", "updated"],
+            "additionalProperties": false,
+            "description": "With result full or dryRun: each element made or changed, by path; relationships as 'from -> to'."
+          },
+          "ids": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": { "type": "string" },
+            "description": "With result ids or full."
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "section": { "type": "string" },
+                "reason": { "type": "string" }
+              },
+              "required": ["section", "reason"],
+              "additionalProperties": false
+            },
+            "description": "Spec sections that describe diagrams, with what builds them."
+          },
+          "dryRun": { "type": "boolean" },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "ops": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "body": {
+                      "type": "object",
+                      "propertyNames": { "type": "string" },
+                      "additionalProperties": {}
+                    },
+                    "as": { "type": "string" }
+                  },
+                  "required": ["path", "body"],
+                  "additionalProperties": false
+                },
+                "description": "The /batch ops applying the plan runs, in order."
+              },
+              "creates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "updates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "deletes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["ops", "creates", "updates", "deletes"],
+            "additionalProperties": false,
+            "description": "With dryRun: what applying runs."
+          }
+        },
+        "required": ["model", "upserted", "counts"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/sync_operations",
+      "description": "Add to each receiver of a sequence diagram's call messages the operations the messages name and it lacks, with the parameters written in the message, and set each message's signature to its operation; one undo step. Messages that are prose or go to a lifeline without a class are listed in skipped. dryRun answers the same without changing anything.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Sequence diagram. Id or path."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Answer what would change."
+          }
+        },
+        "required": ["diagram"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "receiver": {
+                  "type": "string",
+                  "description": "The class or interface, by path."
+                },
+                "operation": { "type": "string" },
+                "parameters": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "messages": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "Messages calling it."
+                }
+              },
+              "required": ["receiver", "operation", "parameters", "messages"],
+              "additionalProperties": false
+            }
+          },
+          "linked": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Messages given their operation as signature."
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string" },
+                "text": { "type": "string" },
+                "reason": { "type": "string" }
+              },
+              "required": ["message", "text", "reason"],
+              "additionalProperties": false
+            }
+          },
+          "dryRun": { "type": "boolean" },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "ops": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "body": {
+                      "type": "object",
+                      "propertyNames": { "type": "string" },
+                      "additionalProperties": {}
+                    },
+                    "as": { "type": "string" }
+                  },
+                  "required": ["path", "body"],
+                  "additionalProperties": false
+                },
+                "description": "The /batch ops applying the plan runs, in order."
+              },
+              "creates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "updates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "deletes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["ops", "creates", "updates", "deletes"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["added", "linked", "skipped"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/check_messages",
+      "description": "List the call messages of a sequence diagram (or of every interaction in a scope) that name no operation of their receiver: no-operation (the receiver lacks it; /sync_operations adds it), no-receiver (the lifeline has no class or interface) and not-a-call (prose). Replies are not checked. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Sequence diagram. Id or path."
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Instead of diagram: every message owned within this element. Id or path."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "checked": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Call messages looked at."
+          },
+          "ok": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Messages naming an operation of their receiver."
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string" },
+                "text": { "type": "string" },
+                "from": { "type": ["string", "null"] },
+                "to": { "type": ["string", "null"] },
+                "receiver": {
+                  "description": "The receiver's path.",
+                  "type": ["string", "null"]
+                },
+                "problem": {
+                  "type": "string",
+                  "enum": ["not-a-call", "no-receiver", "no-operation"]
+                },
+                "hint": { "type": "string" }
+              },
+              "required": [
+                "message",
+                "text",
+                "from",
+                "to",
+                "receiver",
+                "problem",
+                "hint"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["checked", "ok", "problems"],
         "additionalProperties": false
       }
     },

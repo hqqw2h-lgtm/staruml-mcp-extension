@@ -45,6 +45,11 @@ import {
   takeSnapshot,
 } from "./handlers/diff.js";
 import { umlLint } from "./handlers/uml-lint.js";
+import {
+  buildModelEndpoint,
+  checkMessages,
+  syncOperationsEndpoint,
+} from "./handlers/model.js";
 import { searchTypes } from "./handlers/search.js";
 import { introspectEndpoint } from "./handlers/introspect.js";
 import {
@@ -195,6 +200,10 @@ export const endpoints: readonly Endpoint[] = [
   takeSnapshot,
   diffSinceEndpoint,
   restoreSnapshot,
+
+  buildModelEndpoint(() => endpoints),
+  syncOperationsEndpoint(() => endpoints),
+  checkMessages,
 
   introspectEndpoint(() => endpoints),
   debug,

@@ -54,6 +54,7 @@ export function initialValues(
  */
 export function requireModelId(id: string): void {
   if (!app.factory.getModelIds().includes(id)) {
+    if (addable(id)) return;
     throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${id}`);
   }
   if (!isMetaClass(id)) {
@@ -62,6 +63,25 @@ export function requireModelId(id: string): void {
       `${id} is registered with the factory but has no metamodel class, so StarUML cannot create it`,
     );
   }
+}
+
+/**
+ * A model class StarUML makes only together with a view (a lifeline, a
+ * pseudostate, a final state, a combined fragment): it registers no model
+ * function for them, yet a model built without diagrams needs them. They
+ * are added the way createModelOnly adds a relationship: a new instance
+ * through Engine.addModel, one operation. Relationships, diagrams and views
+ * have endpoints of their own.
+ */
+export function addable(typeName: string): boolean {
+  return (
+    isMetaClass(typeName) &&
+    Object.hasOwn(type, typeName) &&
+    app.metamodels.isKindOf(typeName, "Model") &&
+    !app.metamodels.isKindOf(typeName, "Diagram") &&
+    !app.metamodels.isKindOf(typeName, "DirectedRelationship") &&
+    !app.metamodels.isKindOf(typeName, "UndirectedRelationship")
+  );
 }
 
 /**
@@ -77,6 +97,19 @@ export function createOwned(
 ): Element {
   requireModelId(typeName);
   const into = resolveOwnerField(owner, typeName, field);
+  if (!app.factory.getModelIds().includes(typeName)) {
+    const model = instantiate(typeName);
+    Object.assign(model, values);
+    initialize(model);
+    const stored = inStarUML(() => app.engine.addModel(owner, into, model));
+    if (!stored) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `StarUML did not add ${typeName} to ${owner.constructor.name}.${into}`,
+      );
+    }
+    return stored;
+  }
   const elem = inStarUML(() =>
     app.factory.createModel({
       id: typeName,

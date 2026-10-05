@@ -40,6 +40,11 @@ import type { Operation } from "../types.js";
 export const NOT_ATOMIC = new Set([
   "/batch",
   "/build_diagram",
+  "/build_model",
+  "/sync_operations",
+  "/apply_pattern",
+  "/apply_preset",
+  "/apply_theme",
   "/undo",
   "/redo",
   "/restore_snapshot",
@@ -161,7 +166,7 @@ const resultSchema = () =>
     details: z.optional(z.unknown()),
   });
 
-interface OpResult {
+export interface OpResult {
   path: string;
   as?: string;
   success: boolean;
@@ -172,15 +177,15 @@ interface OpResult {
   details?: unknown;
 }
 
-type Op = z.infer<ReturnType<typeof opSchema>>;
+export type Op = z.infer<ReturnType<typeof opSchema>>;
 
 /** Fails the whole request before anything runs, for problems knowable up front. */
 function checkPlan(
   ops: readonly Op[],
   endpoints: ReadonlyMap<string, Endpoint>,
   atomic: boolean,
+  max: number,
 ): void {
-  const max = maxBatchOps();
   if (ops.length > max) {
     throw new ApiError(
       "PAYLOAD_TOO_LARGE",
@@ -334,6 +339,57 @@ function rollBack(operations: readonly Operation[]): void {
   history()._redoStack.clear();
 }
 
+export interface BatchRun {
+  atomic: boolean;
+  succeeded: number;
+  failed: number;
+  results: OpResult[];
+}
+
+/**
+ * Runs `ops` as /batch does, answering every op's whole result. Endpoints
+ * that compose a batch of their own (/build_model, /apply_pattern) pass a
+ * `max` of their own: the preference bounds what a client sends in one
+ * request, not what one composite call is made of.
+ */
+export async function runBatch(
+  endpoints: readonly Endpoint[],
+  ops: readonly Op[],
+  atomic = true,
+  max = maxBatchOps(),
+): Promise<BatchRun> {
+  const byPath = new Map<string, Endpoint>(endpoints.map((e) => [e.path, e]));
+  checkPlan(ops, byPath, atomic, max);
+  const resultsByName: Results = new Map();
+  const { value: results, operations } = await recording(async () => {
+    const out: OpResult[] = [];
+    for (const op of ops) {
+      const result = await runOp(op, byPath.get(op.path)!, resultsByName);
+      out.push(result);
+      if (atomic && !result.success) break;
+    }
+    return out;
+  });
+  const failures = results.filter((r) => !r.success);
+  if (atomic && failures.length > 0) {
+    rollBack(operations);
+    const failed = failures[0]! as OpResult & ErrorBody;
+    const index = results.length - 1;
+    throw new ApiError(
+      failed.code,
+      `ops.${index} ${failed.path} failed, batch rolled back: ${failed.error}`,
+      { index, results },
+    );
+  }
+  if (atomic && operations.length > 1) squash(operations);
+  return {
+    atomic,
+    succeeded: results.length - failures.length,
+    failed: failures.length,
+    results,
+  };
+}
+
 export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
   return defineEndpoint({
     path: "/batch",
@@ -349,7 +405,7 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
       atomic: z.optional(
         doc(
           z.boolean(),
-          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram.",
+          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme.",
         ),
       ),
       result: z.optional(
@@ -370,38 +426,11 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
     }),
     handle: async (input) => {
       const atomic = input.atomic ?? true;
-      const byPath = new Map<string, Endpoint>(
-        endpoints().map((e) => [e.path, e]),
-      );
-      checkPlan(input.ops, byPath, atomic);
-      const resultsByName: Results = new Map();
-      const { value: results, operations } = await recording(async () => {
-        const out: OpResult[] = [];
-        for (const op of input.ops) {
-          const result = await runOp(op, byPath.get(op.path)!, resultsByName);
-          out.push(result);
-          if (atomic && !result.success) break;
-        }
-        return out;
-      });
-      const failures = results.filter((r) => !r.success);
-      if (atomic && failures.length > 0) {
-        rollBack(operations);
-        const failed = failures[0]! as OpResult & ErrorBody;
-        const index = results.length - 1;
-        throw new ApiError(
-          failed.code,
-          `ops.${index} ${failed.path} failed, batch rolled back: ${failed.error}`,
-          { index, results },
-        );
-      }
-      if (atomic && operations.length > 1) squash(operations);
+      const run = await runBatch(endpoints(), input.ops, atomic);
       const mode = input.result ?? "terse";
       return {
-        atomic,
-        succeeded: results.length - failures.length,
-        failed: failures.length,
-        results: results.map((r) => shapeResult(r, mode)),
+        ...run,
+        results: run.results.map((r) => shapeResult(r, mode)),
       };
     },
   });

@@ -1,0 +1,453 @@
+/*
+ * Copyright (c) 2026 Ezra Brilliant Konterliem
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+import * as z from "zod/mini";
+import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
+import { ApiError } from "../errors.js";
+import { requireDiagram, requireElement, requireProject } from "../lookup.js";
+import { calledName, type Change, planModel } from "../model/plan.js";
+import { parseModelSpec, RELATIONS } from "../model/spec.js";
+import { pathOf } from "../refs.js";
+import { ref } from "../schemas.js";
+import type { Element, View } from "../types.js";
+import { runBatch, type OpResult } from "./batch.js";
+import { planOf, planSchema, resultField } from "./build.js";
+
+/*
+ * Model-level authoring (issue #23): /build_model makes or updates a whole
+ * model from an object-level spec, without diagrams; /sync_operations and
+ * /check_messages keep a sequence diagram's messages and the receivers'
+ * operations in step.
+ */
+
+/**
+ * Ops one /build_model may run. The preference mcp-ext.limits.maxBatchOps
+ * bounds a client's /batch; a model spec of a hundred classes with their
+ * members is a few thousand ops of one call.
+ */
+export const MODEL_MAX_OPS = 20_000;
+
+const changeSchema = () =>
+  z.object({
+    path: z.string(),
+    type: z.string(),
+    fields: z.optional(z.array(z.string())),
+  });
+
+const countBy = (changes: readonly Change[]) => {
+  const out: Record<string, number> = {};
+  for (const c of changes) out[c.type] = (out[c.type] ?? 0) + 1;
+  return out;
+};
+
+/** The id of an element the plan names: its own, or that of the op that made it. */
+function idOf(result: OpResult | undefined, ref: string): string {
+  return ref.startsWith("$") ? (result!.data as { _id: string })._id : ref;
+}
+
+export function buildModelEndpoint(
+  endpoints: () => readonly Endpoint[],
+): Endpoint {
+  return defineEndpoint({
+    path: "/build_model",
+    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. Diagram sections (classViews, erd, ...) are left to /build_diagram and listed in skipped. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.`,
+    readOnly: false,
+    destructive: false,
+    request: z.object({
+      spec: doc(
+        z.record(z.string(), z.unknown()),
+        `{system, summary, contexts: [{id, name, responsibility, dependsOn}], classes: [{name, context, kind: class|abstract|interface|enum, responsibility, knows, does, collaboratesWith, attributes: ['+id: UUID'], operations: ['+save(e: T): T'], literals}], relationships: [{from, to, type, name, fromMult, toMult}], actors: [{name, kind, goals}], useCases: [{name, system, actors, includes, extends}], collaborations: [{name, participants, messages: [[from, to, text, kind]], fragments}], lifecycles: [{name, subject, states, transitions: [{from, to, trigger, guard, effect}]}]}. Relationship direction: ${Object.entries(
+          RELATIONS,
+        )
+          .map(([k, v]) => `${k}: ${v}`)
+          .join("; ")}.`,
+      ),
+      parent: z.optional(ref("Owner of the model; default the project.")),
+      upsert: z.optional(
+        doc(
+          z.boolean(),
+          "Update the model of the same name under the parent: elements are matched by owner, type and name, members by name, relationships by type, ends and name; what differs is set, what is missing added, nothing removed.",
+        ),
+      ),
+      dryRun: z.optional(
+        doc(
+          z.boolean(),
+          "Answer the changes and the exact /batch ops, and change nothing.",
+        ),
+      ),
+      result: resultField(
+        "terse (default): counts by element type. ids: also the id of each package, classifier, collaboration and state machine by path. full: also every created and updated element.",
+      ),
+    }),
+    response: z.object({
+      model: doc(
+        z.object({ _id: z.string(), name: z.string(), path: z.string() }),
+        "The model built or updated; _id is '$m0' on a dry run that makes it.",
+      ),
+      upserted: doc(z.boolean(), "The model existed and was updated."),
+      counts: z.object({
+        created: doc(z.record(z.string(), z.int()), "Elements made, by type."),
+        updated: doc(
+          z.record(z.string(), z.int()),
+          "Elements changed, by type.",
+        ),
+        unchanged: doc(
+          z.int(),
+          "Elements the spec names that already were as written.",
+        ),
+      }),
+      changes: z.optional(
+        doc(
+          z.object({
+            created: z.array(changeSchema()),
+            updated: z.array(changeSchema()),
+          }),
+          "With result full or dryRun: each element made or changed, by path; relationships as 'from -> to'.",
+        ),
+      ),
+      ids: z.optional(
+        doc(z.record(z.string(), z.string()), "With result ids or full."),
+      ),
+      skipped: z.optional(
+        doc(
+          z.array(z.object({ section: z.string(), reason: z.string() })),
+          "Spec sections that describe diagrams, with what builds them.",
+        ),
+      ),
+      dryRun: z.optional(z.boolean()),
+      plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
+    }),
+    handle: async (input) => {
+      const spec = parseModelSpec(input.spec);
+      const parent =
+        input.parent === undefined
+          ? requireProject()
+          : requireElement(input.parent, "Parent");
+      const plan = planModel(spec, { parent, upsert: input.upsert ?? false });
+      const mode = input.result ?? "terse";
+      const report = {
+        upserted: !plan.root.ref.startsWith("$"),
+        counts: {
+          created: countBy(plan.created),
+          updated: countBy(plan.updated),
+          unchanged: plan.unchanged,
+        },
+        ...((mode === "full" || input.dryRun) && {
+          changes: { created: plan.created, updated: plan.updated },
+        }),
+        ...(spec.skipped.length > 0 && { skipped: spec.skipped }),
+      };
+      const model = {
+        _id: plan.root.ref,
+        name: spec.name,
+        path: plan.root.path,
+      };
+      if (input.dryRun) {
+        return {
+          model,
+          ...report,
+          ...(mode !== "terse" && { ids: Object.fromEntries(plan.refs) }),
+          dryRun: true,
+          plan: planOf(plan.ops),
+        };
+      }
+      const run =
+        plan.ops.length > 0
+          ? await runBatch(endpoints(), plan.ops, true, MODEL_MAX_OPS)
+          : { results: [] };
+      const byAlias = new Map(
+        run.results.flatMap((r) => (r.as ? [[r.as, r]] : [])),
+      );
+      const resolve = (ref: string) => idOf(byAlias.get(ref.slice(1)), ref);
+      return {
+        model: { ...model, _id: resolve(plan.root.ref) },
+        ...report,
+        ...(mode !== "terse" && {
+          ids: Object.fromEntries(
+            [...plan.refs].map(([path, ref]) => [path, resolve(ref)]),
+          ),
+        }),
+      };
+    },
+  });
+}
+
+/** A lifeline's classifier: what its role is typed with, else the one class named like it. */
+function receiverOf(lifeline: Element | null | undefined): Element | null {
+  if (!lifeline) return null;
+  const typed = (lifeline.represent as Element | null | undefined)?.type;
+  if (typed && typeof typed === "object") return typed as Element;
+  const named = app.repository
+    .getInstancesOf("UMLClassifier")
+    .filter(
+      (c) =>
+        c.name === lifeline.name &&
+        (c instanceof type.UMLClass || c instanceof type.UMLInterface),
+    );
+  return named.length === 1 ? named[0]! : null;
+}
+
+/** Every UMLClassifier holds its operations in a list (the UML metamodel). */
+const operationsOf = (c: Element) => c.operations as Element[];
+
+/** Messages a sequence diagram shows, top to bottom. */
+function messagesOn(diagram: Element): Element[] {
+  if (!(diagram instanceof type.UMLSequenceDiagram)) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${diagram.constructor.name} ${diagram._id} is not a sequence diagram`,
+    );
+  }
+  return (diagram.ownedViews as View[])
+    .filter((v) => v.model instanceof type.UMLMessage)
+    .map((v) => v.model!);
+}
+
+/** Parameters written in a message: "process(session, msg: TbMsg)". */
+function argumentsOf(text: string): { name: string; type?: string }[] {
+  const open = text.indexOf("(");
+  const close = text.lastIndexOf(")");
+  if (open < 0 || close < open) return [];
+  return text
+    .slice(open + 1, close)
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean)
+    .map((a) => {
+      const colon = a.indexOf(":");
+      return colon < 0
+        ? { name: a }
+        : { name: a.slice(0, colon).trim(), type: a.slice(colon + 1).trim() };
+    });
+}
+
+type Problem = "not-a-call" | "no-receiver" | "no-operation";
+
+interface Checked {
+  message: Element;
+  receiver: Element | null;
+  called: string | null;
+  problem: Problem | null;
+}
+
+/** Each call message with its receiver and what is wrong with it, if anything. */
+function check(messages: readonly Element[]): Checked[] {
+  return messages
+    .filter((m) => m.messageSort !== "reply")
+    .map((m) => {
+      const called = calledName(String(m.name ?? ""));
+      const receiver = receiverOf(m.target as Element | null);
+      const problem: Problem | null =
+        called === null
+          ? "not-a-call"
+          : !receiver
+            ? "no-receiver"
+            : operationsOf(receiver).some((o) => o.name === called)
+              ? null
+              : "no-operation";
+      return { message: m, receiver, called, problem };
+    });
+}
+
+const PROBLEMS = {
+  "not-a-call":
+    "The text names no operation, e.g. prose such as 'check limits'.",
+  "no-receiver":
+    "The receiving lifeline has no class or interface: type its role, or name it like one class.",
+  "no-operation":
+    "The receiver has no operation of that name: /sync_operations adds it.",
+} as const;
+
+export const checkMessages = defineEndpoint({
+  path: "/check_messages",
+  description:
+    "List the call messages of a sequence diagram (or of every interaction in a scope) that name no operation of their receiver: no-operation (the receiver lacks it; /sync_operations adds it), no-receiver (the lifeline has no class or interface) and not-a-call (prose). Replies are not checked. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: z.object({
+    diagram: z.optional(ref("Sequence diagram.")),
+    scope: z.optional(
+      ref("Instead of diagram: every message owned within this element."),
+    ),
+  }),
+  response: z.object({
+    checked: doc(z.int(), "Call messages looked at."),
+    ok: doc(z.int(), "Messages naming an operation of their receiver."),
+    problems: z.array(
+      z.object({
+        message: z.string(),
+        text: z.string(),
+        from: z.nullable(z.string()),
+        to: z.nullable(z.string()),
+        receiver: doc(z.nullable(z.string()), "The receiver's path."),
+        problem: z.enum(Object.keys(PROBLEMS) as [Problem, ...Problem[]]),
+        hint: z.string(),
+      }),
+    ),
+  }),
+  handle: (input) => {
+    if ((input.diagram === undefined) === (input.scope === undefined)) {
+      throw new ApiError("INVALID_ARGUMENT", "Pass diagram or scope");
+    }
+    let messages: Element[];
+    if (input.diagram !== undefined) {
+      messages = messagesOn(requireDiagram(input.diagram));
+    } else {
+      const scope = requireElement(input.scope!, "Scope");
+      messages = app.repository.getInstancesOf("UMLMessage").filter((m) => {
+        for (let e: Element | null | undefined = m; e; e = e._parent) {
+          if (e === scope) return true;
+        }
+        return false;
+      });
+    }
+    const checked = check(messages);
+    const problems = checked.filter((c) => c.problem !== null);
+    return {
+      checked: checked.length,
+      ok: checked.length - problems.length,
+      problems: problems.map((c) => ({
+        message: c.message._id,
+        text: String(c.message.name ?? ""),
+        from: ((c.message.source as Element | null)?.name as string) ?? null,
+        to: ((c.message.target as Element | null)?.name as string) ?? null,
+        receiver: c.receiver ? pathOf(c.receiver) : null,
+        problem: c.problem!,
+        hint: PROBLEMS[c.problem!],
+      })),
+    };
+  },
+});
+
+export function syncOperationsEndpoint(
+  endpoints: () => readonly Endpoint[],
+): Endpoint {
+  return defineEndpoint({
+    path: "/sync_operations",
+    description:
+      "Add to each receiver of a sequence diagram's call messages the operations the messages name and it lacks, with the parameters written in the message, and set each message's signature to its operation; one undo step. Messages that are prose or go to a lifeline without a class are listed in skipped. dryRun answers the same without changing anything.",
+    readOnly: false,
+    destructive: false,
+    request: z.object({
+      diagram: ref("Sequence diagram."),
+      dryRun: z.optional(doc(z.boolean(), "Answer what would change.")),
+    }),
+    response: z.object({
+      added: z.array(
+        z.object({
+          receiver: doc(z.string(), "The class or interface, by path."),
+          operation: z.string(),
+          parameters: z.array(z.string()),
+          messages: doc(z.int(), "Messages calling it."),
+        }),
+      ),
+      linked: doc(z.int(), "Messages given their operation as signature."),
+      skipped: z.array(
+        z.object({
+          message: z.string(),
+          text: z.string(),
+          reason: z.string(),
+        }),
+      ),
+      dryRun: z.optional(z.boolean()),
+      plan: z.optional(planSchema()),
+    }),
+    handle: async (input) => {
+      const diagram = requireDiagram(input.diagram);
+      const ops: {
+        path: string;
+        body: Record<string, unknown>;
+        as?: string;
+      }[] = [];
+      const added = new Map<
+        string,
+        {
+          receiver: string;
+          operation: string;
+          parameters: string[];
+          messages: number;
+          ref: string;
+        }
+      >();
+      const skipped: { message: string; text: string; reason: string }[] = [];
+      let linked = 0;
+      for (const c of check(messagesOn(diagram))) {
+        if (c.problem === "not-a-call" || c.problem === "no-receiver") {
+          skipped.push({
+            message: c.message._id,
+            text: String(c.message.name ?? ""),
+            reason: PROBLEMS[c.problem],
+          });
+          continue;
+        }
+        const receiver = c.receiver!;
+        const key = `${receiver._id}#${c.called}`;
+        let opRef = operationsOf(receiver).find(
+          (o) => o.name === c.called,
+        )?._id;
+        if (!opRef) {
+          const known = added.get(key);
+          if (known) {
+            known.messages++;
+            opRef = known.ref;
+          } else {
+            const parameters = argumentsOf(String(c.message.name));
+            const as = `op${added.size}`;
+            ops.push({
+              path: "/add_operation",
+              as,
+              body: {
+                ref: receiver._id,
+                name: c.called,
+                ...(parameters.length > 0 && { parameters }),
+              },
+            });
+            opRef = `$${as}`;
+            added.set(key, {
+              receiver: pathOf(receiver)!,
+              operation: c.called!,
+              parameters: parameters.map((p) => p.name),
+              messages: 1,
+              ref: opRef,
+            });
+          }
+        }
+        if ((c.message.signature as Element | null)?._id !== opRef) {
+          linked++;
+          ops.push({
+            path: "/update_element",
+            body: { ref: c.message._id, field: "signature", value: opRef },
+          });
+        }
+      }
+      const answer = {
+        added: [...added.values()].map(({ ref: _ref, ...a }) => a),
+        linked,
+        skipped,
+      };
+      if (input.dryRun) return { ...answer, dryRun: true, plan: planOf(ops) };
+      if (ops.length > 0) await runBatch(endpoints(), ops, true, MODEL_MAX_OPS);
+      return answer;
+    },
+  });
+}
