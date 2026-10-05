@@ -5,6 +5,7 @@ import {
   INTROSPECTED_MANAGERS,
 } from "../../../src/handlers/debug.js";
 import { installMockApp } from "../../mock/staruml.js";
+import { ok } from "../support.js";
 
 describe("describeSurface", () => {
   it("lists own keys and prototype methods of an object", () => {
@@ -32,19 +33,18 @@ describe("describeSurface", () => {
   });
 });
 
-describe("POST /debug", () => {
+describe("/debug", () => {
   beforeEach(() => {
     installMockApp();
   });
 
   it("describes every introspected manager", async () => {
-    const result = await debug({});
-    expect(result.success).toBe(true);
-    const data = (result as { data: Record<string, { proto: string[] }> }).data;
+    const data = await ok<Record<string, { proto: string[] }>>(debug);
     expect(data.app_keys).toContain("repository");
     for (const name of INTROSPECTED_MANAGERS) {
       expect(data[name]!.proto).toContain("constructor");
     }
     expect(data.factory!.proto).toContain("createModelAndView");
+    expect(data.metamodels!.proto).toContain("getMetaAttributes");
   });
 });

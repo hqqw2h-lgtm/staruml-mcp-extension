@@ -21,140 +21,195 @@
  *
  */
 
-import { failure } from "../errors.js";
-import type { Handler, HandlerResult } from "../http-server.js";
+import * as z from "zod/mini";
+import { defineEndpoint, doc } from "../endpoint.js";
+import { ApiError, inStarUML } from "../errors.js";
+import {
+  requireDiagram,
+  requireElement,
+  requireTypeName,
+  requireView,
+} from "../lookup.js";
+import {
+  coordinate,
+  elementSchema,
+  id,
+  projectionShape,
+  text,
+  typeName,
+} from "../schemas.js";
+import { serialize, type ElementJson, type Projection } from "../serialize.js";
 import type { Element, ModelAndViewOptions, View } from "../types.js";
 
-export const getElementById: Handler = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' (string) missing" };
-  }
-  const elem = app.repository.get(id);
-  if (!elem) {
-    return { success: false, error: `Element not found: ${id}` };
-  }
-  return { success: true, data: shallow(elem) };
-};
+export const getElementById = defineEndpoint({
+  path: "/get_element_by_id",
+  description: "Read one element by id.",
+  readOnly: true,
+  destructive: false,
+  request: z.object({ id: id("Element id."), ...projectionShape() }),
+  response: elementSchema(),
+  handle: (input) => serialize(requireElement(input.id), input),
+});
 
-export const findElements: Handler = (body) => {
-  const typeName = typeof body.type === "string" ? body.type : null;
-  const nameFilter = typeof body.name === "string" ? body.name : null;
+export const DEFAULT_PAGE_SIZE = 100;
+export const MAX_PAGE_SIZE = 1000;
 
-  try {
-    const pool = typeName
-      ? app.repository.getInstancesOf(typeName)
-      : app.repository.findAll(() => true);
-    const filtered =
-      nameFilter === null ? pool : pool.filter((e) => e.name === nameFilter);
-    return {
-      success: true,
-      data: { count: filtered.length, elements: filtered.map(shallow) },
-    };
-  } catch (err) {
-    return failure(err);
-  }
-};
-
-export const createElement: Handler = (body) => {
-  const typeName = body.type;
-  const parentId = body.parentId;
-  const name = typeof body.name === "string" ? body.name : undefined;
-
-  if (typeof typeName !== "string" || typeName.length === 0) {
-    return {
-      success: false,
-      error: "Required field 'type' (string) missing, e.g. 'UMLClass'",
-    };
-  }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return {
-      success: false,
-      error: "Required field 'parentId' (string) missing",
-    };
-  }
-
-  const parent = app.repository.get(parentId);
-  if (!parent) {
-    return { success: false, error: `Parent element not found: ${parentId}` };
-  }
-
-  try {
-    const elem = app.factory.createModel({
-      id: typeName,
-      parent,
-      ...(name !== undefined && {
-        modelInitializer: (m: Element) => {
-          m.name = name;
-        },
-      }),
-    });
-    if (!elem) {
-      return { success: false, error: `Unknown model type: ${typeName}` };
+/**
+ * Pages are cut from the matches sorted by id, and the cursor is the last id
+ * returned, so paging stays consistent while elements are added or deleted
+ * between calls (an offset would skip or repeat elements).
+ */
+export const findElements = defineEndpoint({
+  path: "/find_elements",
+  description:
+    "Find elements by metamodel type (including subtypes) and/or exact name, a page at a time.",
+  readOnly: true,
+  destructive: false,
+  request: z.object({
+    type: z.optional(
+      typeName("Metamodel class, e.g. 'UMLClass'; subtypes match too."),
+    ),
+    name: z.optional(text("Exact element name.")),
+    limit: z.optional(
+      doc(
+        z.int().check(z.minimum(1), z.maximum(MAX_PAGE_SIZE)),
+        `Page size, default ${DEFAULT_PAGE_SIZE}.`,
+      ),
+    ),
+    cursor: z.optional(
+      doc(z.string().check(z.minLength(1)), "nextCursor of the previous page."),
+    ),
+    ...projectionShape(),
+  }),
+  response: z.object({
+    count: doc(z.int(), "Matches across all pages."),
+    elements: z.array(elementSchema()),
+    nextCursor: doc(
+      z.nullable(z.string()),
+      "Pass as 'cursor' for the next page; null on the last page.",
+    ),
+  }),
+  handle: (input) => {
+    const { name, cursor } = input;
+    let pool: Element[];
+    if (input.type !== undefined) {
+      requireTypeName(input.type);
+      pool = app.repository.getInstancesOf(input.type);
+    } else {
+      pool = app.repository.findAll(() => true);
     }
-    return { success: true, data: shallow(elem) };
-  } catch (err) {
-    return failure(err);
-  }
-};
-
-export const updateElement: Handler = (body) => {
-  const id = body.id;
-  const field = body.field;
-  const value = body.value;
-
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' missing" };
-  }
-  if (typeof field !== "string" || field.length === 0) {
-    return { success: false, error: "Required field 'field' missing" };
-  }
-
-  const elem = app.repository.get(id);
-  if (!elem) {
-    return { success: false, error: `Element not found: ${id}` };
-  }
-  // Engine.setProperty only logs and returns for a field the element lacks,
-  // which would otherwise be reported to the caller as a successful update.
-  if (typeof elem[field] === "undefined") {
+    const matches = (
+      name === undefined ? pool : pool.filter((e) => e.name === name)
+    ).sort((a, b) => compare(a._id, b._id));
+    const rest =
+      cursor === undefined
+        ? matches
+        : matches.filter((e) => compare(e._id, cursor) > 0);
+    const limit = input.limit ?? DEFAULT_PAGE_SIZE;
+    const page = rest.slice(0, limit);
     return {
-      success: false,
-      error: `${elem.constructor.name} has no field '${field}'`,
+      count: matches.length,
+      elements: page.map((e) => serialize(e, input)),
+      nextCursor: rest.length > limit ? page[limit - 1]!._id : null,
     };
-  }
+  },
+});
 
-  try {
-    app.engine.setProperty(elem, field, value);
-    return { success: true, data: shallow(elem) };
-  } catch (err) {
-    return failure(err);
-  }
-};
+function compare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 
-export const deleteElement: Handler = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' missing" };
-  }
-  const elem = app.repository.get(id);
-  if (!elem) {
-    return { success: false, error: `Element not found: ${id}` };
-  }
-  try {
+/** Applies a name given in a create request; factories otherwise generate one. */
+function nameInitializer(
+  name: string | undefined,
+): Pick<ModelAndViewOptions, "modelInitializer"> {
+  if (name === undefined) return {};
+  return {
+    modelInitializer: (m: Element) => {
+      m.name = name;
+    },
+  };
+}
+
+export const createElement = defineEndpoint({
+  path: "/create_element",
+  description:
+    "Create a model element (no view) under a parent, e.g. a UMLClass in a UMLModel.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    type: typeName("A model id of app.factory.getModelIds(), e.g. 'UMLClass'."),
+    parentId: id("Owner element id."),
+    name: z.optional(text("Element name; StarUML generates one if omitted.")),
+    ...projectionShape(),
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const parent = requireElement(input.parentId, "Parent element");
+    const elem = inStarUML(() =>
+      app.factory.createModel({
+        id: input.type,
+        parent,
+        ...nameInitializer(input.name),
+      }),
+    );
+    if (!elem) {
+      throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${input.type}`);
+    }
+    return serialize(elem, input);
+  },
+});
+
+export const updateElement = defineEndpoint({
+  path: "/update_element",
+  description: "Set one attribute of an element.",
+  readOnly: false,
+  destructive: true,
+  request: z.object({
+    id: id("Element id."),
+    field: doc(z.string().check(z.minLength(1)), "Attribute name."),
+    value: doc(z.unknown(), "New value."),
+    ...projectionShape(),
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const elem = requireElement(input.id);
+    // Engine.setProperty only logs and returns for a field the element lacks,
+    // which would otherwise be reported to the caller as a successful update.
+    if (typeof elem[input.field] === "undefined") {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${elem.constructor.name} has no field '${input.field}'`,
+      );
+    }
+    inStarUML(() => app.engine.setProperty(elem, input.field, input.value));
+    return serialize(elem, input);
+  },
+});
+
+export const deleteElement = defineEndpoint({
+  path: "/delete_element",
+  description:
+    "Delete an element with everything it owns, the views showing them, and edges attached to those views.",
+  readOnly: false,
+  destructive: true,
+  request: z.object({ id: id("Element id.") }),
+  response: z.object({
+    deleted: z.string(),
+    models_deleted: z.int(),
+    views_deleted: z.int(),
+  }),
+  handle: (input) => {
+    const elem = requireElement(input.id);
     const { models, views } = collectDeletionTargets(elem);
-    app.engine.deleteElements(models, views);
+    inStarUML(() => app.engine.deleteElements(models, views));
     return {
-      success: true,
-      data: {
-        deleted: id,
-        models_deleted: models.length,
-        views_deleted: views.length,
-      },
+      deleted: input.id,
+      models_deleted: models.length,
+      views_deleted: views.length,
     };
-  } catch (err) {
-    return failure(err);
-  }
-};
+  },
+});
 
 /**
  * The element, everything it owns, and the views that depict any of them, split
@@ -189,29 +244,8 @@ function collectDeletionTargets(root: Element): {
   return { models, views };
 }
 
-/**
- * Resolves the ids shared by both create-with-view handlers. createModelAndView
- * hands `diagram` to the registered factory function without checking its type
- * (engine/factory.js in 7.1.1), so that is checked here.
- */
-function resolveParentAndDiagram(
-  body: Record<string, unknown>,
-): { parent: Element; diagram: Element } | string {
-  const { parentId, diagramId } = body;
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return "Required field 'parentId' missing";
-  }
-  if (typeof diagramId !== "string" || diagramId.length === 0) {
-    return "Required field 'diagramId' missing";
-  }
-  const parent = app.repository.get(parentId);
-  if (!parent) return `Parent not found: ${parentId}`;
-  const diagram = app.repository.get(diagramId);
-  if (!diagram || !(diagram instanceof type.Diagram)) {
-    return `Diagram not found: ${diagramId}`;
-  }
-  return { parent, diagram };
-}
+const createdSchema = () =>
+  z.object({ view: elementSchema(), model: elementSchema() });
 
 /**
  * createModelAndView takes one options object and returns the view, whose
@@ -219,137 +253,102 @@ function resolveParentAndDiagram(
  * model-and-view factory function (engine/factory.js in 7.1.1, docs:
  * developing-extensions/creating-deleting-and-modifying-elements).
  */
-function createModelAndView(options: ModelAndViewOptions): HandlerResult {
-  const view = app.factory.createModelAndView(options);
+function createModelAndView(
+  options: ModelAndViewOptions,
+  projection: Projection,
+): { view: ElementJson; model: ElementJson } {
+  const view = inStarUML(() => app.factory.createModelAndView(options));
   if (!view) {
-    return {
-      success: false,
-      error: `Unknown model-and-view type: ${options.id}`,
-    };
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      `Unknown model-and-view type: ${options.id}`,
+    );
   }
-  const model = view.model as Element;
   return {
-    success: true,
-    data: {
-      view: { _id: view._id },
-      model: { _id: model._id, name: model.name },
-    },
+    view: serialize(view, projection),
+    model: serialize(view.model as Element, projection),
   };
 }
 
-function nameInitializer(
-  name: unknown,
-): Pick<ModelAndViewOptions, "modelInitializer"> {
-  if (typeof name !== "string") return {};
-  return {
-    modelInitializer: (m: Element) => {
-      m.name = name;
-    },
-  };
-}
+const placementShape = () => ({
+  parentId: id("Owner of the new model element."),
+  diagramId: id("Diagram to place the view on."),
+});
 
-/** Creates a model element and its view on a diagram, e.g. a UMLClass and its UMLClassView. */
-export const createElementWithView: Handler = (body) => {
-  const typeName = body.type;
-  if (typeof typeName !== "string" || typeName.length === 0) {
-    return {
-      success: false,
-      error:
-        "Required field 'type' missing (e.g. 'UMLUseCase', 'UMLActor', 'UMLAction')",
-    };
-  }
-  const resolved = resolveParentAndDiagram(body);
-  if (typeof resolved === "string") return { success: false, error: resolved };
+export const createElementWithView = defineEndpoint({
+  path: "/create_element_with_view",
+  description:
+    "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    type: typeName(
+      "A model-and-view id of app.factory.getModelAndViewIds(), e.g. 'UMLClass', 'UMLUseCase'.",
+    ),
+    ...placementShape(),
+    name: z.optional(text("Element name; StarUML generates one if omitted.")),
+    x: coordinate("Left edge in diagram coordinates, default 100."),
+    y: coordinate("Top edge, default 100."),
+    x2: coordinate("Right edge, default x + 100."),
+    y2: coordinate("Bottom edge, default y + 50."),
+    ...projectionShape(),
+  }),
+  response: createdSchema(),
+  handle: (input) => {
+    const parent = requireElement(input.parentId, "Parent");
+    const diagram = requireDiagram(input.diagramId);
+    const x1 = input.x ?? 100;
+    const y1 = input.y ?? 100;
+    return createModelAndView(
+      {
+        id: input.type,
+        parent,
+        diagram,
+        x1,
+        y1,
+        x2: input.x2 ?? x1 + 100,
+        y2: input.y2 ?? y1 + 50,
+        ...nameInitializer(input.name),
+      },
+      input,
+    );
+  },
+});
 
-  // x1/y1/x2/y2 are the view's bounding box in diagram coordinates.
-  const x1 = typeof body.x === "number" ? body.x : 100;
-  const y1 = typeof body.y === "number" ? body.y : 100;
-  const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
-  const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
-
-  try {
-    return createModelAndView({
-      id: typeName,
-      ...resolved,
-      x1,
-      y1,
-      x2,
-      y2,
-      ...nameInitializer(body.name),
-    });
-  } catch (err) {
-    return failure(err);
-  }
-};
-
-/**
- * Creates a relationship (UMLAssociation, UMLControlFlow, ...) between the models
- * of two existing views and the edge view connecting them.
- */
-export const createEdgeWithView: Handler = (body) => {
-  const { type: typeName, tailViewId, headViewId } = body;
-  if (typeof typeName !== "string" || typeName.length === 0) {
-    return {
-      success: false,
-      error:
-        "Required field 'type' missing (e.g. 'UMLAssociation', 'UMLControlFlow')",
-    };
-  }
-  const resolved = resolveParentAndDiagram(body);
-  if (typeof resolved === "string") return { success: false, error: resolved };
-  if (typeof tailViewId !== "string" || typeof headViewId !== "string") {
-    return {
-      success: false,
-      error: "Required fields 'tailViewId' and 'headViewId' missing",
-    };
-  }
-  const tailView = app.repository.get(tailViewId);
-  if (!tailView || !(tailView instanceof type.View)) {
-    return { success: false, error: `Tail view not found: ${tailViewId}` };
-  }
-  const headView = app.repository.get(headViewId);
-  if (!headView || !(headView instanceof type.View)) {
-    return { success: false, error: `Head view not found: ${headViewId}` };
-  }
-
-  try {
-    return createModelAndView({
-      id: typeName,
-      ...resolved,
-      tailView: tailView as View,
-      headView: headView as View,
-      tailModel: (tailView as View).model,
-      headModel: (headView as View).model,
-      ...nameInitializer(body.name),
-    });
-  } catch (err) {
-    return failure(err);
-  }
-};
-
-function shallow(elem: Element): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(elem)) {
-    if (key.startsWith("_") && key !== "_id" && key !== "_parent") continue;
-    if (val === null || val === undefined) {
-      out[key] = val;
-    } else if (Array.isArray(val)) {
-      out[key] = val.map((item) =>
-        item && typeof item === "object" && "_id" in item
-          ? {
-              _id: (item as { _id: string })._id,
-              name: (item as { name?: string }).name,
-            }
-          : item,
-      );
-    } else if (typeof val === "object" && "_id" in val) {
-      out[key] = {
-        _id: (val as { _id: string })._id,
-        name: (val as { name?: string }).name,
-      };
-    } else {
-      out[key] = val;
-    }
-  }
-  return out;
-}
+export const createEdgeWithView = defineEndpoint({
+  path: "/create_edge_with_view",
+  description:
+    "Create a relationship (UMLAssociation, UMLControlFlow, ...) between the models of two views, and the edge view connecting them.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    type: typeName(
+      "A relationship id of app.factory.getModelAndViewIds(), e.g. 'UMLAssociation'.",
+    ),
+    ...placementShape(),
+    tailViewId: id("View at the source end."),
+    headViewId: id("View at the target end."),
+    name: z.optional(text("Relationship name.")),
+    ...projectionShape(),
+  }),
+  response: createdSchema(),
+  handle: (input) => {
+    const parent = requireElement(input.parentId, "Parent");
+    const diagram = requireDiagram(input.diagramId);
+    const tailView: View = requireView(input.tailViewId, "Tail view");
+    const headView: View = requireView(input.headViewId, "Head view");
+    return createModelAndView(
+      {
+        id: input.type,
+        parent,
+        diagram,
+        tailView,
+        headView,
+        tailModel: tailView.model,
+        headModel: headView.model,
+        ...nameInitializer(input.name),
+      },
+      input,
+    );
+  },
+});

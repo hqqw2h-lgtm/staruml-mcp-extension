@@ -21,12 +21,75 @@
  *
  */
 
-import type { HandlerResult } from "./http-server.js";
+/**
+ * Error codes are part of the HTTP contract: clients branch on `code`, while
+ * `error` is prose for humans and may change. Each code maps to one status.
+ */
+export const ERROR_STATUS = {
+  /** The body does not match the endpoint's request schema. */
+  INVALID_ARGUMENT: 400,
+  INVALID_JSON: 400,
+  BODY_READ_FAILED: 400,
+  /** A type name that is not in the metamodel or has no factory function. */
+  UNKNOWN_TYPE: 400,
+  /** An id that names no element, or an element of the wrong kind. */
+  NOT_FOUND: 404,
+  UNKNOWN_ENDPOINT: 404,
+  METHOD_NOT_ALLOWED: 405,
+  /** The operation needs an open project, or a saved one. */
+  NO_PROJECT: 409,
+  /** StarUML refused the operation, e.g. a factory precondition failed. */
+  STARUML_ERROR: 422,
+  /** A defect in this extension; details are in StarUML's developer console. */
+  INTERNAL: 500,
+} as const;
+
+export type ErrorCode = keyof typeof ERROR_STATUS;
+
+export const ERROR_CODES = Object.keys(ERROR_STATUS) as ErrorCode[];
+
+export interface ErrorBody {
+  success: false;
+  code: ErrorCode;
+  error: string;
+  details?: unknown;
+}
+
+/** Thrown by handlers and lookups; the endpoint wrapper turns it into an ErrorBody. */
+export class ApiError extends Error {
+  constructor(
+    readonly code: ErrorCode,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+
+  toBody(): ErrorBody {
+    return {
+      success: false,
+      code: this.code,
+      error: this.message,
+      ...(this.details !== undefined && { details: this.details }),
+    };
+  }
+}
 
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-export function failure(err: unknown): HandlerResult {
-  return { success: false, error: errorMessage(err) };
+/**
+ * Runs a call into StarUML and reports what it throws as STARUML_ERROR, so a
+ * refused operation is not mistaken for a defect here. Factory preconditions
+ * throw plain strings such as "Invalid connection (UMLGeneralization)"
+ * (Factory.assert in engine/factory.js, 7.1.1).
+ */
+export function inStarUML<T>(call: () => T): T {
+  try {
+    return call();
+  } catch (err) {
+    throw new ApiError("STARUML_ERROR", errorMessage(err));
+  }
 }

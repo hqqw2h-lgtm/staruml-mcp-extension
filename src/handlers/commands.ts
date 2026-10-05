@@ -21,51 +21,62 @@
  *
  */
 
-import { errorMessage, failure } from "../errors.js";
-import type { Handler } from "../http-server.js";
+import * as z from "zod/mini";
+import { defineEndpoint, doc } from "../endpoint.js";
+import { ApiError, errorMessage } from "../errors.js";
+import { id, projectionShape } from "../schemas.js";
+import { serializeValue } from "../serialize.js";
 
 /**
  * `commands` holds every registered command; `commandNames` only those
  * registered with a display name (engine/command-manager.js), so it undercounts.
  */
-function commandIds(): string[] {
-  return Object.keys(app.commands.commands);
-}
+export const getAllCommands = defineEndpoint({
+  path: "/get_all_commands",
+  description: "Ids of every registered command.",
+  readOnly: true,
+  destructive: false,
+  request: z.object({}),
+  response: z.object({ count: z.int(), ids: z.array(z.string()) }),
+  handle: () => {
+    const ids = Object.keys(app.commands.commands).sort();
+    return { count: ids.length, ids };
+  },
+});
 
-export const getAllCommands: Handler = () => {
-  const ids = commandIds().sort();
-  return { success: true, data: { count: ids.length, ids } };
-};
-
-export const executeCommand: Handler = async (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' (string) missing" };
-  }
-  const args: unknown[] = Array.isArray(body.args) ? body.args : [];
-
-  // execute() returns false for an unknown id, which is indistinguishable from a
-  // command that legitimately returns false, so check registration first.
-  if (!Object.hasOwn(app.commands.commands, id)) {
-    return { success: false, error: `Command not registered: ${id}` };
-  }
-
-  try {
-    const result: unknown = await app.commands.execute(id, ...args);
-    return { success: true, data: { id, result: toJson(result) } };
-  } catch (err) {
-    return failure(`Command ${id} threw: ${errorMessage(err)}`);
-  }
-};
-
-/** Command results may be model elements with cyclic references or functions. */
-function toJson(value: unknown): unknown {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "function") return "[function]";
-  if (typeof value !== "object") return value;
-  try {
-    return JSON.parse(JSON.stringify(value)) as unknown;
-  } catch {
-    return "[non-serializable]";
-  }
-}
+export const executeCommand = defineEndpoint({
+  path: "/execute_command",
+  description:
+    "Run a registered StarUML command (see /get_all_commands). Commands can do anything the UI can, including deleting data.",
+  readOnly: false,
+  destructive: true,
+  request: z.object({
+    id: id("Command id, e.g. 'edit.undo'."),
+    args: z.optional(doc(z.array(z.unknown()), "Positional arguments.")),
+    ...projectionShape(),
+  }),
+  response: z.object({
+    id: z.string(),
+    result: doc(
+      z.unknown(),
+      "The command's return value; elements are projected like any element.",
+    ),
+  }),
+  handle: async (input) => {
+    // execute() returns false for an unknown id, which is indistinguishable from a
+    // command that legitimately returns false, so check registration first.
+    if (!Object.hasOwn(app.commands.commands, input.id)) {
+      throw new ApiError("NOT_FOUND", `Command not registered: ${input.id}`);
+    }
+    let result: unknown;
+    try {
+      result = await app.commands.execute(input.id, ...(input.args ?? []));
+    } catch (err) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `Command ${input.id} threw: ${errorMessage(err)}`,
+      );
+    }
+    return { id: input.id, result: serializeValue(result, input) };
+  },
+});

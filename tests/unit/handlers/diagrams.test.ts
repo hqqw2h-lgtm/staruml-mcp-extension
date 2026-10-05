@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  closeDiagramById,
+  closeDiagram,
   createDiagram,
   switchDiagram,
 } from "../../../src/handlers/diagrams.js";
 import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
+import { fails, ok } from "../support.js";
 
 let env: MockEnvironment;
 
@@ -12,124 +13,131 @@ beforeEach(() => {
   env = installMockApp();
 });
 
-describe("createDiagram", () => {
-  it.each([{}, { type: "" }])("requires a type: %j", async (body) => {
-    expect(await createDiagram(body)).toMatchObject({
-      success: false,
-      error: expect.stringContaining("Required field 'type'"),
-    });
-  });
+describe("/create_diagram", () => {
+  it.each([{}, { type: "" }, { type: 1 }])(
+    "requires a type: %j",
+    async (body) => {
+      await fails(
+        createDiagram,
+        { parentId: env.model._id, ...body },
+        "INVALID_ARGUMENT",
+        /^type: /,
+      );
+    },
+  );
 
-  it.each([
-    { type: "UMLClassDiagram" },
-    { type: "UMLClassDiagram", parentId: "" },
-  ])("requires a parentId: %j", async (body) => {
-    expect(await createDiagram(body)).toEqual({
-      success: false,
-      error: "Required field 'parentId' (string) missing",
-    });
+  it("requires a parentId", async () => {
+    await fails(
+      createDiagram,
+      { type: "UMLClassDiagram" },
+      "INVALID_ARGUMENT",
+      /^parentId: /,
+    );
   });
 
   it("rejects an unknown parent", async () => {
-    expect(
-      await createDiagram({ type: "UMLClassDiagram", parentId: "missing" }),
-    ).toEqual({
-      success: false,
-      error: "Parent element not found: missing",
-    });
+    await fails(
+      createDiagram,
+      { type: "UMLClassDiagram", parentId: "missing" },
+      "NOT_FOUND",
+      "Parent element not found: missing",
+    );
   });
 
-  it("creates a named diagram under the parent", async () => {
-    const result = await createDiagram({
+  it("creates a named diagram and returns its summary", async () => {
+    const data = await ok(createDiagram, {
+      type: "UMLUseCaseDiagram",
+      parentId: env.model._id,
+      name: "Cases",
+    });
+    expect(data).toMatchObject({
+      _type: "UMLUseCaseDiagram",
+      name: "Cases",
+      _parent: env.model._id,
+    });
+    expect(env.app.repository.get(data._id as string)).toBeDefined();
+  });
+
+  it("leaves the name to the factory and honours the projection", async () => {
+    const data = await ok(createDiagram, {
       type: "UMLClassDiagram",
       parentId: env.model._id,
-      name: "Domain",
+      fields: ["ownedViews"],
     });
-    expect(result).toMatchObject({
-      success: true,
-      data: { name: "Domain", type: "UMLClassDiagram" },
-    });
-    const id = (result as { data: { _id: string } }).data._id;
-    expect(env.app.repository.get(id)?._parent).toBe(env.model);
-  });
-
-  it("creates an unnamed diagram", async () => {
-    const result = await createDiagram({
-      type: "UMLClassDiagram",
-      parentId: env.model._id,
-    });
-    expect(result).toMatchObject({ success: true, data: { name: "" } });
-  });
-
-  it("reports an id the factory does not know, for which it returns null", async () => {
-    expect(
-      await createDiagram({ type: "NoSuchDiagram", parentId: env.model._id }),
-    ).toEqual({
-      success: false,
-      error: "Unknown diagram type: NoSuchDiagram",
+    expect(data).toEqual({
+      _id: data._id,
+      _type: "UMLClassDiagram",
+      ownedViews: [],
     });
   });
 
-  it("reports a factory exception", async () => {
-    vi.spyOn(env.app.factory, "createDiagram").mockImplementation(() => {
-      throw new Error("factory down");
-    });
-    expect(
-      await createDiagram({ type: "UMLClassDiagram", parentId: env.model._id }),
-    ).toEqual({
-      success: false,
-      error: "factory down",
-    });
+  it("reports an id without a diagram factory, for which it returns null", async () => {
+    await fails(
+      createDiagram,
+      { type: "Nope", parentId: env.model._id },
+      "UNKNOWN_TYPE",
+      "Unknown diagram type: Nope",
+    );
+  });
+
+  it("reports a failed factory precondition as STARUML_ERROR", async () => {
+    const view = env.app.factory.createModelAndView({
+      id: "UMLClass",
+      parent: env.model,
+      diagram: env.mainDiagram,
+    })!;
+    await fails(
+      createDiagram,
+      { type: "UMLClassDiagram", parentId: view._id },
+      "STARUML_ERROR",
+      "UMLClassDiagram cannot be placed here.",
+    );
   });
 });
 
 describe.each([
-  ["switchDiagram", switchDiagram, "setCurrentDiagram"],
-  ["closeDiagramById", closeDiagramById, "closeDiagram"],
-] as const)("%s", (_name, handler, method) => {
-  it.each([{}, { id: "" }])("requires an id: %j", async (body) => {
-    expect(await handler(body)).toEqual({
-      success: false,
-      error: "Required field 'id' (diagram id) missing",
-    });
+  ["/switch_diagram", switchDiagram],
+  ["/close_diagram", closeDiagram],
+])("%s", (_path, endpoint) => {
+  it("requires an id", async () => {
+    await fails(endpoint, {}, "INVALID_ARGUMENT", /^id: /);
   });
 
-  it("rejects an unknown id", async () => {
-    expect(await handler({ id: "missing" })).toEqual({
-      success: false,
-      error: "Diagram not found: missing",
-    });
-  });
+  it.each(["missing", "model"])(
+    "rejects an id that is not a diagram (%s)",
+    async (which) => {
+      const id = which === "model" ? env.model._id : which;
+      await fails(endpoint, { id }, "NOT_FOUND", `Diagram not found: ${id}`);
+    },
+  );
+});
 
-  it("rejects an element that is not a diagram", async () => {
-    expect(await handler({ id: env.model._id })).toEqual({
-      success: false,
-      error: `Diagram not found: ${env.model._id}`,
+describe("/switch_diagram", () => {
+  it("makes the diagram current", async () => {
+    expect(await ok(switchDiagram, { id: env.mainDiagram._id })).toEqual({
+      _id: env.mainDiagram._id,
     });
+    expect(env.app.diagrams.getCurrentDiagram()).toBe(env.mainDiagram);
   });
 
   it("reports a diagram manager exception", async () => {
-    vi.spyOn(env.app.diagrams, method).mockImplementation(() => {
-      throw new Error("editor gone");
+    vi.spyOn(env.app.diagrams, "setCurrentDiagram").mockImplementation(() => {
+      throw new Error("no editor");
     });
-    expect(await handler({ id: env.mainDiagram._id })).toEqual({
-      success: false,
-      error: "editor gone",
-    });
+    await fails(
+      switchDiagram,
+      { id: env.mainDiagram._id },
+      "STARUML_ERROR",
+      "no editor",
+    );
   });
 });
 
-describe("switching and closing", () => {
-  it("makes the diagram current, then closes it", async () => {
-    const id = env.mainDiagram._id;
-    expect(await switchDiagram({ id })).toEqual({
-      success: true,
-      data: { _id: id },
-    });
-    expect(env.app.diagrams.getCurrentDiagram()).toBe(env.mainDiagram);
-    expect(await closeDiagramById({ id })).toEqual({
-      success: true,
-      data: { closed: id },
+describe("/close_diagram", () => {
+  it("closes the diagram's tab", async () => {
+    env.app.diagrams.setCurrentDiagram(env.mainDiagram);
+    expect(await ok(closeDiagram, { id: env.mainDiagram._id })).toEqual({
+      closed: env.mainDiagram._id,
     });
     expect(env.app.diagrams.getWorkingDiagrams()).toEqual([]);
   });

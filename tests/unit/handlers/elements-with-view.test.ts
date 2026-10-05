@@ -5,12 +5,11 @@ import {
 } from "../../../src/handlers/elements.js";
 import {
   installMockApp,
-  UMLAssociation,
-  UMLClassView,
+  type Element,
   type MockEnvironment,
-  type NodeView,
-  type UMLAssociationView,
+  type View,
 } from "../../mock/staruml.js";
+import { fails, ok } from "../support.js";
 
 let env: MockEnvironment;
 
@@ -18,11 +17,12 @@ beforeEach(() => {
   env = installMockApp();
 });
 
-function viewId(result: unknown): string {
-  return (result as { data: { view: { _id: string } } }).data.view._id;
+interface Created {
+  view: { _id: string };
+  model: { _id: string; name?: string };
 }
 
-describe("createElementWithView", () => {
+describe("/create_element_with_view", () => {
   function nodeBody(
     extra: Record<string, unknown> = {},
   ): Record<string, unknown> {
@@ -34,56 +34,40 @@ describe("createElementWithView", () => {
     };
   }
 
-  it.each([{}, { type: "" }])("requires a type: %j", async (body) => {
-    expect(await createElementWithView(body)).toMatchObject({
-      success: false,
-      error: expect.stringContaining("Required field 'type' missing"),
-    });
+  it.each(["type", "parentId", "diagramId"])("requires %s", async (field) => {
+    await fails(
+      createElementWithView,
+      nodeBody({ [field]: undefined }),
+      "INVALID_ARGUMENT",
+      new RegExp(`^${field}: `),
+    );
   });
 
-  it.each([{ parentId: undefined }, { parentId: "" }])(
-    "requires a parentId: %j",
-    async (extra) => {
-      expect(await createElementWithView(nodeBody(extra))).toEqual({
-        success: false,
-        error: "Required field 'parentId' missing",
-      });
-    },
-  );
-
-  it.each([{ diagramId: undefined }, { diagramId: "" }])(
-    "requires a diagramId: %j",
-    async (extra) => {
-      expect(await createElementWithView(nodeBody(extra))).toEqual({
-        success: false,
-        error: "Required field 'diagramId' missing",
-      });
-    },
-  );
-
   it("rejects an unknown parent", async () => {
-    expect(
-      await createElementWithView(nodeBody({ parentId: "missing" })),
-    ).toEqual({
-      success: false,
-      error: "Parent not found: missing",
-    });
+    await fails(
+      createElementWithView,
+      nodeBody({ parentId: "missing" }),
+      "NOT_FOUND",
+      "Parent not found: missing",
+    );
   });
 
   it.each(["missing", "model"])(
     "rejects a diagramId that is not a diagram (%s)",
     async (which) => {
       const diagramId = which === "model" ? env.model._id : which;
-      expect(await createElementWithView(nodeBody({ diagramId }))).toEqual({
-        success: false,
-        error: `Diagram not found: ${diagramId}`,
-      });
+      await fails(
+        createElementWithView,
+        nodeBody({ diagramId }),
+        "NOT_FOUND",
+        `Diagram not found: ${diagramId}`,
+      );
     },
   );
 
   it("passes createModelAndView a single options object (#1)", async () => {
     const spy = vi.spyOn(env.app.factory, "createModelAndView");
-    await createElementWithView(nodeBody());
+    await ok(createElementWithView, nodeBody());
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy.mock.calls[0]).toHaveLength(1);
     expect(spy.mock.calls[0]![0]).toMatchObject({
@@ -94,54 +78,78 @@ describe("createElementWithView", () => {
   });
 
   it("creates a named class and its view at the requested bounds", async () => {
-    const result = await createElementWithView(
+    const data = await ok<Created>(
+      createElementWithView,
       nodeBody({ name: "Book", x: 10, y: 20, x2: 210, y2: 120 }),
     );
-    expect(result).toMatchObject({
-      success: true,
-      data: { model: { name: "Book" } },
+    expect(data).toEqual({
+      view: {
+        _id: data.view._id,
+        _type: "UMLClassView",
+        name: null,
+        _parent: env.mainDiagram._id,
+      },
+      model: {
+        _id: data.model._id,
+        _type: "UMLClass",
+        name: "Book",
+        _parent: env.model._id,
+      },
     });
-    const view = env.app.repository.get(viewId(result)) as NodeView;
-    expect(view).toBeInstanceOf(UMLClassView);
-    expect(view.model!._parent).toBe(env.model);
+    const view = env.app.repository.get(data.view._id) as View;
     expect(env.mainDiagram.ownedViews).toContain(view);
     expect([view.left, view.top, view.width, view.height]).toEqual([
       10, 20, 200, 100,
     ]);
   });
 
-  it("defaults the bounds to a 100x50 box at (100, 100) and leaves the name alone", async () => {
-    const result = await createElementWithView(nodeBody({ name: 7 }));
-    const view = env.app.repository.get(viewId(result)) as NodeView;
-    expect([view.left, view.top, view.width, view.height]).toEqual([
-      100, 100, 100, 50,
-    ]);
-    expect(view.model!.name).toBe("");
+  it("defaults the bounds to a 100x50 box at (100, 100) and projects both elements", async () => {
+    const data = await ok<{ view: Record<string, unknown> }>(
+      createElementWithView,
+      nodeBody({ fields: ["left", "top", "width", "height"] }),
+    );
+    expect(data.view).toMatchObject({
+      left: 100,
+      top: 100,
+      width: 100,
+      height: 50,
+    });
+  });
+
+  it("rejects a name that is not a string", async () => {
+    await fails(
+      createElementWithView,
+      nodeBody({ name: 7 }),
+      "INVALID_ARGUMENT",
+      /^name: /,
+    );
   });
 
   it("reports a type without a model-and-view factory, for which it returns null", async () => {
-    expect(
-      await createElementWithView(nodeBody({ type: "UMLAttribute" })),
-    ).toEqual({
-      success: false,
-      error: "Unknown model-and-view type: UMLAttribute",
-    });
+    await fails(
+      createElementWithView,
+      nodeBody({ type: "UMLAttribute" }),
+      "UNKNOWN_TYPE",
+      "Unknown model-and-view type: UMLAttribute",
+    );
   });
 
-  it("reports a factory exception", async () => {
+  it("reports a factory exception as STARUML_ERROR", async () => {
     vi.spyOn(env.app.factory, "createModelAndView").mockImplementation(() => {
       throw new Error("factory down");
     });
-    expect(await createElementWithView(nodeBody())).toEqual({
-      success: false,
-      error: "factory down",
-    });
+    await fails(
+      createElementWithView,
+      nodeBody(),
+      "STARUML_ERROR",
+      "factory down",
+    );
   });
 });
 
-describe("createEdgeWithView", () => {
-  let tail: NodeView;
-  let head: NodeView;
+describe("/create_edge_with_view", () => {
+  let tail: View;
+  let head: View;
 
   beforeEach(() => {
     const make = (x: number) =>
@@ -153,7 +161,7 @@ describe("createEdgeWithView", () => {
         y1: 0,
         x2: x + 100,
         y2: 50,
-      }) as NodeView;
+      })!;
     tail = make(0);
     head = make(200);
   });
@@ -171,84 +179,90 @@ describe("createEdgeWithView", () => {
     };
   }
 
-  it.each([{ type: undefined }, { type: "" }])(
-    "requires a type: %j",
-    async (extra) => {
-      expect(await createEdgeWithView(edgeBody(extra))).toMatchObject({
-        success: false,
-        error: expect.stringContaining("Required field 'type' missing"),
-      });
+  it.each(["type", "parentId", "diagramId", "tailViewId", "headViewId"])(
+    "requires %s",
+    async (field) => {
+      await fails(
+        createEdgeWithView,
+        edgeBody({ [field]: undefined }),
+        "INVALID_ARGUMENT",
+        new RegExp(`^${field}: `),
+      );
     },
   );
 
   it.each([
-    [{ parentId: "" }, "Required field 'parentId' missing"],
-    [{ diagramId: undefined }, "Required field 'diagramId' missing"],
     [{ parentId: "missing" }, "Parent not found: missing"],
     [{ diagramId: "missing" }, "Diagram not found: missing"],
   ])("checks parent and diagram: %j", async (extra, error) => {
-    expect(await createEdgeWithView(edgeBody(extra))).toEqual({
-      success: false,
-      error,
-    });
+    await fails(createEdgeWithView, edgeBody(extra), "NOT_FOUND", error);
   });
-
-  it.each([{ tailViewId: undefined }, { headViewId: 3 }])(
-    "requires both view ids: %j",
-    async (extra) => {
-      expect(await createEdgeWithView(edgeBody(extra))).toEqual({
-        success: false,
-        error: "Required fields 'tailViewId' and 'headViewId' missing",
-      });
-    },
-  );
 
   it.each([
     ["tailViewId", "Tail"],
     ["headViewId", "Head"],
   ])("rejects a %s that is missing or not a view", async (field, label) => {
     for (const id of ["missing", env.model._id]) {
-      expect(await createEdgeWithView(edgeBody({ [field]: id }))).toEqual({
-        success: false,
-        error: `${label} view not found: ${id}`,
-      });
+      await fails(
+        createEdgeWithView,
+        edgeBody({ [field]: id }),
+        "NOT_FOUND",
+        `${label} view not found: ${id}`,
+      );
     }
   });
 
   it("connects the two views with a named association between their models (#1)", async () => {
     const spy = vi.spyOn(env.app.factory, "createModelAndView");
-    const result = await createEdgeWithView(edgeBody({ name: "wrote" }));
-    expect(result).toMatchObject({
-      success: true,
-      data: { model: { name: "wrote" } },
+    const data = await ok<Created>(
+      createEdgeWithView,
+      edgeBody({ name: "wrote" }),
+    );
+    expect(data.model).toMatchObject({
+      _type: "UMLAssociation",
+      name: "wrote",
     });
     expect(spy.mock.calls[0]).toHaveLength(1);
 
-    const edge = env.app.repository.get(viewId(result)) as UMLAssociationView;
+    const edge = env.app.repository.get(data.view._id) as View;
     expect(edge.tail).toBe(tail);
     expect(edge.head).toBe(head);
-    const association = edge.model as UMLAssociation;
-    expect(association).toBeInstanceOf(UMLAssociation);
-    expect(association.end1.reference).toBe(tail.model);
-    expect(association.end2.reference).toBe(head.model);
+    const association = edge.model!;
+    expect((association.end1 as Element).reference).toBe(tail.model);
+    expect((association.end2 as Element).reference).toBe(head.model);
+  });
+
+  it("sets source and target of a directed relationship", async () => {
+    const data = await ok<Created>(
+      createEdgeWithView,
+      edgeBody({ type: "UMLGeneralization", fields: ["source", "target"] }),
+    );
+    expect(data.model).toEqual({
+      _id: data.model._id,
+      _type: "UMLGeneralization",
+      source: { $ref: tail.model!._id },
+      target: { $ref: head.model!._id },
+    });
   });
 
   it("reports a type without a model-and-view factory", async () => {
-    expect(
-      await createEdgeWithView(edgeBody({ type: "UMLAttribute" })),
-    ).toEqual({
-      success: false,
-      error: "Unknown model-and-view type: UMLAttribute",
-    });
+    await fails(
+      createEdgeWithView,
+      edgeBody({ type: "UMLAttribute" }),
+      "UNKNOWN_TYPE",
+      "Unknown model-and-view type: UMLAttribute",
+    );
   });
 
-  it("reports a factory exception", async () => {
+  it("reports a factory exception as STARUML_ERROR", async () => {
     vi.spyOn(env.app.factory, "createModelAndView").mockImplementation(() => {
-      throw new Error("factory down");
+      throw "Invalid connection (UMLAssociation)";
     });
-    expect(await createEdgeWithView(edgeBody())).toEqual({
-      success: false,
-      error: "factory down",
-    });
+    await fails(
+      createEdgeWithView,
+      edgeBody(),
+      "STARUML_ERROR",
+      "Invalid connection (UMLAssociation)",
+    );
   });
 });

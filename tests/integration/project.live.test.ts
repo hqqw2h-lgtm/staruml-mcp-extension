@@ -1,12 +1,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { call, describeLive, liveDir } from "./support.js";
-
-interface Ref {
-  _id: string;
-  name?: string;
-}
+import { call, describeLive, liveDir, type Summary } from "./support.js";
 
 // The ProjectManager methods src/types.ts declares; each must exist on 7.1.1.
 const DECLARED = ["getFilename", "getProject", "save", "load", "newProject"];
@@ -21,8 +16,8 @@ describeLive("project files on StarUML 7.1.1", () => {
   beforeAll(async () => {
     for (const f of [first, second]) rmSync(f, { force: true });
     await call("/new_project");
-    projectId = (await call<{ project: Ref }>("/get_project_info")).data.project
-      ._id;
+    projectId = (await call<{ project: Summary }>("/get_project_info")).data
+      .project._id;
   });
 
   afterAll(async () => {
@@ -39,7 +34,8 @@ describeLive("project files on StarUML 7.1.1", () => {
 
   it("refuses save_project without a filename before the project has a file", async () => {
     expect(await call("/save_project")).toMatchObject({
-      status: 400,
+      status: 409,
+      code: "NO_PROJECT",
       error: "Project has no file yet; pass 'filename' or use /save_project_as",
     });
   });
@@ -57,7 +53,7 @@ describeLive("project files on StarUML 7.1.1", () => {
     const info = await call<{ filename: string }>("/get_project_info");
     expect(info.data.filename).toBe(first);
     const saved = JSON.parse(readFileSync(first, "utf-8")) as {
-      ownedElements: Ref[];
+      ownedElements: { name: string }[];
     };
     expect(saved.ownedElements.map((e) => e.name)).toEqual(["First"]);
   });
@@ -72,7 +68,7 @@ describeLive("project files on StarUML 7.1.1", () => {
       data: { filename: first },
     });
     const saved = JSON.parse(readFileSync(first, "utf-8")) as {
-      ownedElements: Ref[];
+      ownedElements: { name: string }[];
     };
     expect(saved.ownedElements.map((e) => e.name)).toEqual(["First", "Second"]);
   });
@@ -94,12 +90,10 @@ describeLive("project files on StarUML 7.1.1", () => {
   it("reopens a saved file with the same element ids", async () => {
     await call("/new_project");
     const opened = await call<{
-      project: Ref & { ownedElementsCount: number };
-    }>("/open_project", { filename: second });
-    expect(opened).toMatchObject({
-      status: 200,
-      data: { project: { ownedElementsCount: 3 } },
-    });
+      project: Summary & { ownedElements: unknown[] };
+    }>("/open_project", { filename: second, fields: ["ownedElements"] });
+    expect(opened.status).toBe(200);
+    expect(opened.data.project.ownedElements).toHaveLength(3);
     expect(opened.data.project._id).toBe(projectId);
     const found = await call<{ count: number }>("/find_elements", {
       type: "UMLModel",
@@ -112,13 +106,15 @@ describeLive("project files on StarUML 7.1.1", () => {
     const empty = join(dir, "project-empty.mdj");
     writeFileSync(empty, "");
     expect(await call("/open_project", { filename: empty })).toMatchObject({
-      status: 400,
+      status: 422,
+      code: "STARUML_ERROR",
       error: `File is empty: ${empty}`,
     });
     expect(
       await call("/open_project", { filename: join(dir, "absent.mdj") }),
     ).toMatchObject({
-      status: 400,
+      status: 422,
+      code: "STARUML_ERROR",
       error: expect.stringContaining("ENOENT"),
     });
   });

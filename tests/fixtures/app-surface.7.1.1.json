@@ -231,6 +231,18 @@
         "showSimpleDialog",
         "showTextDialog"
       ]
+    },
+    "metamodels": {
+      "proto": [
+        "assert",
+        "constructor",
+        "getAvailableViewTypes",
+        "getMetaAttributes",
+        "getViewTypeOf",
+        "isKindOf",
+        "register",
+        "validateMetaType"
+      ]
     }
   },
   "app_keys": [

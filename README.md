@@ -41,14 +41,41 @@ Both take effect after a restart. **Tools → MCP Extension → Server Info...**
 
 ## Endpoints
 
-All `POST` + JSON body. Response: `{success, data?, error?}`. Base URL: `http://localhost:58322`
+All `POST` + JSON body. Base URL: `http://localhost:58322`; `GET /` lists the endpoints.
 
-| Group        | Endpoints                                                                                       |
-| ------------ | ----------------------------------------------------------------------------------------------- |
-| Commands     | `/get_all_commands`, `/execute_command`                                                         |
-| Project      | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`       |
-| Element CRUD | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element` |
-| Diagrams     | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                          |
+| Group        | Endpoints                                                                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Commands     | `/get_all_commands`, `/execute_command`                                                                                                                |
+| Project      | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`                                                              |
+| Element CRUD | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`, `/create_edge_with_view` |
+| Diagrams     | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                 |
+
+### Responses
+
+Success is `{success: true, data}`. Failure is `{success: false, code, error, details?}`; branch on `code`, `error` is prose. Stack traces are only logged to StarUML's developer console.
+
+| `code`                             | Status | Meaning                                                                      |
+| ---------------------------------- | ------ | ---------------------------------------------------------------------------- |
+| `INVALID_ARGUMENT`                 | 400    | Body does not match the endpoint's schema; `details` lists `{path, message}` |
+| `INVALID_JSON`, `BODY_READ_FAILED` | 400    | Body is not a JSON object                                                    |
+| `UNKNOWN_TYPE`                     | 400    | Type name not in the metamodel, or no factory function for it                |
+| `NOT_FOUND`, `UNKNOWN_ENDPOINT`    | 404    | No element (of the expected kind) with that id; no such path                 |
+| `METHOD_NOT_ALLOWED`               | 405    | Not `POST`                                                                   |
+| `NO_PROJECT`                       | 409    | No project open, or it has no file yet                                       |
+| `STARUML_ERROR`                    | 422    | StarUML refused, e.g. a factory precondition                                 |
+| `INTERNAL`                         | 500    | Defect in the extension                                                      |
+
+### Elements
+
+Every endpoint that returns elements returns summaries by default: `{_id, _type, name, _parent}`, where `_type` is the metamodel class and `_parent` the owner id. The keys carry an underscore, as in `.mdj` files, because `id` and `type` are attribute names in the metamodel. These optional request fields change that:
+
+| Field     | Effect                                                                                                          |
+| --------- | --------------------------------------------------------------------------------------------------------------- |
+| `summary` | `false` returns every saved attribute; references are `{$ref: id}`, never inlined                               |
+| `fields`  | Return only `_id`, `_type` and these attributes (`_parent` accepted)                                            |
+| `depth`   | Expand owned elements (`ownedElements`, `attributes`, `ownedViews`, ...) this many levels; default 0 = `{$ref}` |
+
+`/find_elements` pages its matches in id order: `limit` (1–1000, default 100) and `cursor` (the previous page's `nextCursor`); `count` is the total.
 
 ## Building from source
 

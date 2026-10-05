@@ -1,15 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { call, describeLive, liveDir } from "./support.js";
+import { call, describeLive, liveDir, type Summary } from "./support.js";
 
 interface Ref {
-  _id: string;
-  name?: string;
+  $ref: string;
 }
 interface Created {
-  view: Ref;
-  model: Ref;
+  view: Summary;
+  model: Summary;
 }
 
 /** The subset of the .mdj JSON the assertions read. */
@@ -46,16 +45,16 @@ describeLive("class diagram built through create_*_with_view", () => {
 
   beforeAll(async () => {
     await call("/new_project");
-    const info = await call<{ project: Ref }>("/get_project_info");
+    const info = await call<{ project: Summary }>("/get_project_info");
     modelId = (
-      await call<Ref>("/create_element", {
+      await call<Summary>("/create_element", {
         type: "UMLModel",
         parentId: info.data.project._id,
         name: "Library",
       })
     ).data._id;
     diagramId = (
-      await call<Ref>("/create_diagram", {
+      await call<Summary>("/create_diagram", {
         type: "UMLClassDiagram",
         parentId: modelId,
         name: "Books",
@@ -92,16 +91,22 @@ describeLive("class diagram built through create_*_with_view", () => {
     expect(book.model.name).toBe("Book");
     expect(author.model.name).toBe("Author");
 
+    expect(book.view).toMatchObject({
+      _type: "UMLClassView",
+      name: null,
+      _parent: diagramId,
+    });
     const view = await call<{
       model: Ref;
-      _parent: Ref;
+      _parent: string;
       left: number;
       width: number;
-    }>("/get_element_by_id", { id: book.view._id });
+    }>("/get_element_by_id", { id: book.view._id, summary: false });
     expect(view.data).toMatchObject({
-      model: { _id: book.model._id, name: "Book" },
-      _parent: { _id: diagramId },
+      model: { $ref: book.model._id },
+      _parent: diagramId,
       left: 40,
+      width: 160,
     });
   });
 
@@ -125,15 +130,17 @@ describeLive("class diagram built through create_*_with_view", () => {
       "/get_element_by_id",
       {
         id: wrote.view._id,
+        fields: ["tail", "head", "model"],
       },
     );
-    expect(edge.data.tail._id).toBe(book.view._id);
-    expect(edge.data.head._id).toBe(author.view._id);
+    expect(edge.data.tail.$ref).toBe(book.view._id);
+    expect(edge.data.head.$ref).toBe(author.view._id);
 
     const diagram = await call<{ ownedViews: Ref[] }>("/get_element_by_id", {
       id: diagramId,
+      fields: ["ownedViews"],
     });
-    const ownedViewIds = diagram.data.ownedViews.map((v) => v._id);
+    const ownedViewIds = diagram.data.ownedViews.map((v) => v.$ref);
     expect(ownedViewIds).toEqual(
       expect.arrayContaining([book.view._id, author.view._id, wrote.view._id]),
     );
@@ -148,6 +155,7 @@ describeLive("class diagram built through create_*_with_view", () => {
       }),
     ).toMatchObject({
       status: 400,
+      code: "UNKNOWN_TYPE",
       error: "Unknown model-and-view type: NoSuchType",
     });
   });
@@ -204,12 +212,13 @@ describeLive("class diagram built through create_*_with_view", () => {
       "/get_element_by_id",
       {
         id: wrote.view._id,
+        fields: ["tail", "head", "model"],
       },
     );
     expect(edge.data).toMatchObject({
-      tail: { _id: book.view._id },
-      head: { _id: author.view._id },
-      model: { _id: wrote.model._id, name: "wrote" },
+      tail: { $ref: book.view._id },
+      head: { $ref: author.view._id },
+      model: { $ref: wrote.model._id },
     });
   });
 });

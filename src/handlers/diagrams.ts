@@ -21,91 +21,81 @@
  *
  */
 
-import { failure } from "../errors.js";
-import type { Handler } from "../http-server.js";
+import * as z from "zod/mini";
+import { defineEndpoint } from "../endpoint.js";
+import { ApiError, inStarUML } from "../errors.js";
+import { requireDiagram, requireElement } from "../lookup.js";
+import {
+  elementSchema,
+  id,
+  projectionShape,
+  text,
+  typeName,
+} from "../schemas.js";
+import { serialize } from "../serialize.js";
 import type { Element } from "../types.js";
 
-export const createDiagram: Handler = (body) => {
-  const typeName = body.type;
-  const parentId = body.parentId;
-  const name = typeof body.name === "string" ? body.name : undefined;
-
-  if (typeof typeName !== "string" || typeName.length === 0) {
-    return {
-      success: false,
-      error:
-        "Required field 'type' (string) missing. Example: 'UMLClassDiagram', 'UMLUseCaseDiagram', 'UMLSequenceDiagram', 'UMLActivityDiagram', 'ERDDiagram'",
-    };
-  }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return {
-      success: false,
-      error: "Required field 'parentId' (string) missing",
-    };
-  }
-
-  const parent = app.repository.get(parentId);
-  if (!parent) {
-    return { success: false, error: `Parent element not found: ${parentId}` };
-  }
-
-  try {
-    const diagram = app.factory.createDiagram({
-      id: typeName,
-      parent,
-      ...(name !== undefined && {
-        diagramInitializer: (d: Element) => {
-          d.name = name;
-        },
+export const createDiagram = defineEndpoint({
+  path: "/create_diagram",
+  description: "Create a diagram under a model element.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    type: typeName(
+      "A diagram id of app.factory.getDiagramIds(), e.g. 'UMLClassDiagram', 'UMLSequenceDiagram', 'ERDDiagram'.",
+    ),
+    parentId: id("Owner, usually a UMLModel or UMLPackage."),
+    name: z.optional(text("Diagram name; StarUML generates one if omitted.")),
+    ...projectionShape(),
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const parent = requireElement(input.parentId, "Parent element");
+    const { name } = input;
+    const diagram = inStarUML(() =>
+      app.factory.createDiagram({
+        id: input.type,
+        parent,
+        ...(name !== undefined && {
+          diagramInitializer: (d: Element) => {
+            d.name = name;
+          },
+        }),
       }),
-    });
+    );
     if (!diagram) {
-      return { success: false, error: `Unknown diagram type: ${typeName}` };
+      throw new ApiError("UNKNOWN_TYPE", `Unknown diagram type: ${input.type}`);
     }
-    return {
-      success: true,
-      data: {
-        _id: diagram._id,
-        name: diagram.name,
-        type: diagram.constructor.name,
-      },
-    };
-  } catch (err) {
-    return failure(err);
-  }
-};
+    return serialize(diagram, input);
+  },
+});
 
-/** Resolves `body.id` to a diagram; setCurrentDiagram accepts any element and would break the editor. */
-function requireDiagram(body: Record<string, unknown>): Element | string {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return "Required field 'id' (diagram id) missing";
-  }
-  const diagram = app.repository.get(id);
-  if (!diagram || !(diagram instanceof type.Diagram)) {
-    return `Diagram not found: ${id}`;
-  }
-  return diagram;
-}
+const diagramRequest = () => z.object({ id: id("Diagram id.") });
 
-export const switchDiagram: Handler = (body) => {
-  const diagram = requireDiagram(body);
-  if (typeof diagram === "string") return { success: false, error: diagram };
-  try {
-    app.diagrams.setCurrentDiagram(diagram);
-    return { success: true, data: { _id: diagram._id } };
-  } catch (err) {
-    return failure(err);
-  }
-};
+export const switchDiagram = defineEndpoint({
+  path: "/switch_diagram",
+  description: "Open a diagram in the editor and make it the current one.",
+  readOnly: false,
+  destructive: false,
+  request: diagramRequest(),
+  response: z.object({ _id: z.string() }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.id);
+    inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
+    return { _id: diagram._id };
+  },
+});
 
-export const closeDiagramById: Handler = (body) => {
-  const diagram = requireDiagram(body);
-  if (typeof diagram === "string") return { success: false, error: diagram };
-  try {
-    app.diagrams.closeDiagram(diagram);
-    return { success: true, data: { closed: diagram._id } };
-  } catch (err) {
-    return failure(err);
-  }
-};
+export const closeDiagram = defineEndpoint({
+  path: "/close_diagram",
+  description: "Close a diagram's editor tab; the diagram stays in the model.",
+  readOnly: false,
+  destructive: false,
+  request: diagramRequest(),
+  response: z.object({ closed: z.string() }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.id);
+    inStarUML(() => app.diagrams.closeDiagram(diagram));
+    return { closed: diagram._id };
+  },
+});

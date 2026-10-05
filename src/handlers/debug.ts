@@ -21,7 +21,8 @@
  *
  */
 
-import type { Handler } from "../http-server.js";
+import * as z from "zod/mini";
+import { defineEndpoint } from "../endpoint.js";
 
 /**
  * Managers whose runtime surface we report. The prototype lists are the ground
@@ -38,6 +39,7 @@ export const INTROSPECTED_MANAGERS = [
   "preferences",
   "selections",
   "dialogs",
+  "metamodels",
 ] as const;
 
 export interface ObjectSurface {
@@ -57,10 +59,36 @@ export function describeSurface(target: unknown): ObjectSurface {
   };
 }
 
-export const debug: Handler = () => {
-  const data: Record<string, unknown> = { app_keys: Object.keys(app).sort() };
-  for (const name of INTROSPECTED_MANAGERS) {
-    data[name] = describeSurface(app[name]);
-  }
-  return { success: true, data };
-};
+const surfaceSchema = () =>
+  z.object({
+    type: z.string(),
+    keys: z.nullable(z.array(z.string())),
+    proto: z.nullable(z.array(z.string())),
+  });
+
+const debugResponse = z.object({
+  app_keys: z.array(z.string()),
+  ...(Object.fromEntries(
+    INTROSPECTED_MANAGERS.map((name) => [name, surfaceSchema()]),
+  ) as Record<
+    (typeof INTROSPECTED_MANAGERS)[number],
+    ReturnType<typeof surfaceSchema>
+  >),
+});
+
+export const debug = defineEndpoint({
+  path: "/debug",
+  description:
+    "Own keys of `app` and the own and prototype members of its managers.",
+  readOnly: true,
+  destructive: false,
+  request: z.object({}),
+  response: debugResponse,
+  handle: () => {
+    const data: Record<string, unknown> = { app_keys: Object.keys(app).sort() };
+    for (const name of INTROSPECTED_MANAGERS) {
+      data[name] = describeSurface(app[name]);
+    }
+    return data as z.output<typeof debugResponse>;
+  },
+});

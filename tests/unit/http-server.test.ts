@@ -10,7 +10,7 @@ import { EXTENSION_VERSION } from "../../src/version.js";
 
 const handlers: Record<string, Handler> = {
   "/ok": (body) => ({ success: true, data: body }),
-  "/fail": () => ({ success: false, error: "nope" }),
+  "/fail": () => ({ success: false, code: "NOT_FOUND", error: "nope" }),
   "/async": async () => ({ success: true }),
   "/throw": () => {
     throw new Error("kaboom");
@@ -62,6 +62,7 @@ describe("ExtensionHttpServer", () => {
     expect(res.status).toBe(405);
     expect(await res.json()).toEqual({
       success: false,
+      code: "METHOD_NOT_ALLOWED",
       error: "Method GET not allowed",
     });
   });
@@ -73,6 +74,7 @@ describe("ExtensionHttpServer", () => {
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({
         success: false,
+        code: "UNKNOWN_ENDPOINT",
         error: `No handler for ${path}`,
       });
     }
@@ -107,31 +109,40 @@ describe("ExtensionHttpServer", () => {
       await start();
       const res = await post("/ok", body);
       expect(res.status).toBe(400);
-      const json = (await res.json()) as { error: string };
+      const json = (await res.json()) as { code: string; error: string };
+      expect(json.code).toBe("INVALID_JSON");
       expect(json.error).toMatch(
         /^(Invalid JSON: |Request body must be a JSON object)/,
       );
     },
   );
 
-  it("maps a handler failure to 400", async () => {
+  it("answers a handler failure with the status of its code", async () => {
     await start();
     const res = await post("/fail", "{}");
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ success: false, error: "nope" });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({
+      success: false,
+      code: "NOT_FOUND",
+      error: "nope",
+    });
   });
 
   it.each([
     ["/throw", "kaboom", "Error: kaboom"],
     ["/throw-string", "plain", "plain"],
   ])(
-    "maps an exception from %s to 500 and logs it",
+    "maps an exception from %s to 500 without its stack, and logs the stack",
     async (path, message, logged) => {
       await start();
       const res = await post(path, "{}");
       expect(res.status).toBe(500);
       expect(res.headers.get("server-timing")).toMatch(/^handler;dur=/);
-      expect(await res.json()).toEqual({ success: false, error: message });
+      expect(await res.json()).toEqual({
+        success: false,
+        code: "INTERNAL",
+        error: message,
+      });
       expect(log).toHaveBeenCalledWith(
         "error",
         expect.stringContaining(logged),
@@ -180,6 +191,7 @@ describe("createRequestListener", () => {
     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
     expect(JSON.parse(res.end.mock.calls[0]![0] as string)).toEqual({
       success: false,
+      code: "BODY_READ_FAILED",
       error: "Failed to read body: socket hang up",
     });
   });

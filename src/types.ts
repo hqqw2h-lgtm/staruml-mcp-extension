@@ -139,6 +139,28 @@ export interface DiagramManager {
   closeDiagram(diagram: Element): void;
 }
 
+/** Attribute kinds accepted by MetamodelManager.validateMetaType (core/metamodel-manager.js). */
+export type AttributeKind =
+  "prim" | "enum" | "var" | "ref" | "refs" | "obj" | "objs" | "custom";
+
+/** One entry of a metamodel.json `attributes` array. */
+export interface MetaAttribute {
+  name: string;
+  kind: AttributeKind;
+  /** Integer/String/Boolean/Real/Image for prim, else a meta type name. */
+  type: string;
+  /** Not saved to .mdj files (Element.save skips it). */
+  transient?: boolean;
+  default?: unknown;
+  visible?: boolean;
+}
+
+/** core/metamodel-manager.js */
+export interface MetamodelManager {
+  /** Inherited attributes first; throws a TypeError for a name not in `meta`. */
+  getMetaAttributes(typeName: string): MetaAttribute[];
+}
+
 /** core/preference-manager.js; docs: developing-extensions/defining-preferences */
 export interface PreferenceManager {
   /** Stored value, else the schema default, else `defaultValue`, else null. */
@@ -159,6 +181,9 @@ export interface StarUMLApp {
   diagrams: DiagramManager;
   dialogs: Dialogs;
   preferences: PreferenceManager;
+  metamodels: MetamodelManager;
+  /** StarUML's package.json version, e.g. "7.1.1" (app-context.js). */
+  version: string;
   [key: string]: unknown;
 }
 

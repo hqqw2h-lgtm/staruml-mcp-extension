@@ -21,11 +21,11 @@
  *
  */
 
-import type { Handler } from "./http-server.js";
+import type { Endpoint } from "./endpoint.js";
 import { executeCommand, getAllCommands } from "./handlers/commands.js";
 import { debug } from "./handlers/debug.js";
 import {
-  closeDiagramById,
+  closeDiagram,
   createDiagram,
   switchDiagram,
 } from "./handlers/diagrams.js";
@@ -45,29 +45,34 @@ import {
   saveProject,
   saveProjectAs,
 } from "./handlers/project.js";
+import type { Handler } from "./http-server.js";
 
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
-export const routes: Readonly<Record<string, Handler>> = {
-  "/get_all_commands": getAllCommands,
-  "/execute_command": executeCommand,
+export const endpoints: readonly Endpoint[] = [
+  getAllCommands,
+  executeCommand,
 
-  "/get_project_info": getProjectInfo,
-  "/save_project": saveProject,
-  "/save_project_as": saveProjectAs,
-  "/new_project": newProject,
-  "/open_project": openProject,
+  getProjectInfo,
+  saveProject,
+  saveProjectAs,
+  newProject,
+  openProject,
 
-  "/get_element_by_id": getElementById,
-  "/find_elements": findElements,
-  "/create_element": createElement,
-  "/update_element": updateElement,
-  "/delete_element": deleteElement,
-  "/create_element_with_view": createElementWithView,
-  "/create_edge_with_view": createEdgeWithView,
+  getElementById,
+  findElements,
+  createElement,
+  updateElement,
+  deleteElement,
+  createElementWithView,
+  createEdgeWithView,
 
-  "/create_diagram": createDiagram,
-  "/switch_diagram": switchDiagram,
-  "/close_diagram": closeDiagramById,
+  createDiagram,
+  switchDiagram,
+  closeDiagram,
 
-  "/debug": debug,
-};
+  debug,
+];
+
+export const routes: Readonly<Record<string, Handler>> = Object.fromEntries(
+  endpoints.map((e) => [e.path, e.handler]),
+);

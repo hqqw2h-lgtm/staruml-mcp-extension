@@ -28,7 +28,9 @@
  *   node scripts/load-test.mjs [--requests 5000] [--concurrency 50]
  *
  * Replaces the open project with a fresh one seeded with SEED classes, then
- * fires read-only requests at a fixed concurrency. Exits non-zero on any
+ * fires read-only requests at a fixed concurrency: summaries, full and
+ * field-projected elements, owned elements expanded one level, and paged
+ * find_elements. Exits non-zero on any
  * transport error or non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or
  * when any single handler held the renderer thread longer than
  * HANDLER_BUDGET_MS (taken from the Server-Timing header the server sets).
@@ -103,7 +105,7 @@ async function seed() {
     parentId: projectId,
     name: "Load",
   });
-  const ids = [];
+  const ids = [model.json.data._id];
   for (let i = 0; i < SEED; i++) {
     const cls = await post("/create_element", {
       type: "UMLClass",
@@ -123,11 +125,25 @@ function percentile(sorted, p) {
 
 async function main() {
   const ids = await seed();
+  const [modelId, ...classIds] = ids;
   const mix = [
     () => ["/find_elements", { type: "UMLClass" }],
-    () => ["/find_elements", { type: "UMLClass", name: `C${ids.length >> 1}` }],
-    (i) => ["/get_element_by_id", { id: ids[i % ids.length] }],
+    () => ["/find_elements", { type: "UMLClass", name: `C${SEED >> 1}` }],
+    (i) => ["/get_element_by_id", { id: classIds[i % classIds.length] }],
     () => ["/get_project_info", {}],
+    (i) => [
+      "/get_element_by_id",
+      { id: classIds[i % classIds.length], summary: false },
+    ],
+    () => [
+      "/get_element_by_id",
+      { id: modelId, fields: ["name", "ownedElements"], depth: 1 },
+    ],
+    () => [
+      "/find_elements",
+      { type: "UMLClass", limit: 50, fields: ["name", "isAbstract"] },
+    ],
+    () => ["/find_elements", { limit: 200, summary: false }],
   ];
 
   const latencies = [];

@@ -25,11 +25,10 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { performance } from "node:perf_hooks";
-import { errorMessage } from "./errors.js";
+import { ERROR_STATUS, errorMessage, type ErrorBody } from "./errors.js";
 import { EXTENSION_NAME, EXTENSION_VERSION } from "./version.js";
 
-export type HandlerResult =
-  { success: true; data?: unknown } | { success: false; error: string };
+export type HandlerResult = { success: true; data?: unknown } | ErrorBody;
 
 export type Handler = (
   body: Record<string, unknown>,
@@ -74,16 +73,13 @@ export function createRequestListener(
     }
 
     if (req.method !== "POST") {
-      sendJson(res, 405, {
-        success: false,
-        error: `Method ${req.method} not allowed`,
-      });
+      sendError(res, "METHOD_NOT_ALLOWED", `Method ${req.method} not allowed`);
       return;
     }
 
     const handler = Object.hasOwn(handlers, path) ? handlers[path] : undefined;
     if (!handler) {
-      sendJson(res, 404, { success: false, error: `No handler for ${path}` });
+      sendError(res, "UNKNOWN_ENDPOINT", `No handler for ${path}`);
       return;
     }
 
@@ -91,10 +87,11 @@ export function createRequestListener(
     try {
       raw = await readBody(req);
     } catch (err) {
-      sendJson(res, 400, {
-        success: false,
-        error: `Failed to read body: ${errorMessage(err)}`,
-      });
+      sendError(
+        res,
+        "BODY_READ_FAILED",
+        `Failed to read body: ${errorMessage(err)}`,
+      );
       return;
     }
 
@@ -102,30 +99,31 @@ export function createRequestListener(
     try {
       body = raw.length === 0 ? {} : JSON.parse(raw);
     } catch (err) {
-      sendJson(res, 400, {
-        success: false,
-        error: `Invalid JSON: ${errorMessage(err)}`,
-      });
+      sendError(res, "INVALID_JSON", `Invalid JSON: ${errorMessage(err)}`);
       return;
     }
     if (body === null || typeof body !== "object" || Array.isArray(body)) {
-      sendJson(res, 400, {
-        success: false,
-        error: "Request body must be a JSON object",
-      });
+      sendError(res, "INVALID_JSON", "Request body must be a JSON object");
       return;
     }
 
     const started = performance.now();
     try {
       const result = await handler(body as Record<string, unknown>);
-      sendJson(res, result.success ? 200 : 400, result, started);
+      const status = result.success ? 200 : ERROR_STATUS[result.code];
+      sendJson(res, status, result, started);
     } catch (err) {
+      // The stack goes to StarUML's console only; responses never carry one.
       log(
         "error",
         `[${EXTENSION_NAME}] handler ${path} threw: ${stackOf(err)}`,
       );
-      sendJson(res, 500, { success: false, error: errorMessage(err) }, started);
+      const body: ErrorBody = {
+        success: false,
+        code: "INTERNAL",
+        error: errorMessage(err),
+      };
+      sendJson(res, 500, body, started);
     }
   };
 }
@@ -187,6 +185,15 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.on("end", () => resolve(data));
     req.on("error", reject);
   });
+}
+
+function sendError(
+  res: ServerResponse,
+  code: ErrorBody["code"],
+  error: string,
+): void {
+  const body: ErrorBody = { success: false, code, error };
+  sendJson(res, ERROR_STATUS[code], body);
 }
 
 function sendJson(

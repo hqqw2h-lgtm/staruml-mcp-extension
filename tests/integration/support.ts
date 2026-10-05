@@ -17,7 +17,16 @@ export interface Envelope<T = Record<string, unknown>> {
   status: number;
   success: boolean;
   data: T;
+  code?: string;
   error?: string;
+}
+
+/** The summary every endpoint returns for an element by default. */
+export interface Summary {
+  _id: string;
+  _type: string;
+  name: string | null;
+  _parent: string | null;
 }
 
 export async function call<T = Record<string, unknown>>(
@@ -32,6 +41,7 @@ export async function call<T = Record<string, unknown>>(
   const json = (await res.json()) as {
     success: boolean;
     data: T;
+    code?: string;
     error?: string;
   };
   return { status: res.status, ...json };

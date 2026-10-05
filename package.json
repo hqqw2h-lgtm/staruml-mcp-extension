@@ -4,7 +4,7 @@
   "description": "HTTP endpoints on localhost for element CRUD, diagrams, project files and command execution, so MCP servers and scripts can drive StarUML.",
   "homepage": "https://github.com/ezrabrilliant/staruml-mcp-extension",
   "issues": "https://github.com/ezrabrilliant/staruml-mcp-extension/issues",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "keywords": [
     "staruml",
     "extension",
@@ -52,6 +52,7 @@
     "prettier": "^3.9.9",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.71.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "zod": "^4.6.5"
   }
 }
