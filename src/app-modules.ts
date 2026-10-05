@@ -98,6 +98,23 @@ export function loadValidationRules(userExtensions: string | null): string[] {
   return files;
 }
 
+/** The bounds StarUML's views report: Rect in core/graphics.js. */
+export interface Rect {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** core/graphics.js: the Canvas views measure and draw themselves with. */
+export interface GraphicsModule {
+  Canvas: new (context: unknown) => unknown;
+}
+
+export function graphics(): GraphicsModule {
+  return appModule<GraphicsModule>("core/graphics.js");
+}
+
 export function diagramExport(): DiagramExportModule {
   return appModule<DiagramExportModule>("engine/diagram-export.js");
 }

@@ -30,6 +30,13 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import * as z from "zod/mini";
+import {
+  ANNOTATE,
+  type Context2D,
+  labelsFor,
+  paint,
+  svgLabels,
+} from "../annotate.js";
 import { diagramExport } from "../app-modules.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
@@ -118,11 +125,15 @@ export function imageSize(data: Buffer): { width: number; height: number } {
   return { width: 0, height: 0 };
 }
 
-/** Paints `background` and the transparent PNG over it, then encodes `mime`. */
+/**
+ * Paints `background` (if any), the transparent PNG over it and `overlay`
+ * above both, then encodes `mime`.
+ */
 async function composite(
   png: Buffer,
-  background: string,
+  background: string | undefined,
   mime: string,
+  overlay?: (context: Context2D) => void,
 ): Promise<Buffer> {
   const bitmap = await createImageBitmap(
     new Blob([new Uint8Array(png)], { type: "image/png" }),
@@ -131,9 +142,12 @@ async function composite(
   element.width = bitmap.width;
   element.height = bitmap.height;
   const context = element.getContext("2d")!;
-  context.fillStyle = background;
-  context.fillRect(0, 0, element.width, element.height);
+  if (background !== undefined) {
+    context.fillStyle = background;
+    context.fillRect(0, 0, element.width, element.height);
+  }
   context.drawImage(bitmap, 0, 0);
+  overlay?.(context as unknown as Context2D);
   return dataUrlBytes(element.toDataURL(mime));
 }
 
@@ -150,16 +164,20 @@ export async function renderRaster(
   format: "png" | "jpeg",
   scale: number,
   background: string | undefined,
+  overlay?: (context: Context2D) => void,
 ): Promise<Rendered> {
-  const mime = background === undefined ? MIME[format] : MIME.png;
+  const plain = background === undefined && overlay === undefined;
+  const mime = plain ? MIME[format] : MIME.png;
   const base64 = inStarUML(() =>
     withoutSelection(diagram, () =>
       withPixelRatio(scale, () => diagramExport().getImageData(diagram, mime)),
     ),
   );
   let data: Buffer = Buffer.from(base64, "base64");
-  if (background !== undefined) {
-    data = await composite(data, background, MIME[format]);
+  if (!plain) {
+    // A JPEG has no transparency; StarUML's own JPEG export is on white.
+    const under = background ?? (format === "jpeg" ? "#ffffff" : undefined);
+    data = await composite(data, under, MIME[format], overlay);
   }
   return { data, ...imageSize(data) };
 }
@@ -208,7 +226,7 @@ function currentOr(id: string | undefined): Element {
 export const exportDiagram = defineEndpoint({
   path: "/export_diagram",
   description:
-    "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file.",
+    "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
   readOnly: false,
   destructive: true,
   request: z.object({
@@ -233,6 +251,12 @@ export const exportDiagram = defineEndpoint({
         "Absolute file to write; overwritten, parent directories created. Omit to receive the image in the response.",
       ),
     ),
+    annotate: z.optional(
+      doc(
+        z.enum(ANNOTATE),
+        "Draw a small label on each view of the image, not the model: ids its element's id, paths the shortest path naming it (its id when unnamed). Default none.",
+      ),
+    ),
   }),
   aliases: { id: "diagram" },
   response: z.object({
@@ -248,31 +272,63 @@ export const exportDiagram = defineEndpoint({
     base64: z.optional(
       doc(z.string(), "The image, when 'path' was not given."),
     ),
+    annotations: z.optional(
+      doc(
+        z.array(
+          z.object({
+            text: z.string(),
+            ref: doc(z.string(), "The labelled element's id."),
+            x: z.number(),
+            y: z.number(),
+            width: z.number(),
+            height: z.number(),
+          }),
+        ),
+        "With annotate: each label and its box in image pixels.",
+      ),
+    ),
   }),
   handle: async (input) => {
     const diagram = currentOr(input.diagram) as SelectableDiagram;
     const format: Format = input.format ?? "png";
-    const image =
-      format === "svg"
-        ? inStarUML(() => renderSvg(diagram, input.background))
-        : await renderRaster(
-            diagram,
-            format,
-            input.scale ?? 1,
-            input.background,
-          );
-    return deliver(
-      {
-        diagram: diagram._id,
+    const scale = format === "svg" ? 1 : (input.scale ?? 1);
+    const labels =
+      input.annotate === undefined || input.annotate === "none"
+        ? undefined
+        : labelsFor(diagram, input.annotate, scale);
+    let image: Rendered;
+    if (format === "svg") {
+      image = inStarUML(() => renderSvg(diagram, input.background));
+      if (labels) {
+        image = {
+          ...image,
+          data: Buffer.from(svgLabels(image.data.toString("utf-8"), labels)),
+        };
+      }
+    } else {
+      image = await renderRaster(
+        diagram,
         format,
-        mimeType: MIME[format],
-        width: image.width,
-        height: image.height,
-        bytes: image.data.length,
-      },
-      image.data,
-      input.path,
-    );
+        scale,
+        input.background,
+        labels && ((context) => paint(context, labels, scale)),
+      );
+    }
+    return {
+      ...deliver(
+        {
+          diagram: diagram._id,
+          format,
+          mimeType: MIME[format],
+          width: image.width,
+          height: image.height,
+          bytes: image.data.length,
+        },
+        image.data,
+        input.path,
+      ),
+      ...(labels && { annotations: labels }),
+    };
   },
 });
 

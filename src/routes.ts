@@ -125,6 +125,7 @@ import {
   setViewStyle,
   setZOrder,
 } from "./handlers/views.js";
+import { applyThemeEndpoint } from "./handlers/theme.js";
 import type { Handler } from "./http-server.js";
 
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
@@ -219,6 +220,8 @@ export const endpoints: readonly Endpoint[] = [
   detectPatterns,
   applyPresetEndpoint(() => endpoints),
   describeType,
+
+  applyThemeEndpoint(() => endpoints),
 
   introspectEndpoint(() => endpoints),
   debug,

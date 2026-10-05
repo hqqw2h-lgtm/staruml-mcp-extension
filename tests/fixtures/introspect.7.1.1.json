@@ -21067,7 +21067,7 @@
     },
     {
       "path": "/export_diagram",
-      "description": "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file.",
+      "description": "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
       "readOnly": false,
       "destructive": true,
       "request": {
@@ -21098,6 +21098,11 @@
           "path": {
             "type": "string",
             "description": "Absolute file to write; overwritten, parent directories created. Omit to receive the image in the response."
+          },
+          "annotate": {
+            "type": "string",
+            "enum": ["none", "ids", "paths"],
+            "description": "Draw a small label on each view of the image, not the model: ids its element's id, paths the shortest path naming it (its id when unnamed). Default none."
           },
           "id": {
             "type": "string",
@@ -21133,6 +21138,26 @@
           "base64": {
             "type": "string",
             "description": "The image, when 'path' was not given."
+          },
+          "annotations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": { "type": "string" },
+                "ref": {
+                  "type": "string",
+                  "description": "The labelled element's id."
+                },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number" },
+                "height": { "type": "number" }
+              },
+              "required": ["text", "ref", "x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "description": "With annotate: each label and its box in image pixels."
           }
         },
         "required": [
@@ -24025,6 +24050,145 @@
           }
         },
         "required": ["type", "supers", "properties"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/apply_theme",
+      "description": "Colour a diagram's views by a theme preset through /set_view_style, as one undo step: monochrome, blueprint, by-stereotype (one colour per stereotype), by-package (one per owning package). Answers the colour sets applied and how many views each took; dryRun answers the ops without changing anything.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram. Id or path."
+          },
+          "theme": {
+            "type": "string",
+            "enum": ["monochrome", "blueprint", "by-stereotype", "by-package"],
+            "description": "monochrome, blueprint, by-stereotype or by-package."
+          },
+          "dryRun": { "type": "boolean" },
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of ref.",
+            "x-alias-of": "ref",
+            "deprecated": true
+          }
+        },
+        "required": ["ref", "theme"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": { "type": "string" },
+          "theme": { "type": "string" },
+          "description": { "type": "string" },
+          "styles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fillColor": { "type": "string" },
+                "lineColor": { "type": "string" },
+                "fontColor": { "type": "string" },
+                "views": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "Views given this style."
+                },
+                "group": {
+                  "type": "string",
+                  "description": "The stereotype or package it stands for."
+                }
+              },
+              "required": ["lineColor", "fontColor", "views"],
+              "additionalProperties": false
+            }
+          },
+          "dryRun": { "type": "boolean" },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "ops": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "body": {
+                      "type": "object",
+                      "propertyNames": { "type": "string" },
+                      "additionalProperties": {}
+                    },
+                    "as": { "type": "string" }
+                  },
+                  "required": ["path", "body"],
+                  "additionalProperties": false
+                },
+                "description": "The /batch ops applying the plan runs, in order."
+              },
+              "creates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "updates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "deletes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["ops", "creates", "updates", "deletes"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["diagram", "theme", "description", "styles"],
         "additionalProperties": false
       }
     },

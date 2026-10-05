@@ -1,0 +1,137 @@
+{
+  "monochrome": {
+    "description": "Black on white: every node white with black lines and text, every edge black.",
+    "nodes": {
+      "*": {
+        "fillColor": "#ffffff",
+        "lineColor": "#000000",
+        "fontColor": "#000000"
+      }
+    },
+    "edges": { "lineColor": "#000000", "fontColor": "#000000" }
+  },
+  "blueprint": {
+    "description": "White lines and text on blueprint blues, darker for containers, lighter for interfaces and notes.",
+    "nodes": {
+      "*": {
+        "fillColor": "#1f3a68",
+        "lineColor": "#e0ecff",
+        "fontColor": "#ffffff"
+      },
+      "UMLInterface": {
+        "fillColor": "#2b4f86",
+        "lineColor": "#e0ecff",
+        "fontColor": "#ffffff"
+      },
+      "UMLPackage": {
+        "fillColor": "#16304f",
+        "lineColor": "#e0ecff",
+        "fontColor": "#ffffff"
+      },
+      "UMLNote": {
+        "fillColor": "#2b4f86",
+        "lineColor": "#e0ecff",
+        "fontColor": "#ffffff"
+      }
+    },
+    "edges": { "lineColor": "#1f3a68", "fontColor": "#1f3a68" }
+  },
+  "by-stereotype": {
+    "description": "Nodes coloured by their stereotype, one palette colour per stereotype in order of first appearance; nodes without one stay white.",
+    "groupBy": "stereotype",
+    "nodes": {
+      "*": {
+        "fillColor": "#ffffff",
+        "lineColor": "#000000",
+        "fontColor": "#000000"
+      }
+    },
+    "palette": [
+      {
+        "fillColor": "#dbeafe",
+        "lineColor": "#1e40af",
+        "fontColor": "#1e3a8a"
+      },
+      {
+        "fillColor": "#dcfce7",
+        "lineColor": "#166534",
+        "fontColor": "#14532d"
+      },
+      {
+        "fillColor": "#fef9c3",
+        "lineColor": "#854d0e",
+        "fontColor": "#713f12"
+      },
+      {
+        "fillColor": "#fce7f3",
+        "lineColor": "#9d174d",
+        "fontColor": "#831843"
+      },
+      {
+        "fillColor": "#ede9fe",
+        "lineColor": "#5b21b6",
+        "fontColor": "#4c1d95"
+      },
+      {
+        "fillColor": "#ffedd5",
+        "lineColor": "#9a3412",
+        "fontColor": "#7c2d12"
+      },
+      {
+        "fillColor": "#cffafe",
+        "lineColor": "#155e75",
+        "fontColor": "#164e63"
+      },
+      { "fillColor": "#f1f5f9", "lineColor": "#334155", "fontColor": "#1e293b" }
+    ]
+  },
+  "by-package": {
+    "description": "Nodes coloured by the package that owns their element, one palette colour per package in order of first appearance.",
+    "groupBy": "package",
+    "nodes": {
+      "*": {
+        "fillColor": "#ffffff",
+        "lineColor": "#000000",
+        "fontColor": "#000000"
+      }
+    },
+    "palette": [
+      {
+        "fillColor": "#dbeafe",
+        "lineColor": "#1e40af",
+        "fontColor": "#1e3a8a"
+      },
+      {
+        "fillColor": "#dcfce7",
+        "lineColor": "#166534",
+        "fontColor": "#14532d"
+      },
+      {
+        "fillColor": "#fef9c3",
+        "lineColor": "#854d0e",
+        "fontColor": "#713f12"
+      },
+      {
+        "fillColor": "#fce7f3",
+        "lineColor": "#9d174d",
+        "fontColor": "#831843"
+      },
+      {
+        "fillColor": "#ede9fe",
+        "lineColor": "#5b21b6",
+        "fontColor": "#4c1d95"
+      },
+      {
+        "fillColor": "#ffedd5",
+        "lineColor": "#9a3412",
+        "fontColor": "#7c2d12"
+      },
+      {
+        "fillColor": "#cffafe",
+        "lineColor": "#155e75",
+        "fontColor": "#164e63"
+      },
+      { "fillColor": "#f1f5f9", "lineColor": "#334155", "fontColor": "#1e293b" }
+    ]
+  }
+}

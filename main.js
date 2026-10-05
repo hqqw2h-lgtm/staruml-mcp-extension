@@ -3823,17 +3823,17 @@ function renameAliases(body, aliases2) {
     return { body, used };
   }
   const out = { ...body };
-  for (const [alias, canonical] of Object.entries(aliases2)) {
-    if (!Object.hasOwn(out, alias)) continue;
+  for (const [alias2, canonical] of Object.entries(aliases2)) {
+    if (!Object.hasOwn(out, alias2)) continue;
     if (Object.hasOwn(out, canonical)) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${alias}: an alias of ${canonical}, which is given too; pass ${canonical} only`
+        `${alias2}: an alias of ${canonical}, which is given too; pass ${canonical} only`
       );
     }
-    out[canonical] = out[alias];
-    delete out[alias];
-    used.set(canonical, alias);
+    out[canonical] = out[alias2];
+    delete out[alias2];
+    used.set(canonical, alias2);
   }
   return { body: out, used };
 }
@@ -4688,15 +4688,15 @@ function readC4(lines, fail5, other) {
       open--;
     } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text4)) {
       const { positional: p, named: named3 } = macroArgs(m[1]);
-      const style = {};
+      const style2 = {};
       for (const [arg, field] of Object.entries(STYLE_ARGS)) {
         const color2 = named3[arg];
         if (color2 && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color2)) {
-          style[field] = color2;
+          style2[field] = color2;
         }
       }
-      if (Object.keys(style).length > 0) {
-        styles[p[0]] = { ...styles[p[0]], ...style };
+      if (Object.keys(style2).length > 0) {
+        styles[p[0]] = { ...styles[p[0]], ...style2 };
       }
     } else if (DEPLOYMENT.test(text4)) {
       fail5(
@@ -4759,15 +4759,15 @@ var CSS = {
   color: "fontColor"
 };
 function cssColors(css) {
-  const style = {};
+  const style2 = {};
   for (const part of css.split(/[,;]/)) {
     const [key2, value] = part.split(":").map((p) => p.trim());
     const field = CSS[key2];
     if (field && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value ?? "")) {
-      style[field] = value;
+      style2[field] = value;
     }
   }
-  return style;
+  return style2;
 }
 var Styles = class {
   defs = /* @__PURE__ */ new Map();
@@ -4806,12 +4806,12 @@ var Styles = class {
     const out = {};
     for (const id2 of ids2) {
       const classes = this.classes.get(id2) ?? ["default"];
-      const style = Object.assign(
+      const style2 = Object.assign(
         {},
         ...classes.map((c) => this.defs.get(c)),
         this.inline.get(id2)
       );
-      if (Object.keys(style).length > 0) out[keyOf(id2)] = style;
+      if (Object.keys(style2).length > 0) out[keyOf(id2)] = style2;
     }
     return Object.keys(out).length > 0 ? out : void 0;
   }
@@ -8885,10 +8885,10 @@ function decorate(plan, spec) {
       }
     });
   }
-  for (const [key2, style] of Object.entries(spec.styles ?? {})) {
+  for (const [key2, style2] of Object.entries(spec.styles ?? {})) {
     const node = byKey.get(multiline(key2)) ?? fail5(`styles.${key2}`, key2);
     const colors = Object.fromEntries(
-      Object.entries(style).map(([k, v]) => [k, longHex(v)])
+      Object.entries(style2).map(([k, v]) => [k, longHex(v)])
     );
     node.style = { ...node.style, ...colors };
   }
@@ -15883,6 +15883,9 @@ function loadValidationRules(userExtensions) {
   for (const file of files) load(file);
   return files;
 }
+function graphics() {
+  return appModule("core/graphics.js");
+}
 function diagramExport() {
   return appModule("engine/diagram-export.js");
 }
@@ -16818,12 +16821,12 @@ var MACROS = {
   container: "Container",
   component: "Component"
 };
-function call(name4, alias, args) {
+function call(name4, alias2, args) {
   while (args.length > 0 && args.at(-1) === "") args.pop();
   const quoted3 = args.map(
     (a) => `"${a.replace(/"/g, "'").replace(/\r?\n/g, " ")}"`
   );
-  return `${name4}(${[...alias, ...quoted3].join(", ")})`;
+  return `${name4}(${[...alias2, ...quoted3].join(", ")})`;
 }
 function c4Macros(spec) {
   const lines = spec.elements.map((e) => {
@@ -25575,8 +25578,8 @@ function describeToolbox() {
 function withAliases(schema, aliases2) {
   if (!aliases2) return schema;
   const properties2 = { ...schema.properties };
-  for (const [alias, canonical] of Object.entries(aliases2)) {
-    properties2[alias] = {
+  for (const [alias2, canonical] of Object.entries(aliases2)) {
+    properties2[alias2] = {
       ...properties2[canonical],
       description: `Alias of ${canonical}.`,
       "x-alias-of": canonical,
@@ -26638,6 +26641,97 @@ var setEditorState = defineEndpoint({
 // src/handlers/export.ts
 var import_node_fs3 = require("node:fs");
 var import_node_path3 = require("node:path");
+
+// src/annotate.ts
+var ANNOTATE = ["none", "ids", "paths"];
+var MARGIN2 = 10;
+var LABEL = {
+  font: 10,
+  padding: 2,
+  height: 13,
+  fill: "#ffe066",
+  line: "#8a6d00",
+  text: "#000000"
+};
+function alias(model) {
+  const full = pathOf(model);
+  if (!full || !model.name) return model._id;
+  let suffix = escapeName(model.name);
+  for (let e = model; ; ) {
+    try {
+      if (resolveRef(suffix) === model) return suffix;
+    } catch {
+    }
+    e = e._parent;
+    if (!e?._parent) return full;
+    suffix = `${escapeName(String(e.name))}/${suffix}`;
+  }
+}
+function labelsFor(diagram, mode, scale) {
+  const element = document.createElement("canvas");
+  const context = element.getContext("2d");
+  const canvas = new (graphics()).Canvas(context);
+  const measure = (text4) => {
+    context.font = `${LABEL.font}px sans-serif`;
+    return context.measureText(text4).width;
+  };
+  const box2 = (v) => v.getBoundingBox(
+    canvas
+  );
+  const bounds = diagram.getBoundingBoxWithChildren(canvas);
+  const left = bounds.x1 - MARGIN2;
+  const top = bounds.y1 - MARGIN2;
+  const placed = [];
+  const views = [
+    ...nodeViews(diagram).map((v) => [v, false]),
+    ...edgeViews(diagram).map((v) => [v, true])
+  ];
+  for (const [view, edge] of views) {
+    const model = view.model;
+    const text4 = mode === "ids" ? model._id : alias(model);
+    const r = box2(view);
+    const label4 = {
+      text: text4,
+      ref: model._id,
+      x: Math.round(((edge ? (r.x1 + r.x2) / 2 : r.x1) - left) * scale),
+      y: Math.round(((edge ? (r.y1 + r.y2) / 2 : r.y1) - top) * scale),
+      width: Math.ceil((measure(text4) + 2 * LABEL.padding) * scale),
+      height: Math.ceil(LABEL.height * scale)
+    };
+    while (placed.some((p) => overlaps2(p, label4))) label4.y += label4.height + 1;
+    placed.push(label4);
+  }
+  return placed;
+}
+var overlaps2 = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+function paint(context, labels, scale) {
+  context.font = `${LABEL.font * scale}px sans-serif`;
+  context.lineWidth = Math.max(1, scale);
+  for (const l of labels) {
+    context.fillStyle = LABEL.fill;
+    context.fillRect(l.x, l.y, l.width, l.height);
+    context.strokeStyle = LABEL.line;
+    context.strokeRect(l.x, l.y, l.width, l.height);
+    context.fillStyle = LABEL.text;
+    context.fillText(
+      l.text,
+      l.x + LABEL.padding * scale,
+      l.y + (LABEL.height - 3) * scale
+    );
+  }
+}
+var xml = (text4) => text4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+function svgLabels(svg, labels) {
+  const marks = labels.map(
+    (l) => `<rect x="${l.x}" y="${l.y}" width="${l.width}" height="${l.height}" fill="${LABEL.fill}" stroke="${LABEL.line}"/><text x="${l.x + LABEL.padding}" y="${l.y + LABEL.height - 3}" font-family="sans-serif" font-size="${LABEL.font}" fill="${LABEL.text}">${xml(l.text)}</text>`
+  ).join("");
+  return svg.replace(
+    /<\/svg>\s*$/,
+    `<g class="annotations">${marks}</g></svg>`
+  );
+}
+
+// src/handlers/export.ts
 var MAX_SCALE = 4;
 var MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
 function withoutSelection(diagram, run) {
@@ -26679,7 +26773,7 @@ function imageSize(data) {
   }
   return { width: 0, height: 0 };
 }
-async function composite(png, background, mime) {
+async function composite(png, background, mime, overlay) {
   const bitmap = await createImageBitmap(
     new Blob([new Uint8Array(png)], { type: "image/png" })
   );
@@ -26687,14 +26781,18 @@ async function composite(png, background, mime) {
   element.width = bitmap.width;
   element.height = bitmap.height;
   const context = element.getContext("2d");
-  context.fillStyle = background;
-  context.fillRect(0, 0, element.width, element.height);
+  if (background !== void 0) {
+    context.fillStyle = background;
+    context.fillRect(0, 0, element.width, element.height);
+  }
   context.drawImage(bitmap, 0, 0);
+  overlay?.(context);
   return dataUrlBytes(element.toDataURL(mime));
 }
 var dataUrlBytes = (url) => Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
-async function renderRaster(diagram, format, scale, background) {
-  const mime = background === void 0 ? MIME[format] : MIME.png;
+async function renderRaster(diagram, format, scale, background, overlay) {
+  const plain = background === void 0 && overlay === void 0;
+  const mime = plain ? MIME[format] : MIME.png;
   const base642 = inStarUML(
     () => withoutSelection(
       diagram,
@@ -26702,8 +26800,9 @@ async function renderRaster(diagram, format, scale, background) {
     )
   );
   let data = Buffer.from(base642, "base64");
-  if (background !== void 0) {
-    data = await composite(data, background, MIME[format]);
+  if (!plain) {
+    const under = background ?? (format === "jpeg" ? "#ffffff" : void 0);
+    data = await composite(data, under, MIME[format], overlay);
   }
   return { data, ...imageSize(data) };
 }
@@ -26738,7 +26837,7 @@ function currentOr(id2) {
 }
 var exportDiagram = defineEndpoint({
   path: "/export_diagram",
-  description: "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file.",
+  description: "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
   readOnly: false,
   destructive: true,
   request: object({
@@ -26762,6 +26861,12 @@ var exportDiagram = defineEndpoint({
       absolutePath(
         "Absolute file to write; overwritten, parent directories created. Omit to receive the image in the response."
       )
+    ),
+    annotate: optional(
+      doc(
+        _enum(ANNOTATE),
+        "Draw a small label on each view of the image, not the model: ids its element's id, paths the shortest path naming it (its id when unnamed). Default none."
+      )
     )
   }),
   aliases: { id: "diagram" },
@@ -26777,29 +26882,61 @@ var exportDiagram = defineEndpoint({
     ),
     base64: optional(
       doc(string2(), "The image, when 'path' was not given.")
+    ),
+    annotations: optional(
+      doc(
+        array(
+          object({
+            text: string2(),
+            ref: doc(string2(), "The labelled element's id."),
+            x: number2(),
+            y: number2(),
+            width: number2(),
+            height: number2()
+          })
+        ),
+        "With annotate: each label and its box in image pixels."
+      )
     )
   }),
   handle: async (input) => {
     const diagram = currentOr(input.diagram);
     const format = input.format ?? "png";
-    const image = format === "svg" ? inStarUML(() => renderSvg(diagram, input.background)) : await renderRaster(
-      diagram,
-      format,
-      input.scale ?? 1,
-      input.background
-    );
-    return deliver(
-      {
-        diagram: diagram._id,
+    const scale = format === "svg" ? 1 : input.scale ?? 1;
+    const labels = input.annotate === void 0 || input.annotate === "none" ? void 0 : labelsFor(diagram, input.annotate, scale);
+    let image;
+    if (format === "svg") {
+      image = inStarUML(() => renderSvg(diagram, input.background));
+      if (labels) {
+        image = {
+          ...image,
+          data: Buffer.from(svgLabels(image.data.toString("utf-8"), labels))
+        };
+      }
+    } else {
+      image = await renderRaster(
+        diagram,
         format,
-        mimeType: MIME[format],
-        width: image.width,
-        height: image.height,
-        bytes: image.data.length
-      },
-      image.data,
-      input.path
-    );
+        scale,
+        input.background,
+        labels && ((context) => paint(context, labels, scale))
+      );
+    }
+    return {
+      ...deliver(
+        {
+          diagram: diagram._id,
+          format,
+          mimeType: MIME[format],
+          width: image.width,
+          height: image.height,
+          bytes: image.data.length
+        },
+        image.data,
+        input.path
+      ),
+      ...labels && { annotations: labels }
+    };
   }
 });
 function deliver(meta3, data, path) {
@@ -27118,6 +27255,267 @@ var getConnectedNodeViews = defineEndpoint({
   }
 });
 
+// src/themes.json
+var themes_default = {
+  monochrome: {
+    description: "Black on white: every node white with black lines and text, every edge black.",
+    nodes: {
+      "*": {
+        fillColor: "#ffffff",
+        lineColor: "#000000",
+        fontColor: "#000000"
+      }
+    },
+    edges: { lineColor: "#000000", fontColor: "#000000" }
+  },
+  blueprint: {
+    description: "White lines and text on blueprint blues, darker for containers, lighter for interfaces and notes.",
+    nodes: {
+      "*": {
+        fillColor: "#1f3a68",
+        lineColor: "#e0ecff",
+        fontColor: "#ffffff"
+      },
+      UMLInterface: {
+        fillColor: "#2b4f86",
+        lineColor: "#e0ecff",
+        fontColor: "#ffffff"
+      },
+      UMLPackage: {
+        fillColor: "#16304f",
+        lineColor: "#e0ecff",
+        fontColor: "#ffffff"
+      },
+      UMLNote: {
+        fillColor: "#2b4f86",
+        lineColor: "#e0ecff",
+        fontColor: "#ffffff"
+      }
+    },
+    edges: { lineColor: "#1f3a68", fontColor: "#1f3a68" }
+  },
+  "by-stereotype": {
+    description: "Nodes coloured by their stereotype, one palette colour per stereotype in order of first appearance; nodes without one stay white.",
+    groupBy: "stereotype",
+    nodes: {
+      "*": {
+        fillColor: "#ffffff",
+        lineColor: "#000000",
+        fontColor: "#000000"
+      }
+    },
+    palette: [
+      {
+        fillColor: "#dbeafe",
+        lineColor: "#1e40af",
+        fontColor: "#1e3a8a"
+      },
+      {
+        fillColor: "#dcfce7",
+        lineColor: "#166534",
+        fontColor: "#14532d"
+      },
+      {
+        fillColor: "#fef9c3",
+        lineColor: "#854d0e",
+        fontColor: "#713f12"
+      },
+      {
+        fillColor: "#fce7f3",
+        lineColor: "#9d174d",
+        fontColor: "#831843"
+      },
+      {
+        fillColor: "#ede9fe",
+        lineColor: "#5b21b6",
+        fontColor: "#4c1d95"
+      },
+      {
+        fillColor: "#ffedd5",
+        lineColor: "#9a3412",
+        fontColor: "#7c2d12"
+      },
+      {
+        fillColor: "#cffafe",
+        lineColor: "#155e75",
+        fontColor: "#164e63"
+      },
+      { fillColor: "#f1f5f9", lineColor: "#334155", fontColor: "#1e293b" }
+    ]
+  },
+  "by-package": {
+    description: "Nodes coloured by the package that owns their element, one palette colour per package in order of first appearance.",
+    groupBy: "package",
+    nodes: {
+      "*": {
+        fillColor: "#ffffff",
+        lineColor: "#000000",
+        fontColor: "#000000"
+      }
+    },
+    palette: [
+      {
+        fillColor: "#dbeafe",
+        lineColor: "#1e40af",
+        fontColor: "#1e3a8a"
+      },
+      {
+        fillColor: "#dcfce7",
+        lineColor: "#166534",
+        fontColor: "#14532d"
+      },
+      {
+        fillColor: "#fef9c3",
+        lineColor: "#854d0e",
+        fontColor: "#713f12"
+      },
+      {
+        fillColor: "#fce7f3",
+        lineColor: "#9d174d",
+        fontColor: "#831843"
+      },
+      {
+        fillColor: "#ede9fe",
+        lineColor: "#5b21b6",
+        fontColor: "#4c1d95"
+      },
+      {
+        fillColor: "#ffedd5",
+        lineColor: "#9a3412",
+        fontColor: "#7c2d12"
+      },
+      {
+        fillColor: "#cffafe",
+        lineColor: "#155e75",
+        fontColor: "#164e63"
+      },
+      { fillColor: "#f1f5f9", lineColor: "#334155", fontColor: "#1e293b" }
+    ]
+  }
+};
+
+// src/handlers/theme.ts
+var colour = () => string2().check(_regex(/^#[0-9a-f]{6}$/i));
+var style = () => object({
+  fillColor: optional(colour()),
+  lineColor: colour(),
+  fontColor: colour()
+});
+var themeSchema = () => object({
+  description: string2(),
+  groupBy: optional(_enum(["stereotype", "package"])),
+  nodes: record(string2(), style()),
+  edges: optional(style()),
+  palette: optional(array(style()).check(_minLength(1)))
+});
+var themes = null;
+function allThemes() {
+  themes ??= parse(record(string2(), themeSchema()), themes_default);
+  return themes;
+}
+var THEME_NAMES = Object.keys(themes_default);
+function groupOf(view, by) {
+  const model = view.model;
+  if (!model) return null;
+  if (by === "package") {
+    const owner = model._parent;
+    return owner instanceof type.UMLPackage ? pathOf(owner) : null;
+  }
+  const st = model.stereotype;
+  if (typeof st === "string") return st || null;
+  return st && typeof st === "object" ? String(st.name) : null;
+}
+function nodeStyle(theme, view, groups) {
+  if (theme.groupBy && theme.palette) {
+    const key2 = groupOf(view, theme.groupBy);
+    if (key2 !== null) {
+      if (!groups.has(key2)) groups.set(key2, groups.size);
+      return theme.palette[groups.get(key2) % theme.palette.length];
+    }
+  }
+  const kind2 = view.model?.constructor.name ?? "UMLNote";
+  return theme.nodes[kind2] ?? theme.nodes["*"];
+}
+function applyThemeEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/apply_theme",
+    description: "Colour a diagram's views by a theme preset through /set_view_style, as one undo step: monochrome, blueprint, by-stereotype (one colour per stereotype), by-package (one per owning package). Answers the colour sets applied and how many views each took; dryRun answers the ops without changing anything.",
+    readOnly: false,
+    destructive: false,
+    request: object({
+      ref: ref2("Diagram."),
+      theme: doc(
+        _enum(THEME_NAMES),
+        "monochrome, blueprint, by-stereotype or by-package."
+      ),
+      dryRun: optional(boolean2())
+    }),
+    aliases: { diagram: "ref" },
+    response: object({
+      diagram: string2(),
+      theme: string2(),
+      description: string2(),
+      styles: array(
+        object({
+          fillColor: optional(string2()),
+          lineColor: string2(),
+          fontColor: string2(),
+          views: doc(int(), "Views given this style."),
+          group: optional(
+            doc(string2(), "The stereotype or package it stands for.")
+          )
+        })
+      ),
+      dryRun: optional(boolean2()),
+      plan: optional(planSchema())
+    }),
+    handle: async (input) => {
+      const diagram = requireDiagram(input.ref);
+      const theme = allThemes()[input.theme];
+      const groups = /* @__PURE__ */ new Map();
+      const sets = /* @__PURE__ */ new Map();
+      const add = (s, view, group) => {
+        const key2 = JSON.stringify(s);
+        const known = sets.get(key2);
+        if (known) known.views.push(view._id);
+        else
+          sets.set(key2, {
+            style: s,
+            views: [view._id],
+            ...group !== void 0 && { group }
+          });
+      };
+      for (const view of diagram.ownedViews) {
+        if (view.model instanceof type.Diagram) continue;
+        if (view instanceof type.EdgeView) {
+          if (theme.edges) add(theme.edges, view);
+        } else {
+          const group = theme.groupBy ? groupOf(view, theme.groupBy) : null;
+          add(nodeStyle(theme, view, groups), view, group ?? void 0);
+        }
+      }
+      const ops = [...sets.values()].map(({ style: style2, views }) => ({
+        path: "/set_view_style",
+        body: { refs: views, ...style2 }
+      }));
+      const answer = {
+        diagram: diagram._id,
+        theme: input.theme,
+        description: theme.description,
+        styles: [...sets.values()].map(({ style: style2, views, group }) => ({
+          ...style2,
+          views: views.length,
+          ...group !== void 0 && { group }
+        }))
+      };
+      if (input.dryRun) return { ...answer, dryRun: true, plan: planOf(ops) };
+      if (ops.length > 0)
+        await batchRunner.run(endpoints2(), ops, true, MODEL_MAX_OPS);
+      return answer;
+    }
+  });
+}
+
 // src/routes.ts
 var endpoints = [
   getAllCommands,
@@ -27196,6 +27594,7 @@ var endpoints = [
   detectPatterns,
   applyPresetEndpoint(() => endpoints),
   describeType,
+  applyThemeEndpoint(() => endpoints),
   introspectEndpoint(() => endpoints),
   debug
 ];

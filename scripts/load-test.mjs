@@ -38,7 +38,9 @@
  * endpoints: /diff_diagram, a /build_diagram dryRun and /diff_since of a
  * snapshot taken after seeding, a /build_model dryRun of a small object
  * spec and /check_messages over the seeded package, /apply_pattern dry
- * runs and /detect_patterns over the seeded package. Exits non-zero on any transport error or
+ * runs, /detect_patterns over the seeded package, the pattern, preset and
+ * type descriptions, /apply_preset, /apply_theme and /sync_operations dry
+ * runs. Exits non-zero on any transport error or
  * non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or when any single
  * handler held the renderer thread longer than HANDLER_BUDGET_MS (taken
  * from the Server-Timing header the server sets).
@@ -323,6 +325,16 @@ async function main() {
     spec: BUILD_SPEC,
   });
   const exportId = exported.json.data.diagram._id;
+  await post("/build_diagram", {
+    kind: "sequence",
+    name: "LoadSeq",
+    spec: {
+      messages: [
+        { from: "Cashier", to: "Ledger", text: "post(entry)" },
+        { from: "Ledger", to: "Ledger", text: "recalculate(total)" },
+      ],
+    },
+  });
   await post("/snapshot", { label: "load" });
   const mix = [
     () => ["/find_elements", { type: "UMLClass" }],
@@ -366,6 +378,15 @@ async function main() {
       "/detect_patterns",
       { scope: "Load", patterns: ["Strategy", "Singleton", "Composite"] },
     ],
+    () => ["/list_patterns", {}],
+    () => ["/describe_pattern", { name: "Observer" }],
+    () => ["/describe_type", { type: "UMLOperation" }],
+    () => [
+      "/apply_preset",
+      { ref: "Order", preset: "value-object", dryRun: true },
+    ],
+    () => ["/apply_theme", { ref: "Export", theme: "blueprint", dryRun: true }],
+    () => ["/sync_operations", { diagram: "LoadSeq", dryRun: true }],
     () => ["/get_project_info", {}],
     (i) => [
       "/get_element_by_id",

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { appModule, diagramExport } from "../../src/app-modules.js";
+import { appModule, diagramExport, graphics } from "../../src/app-modules.js";
 
 const proc = process as { resourcesPath?: string };
 
@@ -21,6 +21,12 @@ describe("StarUML module loader", () => {
     proc.resourcesPath = resources;
     expect(diagramExport().getSVGImageData({ _id: "d" })).toBe("<svg/>");
     expect(appModule("engine/diagram-export.js")).toBe(diagramExport());
+    mkdirSync(join(resources, "app", "src", "core"), { recursive: true });
+    writeFileSync(
+      join(resources, "app", "src", "core", "graphics.js"),
+      "exports.Canvas = class Canvas {};",
+    );
+    expect(graphics().Canvas.name).toBe("Canvas");
   });
 
   it("refuses outside StarUML", () => {
