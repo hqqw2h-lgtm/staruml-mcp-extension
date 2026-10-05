@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2026 Ezra Brilliant Konterliem
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ */
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -31,6 +53,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var main_exports = {};
 __export(main_exports, {
   DEFAULT_PORT: () => DEFAULT_PORT,
+  PREF_ENABLED: () => PREF_ENABLED,
+  PREF_PORT: () => PREF_PORT,
   init: () => init,
   showServerInfo: () => showServerInfo,
   shutdown: () => shutdown
@@ -692,9 +716,29 @@ var routes = {
 
 // src/main.ts
 var DEFAULT_PORT = 58322;
+var PREF_ENABLED = "mcp-ext.server.enabled";
+var PREF_PORT = "mcp-ext.server.port";
 var LOG_PREFIX = `[${EXTENSION_NAME}]`;
 var server = null;
-async function init(port = DEFAULT_PORT) {
+async function init() {
+  app.commands.register(
+    "mcp-ext:server-info",
+    showServerInfo,
+    "MCP Extension: Server Info"
+  );
+  if (app.preferences.get(PREF_ENABLED, true) !== true) {
+    console.log(
+      `${LOG_PREFIX} HTTP server disabled by preference ${PREF_ENABLED}`
+    );
+    return;
+  }
+  const port = app.preferences.get(PREF_PORT, DEFAULT_PORT);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(
+      `${LOG_PREFIX} ${PREF_PORT} must be an integer in 0..65535, got ${String(port)}`
+    );
+    return;
+  }
   const candidate = new ExtensionHttpServer({
     port,
     handlers: routes,
@@ -704,16 +748,11 @@ async function init(port = DEFAULT_PORT) {
     await candidate.start();
   } catch (err) {
     console.error(
-      `${LOG_PREFIX} failed to listen on port ${port}: ${errorMessage(err)}`
+      `${LOG_PREFIX} failed to listen on port ${String(port)}: ${errorMessage(err)}`
     );
     return;
   }
   server = candidate;
-  app.commands.register(
-    "mcp-ext:server-info",
-    showServerInfo,
-    "MCP Extension: Server Info"
-  );
 }
 async function shutdown() {
   const running = server;
@@ -735,8 +774,9 @@ Endpoints:
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DEFAULT_PORT,
+  PREF_ENABLED,
+  PREF_PORT,
   init,
   showServerInfo,
   shutdown
 });
-//# sourceMappingURL=main.js.map

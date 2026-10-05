@@ -1,8 +1,9 @@
 {
   "name": "staruml-mcp-extension",
   "title": "MCP Extension for StarUML",
-  "description": "Extends StarUML HTTP API with endpoints for element CRUD, project ops, and command execution \u2014 enabling MCP clients to drive StarUML programmatically.",
+  "description": "HTTP endpoints on localhost for element CRUD, diagrams, project files and command execution, so MCP servers and scripts can drive StarUML.",
   "homepage": "https://github.com/ezrabrilliant/staruml-mcp-extension",
+  "issues": "https://github.com/ezrabrilliant/staruml-mcp-extension/issues",
   "version": "0.2.2",
   "keywords": [
     "staruml",
@@ -25,8 +26,10 @@
     "url": "https://github.com/ezrabrilliant/staruml-mcp-extension/issues"
   },
   "engines": {
-    "staruml": ">=7.0.0"
+    "staruml": ">=7.0.0",
+    "node": ">=20"
   },
+  "private": true,
   "scripts": {
     "build": "node esbuild.config.mjs",
     "dev": "node esbuild.config.mjs --watch",

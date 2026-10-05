@@ -1,0 +1,22 @@
+{
+  "id": "mcp-ext",
+  "name": "MCP Extension",
+  "schema": {
+    "mcp-ext.server": {
+      "text": "HTTP Server",
+      "type": "section"
+    },
+    "mcp-ext.server.enabled": {
+      "text": "Enabled",
+      "description": "Start the HTTP server when StarUML starts. Takes effect after a restart.",
+      "type": "check",
+      "default": true
+    },
+    "mcp-ext.server.port": {
+      "text": "Port",
+      "description": "Loopback port the HTTP server listens on. Takes effect after a restart.",
+      "type": "number",
+      "default": 58322
+    }
+  }
+}

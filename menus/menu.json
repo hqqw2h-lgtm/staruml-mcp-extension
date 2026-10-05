@@ -1,0 +1,20 @@
+{
+  "menu": [
+    {
+      "id": "tools",
+      "submenu": [
+        {
+          "label": "MCP Extension",
+          "id": "tools.mcp-ext",
+          "submenu": [
+            {
+              "label": "Server Info...",
+              "id": "tools.mcp-ext.server-info",
+              "command": "mcp-ext:server-info"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import menu from "../../menus/menu.json";
+import preference from "../../preferences/preference.json";
 import { ExtensionHttpServer } from "../../src/http-server.js";
 import {
   DEFAULT_PORT,
   init,
+  PREF_ENABLED,
+  PREF_PORT,
   showServerInfo,
   shutdown,
 } from "../../src/main.js";
@@ -12,6 +16,9 @@ let app: MockApp;
 
 beforeEach(() => {
   ({ app } = installMockApp());
+  // StarUML registers preferences/*.json before calling init().
+  app.preferences.register(preference);
+  app.preferences.set(PREF_PORT, 0);
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -21,18 +28,23 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+function boundPort(): string {
+  app.commands.execute("mcp-ext:server-info");
+  return /127\.0\.0\.1:(\d+)/.exec(app.dialogs.shown.at(-1)!.message)![1]!;
+}
+
 describe("init", () => {
   it("serves the routes and registers the server-info command", async () => {
-    await init(0);
+    await init();
     expect(app.commands.commandNames["mcp-ext:server-info"]).toBe(
       "MCP Extension: Server Info",
     );
+    expect(app.dialogs.shown).toEqual([]);
 
-    app.commands.execute("mcp-ext:server-info");
-    const message = app.dialogs.shown[0]!.message;
-    const port = /127\.0\.0\.1:(\d+)/.exec(message)![1];
-    expect(message).toContain("/create_element_with_view");
-
+    const port = boundPort();
+    expect(app.dialogs.shown[0]!.message).toContain(
+      "/create_element_with_view",
+    );
     const res = await fetch(`http://127.0.0.1:${port}/`);
     expect(((await res.json()) as { endpoints: string[] }).endpoints).toContain(
       "/debug",
@@ -43,10 +55,8 @@ describe("init", () => {
   });
 
   it("routes server errors to console.error", async () => {
-    await init(0);
-    const port = /:(\d+)/.exec(
-      vi.mocked(console.log).mock.calls[0]![0] as string,
-    )![1];
+    await init();
+    const port = boundPort();
     delete (globalThis as { app?: unknown }).app;
     await fetch(`http://127.0.0.1:${port}/get_all_commands`, {
       method: "POST",
@@ -56,15 +66,74 @@ describe("init", () => {
     );
   });
 
-  it("logs and gives up when the port is taken, leaving StarUML loading", async () => {
-    vi.spyOn(ExtensionHttpServer.prototype, "start").mockRejectedValue(
-      new Error("listen EADDRINUSE"),
-    );
+  it("stays off when disabled, but keeps the command", async () => {
+    app.preferences.set(PREF_ENABLED, false);
     await init();
-    expect(console.error).toHaveBeenCalledWith(
-      `[staruml-mcp-extension] failed to listen on port ${DEFAULT_PORT}: listen EADDRINUSE`,
+    expect(console.log).toHaveBeenCalledWith(
+      `[staruml-mcp-extension] HTTP server disabled by preference ${PREF_ENABLED}`,
     );
-    expect(app.commands.commands["mcp-ext:server-info"]).toBeUndefined();
+    app.commands.execute("mcp-ext:server-info");
+    expect(app.dialogs.shown[0]!.message).toContain(
+      "HTTP server is not running",
+    );
+  });
+
+  it.each(["58322", -1, 65536, 1.5, null])(
+    "refuses the port preference %j",
+    async (value) => {
+      app.preferences.set(PREF_PORT, value);
+      await init();
+      expect(console.error).toHaveBeenCalledWith(
+        `[staruml-mcp-extension] ${PREF_PORT} must be an integer in 0..65535, got ${String(value)}`,
+      );
+    },
+  );
+
+  it.each([
+    ["the schema default", () => app.preferences.stored.delete(PREF_PORT)],
+    [
+      "the built-in default when no schema is registered",
+      () => {
+        app.preferences.stored.clear();
+        app.preferences.itemMap = {};
+      },
+    ],
+  ])(
+    "listens on %s, and logs when the port is taken",
+    async (_label, setup) => {
+      setup();
+      vi.spyOn(ExtensionHttpServer.prototype, "start").mockRejectedValue(
+        new Error("listen EADDRINUSE"),
+      );
+      await init();
+      expect(console.error).toHaveBeenCalledWith(
+        `[staruml-mcp-extension] failed to listen on port ${DEFAULT_PORT}: listen EADDRINUSE`,
+      );
+    },
+  );
+});
+
+describe("package files", () => {
+  it("declares preference defaults that match the code", () => {
+    expect(app.preferences.get(PREF_ENABLED)).toBe(true);
+    app.preferences.stored.clear();
+    expect(app.preferences.get(PREF_PORT)).toBe(DEFAULT_PORT);
+  });
+
+  it("only points menu items at commands init() registers", async () => {
+    app.preferences.set(PREF_ENABLED, false);
+    await init();
+    const commands: string[] = [];
+    const walk = (items: { command?: string; submenu?: unknown[] }[]): void => {
+      for (const item of items) {
+        if (item.command) commands.push(item.command);
+        if (item.submenu) walk(item.submenu as typeof items);
+      }
+    };
+    walk(menu.menu);
+    expect(commands.length).toBeGreaterThan(0);
+    for (const id of commands)
+      expect(app.commands.commands).toHaveProperty([id]);
   });
 });
 

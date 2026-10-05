@@ -657,13 +657,49 @@ function deserialize(data: SerializedElement, parent: Element | null): Element {
   return elem;
 }
 
+interface PreferenceItem {
+  text?: string;
+  type?: string;
+  default?: unknown;
+}
+
+/** Follows core/preference-manager.js, with a Map in place of localStorage. */
 export class PreferenceManager {
-  values: Record<string, unknown> = {};
-  get(key: string): unknown {
-    return Object.hasOwn(this.values, key) ? this.values[key] : null;
+  schemaMap: Record<string, unknown> = {};
+  itemMap: Record<string, PreferenceItem> = {};
+  stored = new Map<string, unknown>();
+
+  /** Throws where the real one logs, so a malformed preference.json fails a test. */
+  validate(schema: Record<string, PreferenceItem>): boolean {
+    for (const [key, item] of Object.entries(schema)) {
+      if (!item.text || !item.type)
+        throw new Error(`mock: ${key} lacks text or type`);
+      if (item.type !== "section" && typeof item.default === "undefined") {
+        throw new Error(`mock: ${key} lacks a default`);
+      }
+    }
+    return true;
+  }
+  register(def: {
+    id: string;
+    name: string;
+    schema: Record<string, PreferenceItem>;
+  }): void {
+    if (!def.id || !def.name || !def.schema)
+      throw new Error("mock: incomplete preference def");
+    this.validate(def.schema);
+    this.schemaMap[def.id] = def;
+    Object.assign(this.itemMap, def.schema);
+  }
+  get(key: string, defaultValue: unknown = null): unknown {
+    if (this.stored.has(key)) return this.stored.get(key);
+    const item = this.itemMap[key];
+    return item && typeof item.default !== "undefined"
+      ? item.default
+      : defaultValue;
   }
   set(key: string, value: unknown): void {
-    this.values[key] = value;
+    this.stored.set(key, value);
   }
 }
 stub(PreferenceManager, [
@@ -672,9 +708,7 @@ stub(PreferenceManager, [
   "getSchemaIds",
   "getSchemaName",
   "getViewState",
-  "register",
   "setViewState",
-  "validate",
 ]);
 
 export class SelectionManager {}
