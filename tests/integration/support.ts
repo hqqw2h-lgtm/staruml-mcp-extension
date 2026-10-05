@@ -79,6 +79,12 @@ function loadContract(): Promise<Contract> {
   return contract;
 }
 
+/**
+ * Endpoints that answer tersely unless asked (issue #35); the live suites
+ * read their ids, so they ask for everything unless a test says otherwise.
+ */
+const TERSE = new Set(["/batch", "/build_diagram"]);
+
 export async function call<T = Record<string, unknown>>(
   path: string,
   body: Record<string, unknown> = {},
@@ -86,7 +92,7 @@ export async function call<T = Record<string, unknown>>(
   const res = await fetch(BASE_URL + path, {
     method: "POST",
     headers: headers(),
-    body: JSON.stringify(body),
+    body: JSON.stringify(TERSE.has(path) ? { result: "full", ...body } : body),
   });
   const json = (await res.json()) as Omit<Envelope<T>, "status">;
   const { responses, error } = await loadContract();

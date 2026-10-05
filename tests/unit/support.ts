@@ -44,3 +44,19 @@ export async function fails(
   else if (error) expect(failure.error).toMatch(error);
   return failure;
 }
+
+/**
+ * The endpoint answering with every id by default: /batch and
+ * /build_diagram answer tersely unless asked (issue #35), and these tests
+ * read the ids.
+ */
+export function fullResults(endpoint: Endpoint): Endpoint {
+  return {
+    ...endpoint,
+    handler: (body) =>
+      endpoint.handler({
+        result: "full",
+        ...(body as Record<string, unknown>),
+      }),
+  };
+}

@@ -1,0 +1,16 @@
+@startuml
+title Cluster
+node "k8s" as D0 <<executionEnvironment>> {
+  node "tb-node" as D1
+}
+node "Postgres" as D2 <<device>>
+node "Kafka" as D3
+artifact "tb.jar" as D4
+artifact "schema.sql" as D5
+component "Core" as D6
+D4 ..> D1 : <<deploy>>
+D5 ..> D2 : <<deploy>>
+D4 ..> D6 : <<manifest>>
+D1 -- D2 : JDBC
+D1 -- D3 : TCP
+@enduml

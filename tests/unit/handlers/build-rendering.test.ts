@@ -3,12 +3,12 @@ import { buildDiagramEndpoint } from "../../../src/handlers/build.js";
 import { endpoints } from "../../../src/routes.js";
 import type { Element } from "../../../src/types.js";
 import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
-import { ok } from "../support.js";
+import { fullResults, ok } from "../support.js";
 
 // Issue #34: what the ThingsBoard validation found drawn wrong.
 
 let env: MockEnvironment;
-const build = buildDiagramEndpoint(() => endpoints);
+const build = fullResults(buildDiagramEndpoint(() => endpoints));
 const get = (id: string) => env.app.repository.get(id)! as Element;
 
 beforeEach(() => {

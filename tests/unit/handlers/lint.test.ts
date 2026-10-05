@@ -15,7 +15,7 @@ import {
   type MockEnvironment,
   type View,
 } from "../../mock/staruml.js";
-import { fails, invoke, ok } from "../support.js";
+import { fails, fullResults, invoke, ok } from "../support.js";
 
 let env: MockEnvironment;
 
@@ -23,7 +23,8 @@ beforeEach(() => {
   env = installMockApp();
 });
 
-const endpoint = (path: string) => endpoints.find((e) => e.path === path)!;
+const endpoint = (path: string) =>
+  fullResults(endpoints.find((e) => e.path === path)!);
 
 interface Finding {
   rule: string;

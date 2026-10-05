@@ -9,10 +9,10 @@ import {
   installMockApp,
   type MockEnvironment,
 } from "../../mock/staruml.js";
-import { fails, ok } from "../support.js";
+import { fails, fullResults, ok } from "../support.js";
 
 let env: MockEnvironment;
-const build = buildDiagramEndpoint(() => endpoints);
+const build = fullResults(buildDiagramEndpoint(() => endpoints));
 
 beforeEach(() => {
   env = installMockApp();
@@ -101,6 +101,7 @@ describe("/build_diagram per kind", () => {
 });
 
 interface Full extends Built {
+  preset?: string;
   kind: string;
   shown?: number;
   deleted?: number;
@@ -778,5 +779,102 @@ describe("/build_diagram reuse", () => {
       spec: { classes: [{ name: "N" }] },
     });
     expect(picked.ids.N!.model).toBe(near.ids.N!.model);
+  });
+});
+
+describe("/build_diagram result modes and new kinds (#35)", () => {
+  const raw = buildDiagramEndpoint(() => endpoints);
+  const get = (id: string) => env.app.repository.get(id)!;
+  const spec = {
+    classes: [{ name: "A" }, { name: "B" }],
+    relations: [{ from: "A", to: "B" }],
+  };
+
+  it("answers counts by default, ids or everything when asked", async () => {
+    const terse = await ok<Full>(raw, { kind: "class", spec });
+    expect(terse.ids).toBeUndefined();
+    expect(terse.edges).toBeUndefined();
+    expect(terse).toMatchObject({ created: 3, kind: "class" });
+    const ids = await ok<Full>(raw, {
+      kind: "class",
+      name: "I",
+      spec,
+      result: "ids",
+    });
+    expect(Object.keys(ids.ids)).toEqual(["A", "B"]);
+    expect(ids.edges).toBeUndefined();
+    const dry = await ok<Full>(raw, {
+      kind: "class",
+      name: "F",
+      spec,
+      result: "full",
+      dryRun: true,
+    });
+    expect(dry.edges).toEqual([
+      { key: "A -> B", model: "$e0.model", view: "$e0.view" },
+    ]);
+    const dryTerse = await ok<Full>(raw, {
+      kind: "class",
+      name: "T",
+      spec,
+      dryRun: true,
+    });
+    expect(dryTerse.ids).toBeUndefined();
+  });
+
+  it("lays a mind map out sideways from its root by default", async () => {
+    const data = await ok<Full>(raw, {
+      kind: "mindmap",
+      dryRun: true,
+      spec: { root: { name: "R", children: [{ name: "A" }, { name: "B" }] } },
+    });
+    expect(data.preset).toBe("flow-right");
+    const down = await ok<Full>(raw, {
+      kind: "mindmap",
+      direction: "TB",
+      dryRun: true,
+      spec: { root: { name: "R" } },
+    });
+    expect(down.preset).toBe("flow-down");
+  });
+
+  it("lays package diagrams out as hierarchies and the others as flows", async () => {
+    const pkg = await ok<Full>(raw, {
+      kind: "package",
+      dryRun: true,
+      spec: { packages: ["A", "B"], dependencies: [{ from: "A", to: "B" }] },
+    });
+    expect(pkg.preset).toBe("hierarchy-down");
+    const comp = await ok<Full>(raw, {
+      kind: "component",
+      dryRun: true,
+      spec: { components: ["A"] },
+    });
+    expect(comp.preset).toBe("flow-down");
+    for (const kind of ["package", "component", "deployment"]) {
+      expect(
+        (await ok<Full>(raw, { kind, spec: {}, dryRun: true })).created,
+      ).toBe(0);
+    }
+  });
+
+  it("puts ports on their component and connects them", async () => {
+    const data = await ok<Full>(build, {
+      kind: "component",
+      spec: {
+        components: [
+          { name: "A", ports: ["out"] },
+          { name: "B", ports: ["in"] },
+        ],
+        connectors: [{ from: "A.out", to: "B.in" }],
+      },
+    });
+    const port = get(data.ids["A.out"]!.view);
+    expect(port.containerView).toBe(get(data.ids.A!.view));
+    expect(get(data.ids["A.out"]!.model!)._parent).toBe(
+      get(data.ids.A!.model!),
+    );
+    expect(data.edges[0]!.key).toBe("A.out -> B.in");
+    expect(data.layout).toBe("placed");
   });
 });

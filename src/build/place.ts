@@ -22,6 +22,7 @@
  */
 
 import type { Box, Direction, Plan, PlanEdge, PlanNode } from "./spec.js";
+import { PORT } from "./structure.js";
 
 /*
  * Deterministic placement: the positions /build_diagram creates views at.
@@ -268,6 +269,40 @@ function nestedBoxes(plan: Plan, direction: Direction): Map<string, Box> {
 
 /** Where each node's view goes, by node key. */
 export function place(plan: Plan, direction: Direction): Map<string, Box> {
+  const hosted = plan.nodes.filter((n) => n.host !== undefined);
+  // An edge to a hosted view ranks its host: a connector between two ports
+  // places their components.
+  const hostOf = new Map(hosted.map((n) => [n.key, n.host!]));
+  const boxes = placeNodes(
+    {
+      ...plan,
+      nodes: plan.nodes.filter((n) => n.host === undefined),
+      edges: plan.edges.map((e) => ({
+        ...e,
+        from: hostOf.get(e.from) ?? e.from,
+        to: hostOf.get(e.to) ?? e.to,
+      })),
+    },
+    direction,
+  );
+  // A hosted view (a port) sits on its host's right border, one under the
+  // other, as StarUML draws a port dropped on a component.
+  const count = new Map<string, number>();
+  for (const n of hosted) {
+    const host = boxes.get(n.host!)!;
+    const k = count.get(n.host!) ?? 0;
+    count.set(n.host!, k + 1);
+    boxes.set(n.key, {
+      x: host.x + host.width - n.width / 2,
+      y: host.y + PORT.first - PORT.size + k * PORT.step,
+      width: n.width,
+      height: n.height,
+    });
+  }
+  return boxes;
+}
+
+function placeNodes(plan: Plan, direction: Direction): Map<string, Box> {
   let boxes: Map<string, Box>;
   if (plan.kind === "usecase" && plan.fixed) boxes = usecaseBoxes(plan);
   else if (plan.kind === "activity" && plan.fixed) boxes = activityBoxes(plan);

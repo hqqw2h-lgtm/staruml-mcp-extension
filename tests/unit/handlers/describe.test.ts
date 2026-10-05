@@ -8,7 +8,7 @@ import {
 } from "../../../src/handlers/describe.js";
 import { endpoints } from "../../../src/routes.js";
 import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
-import { fails, ok } from "../support.js";
+import { fails, fullResults, ok } from "../support.js";
 
 let env: MockEnvironment;
 
@@ -16,7 +16,7 @@ beforeEach(() => {
   env = installMockApp();
 });
 
-const build = endpoints.find((e) => e.path === "/build_diagram")!;
+const build = fullResults(endpoints.find((e) => e.path === "/build_diagram")!);
 
 interface Built {
   diagram: { _id: string };

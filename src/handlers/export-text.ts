@@ -28,14 +28,18 @@ import { ApiError } from "../errors.js";
 import { requireDiagram } from "../lookup.js";
 import { ref } from "../schemas.js";
 import { summarize } from "../serialize.js";
-import { toMermaid } from "../text/mermaid-writer.js";
+import {
+  type MermaidExtracted,
+  NO_MERMAID,
+  toMermaid,
+} from "../text/mermaid-writer.js";
 import { extract, kindOf } from "../text/model.js";
 import { toPlantUml } from "../text/plantuml-writer.js";
 
 export const exportText = defineEndpoint({
   path: "/export_text",
   description:
-    "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart and mind map diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+    "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, and as PlantUML only package, component and deployment diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
   readOnly: true,
   destructive: false,
   request: z.object({
@@ -69,11 +73,22 @@ export const exportText = defineEndpoint({
         `${diagram.constructor.name} cannot be written as text; supported: ${KINDS.join(", ")} diagrams`,
       );
     }
+    if (
+      input.format === "mermaid" &&
+      (NO_MERMAID as readonly string[]).includes(kind)
+    ) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `Mermaid has no ${kind} diagram; export it as plantuml`,
+      );
+    }
     const { extracted, warnings } = extract(diagram, kind);
     const { _id, _type, name } = summarize(diagram);
-    const write = input.format === "mermaid" ? toMermaid : toPlantUml;
     // Every diagram has a name, "" when unnamed (core/core.js).
-    const out = write(extracted, diagram.name!);
+    const out =
+      input.format === "mermaid"
+        ? toMermaid(extracted as MermaidExtracted, diagram.name!)
+        : toPlantUml(extracted, diagram.name!);
     return {
       diagram: { _id, _type, name },
       kind,

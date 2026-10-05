@@ -66,6 +66,12 @@ const EXPECTED: Record<string, [nodes: number, edges: number, kind: string]> = {
   c4: [4, 3, "c4"],
   composition: [4, 2, "class"],
   "m-composition": [7, 4, "class"],
+  package: [5, 4, "package"],
+  "package-flat": [3, 2, "package"],
+  component: [9, 6, "component"],
+  "component-flat": [3, 2, "component"],
+  deployment: [7, 5, "deployment"],
+  "deployment-flat": [3, 2, "deployment"],
 };
 
 // Issue #9: /build_diagram against StarUML 7.1.1, every kind from a spec and

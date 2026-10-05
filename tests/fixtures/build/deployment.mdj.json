@@ -1,0 +1,404 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLDeploymentDiagram",
+   "name": "Cluster",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLNodeView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 200,
+     "height": 136,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLNodeView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 80,
+     "width": 160,
+     "height": 76,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLNodeView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 60,
+     "top": 266,
+     "width": 160,
+     "height": 76,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLNodeView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 320,
+     "top": 70,
+     "width": 160,
+     "height": 76,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLArtifactView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "left": 590,
+     "top": 78,
+     "width": 140,
+     "height": 60,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLArtifactView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "left": 850,
+     "top": 78,
+     "width": 140,
+     "height": 60,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLComponentView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "left": 330,
+     "top": 274,
+     "width": 140,
+     "height": 60,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLDeploymentView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLDeploymentView",
+     "model": {
+      "$ref": "#21"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#14"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#23"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#16"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "UMLCommunicationPathView",
+     "model": {
+      "$ref": "#25"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#26",
+     "_type": "UMLCommunicationPathView",
+     "model": {
+      "$ref": "#27"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLNode",
+   "name": "k8s",
+   "ownedElements": [
+    {
+     "_id": "#7",
+     "_type": "UMLNode",
+     "name": "tb-node",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [],
+     "isAbstract": false
+    }
+   ],
+   "stereotype": "executionEnvironment",
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLNode",
+   "name": "Postgres",
+   "ownedElements": [],
+   "stereotype": "device",
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLNode",
+   "name": "Kafka",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLArtifact",
+   "name": "tb.jar",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLArtifact",
+   "name": "schema.sql",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#17",
+   "_type": "UMLComponent",
+   "name": "Core",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#19",
+   "_type": "UMLDeployment",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#21",
+   "_type": "UMLDeployment",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#15"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#23",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#17"
+   },
+   "stereotype": "manifest",
+   "visibility": "public"
+  },
+  {
+   "_id": "#25",
+   "_type": "UMLCommunicationPath",
+   "name": "JDBC",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#28",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#29",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#9"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#27",
+   "_type": "UMLCommunicationPath",
+   "name": "TCP",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#30",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#31",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#11"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ]
+}

@@ -8,10 +8,10 @@ import {
 import { endpoints } from "../../../src/routes.js";
 import { PREF } from "../../../src/settings.js";
 import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
-import { fails, ok } from "../support.js";
+import { fails, fullResults, ok } from "../support.js";
 
 let env: MockEnvironment;
-const batch = batchEndpoint(() => endpoints);
+const batch = fullResults(batchEndpoint(() => endpoints));
 
 beforeEach(() => {
   env = installMockApp();
@@ -295,5 +295,83 @@ describe("/batch plan checks", () => {
       "INVALID_ARGUMENT",
       /^ops\.0\.as: /,
     );
+  });
+});
+
+describe("/batch result modes (#35)", () => {
+  const raw = batchEndpoint(() => endpoints);
+  const ops = () => [
+    classOp("A"),
+    { path: "/add_attribute", body: { ref: "$A.model", name: "x" } },
+    {
+      path: "/create_element_with_view",
+      body: { type: "Note", diagram: env.mainDiagram._id },
+    },
+    { path: "/is_modified" },
+  ];
+
+  it("answers each op's id by default", async () => {
+    const data = await ok<Batch & { results: (Result & { id?: string })[] }>(
+      raw,
+      { ops: ops() },
+    );
+    const [cls, attr, note, modified] = data.results;
+    expect(cls).toEqual({
+      path: "/create_element_with_view",
+      as: "A",
+      success: true,
+      id: expect.any(String),
+    });
+    expect(env.app.repository.get(cls!.id!)!.constructor.name).toBe("UMLClass");
+    expect(attr!.id).toBeDefined();
+    // A view without a model is named by its view.
+    expect(env.app.repository.get(note!.id!)!.constructor.name).toBe(
+      "UMLNoteView",
+    );
+    expect(modified).toEqual({ path: "/is_modified", success: true });
+  });
+
+  it("answers only ids, or everything", async () => {
+    const ids = await ok<Batch>(raw, { ops: ops(), result: "ids" });
+    expect(ids.results[0]!.data).toEqual({
+      view: { _id: expect.any(String) },
+      model: { _id: expect.any(String) },
+    });
+    expect(ids.results[1]!.data).toEqual({ _id: expect.any(String) });
+    expect(ids.results[2]!.data).toEqual({
+      view: { _id: expect.any(String) },
+      model: null,
+    });
+    expect(ids.results[3]!.data).toBeUndefined();
+    env = installMockApp();
+    const full = await ok<Batch>(raw, { ops: ops(), result: "full" });
+    expect(full.results[3]!.data).toEqual({ modified: true });
+  });
+
+  it("keeps a failed op's error whatever the mode", async () => {
+    const data = await ok<Batch>(raw, {
+      atomic: false,
+      ops: [{ path: "/get_element_by_id", body: { ref: "nothing" } }],
+    });
+    expect(data.results[0]).toMatchObject({
+      success: false,
+      code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("/batch terse answers of plain values", () => {
+  it("names no id for an answer that is not an element", async () => {
+    const plain: Endpoint = {
+      ...endpoints.find((e) => e.path === "/is_modified")!,
+      path: "/plain",
+      handler: async () => ({ success: true, data: "text" }),
+    };
+    const custom = batchEndpoint(() => [...endpoints, plain]);
+    const data = await ok<Batch>(custom, {
+      ops: [{ path: "/plain" }],
+      result: "ids",
+    });
+    expect(data.results[0]).toEqual({ path: "/plain", success: true });
   });
 });

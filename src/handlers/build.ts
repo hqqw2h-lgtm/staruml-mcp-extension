@@ -260,6 +260,9 @@ const SHARED_KINDS = new Set<Kind>([
   "erd",
   "requirement",
   "c4",
+  "package",
+  "component",
+  "deployment",
 ]);
 
 /**
@@ -562,6 +565,9 @@ export function opsFor(
         ...(node.owner !== undefined && {
           parent: refs.get(node.owner)!.model,
         }),
+        ...(node.host !== undefined && {
+          container: refs.get(node.host)!.view,
+        }),
         // A note is a view without a model, so it takes neither.
         ...(!note && { name: node.name }),
         ...(node.properties && { properties: node.properties }),
@@ -819,9 +825,18 @@ const SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" } as const;
  * along its edges, so a flowchart drawn TB starts at the top (issue #12).
  */
 export function defaultPreset(kind: Kind, direction: Direction) {
-  const family = kind === "class" ? "hierarchy" : "flow";
+  // A package diagram's dependencies point at what is used, which reads
+  // best on top, as a superclass does.
+  const family = kind === "class" || kind === "package" ? "hierarchy" : "flow";
   return `${family}-${SIDES[direction]}` as LayoutPresetName;
 }
+
+/**
+ * A mind map grows sideways from its root; drawn top down, every leaf
+ * lands in one row (14740 px wide for the ThingsBoard map, issue #35).
+ */
+export const defaultDirection = (kind: Kind): Direction =>
+  kind === "mindmap" ? "LR" : "TB";
 
 /** The diagram an upsert updates: same type and name, under the parent. */
 function findDiagram(kind: Kind, name: string | undefined, parent: Element) {
@@ -1003,6 +1018,23 @@ export const planSchema = () =>
     deletes: z.array(stepSchema()),
   });
 
+export const RESULT_MODES = ["terse", "ids", "full"] as const;
+export type ResultMode = (typeof RESULT_MODES)[number];
+
+export const resultField = (description: string) =>
+  z.optional(doc(z.enum(RESULT_MODES), description));
+
+/**
+ * The id echo a result mode keeps: none by default, since a mind map's
+ * echo alone ran to 15 KB (issue #35).
+ */
+function shaped<I, E>(mode: ResultMode | undefined, ids: I, edges: E) {
+  return {
+    ...(mode !== undefined && mode !== "terse" && { ids }),
+    ...(mode === "full" && { edges }),
+  };
+}
+
 export function buildDiagramEndpoint(
   endpoints: () => readonly Endpoint[],
 ): Endpoint {
@@ -1095,6 +1127,9 @@ export function buildDiagramEndpoint(
           "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it.",
         ),
       ),
+      result: resultField(
+        "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids.",
+      ),
     }),
     aliases: { parentId: "parent" },
     response: z.object({
@@ -1129,16 +1164,23 @@ export function buildDiagramEndpoint(
         "engine: Format > Layout arranged it; placed: the computed placement stands.",
       ),
       preset: z.optional(doc(z.string(), "The layout preset applied.")),
-      ids: doc(
-        z.record(z.string(), refSchema()),
-        "Model and view ids of each node, by its name (or id) in the spec.",
+      ids: z.optional(
+        doc(
+          z.record(z.string(), refSchema()),
+          "With result ids or full: model and view ids of each node, by its name (or id) in the spec.",
+        ),
       ),
-      edges: z.array(
-        z.object({
-          key: doc(z.string(), "'from -> to'."),
-          model: z.nullable(z.string()),
-          view: z.string(),
-        }),
+      edges: z.optional(
+        doc(
+          z.array(
+            z.object({
+              key: doc(z.string(), "'from -> to'."),
+              model: z.nullable(z.string()),
+              view: z.string(),
+            }),
+          ),
+          "With result full: each edge's model and view ids.",
+        ),
       ),
       dryRun: z.optional(doc(z.boolean(), "Set when nothing was changed.")),
       plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
@@ -1159,7 +1201,7 @@ export function buildDiagramEndpoint(
       const built = opsFor(
         plan,
         { diagram, parent, name },
-        direction ?? "TB",
+        direction ?? defaultDirection(kind),
         input.autoLayout ?? true,
         input.layout,
         {
@@ -1202,12 +1244,15 @@ export function buildDiagramEndpoint(
               },
           ...summary,
           created: built.created.size + built.edgeOps.length,
-          ids,
-          edges: built.edgeOps.map(({ key, as }) => ({
-            key,
-            model: `$${as}.model`,
-            view: `$${as}.view`,
-          })),
+          ...shaped(
+            input.result,
+            ids,
+            built.edgeOps.map(({ key, as }) => ({
+              key,
+              model: `$${as}.model`,
+              view: `$${as}.view`,
+            })),
+          ),
           dryRun: true,
           plan: planOf(built.ops),
         };
@@ -1215,7 +1260,7 @@ export function buildDiagramEndpoint(
       const batch = endpoints().find((e) => e.path === "/batch")!;
       let data: BatchData = { results: [] };
       if (built.ops.length > 0) {
-        const result = await batch.handler({ ops: built.ops });
+        const result = await batch.handler({ ops: built.ops, result: "full" });
         if (!result.success) {
           throw new ApiError(
             result.code as ErrorCode,
@@ -1247,8 +1292,7 @@ export function buildDiagramEndpoint(
         diagram: { _id, _type, name: diagramName },
         ...summary,
         created: built.created.size + edges.length,
-        ids,
-        edges,
+        ...shaped(input.result, ids, edges),
       };
     },
   });

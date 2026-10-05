@@ -202,6 +202,7 @@ export const mockTypes: Record<string, Ctor> = generateClasses();
 const CONTAINS: Record<string, readonly string[]> = {
   UMLRegionView: ["UMLStateView", "UMLPseudostateView", "UMLFinalStateView"],
   UMLPackageView: ["UMLClassifierView", "UMLPackageView"],
+  UMLNodeView: ["UMLClassifierView", "UMLPackageView"],
 };
 Object.defineProperty(mockTypes.View!.prototype, "canContainView", {
   value(this: MockElement, view: MockElement): boolean {

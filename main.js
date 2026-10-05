@@ -3943,7 +3943,18 @@ var resultSchema = () => object({
   path: string2(),
   as: optional(string2()),
   success: boolean2(),
-  data: optional(doc(unknown(), "The op's response data.")),
+  id: optional(
+    doc(
+      string2(),
+      "result terse: the id of what the op made or acted on (its model, for a model with a view)."
+    )
+  ),
+  data: optional(
+    doc(
+      unknown(),
+      "result full: the op's response data; result ids: its ids only."
+    )
+  ),
   code: optional(string2()),
   error: optional(string2()),
   details: optional(unknown())
@@ -4017,6 +4028,32 @@ function squash(operations) {
   for (let i = 0; i < operations.length; i++) _undoStack.pop();
   _undoStack.push(merged);
 }
+function idsOf(data) {
+  if (data === null || typeof data !== "object") return void 0;
+  const { _id, view, model } = data;
+  if (typeof _id === "string") return { _id };
+  if (view && typeof view === "object") {
+    return {
+      view: { _id: view._id },
+      model: model && typeof model === "object" ? { _id: model._id } : null
+    };
+  }
+  return void 0;
+}
+function primaryId(data) {
+  const ids2 = idsOf(data);
+  return ids2?._id ?? ids2?.model?._id ?? ids2?.view?._id;
+}
+function shapeResult(result, mode) {
+  if (mode === "full" || !result.success) return result;
+  const { data, ...rest } = result;
+  if (mode === "ids") {
+    const ids2 = idsOf(data);
+    return ids2 === void 0 ? rest : { ...rest, data: ids2 };
+  }
+  const id2 = primaryId(data);
+  return id2 === void 0 ? rest : { ...rest, id: id2 };
+}
 function rollBack(operations) {
   for (let i = 0; i < operations.length; i++) app.repository.undo();
   history()._redoStack.clear();
@@ -4024,7 +4061,7 @@ function rollBack(operations) {
 function batchEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/batch",
-    description: "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each.",
+    description: "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each. result picks how much of each answer comes back: terse ids by default, ids, or full.",
     readOnly: false,
     destructive: true,
     request: object({
@@ -4036,6 +4073,12 @@ function batchEndpoint(endpoints2) {
         doc(
           boolean2(),
           "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
+        )
+      ),
+      result: optional(
+        doc(
+          _enum(["terse", "ids", "full"]),
+          "terse (default): each op's success and the id it made or acted on. ids: each op's ids ({_id}, or {view, model} for a create with view). full: each op's whole answer. Failed ops always carry code, error and details."
         )
       )
     }),
@@ -4076,11 +4119,12 @@ function batchEndpoint(endpoints2) {
         );
       }
       if (atomic && operations.length > 1) squash(operations);
+      const mode = input.result ?? "terse";
       return {
         atomic,
         succeeded: results.length - failures.length,
         failed: failures.length,
-        results
+        results: results.map((r) => shapeResult(r, mode))
       };
     }
   });
@@ -4233,21 +4277,21 @@ function parseJsonSchema(source, as) {
   const kind2 = as === "erd" ? "erd" : "class";
   const defs = root.$defs ?? root.definitions ?? {};
   const defsKey = root.$defs ? "$defs" : "definitions";
-  const named2 = /* @__PURE__ */ new Map();
+  const named3 = /* @__PURE__ */ new Map();
   const pointers = /* @__PURE__ */ new Map();
   const rootName = typeof root.title === "string" && root.title ? root.title : "Root";
   if (root.properties || root.allOf) {
-    named2.set(rootName, root);
+    named3.set(rootName, root);
     pointers.set(root, "#");
   }
   for (const [name2, schema] of Object.entries(defs)) {
     if (!isObject2(schema)) {
       return fail(`#/${defsKey}/${name2}`, "is not a schema");
     }
-    named2.set(name2, schema);
+    named3.set(name2, schema);
     pointers.set(schema, `#/${defsKey}/${name2}`);
   }
-  if (named2.size === 0)
+  if (named3.size === 0)
     fail("", "no object schema: give the root properties, or $defs");
   const target = (ref3, pointer) => {
     const m = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ref3);
@@ -4262,7 +4306,7 @@ function parseJsonSchema(source, as) {
     const name2 = decodeURIComponent(
       m[2].replace(/~1/g, "/").replace(/~0/g, "~")
     );
-    if (!named2.has(name2)) fail(pointer, `$ref ${ref3} names no definition`);
+    if (!named3.has(name2)) fail(pointer, `$ref ${ref3} names no definition`);
     return name2;
   };
   const shape = (s, pointer) => {
@@ -4375,7 +4419,7 @@ function parseJsonSchema(source, as) {
       let other = sh.ref;
       if (sh.inline) {
         other = typeof sh.inline.title === "string" ? sh.inline.title : `${name2}${pascal(prop)}`;
-        named2.set(other, sh.inline);
+        named3.set(other, sh.inline);
         visit(other, sh.inline, at);
       }
       if (kind2 === "class") {
@@ -4439,7 +4483,7 @@ function parseJsonSchema(source, as) {
     }
   };
   const keys = [];
-  for (const [name2, schema] of [...named2])
+  for (const [name2, schema] of [...named3])
     visit(name2, schema, pointers.get(schema));
   for (const [column, other] of keys) {
     const type2 = entities2.find((e) => e.name === other).columns.find((c) => c.primaryKey)?.type;
@@ -4473,13 +4517,13 @@ function macroArgs(text4) {
   }
   parts.push(current);
   const positional = [];
-  const named2 = {};
+  const named3 = {};
   for (const raw of parts.map((p) => p.trim())) {
     const m = /^\$(\w+)\s*=\s*(.*)$/.exec(raw);
-    if (m) named2[m[1]] = m[2];
+    if (m) named3[m[1]] = m[2];
     else positional.push(raw);
   }
-  return { positional, named: named2 };
+  return { positional, named: named3 };
 }
 var ELEMENT = /^(Person|System|SystemDb|SystemQueue|Container|ContainerDb|ContainerQueue|Component|ComponentDb|ComponentQueue)(_Ext)?\s*\((.*)\)$/;
 var BOUNDARY = /^(Boundary|Enterprise_Boundary|System_Boundary|Container_Boundary)\s*\((.*)\)\s*\{?$/;
@@ -4511,11 +4555,11 @@ function readC4(lines, fail5, other) {
       const [, macro, ext, body] = m;
       const base = macro.replace(/(Db|Queue)$/, "");
       const type2 = TYPES[base];
-      const { positional: p, named: named2 } = macroArgs(body);
+      const { positional: p, named: named3 } = macroArgs(body);
       if (!p[0] || !p[1]) fail5(no, `${macro} needs an alias and a label`);
       const technical = type2 === "container" || type2 === "component";
-      const technology = named2.techn ?? (technical ? p[2] : void 0);
-      const description = named2.descr ?? (technical ? p[3] : p[2]);
+      const technology = named3.techn ?? (technical ? p[2] : void 0);
+      const description = named3.descr ?? (technical ? p[3] : p[2]);
       elements.push({
         id: p[0],
         name: multiline(p[1]),
@@ -4526,7 +4570,7 @@ function readC4(lines, fail5, other) {
         ...ext && { external: true }
       });
     } else if (m = RELATION.exec(text4)) {
-      const { positional: p, named: named2 } = macroArgs(m[2]);
+      const { positional: p, named: named3 } = macroArgs(m[2]);
       if (!p[0] || !p[1]) fail5(no, `${m[1]} needs two aliases`);
       const back = m[1].startsWith("Rel_Back");
       if (m[1] === "BiRel") {
@@ -4534,8 +4578,8 @@ function readC4(lines, fail5, other) {
           `line ${no}: BiRel is drawn one way, ${p[0]} to ${p[1]}; StarUML's C4 relationship is directed`
         );
       }
-      const technology = value(named2.techn ?? p[3]);
-      const description = value(named2.descr ?? p[4]);
+      const technology = value(named3.techn ?? p[3]);
+      const description = value(named3.descr ?? p[4]);
       relations.push({
         from: back ? p[1] : p[0],
         to: back ? p[0] : p[1],
@@ -4550,10 +4594,10 @@ function readC4(lines, fail5, other) {
       if (open === 0) fail5(no, "} without a boundary");
       open--;
     } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text4)) {
-      const { positional: p, named: named2 } = macroArgs(m[1]);
+      const { positional: p, named: named3 } = macroArgs(m[1]);
       const style = {};
       for (const [arg, field] of Object.entries(STYLE_ARGS)) {
-        const color2 = named2[arg];
+        const color2 = named3[arg];
         if (color2 && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color2)) {
           style[field] = color2;
         }
@@ -5194,8 +5238,8 @@ function stateDiagram(lines) {
     const { no, text: text4 } = lines[i];
     let m;
     if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text4)) {
-      const named2 = m[1] !== void 0 || !states.has(m[2]);
-      declare(m[2], named2 ? { name: multiline(m[1] ?? m[2]) } : {});
+      const named3 = m[1] !== void 0 || !states.has(m[2]);
+      declare(m[2], named3 ? { name: multiline(m[1] ?? m[2]) } : {});
       blocks.push(m[2]);
     } else if (text4 === "}") {
       if (blocks.pop() === void 0) fail2(no, "} without a state block");
@@ -5254,9 +5298,9 @@ function mindmap(lines) {
   for (const { no, text: text4, indent } of lines) {
     if (/^::icon\(/.test(text4)) continue;
     const bare2 = text4.replace(/\s*:::.*$/, "");
-    const shaped = MIND_SHAPE.exec(bare2);
+    const shaped2 = MIND_SHAPE.exec(bare2);
     const node = {
-      name: multiline(unquote(shaped ? shaped[1] : bare2)),
+      name: multiline(unquote(shaped2 ? shaped2[1] : bare2)),
       children: []
     };
     while (stack.length > 0 && stack.at(-1).indent >= indent) stack.pop();
@@ -6267,11 +6311,11 @@ function erDiagram2(lines) {
         ) ?? fail3(no, `cannot read column "${text4}"`);
         const flags = m[4];
         const type2 = m[3]?.trim();
-        const sized = type2 ? /^([^(]+)\(([^)]*)\)$/.exec(type2) : null;
+        const sized2 = type2 ? /^([^(]+)\(([^)]*)\)$/.exec(type2) : null;
         open.columns.push({
           name: m[2],
-          ...type2 && { type: sized ? sized[1] : type2 },
-          ...sized && { length: sized[2] },
+          ...type2 && { type: sized2 ? sized2[1] : type2 },
+          ...sized2 && { length: sized2[2] },
           .../PK/.test(flags) && { primaryKey: true },
           .../FK/.test(flags) && { foreignKey: true },
           .../UK/.test(flags) && { unique: true },
@@ -6511,11 +6555,11 @@ function parseSql(source) {
     const m = new RegExp(String.raw`^(${NAME3})\s+([\s\S]+)$`).exec(def) ?? fail4(line, `cannot read column "${def}"`);
     const [typeText2, ...rest] = m[2].split(CONSTRAINT);
     const constraints = rest.join(" ");
-    const sized = /^([^(]+?)\s*\(([^)]*)\)\s*(.*)$/.exec(typeText2.trim());
+    const sized2 = /^([^(]+?)\s*\(([^)]*)\)\s*(.*)$/.exec(typeText2.trim());
     const c = {
       name: bare(m[1]),
-      type: sized ? `${sized[1]}${sized[3] ? ` ${sized[3]}` : ""}` : typeText2.trim(),
-      ...sized && { length: sized[2].replace(/\s+/g, "") }
+      type: sized2 ? `${sized2[1]}${sized2[3] ? ` ${sized2[3]}` : ""}` : typeText2.trim(),
+      ...sized2 && { length: sized2[2].replace(/\s+/g, "") }
     };
     if (/primary\s+key/i.test(constraints)) t.primaryKey.push(c.name);
     if (/\bunique\b/i.test(constraints)) c.unique = true;
@@ -6702,6 +6746,508 @@ function parseSource(text4, format = detectFormat(text4), kind2) {
     default:
       return { ...parseMermaid(text4, kind2), format };
   }
+}
+
+// src/build/plan.ts
+var name = () => string2().check(_minLength(1));
+var strings = () => array(name());
+var nameOr = (object2) => union([name(), object2]);
+var hex = (what) => optional(
+  doc(
+    string2().check(_regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i)),
+    `${what}, CSS hex such as '#ffcc00'.`
+  )
+);
+var common = () => ({
+  notes: optional(
+    doc(
+      array(
+        object({
+          text: string2().check(_minLength(1)),
+          on: optional(
+            doc(
+              union([name(), strings()]),
+              "Nodes the note is linked to; on a sequence diagram, the lifelines it is drawn at."
+            )
+          ),
+          side: optional(
+            doc(
+              _enum(["left", "right", "over"]),
+              "sequence: where the note sits against its one lifeline; default right, over for several."
+            )
+          ),
+          at: optional(
+            doc(
+              int().check(_gte(0)),
+              "sequence: the number of messages above the note; default all of them."
+            )
+          )
+        })
+      ),
+      "Notes (UMLNote), each linked to the nodes it is on."
+    )
+  ),
+  styles: optional(
+    doc(
+      record(
+        name(),
+        object({
+          fillColor: hex("Fill colour"),
+          lineColor: hex("Line colour"),
+          fontColor: hex("Text colour")
+        })
+      ),
+      "Colours of node views by node name (or id)."
+    )
+  )
+});
+var Builder = class {
+  constructor(kind2) {
+    this.kind = kind2;
+  }
+  kind;
+  nodes = [];
+  edges = [];
+  byKey = /* @__PURE__ */ new Map();
+  node(node) {
+    if (this.byKey.has(node.key)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec: ${node.key} is defined twice; give one of them another name or id`
+      );
+    }
+    const full = { width: 120, height: 60, ...node };
+    this.nodes.push(full);
+    this.byKey.set(full.key, full);
+    return full;
+  }
+  has(key) {
+    return this.byKey.has(key);
+  }
+  get(key) {
+    return this.byKey.get(key);
+  }
+  /** Ends are names as nodes are, so "a<br/>b" finds the node named "a\nb". */
+  edge(spec, where2) {
+    const edge = {
+      ...spec,
+      from: multiline(spec.from),
+      to: multiline(spec.to)
+    };
+    for (const end of [edge.from, edge.to]) {
+      if (!this.byKey.has(end)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.${where2}: no node named ${end}`
+        );
+      }
+    }
+    this.edges.push(edge);
+  }
+  plan(fixed = false) {
+    return { kind: this.kind, nodes: this.nodes, edges: this.edges, fixed };
+  }
+};
+var str = (value) => multiline(typeof value === "string" ? value : value.name);
+var LINE_HEIGHT = 16;
+var GLYPH_WIDTH = 7;
+var LABEL_PADDING = 20;
+function textWidth(text4) {
+  return GLYPH_WIDTH * Math.max(0, ...text4.split("\n").map((l) => l.length));
+}
+
+// src/build/structure.ts
+var PACKAGE_DEPENDENCIES = [
+  "dependency",
+  "import",
+  "access",
+  "merge",
+  "use"
+];
+var packageSpec = () => object({
+  ...common(),
+  packages: optional(
+    array(
+      nameOr(
+        object({
+          name: name(),
+          parent: optional(
+            doc(name(), "Package this one is nested in, by name.")
+          ),
+          stereotype: optional(string2()),
+          documentation: optional(string2())
+        })
+      )
+    )
+  ),
+  dependencies: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        type: optional(
+          doc(
+            _enum(PACKAGE_DEPENDENCIES),
+            "Default dependency; import, access, merge and use are dependencies with that stereotype."
+          )
+        ),
+        name: optional(string2())
+      })
+    )
+  )
+});
+var componentSpec = () => object({
+  ...common(),
+  components: optional(
+    array(
+      nameOr(
+        object({
+          name: name(),
+          stereotype: optional(string2()),
+          ports: optional(
+            doc(strings(), "Ports on the component's border, by name.")
+          ),
+          provides: optional(
+            doc(
+              strings(),
+              "Interfaces it realizes, drawn as lollipops; made when not declared."
+            )
+          ),
+          requires: optional(
+            doc(
+              strings(),
+              "Interfaces it uses, drawn as sockets; made when not declared."
+            )
+          )
+        })
+      )
+    )
+  ),
+  interfaces: optional(
+    array(
+      nameOr(
+        object({
+          name: name(),
+          operations: optional(strings())
+        })
+      )
+    )
+  ),
+  connectors: optional(
+    array(
+      object({
+        from: doc(name(), "A port as 'Component.port'."),
+        to: doc(name(), "A port as 'Component.port'."),
+        name: optional(string2())
+      })
+    )
+  ),
+  dependencies: optional(
+    array(
+      object({ from: name(), to: name(), name: optional(string2()) })
+    )
+  )
+});
+var deploymentSpec = () => object({
+  ...common(),
+  nodes: optional(
+    array(
+      nameOr(
+        object({
+          name: name(),
+          stereotype: optional(
+            doc(string2(), "E.g. device, executionEnvironment.")
+          ),
+          parent: optional(
+            doc(name(), "Node this one is nested in, by name.")
+          ),
+          deploys: optional(
+            doc(strings(), "Artifacts deployed on it (\xABdeploy\xBB).")
+          )
+        })
+      )
+    )
+  ),
+  artifacts: optional(
+    array(
+      nameOr(
+        object({
+          name: name(),
+          stereotype: optional(string2()),
+          manifests: optional(
+            doc(strings(), "Components it manifests (\xABmanifest\xBB).")
+          )
+        })
+      )
+    )
+  ),
+  components: optional(strings()),
+  paths: optional(
+    doc(
+      array(
+        object({
+          from: name(),
+          to: name(),
+          name: optional(
+            doc(string2(), "Protocol or label, e.g. 'HTTPS'.")
+          )
+        })
+      ),
+      "Communication paths between nodes."
+    )
+  )
+});
+var sized = (min, label4, lines = 0) => ({
+  width: Math.max(min, textWidth(label4) + 2 * LABEL_PADDING),
+  height: 60 + 16 * lines
+});
+function ownersFirst(items2, where2, what) {
+  const byName = new Map(items2.map((p) => [p.name, p]));
+  const out = [];
+  const state2 = /* @__PURE__ */ new Map();
+  const visit = (item, i) => {
+    const s = state2.get(item.name);
+    if (s === "done") return;
+    if (s === "open") {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.${where2}.${i}.parent: ${item.name} would be nested in itself`
+      );
+    }
+    state2.set(item.name, "open");
+    if (item.parent !== void 0) {
+      const parent = byName.get(item.parent);
+      if (!parent) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.${where2}.${i}.parent: no ${what} named ${item.parent}; declare it in spec.${where2}`
+        );
+      }
+      visit(parent, items2.indexOf(parent));
+    }
+    state2.set(item.name, "done");
+    out.push(item);
+  };
+  items2.forEach((item, i) => visit(item, i));
+  return out;
+}
+function packagePlan(spec) {
+  const b = new Builder("package");
+  const packages = (spec.packages ?? []).map(
+    (p) => typeof p === "string" ? { name: multiline(p) } : {
+      ...p,
+      name: multiline(p.name),
+      ...p.parent !== void 0 && { parent: multiline(p.parent) }
+    }
+  );
+  for (const p of ownersFirst(packages, "packages", "package")) {
+    const properties2 = {
+      ...p.stereotype !== void 0 && { stereotype: p.stereotype },
+      ...p.documentation !== void 0 && {
+        documentation: p.documentation
+      }
+    };
+    b.node({
+      key: p.name,
+      type: "UMLPackage",
+      name: p.name,
+      ...Object.keys(properties2).length > 0 && { properties: properties2 },
+      ...p.parent !== void 0 && { owner: p.parent, container: p.parent },
+      ...sized(160, p.name)
+    });
+  }
+  (spec.dependencies ?? []).forEach((d, i) => {
+    const type2 = d.type ?? "dependency";
+    b.edge(
+      {
+        type: "UMLDependency",
+        from: d.from,
+        to: d.to,
+        ...d.name !== void 0 && { name: d.name },
+        ...type2 !== "dependency" && { properties: { stereotype: type2 } }
+      },
+      `dependencies.${i}`
+    );
+  });
+  return b.plan(packages.some((p) => p.parent !== void 0));
+}
+var PORT = { size: 20, first: 30, step: 30 };
+function componentPlan(spec) {
+  const b = new Builder("component");
+  const interfaces = /* @__PURE__ */ new Map();
+  for (const i of spec.interfaces ?? []) {
+    const o = typeof i === "string" ? { name: i } : i;
+    interfaces.set(multiline(o.name), o.operations ?? []);
+  }
+  const components = (spec.components ?? []).map(
+    (c) => typeof c === "string" ? { name: c } : c
+  );
+  for (const c of components) {
+    for (const i of [...c.provides ?? [], ...c.requires ?? []]) {
+      if (!interfaces.has(multiline(i))) interfaces.set(multiline(i), []);
+    }
+  }
+  for (const c of components) {
+    const ports = c.ports ?? [];
+    b.node({
+      key: multiline(c.name),
+      type: "UMLComponent",
+      name: multiline(c.name),
+      ...c.stereotype !== void 0 && {
+        properties: { stereotype: c.stereotype }
+      },
+      width: sized(160, c.name).width,
+      height: Math.max(80, PORT.first + PORT.step * ports.length)
+    });
+  }
+  for (const [n, operations] of interfaces) {
+    b.node({
+      key: n,
+      type: "UMLInterface",
+      name: n,
+      ...operations.length > 0 && {
+        operations: operations.map(parseOperation)
+      },
+      width: 30,
+      height: 30
+    });
+  }
+  for (const c of components) {
+    for (const port of c.ports ?? []) {
+      b.node({
+        key: `${multiline(c.name)}.${multiline(port)}`,
+        type: "UMLPort",
+        name: multiline(port),
+        owner: multiline(c.name),
+        host: multiline(c.name),
+        width: PORT.size,
+        height: PORT.size
+      });
+    }
+  }
+  components.forEach((c, i) => {
+    for (const to of c.provides ?? []) {
+      b.edge(
+        { type: "UMLInterfaceRealization", from: c.name, to },
+        `components.${i}.provides`
+      );
+    }
+    for (const to of c.requires ?? []) {
+      b.edge(
+        { type: "UMLDependency", from: c.name, to },
+        `components.${i}.requires`
+      );
+    }
+  });
+  (spec.connectors ?? []).forEach((k, i) => {
+    for (const end of [k.from, k.to]) {
+      if (b.get(multiline(end))?.type !== "UMLPort") {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.connectors.${i}: ${end} is not a port; connectors join ports, written 'Component.port'`
+        );
+      }
+    }
+    b.edge(
+      {
+        type: "UMLConnector",
+        from: k.from,
+        to: k.to,
+        ...k.name !== void 0 && { name: k.name }
+      },
+      `connectors.${i}`
+    );
+  });
+  (spec.dependencies ?? []).forEach(
+    (d, i) => b.edge(
+      {
+        type: "UMLDependency",
+        from: d.from,
+        to: d.to,
+        ...d.name !== void 0 && { name: d.name }
+      },
+      `dependencies.${i}`
+    )
+  );
+  return b.plan(components.some((c) => (c.ports ?? []).length > 0));
+}
+function deploymentPlan(spec) {
+  const b = new Builder("deployment");
+  const nodes = (spec.nodes ?? []).map(
+    (n) => typeof n === "string" ? { name: multiline(n) } : {
+      ...n,
+      name: multiline(n.name),
+      ...n.parent !== void 0 && { parent: multiline(n.parent) }
+    }
+  );
+  for (const n of ownersFirst(nodes, "nodes", "node")) {
+    b.node({
+      key: n.name,
+      type: "UMLNode",
+      name: n.name,
+      ...n.stereotype !== void 0 && {
+        properties: { stereotype: n.stereotype }
+      },
+      ...n.parent !== void 0 && { owner: n.parent, container: n.parent },
+      ...sized(160, n.name, 1)
+    });
+  }
+  const artifacts = (spec.artifacts ?? []).map(
+    (a) => typeof a === "string" ? { name: a } : a
+  );
+  for (const a of artifacts) {
+    b.node({
+      key: multiline(a.name),
+      type: "UMLArtifact",
+      name: multiline(a.name),
+      ...a.stereotype !== void 0 && {
+        properties: { stereotype: a.stereotype }
+      },
+      ...sized(140, a.name)
+    });
+  }
+  for (const c of spec.components ?? []) {
+    b.node({
+      key: multiline(c),
+      type: "UMLComponent",
+      name: multiline(c),
+      ...sized(140, c)
+    });
+  }
+  (spec.nodes ?? []).forEach((n, i) => {
+    if (typeof n === "string") return;
+    for (const artifact of n.deploys ?? []) {
+      b.edge(
+        { type: "UMLDeployment", from: artifact, to: str(n) },
+        `nodes.${i}.deploys`
+      );
+    }
+  });
+  artifacts.forEach((a, i) => {
+    for (const component of a.manifests ?? []) {
+      b.edge(
+        {
+          type: "UMLDependency",
+          from: a.name,
+          to: component,
+          properties: { stereotype: "manifest" }
+        },
+        `artifacts.${i}.manifests`
+      );
+    }
+  });
+  (spec.paths ?? []).forEach(
+    (p, i) => b.edge(
+      {
+        type: "UMLCommunicationPath",
+        from: p.from,
+        to: p.to,
+        ...p.name !== void 0 && { name: p.name }
+      },
+      `paths.${i}`
+    )
+  );
+  return b.plan(nodes.some((n) => n.parent !== void 0));
 }
 
 // src/build/place.ts
@@ -6895,6 +7441,35 @@ function nestedBoxes(plan, direction2) {
   return boxes;
 }
 function place(plan, direction2) {
+  const hosted = plan.nodes.filter((n) => n.host !== void 0);
+  const hostOf = new Map(hosted.map((n) => [n.key, n.host]));
+  const boxes = placeNodes(
+    {
+      ...plan,
+      nodes: plan.nodes.filter((n) => n.host === void 0),
+      edges: plan.edges.map((e) => ({
+        ...e,
+        from: hostOf.get(e.from) ?? e.from,
+        to: hostOf.get(e.to) ?? e.to
+      }))
+    },
+    direction2
+  );
+  const count = /* @__PURE__ */ new Map();
+  for (const n of hosted) {
+    const host = boxes.get(n.host);
+    const k = count.get(n.host) ?? 0;
+    count.set(n.host, k + 1);
+    boxes.set(n.key, {
+      x: host.x + host.width - n.width / 2,
+      y: host.y + PORT.first - PORT.size + k * PORT.step,
+      width: n.width,
+      height: n.height
+    });
+  }
+  return boxes;
+}
+function placeNodes(plan, direction2) {
   let boxes;
   if (plan.kind === "usecase" && plan.fixed) boxes = usecaseBoxes(plan);
   else if (plan.kind === "activity" && plan.fixed) boxes = activityBoxes(plan);
@@ -6919,7 +7494,10 @@ var KINDS = [
   "flowchart",
   "mindmap",
   "requirement",
-  "c4"
+  "c4",
+  "package",
+  "component",
+  "deployment"
 ];
 var DIAGRAM_TYPES = {
   class: "UMLClassDiagram",
@@ -6931,60 +7509,11 @@ var DIAGRAM_TYPES = {
   flowchart: "FCFlowchartDiagram",
   mindmap: "MMMindmapDiagram",
   requirement: "SysMLRequirementDiagram",
-  c4: "C4Diagram"
+  c4: "C4Diagram",
+  package: "UMLPackageDiagram",
+  component: "UMLComponentDiagram",
+  deployment: "UMLDeploymentDiagram"
 };
-var name = () => string2().check(_minLength(1));
-var strings = () => array(name());
-var nameOr = (object2) => union([name(), object2]);
-var hex = (what) => optional(
-  doc(
-    string2().check(_regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i)),
-    `${what}, CSS hex such as '#ffcc00'.`
-  )
-);
-var common = () => ({
-  notes: optional(
-    doc(
-      array(
-        object({
-          text: string2().check(_minLength(1)),
-          on: optional(
-            doc(
-              union([name(), strings()]),
-              "Nodes the note is linked to; on a sequence diagram, the lifelines it is drawn at."
-            )
-          ),
-          side: optional(
-            doc(
-              _enum(["left", "right", "over"]),
-              "sequence: where the note sits against its one lifeline; default right, over for several."
-            )
-          ),
-          at: optional(
-            doc(
-              int().check(_gte(0)),
-              "sequence: the number of messages above the note; default all of them."
-            )
-          )
-        })
-      ),
-      "Notes (UMLNote), each linked to the nodes it is on."
-    )
-  ),
-  styles: optional(
-    doc(
-      record(
-        name(),
-        object({
-          fillColor: hex("Fill colour"),
-          lineColor: hex("Line colour"),
-          fontColor: hex("Text colour")
-        })
-      ),
-      "Colours of node views by node name (or id)."
-    )
-  )
-});
 var attributeObject = () => object({
   name: name(),
   type: optional(string2()),
@@ -7418,7 +7947,10 @@ var SPEC_SCHEMAS = {
   flowchart: flowchartSpec2,
   mindmap: mindmapSpec,
   requirement: requirementSpec,
-  c4: c4Spec
+  c4: c4Spec,
+  package: packageSpec,
+  component: componentSpec,
+  deployment: deploymentSpec
 };
 function parseSpec(kind2, spec) {
   const result = safeParse(SPEC_SCHEMAS[kind2](), spec);
@@ -7432,54 +7964,6 @@ function parseSpec(kind2, spec) {
   }
   return result.data;
 }
-var Builder = class {
-  constructor(kind2) {
-    this.kind = kind2;
-  }
-  kind;
-  nodes = [];
-  edges = [];
-  byKey = /* @__PURE__ */ new Map();
-  node(node) {
-    if (this.byKey.has(node.key)) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `spec: ${node.key} is defined twice; give one of them another name or id`
-      );
-    }
-    const full = { width: 120, height: 60, ...node };
-    this.nodes.push(full);
-    this.byKey.set(full.key, full);
-    return full;
-  }
-  has(key) {
-    return this.byKey.has(key);
-  }
-  get(key) {
-    return this.byKey.get(key);
-  }
-  /** Ends are names as nodes are, so "a<br/>b" finds the node named "a\nb". */
-  edge(spec, where2) {
-    const edge = {
-      ...spec,
-      from: multiline(spec.from),
-      to: multiline(spec.to)
-    };
-    for (const end of [edge.from, edge.to]) {
-      if (!this.byKey.has(end)) {
-        throw new ApiError(
-          "INVALID_ARGUMENT",
-          `spec.${where2}: no node named ${end}`
-        );
-      }
-    }
-    this.edges.push(edge);
-  }
-  plan(fixed = false) {
-    return { kind: this.kind, nodes: this.nodes, edges: this.edges, fixed };
-  }
-};
-var str = (value) => multiline(typeof value === "string" ? value : value.name);
 var CLASS_TYPES = {
   class: "UMLClass",
   abstract: "UMLClass",
@@ -7589,7 +8073,7 @@ function classPlan(spec) {
       height: 40 + 14 * (attributes2.length + operations.length + (c.literals?.length ?? 0))
     });
   });
-  const nested = b.nodes.some((n) => n.container !== void 0);
+  const nested2 = b.nodes.some((n) => n.container !== void 0);
   (spec.relations ?? []).forEach((r, i) => {
     const type2 = r.type ?? "association";
     const ends2 = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
@@ -7614,7 +8098,7 @@ function classPlan(spec) {
       `relations.${i}`
     );
   });
-  return b.plan(nested);
+  return b.plan(nested2);
 }
 function viewProperties(kind2, attributes2) {
   if (kind2 === "interface") {
@@ -7919,9 +8403,9 @@ var ACTIVITY_TYPES = {
   join: ["UMLJoinNode", 120, 10],
   object: ["UMLObjectNode", 120, 50]
 };
-function nodeName(name2, key, named2) {
+function nodeName(name2, key, named3) {
   if (name2 !== void 0) return multiline(name2);
-  return named2 ? key : "";
+  return named3 ? key : "";
 }
 function activityPlan(spec) {
   const b = new Builder("activity");
@@ -7985,7 +8469,7 @@ var STATE_CREATE = {
 };
 function statemachinePlan(spec) {
   const b = new Builder("statemachine");
-  const nested = [];
+  const nested2 = [];
   (spec.states ?? []).forEach((s, i) => {
     const o = typeof s === "string" ? { name: s } : s;
     const type2 = o.type ?? "state";
@@ -8006,9 +8490,9 @@ function statemachinePlan(spec) {
       width: type2 === "state" ? Math.max(width, textWidth(name2) + 2 * LABEL_PADDING) : width,
       height: type2 === "state" ? Math.max(height, 30 + LINE_HEIGHT * lines.length) : height
     });
-    if (o.parent !== void 0) nested.push([key, multiline(o.parent), i]);
+    if (o.parent !== void 0) nested2.push([key, multiline(o.parent), i]);
   });
-  for (const [key, parent, i] of nested) {
+  for (const [key, parent, i] of nested2) {
     const outer = b.get(parent);
     if (outer?.type !== "UMLState" && outer?.type !== "UMLCompositeState") {
       throw new ApiError(
@@ -8019,7 +8503,7 @@ function statemachinePlan(spec) {
     outer.type = "UMLCompositeState";
     b.get(key).container = parent;
   }
-  for (const [key, , i] of nested) {
+  for (const [key, , i] of nested2) {
     const seen = /* @__PURE__ */ new Set();
     for (let k = key; k; k = b.get(k).container) {
       if (seen.has(k)) {
@@ -8059,16 +8543,10 @@ function statemachinePlan(spec) {
     );
   });
   return {
-    ...b.plan(nested.length > 0),
+    ...b.plan(nested2.length > 0),
     fit: true,
     ...widest > 0 && { edgeLabelWidth: widest }
   };
-}
-var LINE_HEIGHT = 16;
-var GLYPH_WIDTH = 7;
-var LABEL_PADDING = 20;
-function textWidth(text4) {
-  return GLYPH_WIDTH * Math.max(0, ...text4.split("\n").map((l) => l.length));
 }
 function parseColumn(source) {
   const words = source.trim().split(/\s+/);
@@ -8077,10 +8555,10 @@ function parseColumn(source) {
   const flags = new Set(rest.map((w) => w.toUpperCase()));
   const type2 = rest.find((w) => !/^(PK|FK|UK|UNIQUE|NULL|NOT)$/i.test(w));
   if (type2) {
-    const sized = /^([^(]+)\(([^)]*)\)$/.exec(type2);
-    if (sized) {
-      column.type = sized[1];
-      column.length = sized[2];
+    const sized2 = /^([^(]+)\(([^)]*)\)$/.exec(type2);
+    if (sized2) {
+      column.type = sized2[1];
+      column.length = sized2[2];
     } else {
       column.type = type2;
     }
@@ -8273,7 +8751,10 @@ var PLANNERS = {
   flowchart: flowchartPlan,
   mindmap: mindmapPlan,
   requirement: requirementPlan,
-  c4: c4Plan
+  c4: c4Plan,
+  package: packagePlan,
+  component: componentPlan,
+  deployment: deploymentPlan
 };
 var longHex = (color2) => color2.length === 4 ? `#${[...color2.slice(1)].map((c) => c + c).join("")}`.toLowerCase() : color2.toLowerCase();
 function decorate(plan, spec) {
@@ -10180,7 +10661,10 @@ var SHARED_KINDS = /* @__PURE__ */ new Set([
   "usecase",
   "erd",
   "requirement",
-  "c4"
+  "c4",
+  "package",
+  "component",
+  "deployment"
 ]);
 function atPath(model, path) {
   let e = model;
@@ -10355,6 +10839,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         ...node.owner !== void 0 && {
           parent: refs.get(node.owner).model
         },
+        ...node.host !== void 0 && {
+          container: refs.get(node.host).view
+        },
         // A note is a view without a model, so it takes neither.
         ...!note && { name: node.name },
         ...node.properties && { properties: node.properties },
@@ -10413,16 +10900,16 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       });
     }
   });
-  const nested = /* @__PURE__ */ new Map();
+  const nested2 = /* @__PURE__ */ new Map();
   for (const node of plan.nodes) {
     if (node.container === void 0) continue;
     if (!fresh.has(node.key) && !fresh.has(node.container)) continue;
-    nested.set(node.container, [
-      ...nested.get(node.container) ?? [],
+    nested2.set(node.container, [
+      ...nested2.get(node.container) ?? [],
       refs.get(node.key).view
     ]);
   }
-  for (const [container, views] of nested) {
+  for (const [container, views] of nested2) {
     ops.push({
       path: "/move_views",
       body: {
@@ -10566,9 +11053,10 @@ function frameOps(plan, diagram) {
 }
 var SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" };
 function defaultPreset(kind2, direction2) {
-  const family = kind2 === "class" ? "hierarchy" : "flow";
+  const family = kind2 === "class" || kind2 === "package" ? "hierarchy" : "flow";
   return `${family}-${SIDES[direction2]}`;
 }
+var defaultDirection = (kind2) => kind2 === "mindmap" ? "LR" : "TB";
 function findDiagram(kind2, name2, parent) {
   if (name2 === void 0) return null;
   return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name2 && within(d, parent)) ?? null;
@@ -10687,6 +11175,14 @@ var planSchema = () => object({
   updates: array(stepSchema()),
   deletes: array(stepSchema())
 });
+var RESULT_MODES = ["terse", "ids", "full"];
+var resultField = (description) => optional(doc(_enum(RESULT_MODES), description));
+function shaped(mode, ids2, edges) {
+  return {
+    ...mode !== void 0 && mode !== "terse" && { ids: ids2 },
+    ...mode === "full" && { edges }
+  };
+}
 function buildDiagramEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/build_diagram",
@@ -10775,6 +11271,9 @@ function buildDiagramEndpoint(endpoints2) {
           boolean2(),
           "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it."
         )
+      ),
+      result: resultField(
+        "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids."
       )
     }),
     aliases: { parentId: "parent" },
@@ -10810,16 +11309,23 @@ function buildDiagramEndpoint(endpoints2) {
         "engine: Format > Layout arranged it; placed: the computed placement stands."
       ),
       preset: optional(doc(string2(), "The layout preset applied.")),
-      ids: doc(
-        record(string2(), refSchema()),
-        "Model and view ids of each node, by its name (or id) in the spec."
+      ids: optional(
+        doc(
+          record(string2(), refSchema()),
+          "With result ids or full: model and view ids of each node, by its name (or id) in the spec."
+        )
       ),
-      edges: array(
-        object({
-          key: doc(string2(), "'from -> to'."),
-          model: nullable(string2()),
-          view: string2()
-        })
+      edges: optional(
+        doc(
+          array(
+            object({
+              key: doc(string2(), "'from -> to'."),
+              model: nullable(string2()),
+              view: string2()
+            })
+          ),
+          "With result full: each edge's model and view ids."
+        )
       ),
       dryRun: optional(doc(boolean2(), "Set when nothing was changed.")),
       plan: optional(doc(planSchema(), "With dryRun: what applying runs."))
@@ -10837,7 +11343,7 @@ function buildDiagramEndpoint(endpoints2) {
       const built = opsFor(
         plan,
         { diagram, parent, name: name2 },
-        direction2 ?? "TB",
+        direction2 ?? defaultDirection(kind2),
         input.autoLayout ?? true,
         input.layout,
         {
@@ -10875,12 +11381,15 @@ function buildDiagramEndpoint(endpoints2) {
           },
           ...summary,
           created: built.created.size + built.edgeOps.length,
-          ids: ids3,
-          edges: built.edgeOps.map(({ key, as }) => ({
-            key,
-            model: `$${as}.model`,
-            view: `$${as}.view`
-          })),
+          ...shaped(
+            input.result,
+            ids3,
+            built.edgeOps.map(({ key, as }) => ({
+              key,
+              model: `$${as}.model`,
+              view: `$${as}.view`
+            }))
+          ),
           dryRun: true,
           plan: planOf(built.ops)
         };
@@ -10888,7 +11397,7 @@ function buildDiagramEndpoint(endpoints2) {
       const batch = endpoints2().find((e) => e.path === "/batch");
       let data = { results: [] };
       if (built.ops.length > 0) {
-        const result = await batch.handler({ ops: built.ops });
+        const result = await batch.handler({ ops: built.ops, result: "full" });
         if (!result.success) {
           throw new ApiError(
             result.code,
@@ -10917,8 +11426,7 @@ function buildDiagramEndpoint(endpoints2) {
         diagram: { _id, _type, name: diagramName },
         ...summary,
         created: built.created.size + edges.length,
-        ids: ids2,
-        edges
+        ...shaped(input.result, ids2, edges)
       };
     }
   });
@@ -15552,23 +16060,23 @@ function classSpec2(v) {
   for (const edge of v.edges) {
     const m = edge.model;
     const t = typeOf(m);
-    const named2 = m.name ? { name: nameOf(m) } : {};
+    const named3 = m.name ? { name: nameOf(m) } : {};
     if (t === "UMLGeneralization" || t === "UMLInterfaceRealization") {
       relations.push({
         from: nameOf(m.source),
         to: nameOf(m.target),
         type: t === "UMLGeneralization" ? "generalization" : "realization",
-        ...named2
+        ...named3
       });
     } else if (t === "UMLDependency") {
       relations.push({
         from: nameOf(m.source),
         to: nameOf(m.target),
         type: "dependency",
-        ...named2
+        ...named3
       });
     } else if (t === "UMLAssociation") {
-      relations.push(association(m, named2));
+      relations.push(association(m, named3));
     } else {
       v.skip(edge);
     }
@@ -15580,7 +16088,7 @@ function classNotes(v) {
     (m) => m instanceof type.UMLClassifier ? nameOf(m) : void 0
   );
 }
-function association(m, named2) {
+function association(m, named3) {
   let [a, b] = [m.end1, m.end2];
   if (b.aggregation !== "none" && a.aggregation === "none") [a, b] = [b, a];
   const type2 = a.aggregation === "composite" ? "composition" : a.aggregation === "shared" ? "aggregation" : b.navigable === "navigable" && a.navigable !== "navigable" ? "directed" : "association";
@@ -15588,7 +16096,7 @@ function association(m, named2) {
     from: nameOf(a.reference),
     to: nameOf(b.reference),
     type: type2,
-    ...named2,
+    ...named3,
     ...str2(a.multiplicity) && { fromMultiplicity: str2(a.multiplicity) },
     ...str2(b.multiplicity) && { toMultiplicity: str2(b.multiplicity) }
   };
@@ -15997,6 +16505,149 @@ function c4Spec2(v) {
   }
   return { elements, relations };
 }
+var stereotypeOf = (m) => typeof m.stereotype === "string" ? m.stereotype : m.stereotype && typeof m.stereotype === "object" ? nameOf(m.stereotype) : "";
+var withStereotype = (m) => stereotypeOf(m) ? { stereotype: stereotypeOf(m) } : {};
+var named2 = (m) => m.name ? { name: nameOf(m) } : {};
+function shownParent(m, shown) {
+  return m._parent && shown.has(m._parent) ? { parent: nameOf(m._parent) } : {};
+}
+var PACKAGE_STEREOTYPES = /* @__PURE__ */ new Set(["import", "access", "merge", "use"]);
+function packageSpec2(v) {
+  const shown = /* @__PURE__ */ new Set();
+  for (const view of v.nodes) {
+    if (typeOf(view.model) === "UMLPackage") shown.add(view.model);
+    else v.skip(view);
+  }
+  const dependencies = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    if (typeOf(m) !== "UMLDependency") {
+      v.skip(edge);
+      continue;
+    }
+    const stereotype = stereotypeOf(m);
+    dependencies.push({
+      from: nameOf(m.source),
+      to: nameOf(m.target),
+      type: PACKAGE_STEREOTYPES.has(stereotype) ? stereotype : "dependency",
+      ...named2(m)
+    });
+  }
+  return {
+    packages: [...shown].map((m) => ({
+      name: nameOf(m),
+      ...shownParent(m, shown),
+      ...withStereotype(m)
+    })),
+    dependencies
+  };
+}
+function componentSpec2(v) {
+  const components = /* @__PURE__ */ new Map();
+  const interfaces = [];
+  for (const view of v.nodes) {
+    const m = view.model;
+    const t = typeOf(m);
+    if (t === "UMLComponent") {
+      components.set(m, {
+        name: nameOf(m),
+        ...withStereotype(m),
+        ports: [],
+        provides: [],
+        requires: []
+      });
+    } else if (t === "UMLInterface") {
+      interfaces.push(nameOf(m));
+    } else if (t !== "UMLPort") {
+      v.skip(view);
+    }
+  }
+  for (const view of v.nodes) {
+    const m = view.model;
+    if (typeOf(m) === "UMLPort") {
+      const owner = components.get(m._parent);
+      if (owner) owner.ports.push(nameOf(m));
+      else v.skip(view);
+    }
+  }
+  const port = (p) => `${nameOf(p._parent)}.${nameOf(p)}`;
+  const connectors = [];
+  const dependencies = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    const t = typeOf(m);
+    const { tail, head } = ends(edge);
+    const from = components.get(tail);
+    if (t === "UMLInterfaceRealization" && from) {
+      from.provides.push(nameOf(head));
+    } else if (t === "UMLDependency" && from && typeOf(head) === "UMLInterface") {
+      from.requires.push(nameOf(head));
+    } else if (t === "UMLDependency") {
+      dependencies.push({ from: nameOf(tail), to: nameOf(head), ...named2(m) });
+    } else if (t === "UMLConnector") {
+      connectors.push({ from: port(tail), to: port(head), ...named2(m) });
+    } else {
+      v.skip(edge);
+    }
+  }
+  return {
+    components: [...components.values()],
+    interfaces,
+    connectors,
+    dependencies
+  };
+}
+function deploymentSpec2(v) {
+  const nodes = /* @__PURE__ */ new Map();
+  const artifacts = /* @__PURE__ */ new Map();
+  const components = [];
+  const shownNodes = new Set(
+    v.nodes.map((n) => n.model).filter((m) => typeOf(m) === "UMLNode")
+  );
+  for (const view of v.nodes) {
+    const m = view.model;
+    const t = typeOf(m);
+    if (t === "UMLNode") {
+      nodes.set(m, {
+        name: nameOf(m),
+        ...withStereotype(m),
+        ...shownParent(m, shownNodes),
+        deploys: []
+      });
+    } else if (t === "UMLArtifact") {
+      artifacts.set(m, {
+        name: nameOf(m),
+        ...withStereotype(m),
+        manifests: []
+      });
+    } else if (t === "UMLComponent") {
+      components.push(nameOf(m));
+    } else {
+      v.skip(view);
+    }
+  }
+  const paths = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    const t = typeOf(m);
+    const { tail, head } = ends(edge);
+    if (t === "UMLDeployment" && nodes.has(head)) {
+      nodes.get(head).deploys.push(nameOf(tail));
+    } else if (t === "UMLDependency" && stereotypeOf(m) === "manifest" && artifacts.has(tail)) {
+      artifacts.get(tail).manifests.push(nameOf(head));
+    } else if (t === "UMLCommunicationPath") {
+      paths.push({ from: nameOf(tail), to: nameOf(head), ...named2(m) });
+    } else {
+      v.skip(edge);
+    }
+  }
+  return {
+    nodes: [...nodes.values()],
+    artifacts: [...artifacts.values()],
+    components,
+    paths
+  };
+}
 function extract(diagram, kind2) {
   const nodes = nodeViews(diagram);
   const edges = edgeViews(diagram);
@@ -16032,6 +16683,12 @@ function extract(diagram, kind2) {
         return { kind: kind2, spec: requirementSpec2(v, owned) };
       case "c4":
         return { kind: kind2, spec: c4Spec2(v) };
+      case "package":
+        return { kind: kind2, spec: packageSpec2(v) };
+      case "component":
+        return { kind: kind2, spec: componentSpec2(v) };
+      case "deployment":
+        return { kind: kind2, spec: deploymentSpec2(v) };
       default:
         return { kind: kind2, spec: mindmapSpec2(v) };
     }
@@ -16451,6 +17108,7 @@ function requirementDiagram2(spec) {
 function c4(spec) {
   return [`C4${c4Level(spec)}`, ...c4Macros(spec).map((l) => `  ${l}`)];
 }
+var NO_MERMAID = ["package", "component", "deployment"];
 function toMermaid(x, title = "") {
   const front = title ? ["---", `title: "${text3(title)}"`, "---"] : [];
   const done = (lines, warnings = []) => ({
@@ -16693,15 +17351,15 @@ function stateDiagram4(spec, direction2, notes) {
   const block = (parent, indent) => {
     for (const s of spec.states) {
       if (s.parent !== parent) continue;
-      const nested = spec.states.some((c) => c.parent === s.id);
+      const nested2 = spec.states.some((c) => c.parent === s.id);
       if (s.type === "state") {
         lines.push(
-          `${indent}state ${q(s.name || s.id)} as ${s.id}${nested ? " {" : ""}`
+          `${indent}state ${q(s.name || s.id)} as ${s.id}${nested2 ? " {" : ""}`
         );
       } else if (STEREOTYPES.has(s.type)) {
         lines.push(`${indent}state ${s.id} <<${s.type}>>`);
       }
-      if (nested) {
+      if (nested2) {
         block(s.id, `${indent}  `);
         lines.push(`${indent}}`);
       }
@@ -16814,6 +17472,126 @@ function requirementDiagram3(spec) {
 function c42(spec) {
   return [`!include <C4/C4_${c4Level(spec)}>`, ...c4Macros(spec)];
 }
+var stereo = (s) => s ? ` <<${s}>>` : "";
+function writtenOrder(items2) {
+  const out = [];
+  const visit = (parent) => {
+    for (const item of items2.filter((i) => i.parent === parent)) {
+      out.push(item);
+      visit(item.name);
+    }
+  };
+  visit(void 0);
+  return out;
+}
+function nested(items2, write) {
+  const lines = [];
+  const visit = (parent, indent) => {
+    for (const item of items2.filter((i) => i.parent === parent)) {
+      const inner = items2.some((i) => i.parent === item.name);
+      lines.push(`${indent}${write(item)}${inner ? " {" : ""}`);
+      if (inner) {
+        visit(item.name, `${indent}  `);
+        lines.push(`${indent}}`);
+      }
+    }
+  };
+  visit(void 0, "");
+  return lines;
+}
+function packageDiagram(spec) {
+  const id2 = aliases(
+    writtenOrder(spec.packages).map((p) => p.name),
+    "P"
+  );
+  return [
+    ...nested(
+      spec.packages,
+      (p) => `package ${q(p.name)} as ${id2(p.name)}${stereo(p.stereotype)}`
+    ),
+    ...spec.dependencies.map((d) => {
+      const label4 = [
+        d.type === "dependency" ? "" : `<<${d.type}>>`,
+        d.name ? one(d.name) : ""
+      ].filter(Boolean).join(" ");
+      return `${id2(d.from)} ..> ${id2(d.to)}${label4 ? ` : ${label4}` : ""}`;
+    })
+  ];
+}
+function componentDiagram(spec) {
+  const id2 = aliases(
+    [...spec.components.map((c) => c.name), ...spec.interfaces],
+    "C"
+  );
+  const port = (ref3) => {
+    const dot = ref3.indexOf(".");
+    const owner = ref3.slice(0, dot);
+    const c = spec.components.find((k) => k.name === owner);
+    return `${id2(owner)}_${c.ports.indexOf(ref3.slice(dot + 1))}`;
+  };
+  const lines = [];
+  for (const c of spec.components) {
+    const head = `component ${q(c.name)} as ${id2(c.name)}${stereo(c.stereotype)}`;
+    if (c.ports.length === 0) {
+      lines.push(head);
+      continue;
+    }
+    lines.push(`${head} {`);
+    c.ports.forEach(
+      (p, i) => lines.push(`  port ${q(p)} as ${id2(c.name)}_${i}`)
+    );
+    lines.push("}");
+  }
+  for (const i of spec.interfaces) lines.push(`interface ${q(i)} as ${id2(i)}`);
+  for (const c of spec.components) {
+    for (const i of c.provides) lines.push(`${id2(c.name)} - ${id2(i)}`);
+    for (const i of c.requires) lines.push(`${id2(c.name)} ..> ${id2(i)} : use`);
+  }
+  for (const k of spec.connectors) {
+    lines.push(
+      `${port(k.from)} -- ${port(k.to)}${k.name ? ` : ${one(k.name)}` : ""}`
+    );
+  }
+  for (const d of spec.dependencies) {
+    lines.push(
+      `${id2(d.from)} ..> ${id2(d.to)}${d.name ? ` : ${one(d.name)}` : ""}`
+    );
+  }
+  return lines;
+}
+function deploymentDiagram(spec) {
+  const id2 = aliases(
+    [
+      ...writtenOrder(spec.nodes).map((n) => n.name),
+      ...spec.artifacts.map((a) => a.name),
+      ...spec.components
+    ],
+    "D"
+  );
+  const lines = nested(
+    spec.nodes,
+    (n) => `node ${q(n.name)} as ${id2(n.name)}${stereo(n.stereotype)}`
+  );
+  for (const a of spec.artifacts) {
+    lines.push(`artifact ${q(a.name)} as ${id2(a.name)}${stereo(a.stereotype)}`);
+  }
+  for (const c of spec.components) lines.push(`component ${q(c)} as ${id2(c)}`);
+  for (const n of spec.nodes) {
+    for (const a of n.deploys)
+      lines.push(`${id2(a)} ..> ${id2(n.name)} : <<deploy>>`);
+  }
+  for (const a of spec.artifacts) {
+    for (const c of a.manifests) {
+      lines.push(`${id2(a.name)} ..> ${id2(c)} : <<manifest>>`);
+    }
+  }
+  for (const p of spec.paths) {
+    lines.push(
+      `${id2(p.from)} -- ${id2(p.to)}${p.name ? ` : ${one(p.name)}` : ""}`
+    );
+  }
+  return lines;
+}
 function toPlantUml(x, title = "") {
   const done = (lines, warnings = [], start = "@startuml", end = "@enduml") => ({
     text: `${[start, ...title ? [`title ${one(title)}`] : [], ...lines, end].join("\n")}
@@ -16846,6 +17624,12 @@ function toPlantUml(x, title = "") {
       return done(requirementDiagram3(x.spec));
     case "c4":
       return done(c42(x.spec));
+    case "package":
+      return done(packageDiagram(x.spec));
+    case "component":
+      return done(componentDiagram(x.spec));
+    case "deployment":
+      return done(deploymentDiagram(x.spec));
     default:
       return done(mindmap4(x.spec.roots), [], "@startmindmap", "@endmindmap");
   }
@@ -16854,7 +17638,7 @@ function toPlantUml(x, title = "") {
 // src/handlers/export-text.ts
 var exportText = defineEndpoint({
   path: "/export_text",
-  description: "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart and mind map diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+  description: "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, and as PlantUML only package, component and deployment diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
   readOnly: true,
   destructive: false,
   request: object({
@@ -16888,10 +17672,15 @@ var exportText = defineEndpoint({
         `${diagram.constructor.name} cannot be written as text; supported: ${KINDS.join(", ")} diagrams`
       );
     }
+    if (input.format === "mermaid" && NO_MERMAID.includes(kind2)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `Mermaid has no ${kind2} diagram; export it as plantuml`
+      );
+    }
     const { extracted, warnings } = extract(diagram, kind2);
     const { _id, _type, name: name2 } = summarize(diagram);
-    const write = input.format === "mermaid" ? toMermaid : toPlantUml;
-    const out = write(extracted, diagram.name);
+    const out = input.format === "mermaid" ? toMermaid(extracted, diagram.name) : toPlantUml(extracted, diagram.name);
     return {
       diagram: { _id, _type, name: name2 },
       kind: kind2,

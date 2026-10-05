@@ -21323,7 +21323,7 @@
     },
     {
       "path": "/export_text",
-      "description": "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart and mind map diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+      "description": "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, and as PlantUML only package, component and deployment diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
       "readOnly": true,
       "destructive": false,
       "request": {
@@ -21376,7 +21376,10 @@
               "flowchart",
               "mindmap",
               "requirement",
-              "c4"
+              "c4",
+              "package",
+              "component",
+              "deployment"
             ],
             "description": "The /build_diagram kind; use case and activity diagrams are written as Mermaid flowcharts and need it to be built again."
           },
@@ -21644,7 +21647,7 @@
     },
     {
       "path": "/batch",
-      "description": "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each.",
+      "description": "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each. result picks how much of each answer comes back: terse ids by default, ids, or full.",
       "readOnly": false,
       "destructive": true,
       "request": {
@@ -21681,6 +21684,11 @@
           "atomic": {
             "type": "boolean",
             "description": "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
+          },
+          "result": {
+            "type": "string",
+            "enum": ["terse", "ids", "full"],
+            "description": "terse (default): each op's success and the id it made or acted on. ids: each op's ids ({_id}, or {view, model} for a create with view). full: each op's whole answer. Failed ops always carry code, error and details."
           }
         },
         "required": ["ops"]
@@ -21710,7 +21718,13 @@
                 "path": { "type": "string" },
                 "as": { "type": "string" },
                 "success": { "type": "boolean" },
-                "data": { "description": "The op's response data." },
+                "id": {
+                  "type": "string",
+                  "description": "result terse: the id of what the op made or acted on (its model, for a model with a view)."
+                },
+                "data": {
+                  "description": "result full: the op's response data; result ids: its ids only."
+                },
                 "code": { "type": "string" },
                 "error": { "type": "string" },
                 "details": {}
@@ -21746,7 +21760,10 @@
               "flowchart",
               "mindmap",
               "requirement",
-              "c4"
+              "c4",
+              "package",
+              "component",
+              "deployment"
             ],
             "description": "Diagram kind; required with spec. With text it is read from the source; 'activity' or 'usecase' reads a Mermaid flowchart as that kind, 'erd' JSON Schema as an ERD, and any kind picks the PlantUML reader."
           },
@@ -21823,6 +21840,11 @@
           "showNamespace": {
             "type": "boolean",
             "description": "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it."
+          },
+          "result": {
+            "type": "string",
+            "enum": ["terse", "ids", "full"],
+            "description": "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids."
           },
           "parentId": {
             "type": "string",
@@ -21914,7 +21936,7 @@
               "required": ["model", "view"],
               "additionalProperties": false
             },
-            "description": "Model and view ids of each node, by its name (or id) in the spec."
+            "description": "With result ids or full: model and view ids of each node, by its name (or id) in the spec."
           },
           "edges": {
             "type": "array",
@@ -21927,7 +21949,8 @@
               },
               "required": ["key", "model", "view"],
               "additionalProperties": false
-            }
+            },
+            "description": "With result full: each edge's model and view ids."
           },
           "dryRun": {
             "type": "boolean",
@@ -22015,9 +22038,7 @@
           "created",
           "updated",
           "unchanged",
-          "layout",
-          "ids",
-          "edges"
+          "layout"
         ],
         "additionalProperties": false
       }
@@ -22554,7 +22575,10 @@
               "flowchart",
               "mindmap",
               "requirement",
-              "c4"
+              "c4",
+              "package",
+              "component",
+              "deployment"
             ],
             "description": "Diagram kind; required with spec, else read from text."
           },

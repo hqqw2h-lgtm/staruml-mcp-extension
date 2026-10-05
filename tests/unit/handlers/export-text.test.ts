@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import cases from "../../fixtures/build/cases.json";
+import { NO_MERMAID } from "../../../src/text/mermaid-writer.js";
 import { exportText } from "../../../src/handlers/export-text.js";
 import { endpoints } from "../../../src/routes.js";
 import {
@@ -7,7 +8,7 @@ import {
   type MockElement,
   type MockEnvironment,
 } from "../../mock/staruml.js";
-import { fails, ok } from "../support.js";
+import { fails, fullResults, ok } from "../support.js";
 
 let env: MockEnvironment;
 
@@ -15,7 +16,7 @@ beforeEach(() => {
   env = installMockApp();
 });
 
-const build = endpoints.find((e) => e.path === "/build_diagram")!;
+const build = fullResults(endpoints.find((e) => e.path === "/build_diagram")!);
 
 interface Built {
   diagram: { _id: string };
@@ -49,6 +50,24 @@ describe("/export_text per kind", () => {
     "%s round-trips through Mermaid and writes PlantUML",
     async (label, body) => {
       const built = await ok<Built>(build, body as Record<string, unknown>);
+      if ((NO_MERMAID as readonly string[]).includes(built.kind)) {
+        // PlantUML only: Mermaid has no package, component or deployment
+        // diagram.
+        await fails(
+          exportText,
+          { diagram: built.diagram._id, format: "mermaid" },
+          "INVALID_ARGUMENT",
+        );
+        const plantuml = await ok<Exported>(exportText, {
+          diagram: built.diagram._id,
+          format: "plantuml",
+        });
+        expect(plantuml.warnings).toEqual([]);
+        await expect(plantuml.text).toMatchFileSnapshot(
+          `../../fixtures/export/${label}.puml`,
+        );
+        return;
+      }
       const mermaid = await ok<Exported>(exportText, {
         diagramId: built.diagram._id,
         format: "mermaid",
@@ -372,13 +391,23 @@ describe("/export_text details", () => {
   it("refuses diagrams it has no text form for", async () => {
     const d = await ok<{ _id: string }>(
       endpoints.find((e) => e.path === "/create_diagram")!,
-      { type: "UMLComponentDiagram", parentId: env.model._id },
+      { type: "UMLObjectDiagram", parentId: env.model._id },
     );
     await fails(
       exportText,
       { diagramId: d._id, format: "mermaid" },
       "INVALID_ARGUMENT",
-      /^UMLComponentDiagram cannot be written as text; supported: class, /,
+      /^UMLObjectDiagram cannot be written as text; supported: class, /,
+    );
+    const component = await ok<{ _id: string }>(
+      endpoints.find((e) => e.path === "/create_diagram")!,
+      { type: "UMLComponentDiagram", parentId: env.model._id },
+    );
+    await fails(
+      exportText,
+      { diagram: component._id, format: "mermaid" },
+      "INVALID_ARGUMENT",
+      "Mermaid has no component diagram; export it as plantuml",
     );
     await fails(
       exportText,
@@ -514,6 +543,75 @@ describe("/export_text requirement and C4 extraction", () => {
       "1 C4Element view is not written",
       "1 C4Relationship view is not written",
       "1 UMLDependency view is not written",
+    ]);
+  });
+});
+
+describe("/export_text package, component and deployment details (#35)", () => {
+  it("skips what a package diagram does not hold and reads stereotype elements", async () => {
+    const built = await ok<Ids>(build, {
+      kind: "package",
+      spec: { packages: ["A", "B"], dependencies: [{ from: "A", to: "B" }] },
+    });
+    const d = built.diagram._id;
+    const a = view(built.ids.A!.view);
+    const b = view(built.ids.B!.view);
+    add(d, "UMLClass", "Stray", { x: 400, y: 400 });
+    add(d, "UMLGeneralization", "", { x: 0, y: 0, tail: a, head: b });
+    // A stereotype may be a profile's element rather than text.
+    const profile = env.app.repository.get(built.ids.A!.model)!;
+    profile.stereotype = { name: "layer" } as unknown as MockElement;
+    const out = await text(d, "plantuml");
+    expect(out.text).toContain('package "A" as P0 <<layer>>');
+    expect(out.warnings).toEqual([
+      "1 UMLClass view is not written",
+      "1 UMLGeneralization view is not written",
+    ]);
+  });
+
+  it("skips ports of components not shown and edges it has no form for", async () => {
+    const built = await ok<Ids>(build, {
+      kind: "component",
+      spec: {
+        components: [{ name: "A", ports: ["p"] }, "B"],
+        interfaces: ["I"],
+      },
+    });
+    const d = built.diagram._id;
+    const a = view(built.ids.A!.view);
+    const i = view(built.ids.I!.view);
+    // The port's component no longer shown here.
+    env.app.engine.deleteElements([], [a]);
+    const b = view(built.ids.B!.view);
+    add(d, "UMLClass", "Stray", { x: 400, y: 400 });
+    add(d, "UMLGeneralization", "", { x: 0, y: 0, tail: b, head: i });
+    add(d, "UMLInterfaceRealization", "", { x: 0, y: 0, tail: i, head: b });
+    const out = await text(d, "plantuml");
+    expect(out.warnings).toEqual([
+      "1 UMLClass view is not written",
+      "1 UMLPort view is not written",
+      "1 UMLGeneralization view is not written",
+      "1 UMLInterfaceRealization view is not written",
+    ]);
+  });
+
+  it("skips deployment views and edges it has no form for", async () => {
+    const built = await ok<Ids>(build, {
+      kind: "deployment",
+      spec: { nodes: ["N"], artifacts: ["a"], components: ["C"] },
+    });
+    const d = built.diagram._id;
+    const n = view(built.ids.N!.view);
+    const art = view(built.ids.a!.view);
+    const c = view(built.ids.C!.view);
+    add(d, "UMLClass", "Stray", { x: 400, y: 400 });
+    add(d, "UMLDependency", "", { x: 0, y: 0, tail: n, head: c });
+    add(d, "UMLDeployment", "", { x: 0, y: 0, tail: art, head: c });
+    const out = await text(d, "plantuml");
+    expect(out.warnings).toEqual([
+      "1 UMLClass view is not written",
+      "1 UMLDependency view is not written",
+      "1 UMLDeployment view is not written",
     ]);
   });
 });

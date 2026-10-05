@@ -45,6 +45,21 @@ describeLive("/export_text", () => {
       );
       expect(built.success, JSON.stringify(built)).toBe(true);
       const id = built.data.diagram._id;
+      if (["package", "component", "deployment"].includes(built.data.kind)) {
+        // Mermaid has no such diagram; PlantUML writes them (issue #35).
+        const refused = await call("/export_text", {
+          diagram: id,
+          format: "mermaid",
+        });
+        expect(refused.code).toBe("INVALID_ARGUMENT");
+        const plantuml = await call<Exported>("/export_text", {
+          diagram: id,
+          format: "plantuml",
+        });
+        expect(plantuml.data.warnings).toEqual([]);
+        expect(plantuml.data.text).toMatch(/^@startuml\n[\s\S]+\n@enduml\n$/);
+        return;
+      }
       const mermaid = await call<Exported>("/export_text", {
         diagramId: id,
         format: "mermaid",

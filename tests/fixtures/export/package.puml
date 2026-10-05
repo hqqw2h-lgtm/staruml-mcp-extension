@@ -1,0 +1,13 @@
+@startuml
+title Layers
+package "Web" as P0
+package "Domain" as P1 <<layer>> {
+  package "Model" as P2
+  package "Services" as P3
+}
+package "Persistence" as P4
+P0 ..> P3 : <<use>>
+P3 ..> P2 : <<import>>
+P4 ..> P2 : <<access>>
+P0 ..> P4
+@enduml

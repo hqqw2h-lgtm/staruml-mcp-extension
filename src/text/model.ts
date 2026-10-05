@@ -184,6 +184,36 @@ export interface C4Spec {
   }[];
 }
 
+export interface PackageSpec {
+  packages: { name: string; parent?: string; stereotype?: string }[];
+  dependencies: { from: string; to: string; type: string; name?: string }[];
+}
+
+export interface ComponentSpec {
+  components: {
+    name: string;
+    stereotype?: string;
+    ports: string[];
+    provides: string[];
+    requires: string[];
+  }[];
+  interfaces: string[];
+  connectors: { from: string; to: string; name?: string }[];
+  dependencies: { from: string; to: string; name?: string }[];
+}
+
+export interface DeploymentSpec {
+  nodes: {
+    name: string;
+    stereotype?: string;
+    parent?: string;
+    deploys: string[];
+  }[];
+  artifacts: { name: string; stereotype?: string; manifests: string[] }[];
+  components: string[];
+  paths: { from: string; to: string; name?: string }[];
+}
+
 export type Extracted =
   | { kind: "class"; spec: ClassSpec; notes?: NoteSpec[] }
   | { kind: "sequence"; spec: SequenceSpec; notes?: NoteSpec[] }
@@ -199,7 +229,10 @@ export type Extracted =
   | { kind: "flowchart"; spec: FlowchartSpec; direction: Direction }
   | { kind: "mindmap"; spec: { roots: MindNode[] } }
   | { kind: "requirement"; spec: RequirementSpec }
-  | { kind: "c4"; spec: C4Spec };
+  | { kind: "c4"; spec: C4Spec }
+  | { kind: "package"; spec: PackageSpec }
+  | { kind: "component"; spec: ComponentSpec }
+  | { kind: "deployment"; spec: DeploymentSpec };
 
 const typeOf = (elem: Element) => elem.constructor.name;
 /** Every model element has a name, "" when unnamed (core/core.js). */
@@ -878,6 +911,173 @@ function c4Spec(v: Views): C4Spec {
   return { elements, relations };
 }
 
+/** A stereotype written as text, or a stereotype element's name. */
+const stereotypeOf = (m: Element) =>
+  typeof m.stereotype === "string"
+    ? m.stereotype
+    : m.stereotype && typeof m.stereotype === "object"
+      ? nameOf(m.stereotype as Element)
+      : "";
+
+const withStereotype = (m: Element) =>
+  stereotypeOf(m) ? { stereotype: stereotypeOf(m) } : {};
+
+const named = (m: Element) => (m.name ? { name: nameOf(m) } : {});
+
+/** The model of the shown element `m` is nested in, when that is shown too. */
+function shownParent(m: Element, shown: ReadonlySet<Element>) {
+  return m._parent && shown.has(m._parent) ? { parent: nameOf(m._parent) } : {};
+}
+
+const PACKAGE_STEREOTYPES = new Set(["import", "access", "merge", "use"]);
+
+function packageSpec(v: Views): PackageSpec {
+  const shown = new Set<Element>();
+  for (const view of v.nodes) {
+    if (typeOf(view.model!) === "UMLPackage") shown.add(view.model!);
+    else v.skip(view);
+  }
+  const dependencies: PackageSpec["dependencies"] = [];
+  for (const edge of v.edges) {
+    const m = edge.model!;
+    if (typeOf(m) !== "UMLDependency") {
+      v.skip(edge);
+      continue;
+    }
+    const stereotype = stereotypeOf(m);
+    dependencies.push({
+      from: nameOf(m.source as Element),
+      to: nameOf(m.target as Element),
+      type: PACKAGE_STEREOTYPES.has(stereotype) ? stereotype : "dependency",
+      ...named(m),
+    });
+  }
+  return {
+    packages: [...shown].map((m) => ({
+      name: nameOf(m),
+      ...shownParent(m, shown),
+      ...withStereotype(m),
+    })),
+    dependencies,
+  };
+}
+
+function componentSpec(v: Views): ComponentSpec {
+  const components = new Map<Element, ComponentSpec["components"][number]>();
+  const interfaces: string[] = [];
+  for (const view of v.nodes) {
+    const m = view.model!;
+    const t = typeOf(m);
+    if (t === "UMLComponent") {
+      components.set(m, {
+        name: nameOf(m),
+        ...withStereotype(m),
+        ports: [],
+        provides: [],
+        requires: [],
+      });
+    } else if (t === "UMLInterface") {
+      interfaces.push(nameOf(m));
+    } else if (t !== "UMLPort") {
+      v.skip(view);
+    }
+  }
+  for (const view of v.nodes) {
+    const m = view.model!;
+    if (typeOf(m) === "UMLPort") {
+      const owner = components.get(m._parent!);
+      if (owner) owner.ports.push(nameOf(m));
+      else v.skip(view);
+    }
+  }
+  const port = (p: Element) => `${nameOf(p._parent!)}.${nameOf(p)}`;
+  const connectors: ComponentSpec["connectors"] = [];
+  const dependencies: ComponentSpec["dependencies"] = [];
+  for (const edge of v.edges) {
+    const m = edge.model!;
+    const t = typeOf(m);
+    const { tail, head } = ends(edge);
+    const from = components.get(tail);
+    if (t === "UMLInterfaceRealization" && from) {
+      from.provides.push(nameOf(head));
+    } else if (
+      t === "UMLDependency" &&
+      from &&
+      typeOf(head) === "UMLInterface"
+    ) {
+      from.requires.push(nameOf(head));
+    } else if (t === "UMLDependency") {
+      dependencies.push({ from: nameOf(tail), to: nameOf(head), ...named(m) });
+    } else if (t === "UMLConnector") {
+      connectors.push({ from: port(tail), to: port(head), ...named(m) });
+    } else {
+      v.skip(edge);
+    }
+  }
+  return {
+    components: [...components.values()],
+    interfaces,
+    connectors,
+    dependencies,
+  };
+}
+
+function deploymentSpec(v: Views): DeploymentSpec {
+  const nodes = new Map<Element, DeploymentSpec["nodes"][number]>();
+  const artifacts = new Map<Element, DeploymentSpec["artifacts"][number]>();
+  const components: string[] = [];
+  const shownNodes = new Set(
+    v.nodes.map((n) => n.model!).filter((m) => typeOf(m) === "UMLNode"),
+  );
+  for (const view of v.nodes) {
+    const m = view.model!;
+    const t = typeOf(m);
+    if (t === "UMLNode") {
+      nodes.set(m, {
+        name: nameOf(m),
+        ...withStereotype(m),
+        ...shownParent(m, shownNodes),
+        deploys: [],
+      });
+    } else if (t === "UMLArtifact") {
+      artifacts.set(m, {
+        name: nameOf(m),
+        ...withStereotype(m),
+        manifests: [],
+      });
+    } else if (t === "UMLComponent") {
+      components.push(nameOf(m));
+    } else {
+      v.skip(view);
+    }
+  }
+  const paths: DeploymentSpec["paths"] = [];
+  for (const edge of v.edges) {
+    const m = edge.model!;
+    const t = typeOf(m);
+    const { tail, head } = ends(edge);
+    if (t === "UMLDeployment" && nodes.has(head)) {
+      nodes.get(head)!.deploys.push(nameOf(tail));
+    } else if (
+      t === "UMLDependency" &&
+      stereotypeOf(m) === "manifest" &&
+      artifacts.has(tail)
+    ) {
+      artifacts.get(tail)!.manifests.push(nameOf(head));
+    } else if (t === "UMLCommunicationPath") {
+      paths.push({ from: nameOf(tail), to: nameOf(head), ...named(m) });
+    } else {
+      v.skip(edge);
+    }
+  }
+  return {
+    nodes: [...nodes.values()],
+    artifacts: [...artifacts.values()],
+    components,
+    paths,
+  };
+}
+
 /** The spec of `diagram`'s kind with a warning per kind of view left out. */
 export function extract(
   diagram: Element,
@@ -918,6 +1118,12 @@ export function extract(
         return { kind, spec: requirementSpec(v, owned) };
       case "c4":
         return { kind, spec: c4Spec(v) };
+      case "package":
+        return { kind, spec: packageSpec(v) };
+      case "component":
+        return { kind, spec: componentSpec(v) };
+      case "deployment":
+        return { kind, spec: deploymentSpec(v) };
       default:
         return { kind, spec: mindmapSpec(v) };
     }

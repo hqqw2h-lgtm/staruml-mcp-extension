@@ -21,103 +21,84 @@
   },
   {
    "_id": "#3",
-   "_type": "MMMindmapDiagram",
-   "name": "Ideas",
+   "_type": "UMLPackageDiagram",
+   "name": "Layers",
    "ownedElements": [],
    "ownedViews": [
     {
      "_id": "#4",
-     "_type": "MMNodeView",
+     "_type": "UMLPackageView",
      "model": {
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 20,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 60,
+     "top": 130,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
     },
     {
      "_id": "#6",
-     "_type": "MMNodeView",
+     "_type": "UMLPackageView",
      "model": {
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 170,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 300,
+     "top": 40,
+     "width": 200,
+     "height": 240,
+     "showNamespace": false
     },
     {
      "_id": "#8",
-     "_type": "MMNodeView",
+     "_type": "UMLPackageView",
      "model": {
       "$ref": "#9"
      },
-     "containerView": null,
+     "containerView": {
+      "$ref": "#6"
+     },
      "left": 320,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "top": 200,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
     },
     {
      "_id": "#10",
-     "_type": "MMNodeView",
+     "_type": "UMLPackageView",
      "model": {
       "$ref": "#11"
      },
-     "containerView": null,
-     "left": 470,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 320,
+     "top": 80,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
     },
     {
      "_id": "#12",
-     "_type": "MMNodeView",
+     "_type": "UMLPackageView",
      "model": {
       "$ref": "#13"
      },
      "containerView": null,
-     "left": 620,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 60,
+     "top": 430,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
     },
     {
      "_id": "#14",
-     "_type": "MMEdgeView",
+     "_type": "UMLDependencyView",
      "model": {
       "$ref": "#15"
-     },
-     "containerView": null,
-     "head": {
-      "$ref": "#6"
-     },
-     "tail": {
-      "$ref": "#4"
-     }
-    },
-    {
-     "_id": "#16",
-     "_type": "MMEdgeView",
-     "model": {
-      "$ref": "#17"
-     },
-     "containerView": null,
-     "head": {
-      "$ref": "#8"
-     },
-     "tail": {
-      "$ref": "#6"
-     }
-    },
-    {
-     "_id": "#18",
-     "_type": "MMEdgeView",
-     "model": {
-      "$ref": "#19"
      },
      "containerView": null,
      "head": {
@@ -128,8 +109,36 @@
      }
     },
     {
+     "_id": "#16",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
      "_id": "#20",
-     "_type": "MMEdgeView",
+     "_type": "UMLDependencyView",
      "model": {
       "$ref": "#21"
      },
@@ -145,61 +154,48 @@
   },
   {
    "_id": "#5",
-   "_type": "MMNode",
-   "name": "Shop",
-   "ownedElements": []
+   "_type": "UMLPackage",
+   "name": "Web",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
   },
   {
    "_id": "#7",
-   "_type": "MMNode",
-   "name": "Catalog",
-   "ownedElements": []
-  },
-  {
-   "_id": "#9",
-   "_type": "MMNode",
-   "name": "Search",
-   "ownedElements": []
-  },
-  {
-   "_id": "#11",
-   "_type": "MMNode",
-   "name": "Cart",
-   "ownedElements": []
+   "_type": "UMLPackage",
+   "name": "Domain",
+   "ownedElements": [
+    {
+     "_id": "#9",
+     "_type": "UMLPackage",
+     "name": "Model",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLPackage",
+     "name": "Services",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public"
+    }
+   ],
+   "stereotype": "layer",
+   "visibility": "public"
   },
   {
    "_id": "#13",
-   "_type": "MMNode",
-   "name": "Pay",
-   "ownedElements": []
+   "_type": "UMLPackage",
+   "name": "Persistence",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
   },
   {
    "_id": "#15",
-   "_type": "MMEdge",
-   "name": "",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#5"
-   },
-   "target": {
-    "$ref": "#7"
-   }
-  },
-  {
-   "_id": "#17",
-   "_type": "MMEdge",
-   "name": "",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#7"
-   },
-   "target": {
-    "$ref": "#9"
-   }
-  },
-  {
-   "_id": "#19",
-   "_type": "MMEdge",
+   "_type": "UMLDependency",
    "name": "",
    "ownedElements": [],
    "source": {
@@ -207,11 +203,41 @@
    },
    "target": {
     "$ref": "#11"
-   }
+   },
+   "stereotype": "use",
+   "visibility": "public"
+  },
+  {
+   "_id": "#17",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": "import",
+   "visibility": "public"
+  },
+  {
+   "_id": "#19",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": "access",
+   "visibility": "public"
   },
   {
    "_id": "#21",
-   "_type": "MMEdge",
+   "_type": "UMLDependency",
    "name": "",
    "ownedElements": [],
    "source": {
@@ -219,7 +245,9 @@
    },
    "target": {
     "$ref": "#13"
-   }
+   },
+   "stereotype": null,
+   "visibility": "public"
   }
  ]
 }

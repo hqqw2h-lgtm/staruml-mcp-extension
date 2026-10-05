@@ -684,5 +684,194 @@
   "m-composition": {
     "name": "Bundles",
     "mermaid": "classDiagram\n  PurchaseLine \"1..*\" --* \"1\" PurchaseOrder : lines\n  Catalog o-- \"*\" Product\n  Product \"*\" --o Bundle\n  Wheel --* Car"
+  },
+  "package": {
+    "kind": "package",
+    "name": "Layers",
+    "spec": {
+      "packages": [
+        "Web",
+        {
+          "name": "Domain",
+          "stereotype": "layer"
+        },
+        {
+          "name": "Model",
+          "parent": "Domain"
+        },
+        {
+          "name": "Services",
+          "parent": "Domain"
+        },
+        "Persistence"
+      ],
+      "dependencies": [
+        {
+          "from": "Web",
+          "to": "Services",
+          "type": "use"
+        },
+        {
+          "from": "Services",
+          "to": "Model",
+          "type": "import"
+        },
+        {
+          "from": "Persistence",
+          "to": "Model",
+          "type": "access"
+        },
+        {
+          "from": "Web",
+          "to": "Persistence"
+        }
+      ]
+    }
+  },
+  "package-flat": {
+    "kind": "package",
+    "name": "Flat",
+    "spec": {
+      "packages": ["Api", "Core", "Infra"],
+      "dependencies": [
+        {
+          "from": "Api",
+          "to": "Core"
+        },
+        {
+          "from": "Infra",
+          "to": "Core",
+          "type": "merge",
+          "name": "extends"
+        }
+      ]
+    }
+  },
+  "component": {
+    "kind": "component",
+    "name": "Transport",
+    "spec": {
+      "components": [
+        {
+          "name": "MqttTransport",
+          "stereotype": "service",
+          "ports": ["mqtt", "rpc"],
+          "provides": ["TransportService"],
+          "requires": ["DeviceAuth"]
+        },
+        {
+          "name": "RuleEngine",
+          "ports": ["in"],
+          "provides": ["RuleEngineApi"]
+        },
+        {
+          "name": "Core",
+          "requires": ["RuleEngineApi"]
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "TransportService",
+          "operations": ["process(msg: TbMsg): void"]
+        },
+        "DeviceAuth"
+      ],
+      "connectors": [
+        {
+          "from": "MqttTransport.rpc",
+          "to": "RuleEngine.in",
+          "name": "queue"
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "Core",
+          "to": "MqttTransport",
+          "name": "starts"
+        }
+      ]
+    }
+  },
+  "component-flat": {
+    "kind": "component",
+    "name": "Plain",
+    "spec": {
+      "components": [
+        "A",
+        {
+          "name": "B",
+          "provides": ["IB"]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "A",
+          "to": "B"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "kind": "deployment",
+    "name": "Cluster",
+    "spec": {
+      "nodes": [
+        {
+          "name": "k8s",
+          "stereotype": "executionEnvironment"
+        },
+        {
+          "name": "tb-node",
+          "parent": "k8s",
+          "deploys": ["tb.jar"]
+        },
+        {
+          "name": "Postgres",
+          "stereotype": "device",
+          "deploys": ["schema.sql"]
+        },
+        "Kafka"
+      ],
+      "artifacts": [
+        {
+          "name": "tb.jar",
+          "manifests": ["Core"]
+        },
+        "schema.sql"
+      ],
+      "components": ["Core"],
+      "paths": [
+        {
+          "from": "tb-node",
+          "to": "Postgres",
+          "name": "JDBC"
+        },
+        {
+          "from": "tb-node",
+          "to": "Kafka",
+          "name": "TCP"
+        }
+      ]
+    }
+  },
+  "deployment-flat": {
+    "kind": "deployment",
+    "name": "Single",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Server",
+          "deploys": ["app.war"]
+        },
+        "Db"
+      ],
+      "artifacts": ["app.war"],
+      "paths": [
+        {
+          "from": "Server",
+          "to": "Db"
+        }
+      ]
+    }
   }
 }

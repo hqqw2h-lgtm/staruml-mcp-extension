@@ -37,7 +37,13 @@ import type {
 } from "./model.js";
 import { REQUIREMENT_TYPES } from "../build/spec.js";
 import { scopeOf } from "./model.js";
-import type { C4Spec, RequirementSpec } from "./model.js";
+import type {
+  C4Spec,
+  ComponentSpec,
+  DeploymentSpec,
+  PackageSpec,
+  RequirementSpec,
+} from "./model.js";
 import { c4Level, c4Macros } from "./c4-writer.js";
 
 /*
@@ -431,6 +437,146 @@ function c4(spec: C4Spec): string[] {
   return [`!include <C4/C4_${c4Level(spec)}>`, ...c4Macros(spec)];
 }
 
+const stereo = (s: string | undefined) => (s ? ` <<${s}>>` : "");
+
+/** Nested elements in the order they are written: each before its children. */
+function writtenOrder<T extends { name: string; parent?: string }>(
+  items: readonly T[],
+): T[] {
+  const out: T[] = [];
+  const visit = (parent: string | undefined) => {
+    for (const item of items.filter((i) => i.parent === parent)) {
+      out.push(item);
+      visit(item.name);
+    }
+  };
+  visit(undefined);
+  return out;
+}
+
+/**
+ * Elements nested by `parent`, each written with `write` and its children
+ * inside its braces.
+ */
+function nested<T extends { name: string; parent?: string }>(
+  items: readonly T[],
+  write: (item: T) => string,
+): string[] {
+  const lines: string[] = [];
+  const visit = (parent: string | undefined, indent: string) => {
+    for (const item of items.filter((i) => i.parent === parent)) {
+      const inner = items.some((i) => i.parent === item.name);
+      lines.push(`${indent}${write(item)}${inner ? " {" : ""}`);
+      if (inner) {
+        visit(item.name, `${indent}  `);
+        lines.push(`${indent}}`);
+      }
+    }
+  };
+  visit(undefined, "");
+  return lines;
+}
+
+function packageDiagram(spec: PackageSpec): string[] {
+  // Aliases follow the text, not the order StarUML keeps views in, which
+  // moving a view into a container changes.
+  const id = aliases(
+    writtenOrder(spec.packages).map((p) => p.name),
+    "P",
+  );
+  return [
+    ...nested(
+      spec.packages,
+      (p) => `package ${q(p.name)} as ${id(p.name)}${stereo(p.stereotype)}`,
+    ),
+    ...spec.dependencies.map((d) => {
+      const label = [
+        d.type === "dependency" ? "" : `<<${d.type}>>`,
+        d.name ? one(d.name) : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `${id(d.from)} ..> ${id(d.to)}${label ? ` : ${label}` : ""}`;
+    }),
+  ];
+}
+
+function componentDiagram(spec: ComponentSpec): string[] {
+  const id = aliases(
+    [...spec.components.map((c) => c.name), ...spec.interfaces],
+    "C",
+  );
+  const port = (ref: string) => {
+    const dot = ref.indexOf(".");
+    const owner = ref.slice(0, dot);
+    const c = spec.components.find((k) => k.name === owner)!;
+    return `${id(owner)}_${c.ports.indexOf(ref.slice(dot + 1))}`;
+  };
+  const lines: string[] = [];
+  for (const c of spec.components) {
+    const head = `component ${q(c.name)} as ${id(c.name)}${stereo(c.stereotype)}`;
+    if (c.ports.length === 0) {
+      lines.push(head);
+      continue;
+    }
+    lines.push(`${head} {`);
+    c.ports.forEach((p, i) =>
+      lines.push(`  port ${q(p)} as ${id(c.name)}_${i}`),
+    );
+    lines.push("}");
+  }
+  for (const i of spec.interfaces) lines.push(`interface ${q(i)} as ${id(i)}`);
+  for (const c of spec.components) {
+    for (const i of c.provides) lines.push(`${id(c.name)} - ${id(i)}`);
+    for (const i of c.requires) lines.push(`${id(c.name)} ..> ${id(i)} : use`);
+  }
+  for (const k of spec.connectors) {
+    lines.push(
+      `${port(k.from)} -- ${port(k.to)}${k.name ? ` : ${one(k.name)}` : ""}`,
+    );
+  }
+  for (const d of spec.dependencies) {
+    lines.push(
+      `${id(d.from)} ..> ${id(d.to)}${d.name ? ` : ${one(d.name)}` : ""}`,
+    );
+  }
+  return lines;
+}
+
+function deploymentDiagram(spec: DeploymentSpec): string[] {
+  const id = aliases(
+    [
+      ...writtenOrder(spec.nodes).map((n) => n.name),
+      ...spec.artifacts.map((a) => a.name),
+      ...spec.components,
+    ],
+    "D",
+  );
+  const lines = nested(
+    spec.nodes,
+    (n) => `node ${q(n.name)} as ${id(n.name)}${stereo(n.stereotype)}`,
+  );
+  for (const a of spec.artifacts) {
+    lines.push(`artifact ${q(a.name)} as ${id(a.name)}${stereo(a.stereotype)}`);
+  }
+  for (const c of spec.components) lines.push(`component ${q(c)} as ${id(c)}`);
+  for (const n of spec.nodes) {
+    for (const a of n.deploys)
+      lines.push(`${id(a)} ..> ${id(n.name)} : <<deploy>>`);
+  }
+  for (const a of spec.artifacts) {
+    for (const c of a.manifests) {
+      lines.push(`${id(a.name)} ..> ${id(c)} : <<manifest>>`);
+    }
+  }
+  for (const p of spec.paths) {
+    lines.push(
+      `${id(p.from)} -- ${id(p.to)}${p.name ? ` : ${one(p.name)}` : ""}`,
+    );
+  }
+  return lines;
+}
+
 export function toPlantUml(
   x: Extracted,
   title = "",
@@ -472,6 +618,12 @@ export function toPlantUml(
       return done(requirementDiagram(x.spec));
     case "c4":
       return done(c4(x.spec));
+    case "package":
+      return done(packageDiagram(x.spec));
+    case "component":
+      return done(componentDiagram(x.spec));
+    case "deployment":
+      return done(deploymentDiagram(x.spec));
     default:
       return done(mindmap(x.spec.roots), [], "@startmindmap", "@endmindmap");
   }

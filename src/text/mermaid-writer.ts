@@ -492,8 +492,16 @@ function c4(spec: C4Spec): string[] {
 }
 
 /** `title` goes into front matter, where build_diagram takes the name from. */
+/** Kinds Mermaid has no diagram type for. */
+export const NO_MERMAID = ["package", "component", "deployment"] as const;
+
+export type MermaidExtracted = Exclude<
+  Extracted,
+  { kind: (typeof NO_MERMAID)[number] }
+>;
+
 export function toMermaid(
-  x: Extracted,
+  x: MermaidExtracted,
   title = "",
 ): { text: string; warnings: string[] } {
   const front = title ? ["---", `title: "${text(title)}"`, "---"] : [];

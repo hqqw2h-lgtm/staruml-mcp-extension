@@ -144,7 +144,18 @@ const resultSchema = () =>
     path: z.string(),
     as: z.optional(z.string()),
     success: z.boolean(),
-    data: z.optional(doc(z.unknown(), "The op's response data.")),
+    id: z.optional(
+      doc(
+        z.string(),
+        "result terse: the id of what the op made or acted on (its model, for a model with a view).",
+      ),
+    ),
+    data: z.optional(
+      doc(
+        z.unknown(),
+        "result full: the op's response data; result ids: its ids only.",
+      ),
+    ),
     code: z.optional(z.string()),
     error: z.optional(z.string()),
     details: z.optional(z.unknown()),
@@ -154,6 +165,7 @@ interface OpResult {
   path: string;
   as?: string;
   success: boolean;
+  id?: string;
   data?: unknown;
   code?: string;
   error?: string;
@@ -275,6 +287,46 @@ function squash(operations: readonly Operation[]): void {
   _undoStack.push(merged);
 }
 
+type Mode = "terse" | "ids" | "full";
+
+/** An element's id, the ids in a create-with-view answer, else nothing. */
+function idsOf(data: unknown): unknown {
+  if (data === null || typeof data !== "object") return undefined;
+  const { _id, view, model } = data as {
+    _id?: unknown;
+    view?: { _id?: unknown } | null;
+    model?: { _id?: unknown } | null;
+  };
+  if (typeof _id === "string") return { _id };
+  if (view && typeof view === "object") {
+    return {
+      view: { _id: view._id },
+      model: model && typeof model === "object" ? { _id: model._id } : null,
+    };
+  }
+  return undefined;
+}
+
+/** The id a terse answer names: the model a view shows, else the element. */
+function primaryId(data: unknown): string | undefined {
+  const ids = idsOf(data) as
+    | { _id?: string; view?: { _id: string }; model?: { _id: string } | null }
+    | undefined;
+  return ids?._id ?? ids?.model?._id ?? ids?.view?._id;
+}
+
+/** A successful op's result as `mode` reports it; failures keep everything. */
+function shapeResult(result: OpResult, mode: Mode): OpResult {
+  if (mode === "full" || !result.success) return result;
+  const { data, ...rest } = result;
+  if (mode === "ids") {
+    const ids = idsOf(data);
+    return ids === undefined ? rest : { ...rest, data: ids };
+  }
+  const id = primaryId(data);
+  return id === undefined ? rest : { ...rest, id };
+}
+
 function rollBack(operations: readonly Operation[]): void {
   for (let i = 0; i < operations.length; i++) app.repository.undo();
   // Undo leaves the reverted operations redoable; redoing a half-applied
@@ -286,7 +338,7 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
   return defineEndpoint({
     path: "/batch",
     description:
-      "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each.",
+      "Run several endpoint calls in one request. Later ops refer to earlier results as '$name' (the result's id), '$name.view' or '$name.model'. atomic (default true) makes the whole batch one undo step and undoes it all when an op fails; atomic false runs every op and reports each. result picks how much of each answer comes back: terse ids by default, ids, or full.",
     readOnly: false,
     destructive: true,
     request: z.object({
@@ -298,6 +350,12 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
         doc(
           z.boolean(),
           "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram.",
+        ),
+      ),
+      result: z.optional(
+        doc(
+          z.enum(["terse", "ids", "full"]),
+          "terse (default): each op's success and the id it made or acted on. ids: each op's ids ({_id}, or {view, model} for a create with view). full: each op's whole answer. Failed ops always carry code, error and details.",
         ),
       ),
     }),
@@ -338,11 +396,12 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
         );
       }
       if (atomic && operations.length > 1) squash(operations);
+      const mode = input.result ?? "terse";
       return {
         atomic,
         succeeded: results.length - failures.length,
         failed: failures.length,
-        results,
+        results: results.map((r) => shapeResult(r, mode)),
       };
     },
   });

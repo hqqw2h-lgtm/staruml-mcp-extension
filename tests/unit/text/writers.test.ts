@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseMermaid } from "../../../src/build/mermaid.js";
-import { toMermaid } from "../../../src/text/mermaid-writer.js";
+import {
+  type MermaidExtracted,
+  toMermaid,
+} from "../../../src/text/mermaid-writer.js";
 import type { Extracted } from "../../../src/text/model.js";
 import { toPlantUml } from "../../../src/text/plantuml-writer.js";
 
-const both = (x: Extracted) => ({
+const both = (x: MermaidExtracted) => ({
   mermaid: toMermaid(x),
   plantuml: toPlantUml(x),
 });
@@ -28,7 +31,7 @@ const cls = (
 });
 
 describe("class writers", () => {
-  const x: Extracted = {
+  const x: MermaidExtracted = {
     kind: "class",
     spec: {
       packages: ["Shop core"],
@@ -146,7 +149,7 @@ describe("class writers", () => {
 });
 
 describe("sequence writers", () => {
-  const x: Extracted = {
+  const x: MermaidExtracted = {
     kind: "sequence",
     spec: {
       participants: ["Alice", "Bob the builder"],
@@ -220,7 +223,10 @@ describe("sequence writers", () => {
 });
 
 describe("use case writers", () => {
-  const x = (system: string | undefined, inSystem: boolean): Extracted => ({
+  const x = (
+    system: string | undefined,
+    inSystem: boolean,
+  ): MermaidExtracted => ({
     kind: "usecase",
     direction: "TD",
     spec: {
@@ -261,7 +267,7 @@ describe("use case writers", () => {
 });
 
 describe("activity and flowchart writers", () => {
-  const activity: Extracted = {
+  const activity: MermaidExtracted = {
     kind: "activity",
     direction: "RL",
     spec: {
@@ -314,7 +320,7 @@ describe("activity and flowchart writers", () => {
   });
 
   it("writes flowchart shapes, and a process for those Mermaid lacks", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "flowchart",
       direction: "BT",
       spec: {
@@ -341,7 +347,7 @@ describe("activity and flowchart writers", () => {
   });
 
   it("reports isolated nodes in the plural", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "flowchart",
       direction: "TD",
       spec: {
@@ -360,7 +366,7 @@ describe("activity and flowchart writers", () => {
 
 describe("state machine writers", () => {
   it("writes pseudostates, labels and a sideways direction", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "statemachine",
       direction: "LR",
       spec: {
@@ -391,14 +397,14 @@ describe("state machine writers", () => {
     expect(plantuml.text).toContain(
       'left to right direction\nstate "N1" as N1',
     );
-    const down = toMermaid({ ...x, direction: "BT" } as Extracted).text;
+    const down = toMermaid({ ...x, direction: "BT" } as MermaidExtracted).text;
     expect(down).not.toContain("direction");
   });
 });
 
 describe("ERD writers", () => {
   it("writes columns, keys and cardinalities", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "erd",
       spec: {
         entities: [
@@ -491,7 +497,7 @@ describe("ERD writers", () => {
 
 describe("mindmap writers", () => {
   it("writes the first tree, quoting names that look like shapes", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "mindmap",
       spec: {
         roots: [
@@ -520,7 +526,7 @@ describe("mindmap writers", () => {
 
 describe("PlantUML aliases", () => {
   it("gives a repeated name one alias", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "class",
       spec: {
         packages: [],
@@ -537,7 +543,7 @@ describe("PlantUML aliases", () => {
 // Issue #19: notes, composite states and operand boundaries.
 describe("notes and nesting", () => {
   it("writes a class note on its first class only in Mermaid", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "class",
       spec: { packages: [], classes: [cls("A"), cls("B")], relations: [] },
       notes: [{ text: "both\nlines", on: ["A", "B"] }],
@@ -553,7 +559,7 @@ describe("notes and nesting", () => {
   });
 
   it("writes sequence notes in time, and skips one on no lifeline", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "sequence",
       spec: {
         participants: ["A", "B"],
@@ -580,7 +586,7 @@ describe("notes and nesting", () => {
   });
 
   it("writes else where each recorded operand starts", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "sequence",
       spec: {
         participants: ["A", "B"],
@@ -610,7 +616,7 @@ describe("notes and nesting", () => {
   });
 
   it("writes composite states as blocks holding their transitions", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "statemachine",
       direction: "TD",
       spec: {
@@ -671,7 +677,7 @@ describe("notes and nesting", () => {
 // Issue #16: requirement and C4 writers.
 describe("requirement and C4 writers", () => {
   it("writes bare requirements and quotes names that are not words", () => {
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "requirement",
       spec: {
         requirements: [
@@ -702,7 +708,7 @@ describe("requirement and C4 writers", () => {
       description: "",
       external: false,
     };
-    const x: Extracted = {
+    const x: MermaidExtracted = {
       kind: "c4",
       spec: {
         elements: [
@@ -723,5 +729,36 @@ describe("requirement and C4 writers", () => {
       'C4Component\n  Component(E0, "C")\n  Person(E1, "Say \'hi\' now")\n',
     );
     expect(plantuml.text).toContain("!include <C4/C4_Component>");
+  });
+});
+
+describe("PlantUML structural writers (#35)", () => {
+  it("writes unnamed connectors and paths without a label", () => {
+    const component: Extracted = {
+      kind: "component",
+      spec: {
+        components: [
+          { name: "A", ports: ["p"], provides: [], requires: [] },
+          { name: "B", ports: ["q"], provides: [], requires: [] },
+        ],
+        interfaces: [],
+        connectors: [{ from: "A.p", to: "B.q" }],
+        dependencies: [{ from: "A", to: "B" }],
+      },
+    };
+    expect(toPlantUml(component).text).toContain("C0_0 -- C1_0\nC0 ..> C1\n");
+    const deployment: Extracted = {
+      kind: "deployment",
+      spec: {
+        nodes: [
+          { name: "N", deploys: [] },
+          { name: "M", deploys: [] },
+        ],
+        artifacts: [],
+        components: [],
+        paths: [{ from: "N", to: "M" }],
+      },
+    };
+    expect(toPlantUml(deployment).text).toContain("D0 -- D1\n");
   });
 });

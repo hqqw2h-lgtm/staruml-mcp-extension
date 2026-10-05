@@ -14,7 +14,7 @@ import {
   type Element,
   type MockEnvironment,
 } from "../../mock/staruml.js";
-import { fails, ok } from "../support.js";
+import { fails, fullResults, ok } from "../support.js";
 
 let env: MockEnvironment;
 
@@ -23,9 +23,11 @@ beforeEach(() => {
   clearSnapshots();
 });
 
-const endpoint = (path: string) => endpoints.find((e) => e.path === path)!;
+const endpoint = (path: string) =>
+  fullResults(endpoints.find((e) => e.path === path)!);
 const build = endpoint("/build_diagram");
-const batch = endpoint("/batch");
+// The batch build_diagram runs, unwrapped.
+const batch = endpoints.find((e) => e.path === "/batch")!;
 
 interface Step {
   op: string;
@@ -102,7 +104,10 @@ describe("/build_diagram dryRun", () => {
       name: "Shop",
       spec: SPEC,
     });
-    expect(spy.mock.calls[0]![0]).toEqual({ ops: dry.plan!.ops });
+    expect(spy.mock.calls[0]![0]).toEqual({
+      ops: dry.plan!.ops,
+      result: "full",
+    });
     spy.mockRestore();
     expect(applied.dryRun).toBeUndefined();
     expect(applied.created).toBe(dry.created);

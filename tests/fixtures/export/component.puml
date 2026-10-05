@@ -1,0 +1,20 @@
+@startuml
+title Transport
+component "MqttTransport" as C0 <<service>> {
+  port "mqtt" as C0_0
+  port "rpc" as C0_1
+}
+component "RuleEngine" as C1 {
+  port "in" as C1_0
+}
+component "Core" as C2
+interface "TransportService" as C3
+interface "DeviceAuth" as C4
+interface "RuleEngineApi" as C5
+C0 - C3
+C0 ..> C4 : use
+C1 - C5
+C2 ..> C5 : use
+C0_1 -- C1_0 : queue
+C2 ..> C0 : starts
+@enduml

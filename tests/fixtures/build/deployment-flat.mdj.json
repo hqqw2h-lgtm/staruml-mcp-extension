@@ -1,0 +1,189 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLDeploymentDiagram",
+   "name": "Single",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLNodeView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 20,
+     "width": 160,
+     "height": 76,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLNodeView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 120,
+     "width": 160,
+     "height": 76,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLArtifactView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 220,
+     "width": 140,
+     "height": 60,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLDeploymentView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#4"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLCommunicationPathView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLNode",
+   "name": "Server",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLNode",
+   "name": "Db",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLArtifact",
+   "name": "app.war",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLDeployment",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLCommunicationPath",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#14",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#5"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#15",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ]
+}

@@ -10,7 +10,7 @@ import {
   type MockEnvironment,
   type View,
 } from "../mock/staruml.js";
-import { fails, invoke, ok } from "./support.js";
+import { fails, fullResults, invoke, ok } from "./support.js";
 
 /*
  * Issue #20 path addressing and issue #36 canonical field names, through
@@ -23,7 +23,8 @@ beforeEach(() => {
   env = installMockApp();
 });
 
-const endpoint = (path: string) => endpoints.find((e) => e.path === path)!;
+const endpoint = (path: string) =>
+  fullResults(endpoints.find((e) => e.path === path)!);
 
 interface Summary {
   _id: string;
