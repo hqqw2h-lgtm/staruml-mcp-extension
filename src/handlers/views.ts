@@ -133,18 +133,126 @@ function viewsResponse(
 
 const GEOMETRY = ["left", "top", "width", "height"];
 
+/** NODE_SEPARATION, EDGE_SEPARATION, RANK_SEPARATION in core/core.js (7.1.1). */
+export const DEFAULT_SEPARATIONS = { node: 30, edge: 30, rank: 30 } as const;
+
+type LayoutDirection = (typeof LAYOUT_DIRECTIONS)[number];
+
+interface LayoutPreset {
+  direction: LayoutDirection;
+  separations: { node: number; edge: number; rank: number };
+  edgeLineStyle: keyof typeof LINE_STYLES;
+}
+
+/*
+ * Diagram.layout hands each edge to dagre as head -> tail
+ * (g.setEdge(v.head._id, v.tail._id), core/core.js in 7.1.1), so dagre's
+ * ranks run from heads to tails and "TB" puts an edge's head above its tail.
+ * That suits a class hierarchy, where generalizations point at the parent,
+ * and draws a flow upside down (issue #12). The flow presets therefore ask
+ * dagre for the opposite rank direction, so an edge's tail comes first.
+ */
+const flow = (direction: LayoutDirection): LayoutPreset => ({
+  direction,
+  separations: { node: 40, edge: 20, rank: 50 },
+  edgeLineStyle: "rectilinear",
+});
+const hierarchy = (direction: LayoutDirection): LayoutPreset => ({
+  direction,
+  separations: { node: 50, edge: 20, rank: 70 },
+  edgeLineStyle: "rectilinear",
+});
+
+export const LAYOUT_PRESETS = {
+  "flow-down": flow("BT"),
+  "flow-up": flow("TB"),
+  "flow-right": flow("RL"),
+  "flow-left": flow("LR"),
+  "hierarchy-down": hierarchy("TB"),
+  "hierarchy-up": hierarchy("BT"),
+  "hierarchy-right": hierarchy("LR"),
+  "hierarchy-left": hierarchy("RL"),
+} as const satisfies Record<string, LayoutPreset>;
+
+export type LayoutPresetName = keyof typeof LAYOUT_PRESETS;
+
+export const PRESET_NAMES = Object.keys(LAYOUT_PRESETS) as [
+  LayoutPresetName,
+  ...LayoutPresetName[],
+];
+
+const separation = (description: string) =>
+  z.optional(doc(z.number().check(z.minimum(0)), description));
+
+function isNode(view: Element): view is View {
+  return view instanceof type.NodeView;
+}
+
+/**
+ * Shrinks or grows each top-level node view to the size its content needs,
+ * which is what View.sizeConstraints does for an autoResize view (core/core.js
+ * in 7.1.1); minWidth and minHeight are computed on every repaint. Views that
+ * contain other views keep their size, since their minimum ignores children.
+ * Answers how many views changed size.
+ */
+export function fitNodeViews(diagram: Element): number {
+  const changes: [View, number, number][] = [];
+  for (const view of diagram.ownedViews as Element[]) {
+    if (!isNode(view)) continue;
+    const { minWidth, minHeight, width, height } = view as unknown as Record<
+      string,
+      number
+    >;
+    const contained = view.containedViews as unknown[];
+    if (!(minWidth! > 0 && minHeight! > 0) || contained.length > 0) {
+      continue;
+    }
+    if (minWidth !== width || minHeight !== height) {
+      changes.push([view, minWidth!, minHeight!]);
+    }
+  }
+  if (changes.length === 0) return 0;
+  const builder = app.repository.getOperationBuilder();
+  builder.begin("fit views");
+  for (const [view, w, h] of changes) {
+    builder.fieldAssign(view, "width", w);
+    builder.fieldAssign(view, "height", h);
+  }
+  builder.end();
+  inStarUML(() => app.repository.doOperation(builder.getOperation()));
+  return changes.length;
+}
+
+function diagramOrCurrent(given: string | undefined, field: string): Element {
+  const diagram =
+    given === undefined
+      ? app.diagrams.getCurrentDiagram()
+      : requireDiagram(given);
+  if (!diagram) {
+    throw new ApiError("NOT_FOUND", `No diagram is open; pass '${field}'`);
+  }
+  return diagram;
+}
+
 export const layoutDiagram = defineEndpoint({
   path: "/layout_diagram",
   description:
-    "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. Opens the diagram in the editor.",
+    "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. A preset picks direction, spacing and edge style: flow-* put an edge's source before its target (flowcharts, activities, state machines), hierarchy-* put the target first (a superclass above its subclasses). fit first sizes node views to their content. Opens the diagram in the editor.",
   readOnly: false,
   destructive: false,
   request: z.object({
     id: z.optional(id("Diagram id; default the current diagram.")),
+    diagramId: z.optional(id("Same as id.")),
+    preset: z.optional(
+      doc(
+        z.enum(PRESET_NAMES),
+        "flow-down|up|right|left: edges run from source to target in that direction. hierarchy-down|up|right|left: edge targets come first. Other fields override the preset's values.",
+      ),
+    ),
     direction: z.optional(
       doc(
         z.enum(LAYOUT_DIRECTIONS),
-        "Rank direction: TB top to bottom (default), BT, LR, RL.",
+        "dagre's rank direction as StarUML passes it: TB (default) puts an edge's target above its source; BT, LR, RL accordingly.",
       ),
     ),
     separations: z.optional(
@@ -157,33 +265,110 @@ export const layoutDiagram = defineEndpoint({
         "Spacing in diagram units between nodes, edges and ranks; StarUML's defaults when omitted.",
       ),
     ),
+    nodeSeparation: separation(
+      "Spacing between nodes of one rank, in diagram units.",
+    ),
+    rankSeparation: separation("Spacing between ranks, in diagram units."),
     edgeLineStyle: z.optional(
-      lineStyle("Line style applied to edges by the layout."),
+      lineStyle(
+        "Line style applied to edges by the layout; StarUML's default is curve.",
+      ),
+    ),
+    fit: z.optional(
+      doc(
+        z.boolean(),
+        "Size node views to their content before the layout; one more undo step.",
+      ),
     ),
   }),
-  response: z.object({ _id: z.string(), direction: z.string() }),
+  response: z.object({
+    _id: z.string(),
+    direction: z.string(),
+    preset: z.optional(z.string()),
+    separations: z.optional(
+      doc(
+        z.object({ node: z.number(), edge: z.number(), rank: z.number() }),
+        "Spacing passed to the layout, when the request set any.",
+      ),
+    ),
+    edgeLineStyle: z.optional(z.string()),
+    fitted: z.optional(doc(z.int(), "Node views resized by fit.")),
+  }),
   handle: (input) => {
-    const diagram =
-      input.id === undefined
-        ? app.diagrams.getCurrentDiagram()
-        : requireDiagram(input.id);
-    if (!diagram) {
-      throw new ApiError("NOT_FOUND", "No diagram is open; pass 'id'");
-    }
-    const direction = input.direction ?? "TB";
+    const diagram = diagramOrCurrent(input.diagramId ?? input.id, "id");
+    const preset =
+      input.preset === undefined ? undefined : LAYOUT_PRESETS[input.preset];
+    const direction = input.direction ?? preset?.direction ?? "TB";
+    // Diagram.layout tests `typeof separations.node !== undefined`, which is
+    // always true, so a partial object would hand dagre undefined spacings.
+    const custom =
+      preset !== undefined ||
+      input.separations !== undefined ||
+      input.nodeSeparation !== undefined ||
+      input.rankSeparation !== undefined;
+    const base =
+      input.separations ?? preset?.separations ?? DEFAULT_SEPARATIONS;
+    const separations = custom
+      ? {
+          node: input.nodeSeparation ?? base.node,
+          edge: base.edge,
+          rank: input.rankSeparation ?? base.rank,
+        }
+      : undefined;
+    const edgeLineStyle = input.edgeLineStyle ?? preset?.edgeLineStyle;
     const editor = editorShowing(diagram);
+    const fitted = input.fit ? fitNodeViews(diagram) : undefined;
     inStarUML(() =>
       app.engine.layoutDiagram(
         editor,
         diagram,
         direction,
-        input.separations,
-        input.edgeLineStyle === undefined
-          ? undefined
-          : LINE_STYLES[input.edgeLineStyle],
+        separations,
+        edgeLineStyle === undefined ? undefined : LINE_STYLES[edgeLineStyle],
       ),
     );
-    return { _id: diagram._id, direction };
+    return {
+      _id: diagram._id,
+      direction,
+      ...(input.preset !== undefined && { preset: input.preset }),
+      ...(separations && { separations }),
+      ...(edgeLineStyle !== undefined && { edgeLineStyle }),
+      ...(fitted !== undefined && { fitted }),
+    };
+  },
+});
+
+export const routeEdges = defineEndpoint({
+  path: "/route_edges",
+  description:
+    "Give every edge view on a diagram one line style (Format > Line Style), as one undoable operation; rectilinear and rounded edges are re-routed around their ends. Opens the diagram in the editor.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    diagramId: z.optional(id("Diagram id; default the current diagram.")),
+    lineStyle: lineStyle("Line style for every edge."),
+  }),
+  response: z.object({
+    diagram: z.string(),
+    lineStyle: z.string(),
+    edges: doc(z.int(), "Edge views given the style."),
+  }),
+  handle: (input) => {
+    const diagram = diagramOrCurrent(input.diagramId, "diagramId");
+    const edges = (diagram.ownedViews as View[]).filter(
+      (v) => v instanceof type.EdgeView,
+    );
+    if (edges.length > 0) {
+      const editor = editorShowing(diagram);
+      inStarUML(() =>
+        app.engine.setLineStyle(editor, edges, LINE_STYLES[input.lineStyle]),
+      );
+    }
+    return {
+      diagram: diagram._id,
+      lineStyle: input.lineStyle,
+      edges: edges.length,
+    };
   },
 });
 

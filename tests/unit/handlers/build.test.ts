@@ -178,6 +178,39 @@ describe("/build_diagram requests", () => {
     );
   });
 
+  it("lays flows out along their edges and class diagrams as hierarchies (#12)", async () => {
+    const spy = vi.spyOn(env.app.engine, "layoutDiagram");
+    const flow = await ok<Full & { preset: string }>(build, {
+      mermaid: "flowchart TD\n  S([start]) --> A[Do] --> E([end])",
+      kind: "activity",
+    });
+    expect(flow.preset).toBe("flow-down");
+    expect(spy.mock.lastCall![2]).toBe("BT");
+    const right = await ok<Full & { preset: string }>(build, {
+      mermaid: "flowchart LR\n  S --> E",
+    });
+    expect(right.preset).toBe("flow-right");
+    expect(spy.mock.lastCall![2]).toBe("RL");
+    const classes = await ok<Full & { preset: string }>(build, {
+      kind: "class",
+      spec: { classes: [{ name: "A" }] },
+    });
+    expect(classes.preset).toBe("hierarchy-down");
+    const chosen = await ok<Full & { preset: string }>(build, {
+      kind: "statemachine",
+      spec: { states: ["A"] },
+      layout: "hierarchy-left",
+    });
+    expect(chosen.preset).toBe("hierarchy-left");
+    expect(spy.mock.lastCall![2]).toBe("RL");
+    const placed = await ok<Full & { preset?: string }>(build, {
+      kind: "class",
+      spec: { classes: [{ name: "Z" }] },
+      autoLayout: false,
+    });
+    expect(placed.preset).toBeUndefined();
+  });
+
   it("places without engine layout when asked, or when the engine has none", async () => {
     const off = await ok<Full>(build, {
       kind: "flowchart",

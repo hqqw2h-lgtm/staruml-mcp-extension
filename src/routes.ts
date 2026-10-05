@@ -95,6 +95,7 @@ import {
   layoutDiagram,
   moveViews,
   resizeNode,
+  routeEdges,
   setViewStyle,
   setZOrder,
 } from "./handlers/views.js";
@@ -142,6 +143,7 @@ export const endpoints: readonly Endpoint[] = [
   getConnectedNodeViews,
 
   layoutDiagram,
+  routeEdges,
   moveViews,
   resizeNode,
   setViewStyle,

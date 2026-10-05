@@ -72,7 +72,7 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 | Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
 | Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
 | Diagrams      | `/build_diagram`, `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                      |
-| Views         | `/layout_diagram`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`                                                                                           |
+| Views         | `/layout_diagram`, `/route_edges`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`                                                                           |
 | Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                   |
 | Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                  |
 | Export        | `/export_diagram`, `/export_diagrams`, `/export_pdf`, `/export_html`                                                                                                          |
@@ -101,6 +101,8 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 ### Views and export
 
 - View edits go through StarUML's engine (`layoutDiagram`, `moveViews`, `resizeNode`, `setFillColor`, ...), which needs the editor to show the views' diagram, so they make that diagram current. Each is one undo step; `/set_view_style` is one step per property given.
+- `/layout_diagram` takes a `preset`: `flow-down|up|right|left` put an edge's source before its target, `hierarchy-down|up|right|left` its target first (a superclass above its subclasses). StarUML hands edges to dagre head first (`Diagram.layout` in `core/core.js`), so its raw `direction: "TB"` draws a flow bottom-up; the flow presets pass the opposite rank direction. `nodeSeparation`, `rankSeparation` and `edgeLineStyle` override the preset, and a partial spacing is completed with StarUML's defaults (30). `fit: true` first sizes node views to their content, one more undo step.
+- `/route_edges {diagramId, lineStyle}` gives every edge on the diagram one line style (`rectilinear`, `oblique`, `roundrect`, `curve`) in one undo step.
 - `/export_diagram` renders PNG and JPEG by calling StarUML's own exporter (`engine/diagram-export.js` `getImageData`, what **File → Export Diagram As** uses) and SVG through its SVG export. `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) is passed as the pixel ratio that exporter reads; `background` (default transparent, white for JPEG) is painted under a transparent rendering. It answers base64 or writes `path`. Whatever the exporter draws for the running licence appears as it does in the menu.
 - `/export_diagrams` writes every diagram (or `ids`) into a directory, one PNG, JPEG or SVG file each, named after the diagram.
 - `/export_pdf` and `/export_html` write what the CLI's `pdf` and `html` commands write, to an absolute path.
@@ -136,7 +138,7 @@ One call builds a whole diagram: `{kind, spec}` or `{mermaid}`, plus optional `n
 
 - Edges name their ends by node name (or `id` where nodes have one). In `aggregation` and `composition` relations `to` is the whole. `<br/>` and `\n` in names become line breaks.
 - Mermaid is parsed in the extension: `classDiagram`, `sequenceDiagram`, `flowchart`/`graph`, `erDiagram`, `stateDiagram`. With `kind: "activity"` or `"usecase"` a flowchart is read as that kind: stadium or circle nodes are start and end (activity) or use cases, `{}` decisions, `{{}}` forks, subgraphs lanes or the system boundary, link labels guards or include/extend. The diagram is named by `name`, else front matter `title:` or a `title` line.
-- Layout: nodes are placed deterministically (ranked rows or columns along the edges); then Format → Layout (`engine.layoutDiagram`) arranges them in `direction`, except for sequence diagrams, lanes and a system boundary, which keep the computed placement. `autoLayout: false` keeps it everywhere.
+- Layout: nodes are placed deterministically (ranked rows or columns along the edges); then Format → Layout (`engine.layoutDiagram`) arranges them with the `layout` preset, by default `flow-<direction>` (`hierarchy-<direction>` for class diagrams), so a `flowchart TD` starts at the top, except for sequence diagrams, lanes and a system boundary, which keep the computed placement. `autoLayout: false` keeps it everywhere.
 - `upsert: true` updates the diagram of the same kind and name under the parent: nodes already on it (same type and name) gain missing attributes, operations, literals and columns and changed properties, missing nodes and edges are added, nothing is removed, and the layout is left alone when nothing was added.
 
 ### Responses

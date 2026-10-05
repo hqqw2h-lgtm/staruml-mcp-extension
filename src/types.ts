@@ -81,6 +81,8 @@ export interface ProjectManager {
  */
 export interface OperationBuilder {
   begin(name: string): void;
+  /** Records `elem[field] = value`; applied when the operation is done. */
+  fieldAssign(elem: Element, field: string, value: unknown): void;
   /** Moves `value` to `index` of `elem[field]`, counted after removing it. */
   fieldReorder(
     elem: Element,

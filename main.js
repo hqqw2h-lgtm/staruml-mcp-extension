@@ -6419,6 +6419,405 @@ function modelTypeOf(id2) {
   return isMetaClass(candidate) ? candidate : null;
 }
 
+// src/handlers/views.ts
+var LINE_STYLES = {
+  rectilinear: 0,
+  oblique: 1,
+  roundrect: 2,
+  curve: 3
+};
+var STEREOTYPE_DISPLAYS = [
+  "none",
+  "label",
+  "decoration",
+  "decoration-label",
+  "icon",
+  "icon-label"
+];
+var LAYOUT_DIRECTIONS = ["TB", "BT", "LR", "RL"];
+var lineStyle = (description) => doc(
+  _enum(Object.keys(LINE_STYLES)),
+  description
+);
+var color = (description) => optional(
+  doc(
+    string2().check(_regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)),
+    description
+  )
+);
+var viewIds = () => doc(
+  array(string2().check(_minLength(1))).check(_minLength(1)),
+  "View ids, all on one diagram."
+);
+function requireViewsOnOneDiagram(ids2) {
+  const views = ids2.map((i) => requireView(i));
+  const diagram = diagramOf(views[0]);
+  const stray = views.find((v) => diagramOf(v) !== diagram);
+  if (stray) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `View ${stray._id} is not on diagram ${diagram._id} like ${views[0]._id}`
+    );
+  }
+  return { views, diagram };
+}
+function editorShowing(diagram) {
+  if (app.diagrams.getCurrentDiagram() !== diagram) {
+    inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
+  }
+  return app.diagrams.getEditor();
+}
+var viewsResult = () => object({
+  diagram: doc(string2(), "Id of the diagram the views are on."),
+  views: array(elementSchema())
+});
+function projectionOr(input, fields) {
+  return input.fields !== void 0 || input.summary !== void 0 ? input : { ...input, fields };
+}
+function viewsResponse(diagram, views, projection) {
+  return {
+    diagram: diagram._id,
+    views: views.map((v) => serialize(v, projection))
+  };
+}
+var GEOMETRY = ["left", "top", "width", "height"];
+var DEFAULT_SEPARATIONS = { node: 30, edge: 30, rank: 30 };
+var flow = (direction2) => ({
+  direction: direction2,
+  separations: { node: 40, edge: 20, rank: 50 },
+  edgeLineStyle: "rectilinear"
+});
+var hierarchy = (direction2) => ({
+  direction: direction2,
+  separations: { node: 50, edge: 20, rank: 70 },
+  edgeLineStyle: "rectilinear"
+});
+var LAYOUT_PRESETS = {
+  "flow-down": flow("BT"),
+  "flow-up": flow("TB"),
+  "flow-right": flow("RL"),
+  "flow-left": flow("LR"),
+  "hierarchy-down": hierarchy("TB"),
+  "hierarchy-up": hierarchy("BT"),
+  "hierarchy-right": hierarchy("LR"),
+  "hierarchy-left": hierarchy("RL")
+};
+var PRESET_NAMES = Object.keys(LAYOUT_PRESETS);
+var separation = (description) => optional(doc(number2().check(_gte(0)), description));
+function isNode(view) {
+  return view instanceof type.NodeView;
+}
+function fitNodeViews(diagram) {
+  const changes = [];
+  for (const view of diagram.ownedViews) {
+    if (!isNode(view)) continue;
+    const { minWidth, minHeight, width, height } = view;
+    const contained = view.containedViews;
+    if (!(minWidth > 0 && minHeight > 0) || contained.length > 0) {
+      continue;
+    }
+    if (minWidth !== width || minHeight !== height) {
+      changes.push([view, minWidth, minHeight]);
+    }
+  }
+  if (changes.length === 0) return 0;
+  const builder = app.repository.getOperationBuilder();
+  builder.begin("fit views");
+  for (const [view, w, h] of changes) {
+    builder.fieldAssign(view, "width", w);
+    builder.fieldAssign(view, "height", h);
+  }
+  builder.end();
+  inStarUML(() => app.repository.doOperation(builder.getOperation()));
+  return changes.length;
+}
+function diagramOrCurrent(given, field) {
+  const diagram = given === void 0 ? app.diagrams.getCurrentDiagram() : requireDiagram(given);
+  if (!diagram) {
+    throw new ApiError("NOT_FOUND", `No diagram is open; pass '${field}'`);
+  }
+  return diagram;
+}
+var layoutDiagram = defineEndpoint({
+  path: "/layout_diagram",
+  description: "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. A preset picks direction, spacing and edge style: flow-* put an edge's source before its target (flowcharts, activities, state machines), hierarchy-* put the target first (a superclass above its subclasses). fit first sizes node views to their content. Opens the diagram in the editor.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    id: optional(id("Diagram id; default the current diagram.")),
+    diagramId: optional(id("Same as id.")),
+    preset: optional(
+      doc(
+        _enum(PRESET_NAMES),
+        "flow-down|up|right|left: edges run from source to target in that direction. hierarchy-down|up|right|left: edge targets come first. Other fields override the preset's values."
+      )
+    ),
+    direction: optional(
+      doc(
+        _enum(LAYOUT_DIRECTIONS),
+        "dagre's rank direction as StarUML passes it: TB (default) puts an edge's target above its source; BT, LR, RL accordingly."
+      )
+    ),
+    separations: optional(
+      doc(
+        object({
+          node: number2().check(_gte(0)),
+          edge: number2().check(_gte(0)),
+          rank: number2().check(_gte(0))
+        }),
+        "Spacing in diagram units between nodes, edges and ranks; StarUML's defaults when omitted."
+      )
+    ),
+    nodeSeparation: separation(
+      "Spacing between nodes of one rank, in diagram units."
+    ),
+    rankSeparation: separation("Spacing between ranks, in diagram units."),
+    edgeLineStyle: optional(
+      lineStyle(
+        "Line style applied to edges by the layout; StarUML's default is curve."
+      )
+    ),
+    fit: optional(
+      doc(
+        boolean2(),
+        "Size node views to their content before the layout; one more undo step."
+      )
+    )
+  }),
+  response: object({
+    _id: string2(),
+    direction: string2(),
+    preset: optional(string2()),
+    separations: optional(
+      doc(
+        object({ node: number2(), edge: number2(), rank: number2() }),
+        "Spacing passed to the layout, when the request set any."
+      )
+    ),
+    edgeLineStyle: optional(string2()),
+    fitted: optional(doc(int(), "Node views resized by fit."))
+  }),
+  handle: (input) => {
+    const diagram = diagramOrCurrent(input.diagramId ?? input.id, "id");
+    const preset = input.preset === void 0 ? void 0 : LAYOUT_PRESETS[input.preset];
+    const direction2 = input.direction ?? preset?.direction ?? "TB";
+    const custom = preset !== void 0 || input.separations !== void 0 || input.nodeSeparation !== void 0 || input.rankSeparation !== void 0;
+    const base = input.separations ?? preset?.separations ?? DEFAULT_SEPARATIONS;
+    const separations = custom ? {
+      node: input.nodeSeparation ?? base.node,
+      edge: base.edge,
+      rank: input.rankSeparation ?? base.rank
+    } : void 0;
+    const edgeLineStyle = input.edgeLineStyle ?? preset?.edgeLineStyle;
+    const editor = editorShowing(diagram);
+    const fitted = input.fit ? fitNodeViews(diagram) : void 0;
+    inStarUML(
+      () => app.engine.layoutDiagram(
+        editor,
+        diagram,
+        direction2,
+        separations,
+        edgeLineStyle === void 0 ? void 0 : LINE_STYLES[edgeLineStyle]
+      )
+    );
+    return {
+      _id: diagram._id,
+      direction: direction2,
+      ...input.preset !== void 0 && { preset: input.preset },
+      ...separations && { separations },
+      ...edgeLineStyle !== void 0 && { edgeLineStyle },
+      ...fitted !== void 0 && { fitted }
+    };
+  }
+});
+var routeEdges = defineEndpoint({
+  path: "/route_edges",
+  description: "Give every edge view on a diagram one line style (Format > Line Style), as one undoable operation; rectilinear and rounded edges are re-routed around their ends. Opens the diagram in the editor.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    diagramId: optional(id("Diagram id; default the current diagram.")),
+    lineStyle: lineStyle("Line style for every edge.")
+  }),
+  response: object({
+    diagram: string2(),
+    lineStyle: string2(),
+    edges: doc(int(), "Edge views given the style.")
+  }),
+  handle: (input) => {
+    const diagram = diagramOrCurrent(input.diagramId, "diagramId");
+    const edges = diagram.ownedViews.filter(
+      (v) => v instanceof type.EdgeView
+    );
+    if (edges.length > 0) {
+      const editor = editorShowing(diagram);
+      inStarUML(
+        () => app.engine.setLineStyle(editor, edges, LINE_STYLES[input.lineStyle])
+      );
+    }
+    return {
+      diagram: diagram._id,
+      lineStyle: input.lineStyle,
+      edges: edges.length
+    };
+  }
+});
+var moveViews = defineEndpoint({
+  path: "/move_views",
+  description: "Move views by an offset, carrying contained views and connected edges along, as one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ids: viewIds(),
+    dx: doc(number2(), "Horizontal offset in diagram units."),
+    dy: doc(number2(), "Vertical offset in diagram units."),
+    ...projectionShape()
+  }),
+  response: viewsResult(),
+  handle: (input) => {
+    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const editor = editorShowing(diagram);
+    inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
+    return viewsResponse(diagram, views, projectionOr(input, GEOMETRY));
+  }
+});
+var resizeNode = defineEndpoint({
+  path: "/resize_node",
+  description: "Set a node view's bounds; omitted values keep the current ones. Connected edges follow, as one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    id: id("Node view id."),
+    left: optional(doc(number2(), "Left edge in diagram units.")),
+    top: optional(doc(number2(), "Top edge in diagram units.")),
+    width: optional(doc(number2().check(_positive()), "Width.")),
+    height: optional(doc(number2().check(_positive()), "Height.")),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const node = requireView(input.id);
+    if (!(node instanceof type.NodeView)) {
+      throw new ApiError("NOT_FOUND", `Node view not found: ${input.id}`);
+    }
+    const bounds = node;
+    const left = input.left ?? bounds.left;
+    const top = input.top ?? bounds.top;
+    const right = left + (input.width ?? bounds.width);
+    const bottom = top + (input.height ?? bounds.height);
+    const editor = editorShowing(diagramOf(node));
+    inStarUML(
+      () => app.engine.resizeNode(editor, node, left, top, right, bottom)
+    );
+    return serialize(node, projectionOr(input, GEOMETRY));
+  }
+});
+var setViewStyle = defineEndpoint({
+  path: "/set_view_style",
+  description: "Change how views are drawn: colours, font, edge line style, stereotype display, auto-resize (the Format menu). Each given property is one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ids: viewIds(),
+    fillColor: color("Fill colour, CSS hex such as '#ffcc00'."),
+    lineColor: color("Line colour."),
+    fontColor: color("Text colour."),
+    fontFace: optional(
+      doc(string2().check(_minLength(1)), "Font family, e.g. 'Arial'.")
+    ),
+    fontSize: optional(
+      doc(number2().check(_positive()), "Font size in points.")
+    ),
+    lineStyle: optional(lineStyle("Edge line style; edges only.")),
+    stereotypeDisplay: optional(
+      doc(
+        _enum(STEREOTYPE_DISPLAYS),
+        "How a UML node view shows its stereotype."
+      )
+    ),
+    autoResize: optional(
+      doc(boolean2(), "Grow node views to fit their content.")
+    ),
+    ...projectionShape()
+  }),
+  response: viewsResult(),
+  handle: (input) => {
+    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const editor = editorShowing(diagram);
+    const e = app.engine;
+    const changes = [
+      ["fillColor", () => e.setFillColor(editor, views, input.fillColor)],
+      ["lineColor", () => e.setLineColor(editor, views, input.lineColor)],
+      ["fontColor", () => e.setFontColor(editor, views, input.fontColor)],
+      ["fontFace", () => e.setFontFace(editor, views, input.fontFace)],
+      ["fontSize", () => e.setFontSize(editor, views, input.fontSize)],
+      [
+        "lineStyle",
+        () => e.setLineStyle(editor, views, LINE_STYLES[input.lineStyle])
+      ],
+      [
+        "stereotypeDisplay",
+        () => e.setStereotypeDisplay(editor, views, input.stereotypeDisplay)
+      ],
+      ["autoResize", () => e.setAutoResize(editor, views, input.autoResize)]
+    ];
+    const given = changes.filter(([key]) => input[key] !== void 0);
+    if (given.length === 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `Pass at least one of ${changes.map(([key]) => key).join(", ")}`
+      );
+    }
+    for (const [, apply] of given) inStarUML(apply);
+    const fields = given.map(
+      ([key]) => key === "fontFace" || key === "fontSize" ? "font" : key
+    );
+    return viewsResponse(
+      diagram,
+      views,
+      projectionOr(input, [...new Set(fields)])
+    );
+  }
+});
+var setZOrder = defineEndpoint({
+  path: "/set_z_order",
+  description: "Bring views to the front or send them to the back of their diagram, as one undoable operation. Views nested in another view keep their order.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ids: viewIds(),
+    position: doc(_enum(["front", "back"]), "Where to move the views.")
+  }),
+  response: object({
+    diagram: string2(),
+    order: doc(
+      array(string2()),
+      "The diagram's top-level view ids, back to front, after the change."
+    )
+  }),
+  handle: (input) => {
+    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
+    const owned = diagram.ownedViews;
+    const builder = app.repository.getOperationBuilder();
+    builder.begin(
+      input.position === "front" ? "bring to front" : "send to back"
+    );
+    const topLevel = views.filter((v) => v._parent === diagram);
+    const ordered = input.position === "front" ? topLevel : topLevel.reverse();
+    for (const view of ordered) {
+      builder.fieldReorder(
+        diagram,
+        "ownedViews",
+        view,
+        input.position === "front" ? owned.length - 1 : 0
+      );
+    }
+    builder.end();
+    inStarUML(() => app.repository.doOperation(builder.getOperation()));
+    return { diagram: diagram._id, order: owned.map((v) => v._id) };
+  }
+});
+
 // src/handlers/build.ts
 var DIRECTIONS = ["TB", "BT", "LR", "RL"];
 function within(elem, ancestor) {
@@ -6510,7 +6909,7 @@ function propertyOps(node, model) {
     body: { id: model._id, field, value }
   }));
 }
-function opsFor(plan, target, direction2, autoLayout) {
+function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(plan.kind, direction2)) {
   const ops = [];
   const diagramRef = target.diagram?._id ?? "$diagram";
   if (!target.diagram) {
@@ -6638,7 +7037,7 @@ function opsFor(plan, target, direction2, autoLayout) {
   if (engine) {
     ops.push({
       path: "/layout_diagram",
-      body: { id: diagramRef, direction: direction2 }
+      body: { id: diagramRef, preset }
     });
   }
   return {
@@ -6648,8 +7047,14 @@ function opsFor(plan, target, direction2, autoLayout) {
     edgeOps,
     updated,
     unchanged,
-    layout: engine ? "engine" : "placed"
+    layout: engine ? "engine" : "placed",
+    ...engine && { preset }
   };
+}
+var SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" };
+function defaultPreset(kind, direction2) {
+  const family = kind === "class" ? "hierarchy" : "flow";
+  return `${family}-${SIDES[direction2]}`;
 }
 function findDiagram(kind, name2, parent) {
   if (name2 === void 0) return null;
@@ -6693,6 +7098,12 @@ function buildDiagramEndpoint(endpoints2) {
       direction: optional(
         doc(_enum(DIRECTIONS), "Layout direction; default TB, or Mermaid's.")
       ),
+      layout: optional(
+        doc(
+          _enum(PRESET_NAMES),
+          "Layout preset for Format > Layout (see /layout_diagram); default flow-<direction>, hierarchy-<direction> for class diagrams."
+        )
+      ),
       autoLayout: optional(
         doc(
           boolean2(),
@@ -6724,6 +7135,7 @@ function buildDiagramEndpoint(endpoints2) {
         _enum(["engine", "placed"]),
         "engine: Format > Layout arranged it; placed: the computed placement stands."
       ),
+      preset: optional(doc(string2(), "The layout preset applied.")),
       ids: doc(
         record(string2(), refSchema()),
         "Model and view ids of each node, by its name (or id) in the spec."
@@ -6768,7 +7180,8 @@ function buildDiagramEndpoint(endpoints2) {
         plan,
         { diagram, parent, name: name2 },
         direction2 ?? "TB",
-        input.autoLayout ?? true
+        input.autoLayout ?? true,
+        input.layout
       );
       const batch = endpoints2().find((e) => e.path === "/batch");
       let data = { results: [] };
@@ -6806,6 +7219,7 @@ function buildDiagramEndpoint(endpoints2) {
         updated: built.updated,
         unchanged: built.unchanged,
         layout: built.layout,
+        ...built.preset && { preset: built.preset },
         ids: ids2,
         edges
       };
@@ -12179,271 +12593,6 @@ var createRelationship = defineEndpoint({
   }
 });
 
-// src/handlers/views.ts
-var LINE_STYLES = {
-  rectilinear: 0,
-  oblique: 1,
-  roundrect: 2,
-  curve: 3
-};
-var STEREOTYPE_DISPLAYS = [
-  "none",
-  "label",
-  "decoration",
-  "decoration-label",
-  "icon",
-  "icon-label"
-];
-var LAYOUT_DIRECTIONS = ["TB", "BT", "LR", "RL"];
-var lineStyle = (description) => doc(
-  _enum(Object.keys(LINE_STYLES)),
-  description
-);
-var color = (description) => optional(
-  doc(
-    string2().check(_regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)),
-    description
-  )
-);
-var viewIds = () => doc(
-  array(string2().check(_minLength(1))).check(_minLength(1)),
-  "View ids, all on one diagram."
-);
-function requireViewsOnOneDiagram(ids2) {
-  const views = ids2.map((i) => requireView(i));
-  const diagram = diagramOf(views[0]);
-  const stray = views.find((v) => diagramOf(v) !== diagram);
-  if (stray) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `View ${stray._id} is not on diagram ${diagram._id} like ${views[0]._id}`
-    );
-  }
-  return { views, diagram };
-}
-function editorShowing(diagram) {
-  if (app.diagrams.getCurrentDiagram() !== diagram) {
-    inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
-  }
-  return app.diagrams.getEditor();
-}
-var viewsResult = () => object({
-  diagram: doc(string2(), "Id of the diagram the views are on."),
-  views: array(elementSchema())
-});
-function projectionOr(input, fields) {
-  return input.fields !== void 0 || input.summary !== void 0 ? input : { ...input, fields };
-}
-function viewsResponse(diagram, views, projection) {
-  return {
-    diagram: diagram._id,
-    views: views.map((v) => serialize(v, projection))
-  };
-}
-var GEOMETRY = ["left", "top", "width", "height"];
-var layoutDiagram = defineEndpoint({
-  path: "/layout_diagram",
-  description: "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. Opens the diagram in the editor.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    id: optional(id("Diagram id; default the current diagram.")),
-    direction: optional(
-      doc(
-        _enum(LAYOUT_DIRECTIONS),
-        "Rank direction: TB top to bottom (default), BT, LR, RL."
-      )
-    ),
-    separations: optional(
-      doc(
-        object({
-          node: number2().check(_gte(0)),
-          edge: number2().check(_gte(0)),
-          rank: number2().check(_gte(0))
-        }),
-        "Spacing in diagram units between nodes, edges and ranks; StarUML's defaults when omitted."
-      )
-    ),
-    edgeLineStyle: optional(
-      lineStyle("Line style applied to edges by the layout.")
-    )
-  }),
-  response: object({ _id: string2(), direction: string2() }),
-  handle: (input) => {
-    const diagram = input.id === void 0 ? app.diagrams.getCurrentDiagram() : requireDiagram(input.id);
-    if (!diagram) {
-      throw new ApiError("NOT_FOUND", "No diagram is open; pass 'id'");
-    }
-    const direction2 = input.direction ?? "TB";
-    const editor = editorShowing(diagram);
-    inStarUML(
-      () => app.engine.layoutDiagram(
-        editor,
-        diagram,
-        direction2,
-        input.separations,
-        input.edgeLineStyle === void 0 ? void 0 : LINE_STYLES[input.edgeLineStyle]
-      )
-    );
-    return { _id: diagram._id, direction: direction2 };
-  }
-});
-var moveViews = defineEndpoint({
-  path: "/move_views",
-  description: "Move views by an offset, carrying contained views and connected edges along, as one undoable operation.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    ids: viewIds(),
-    dx: doc(number2(), "Horizontal offset in diagram units."),
-    dy: doc(number2(), "Vertical offset in diagram units."),
-    ...projectionShape()
-  }),
-  response: viewsResult(),
-  handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
-    const editor = editorShowing(diagram);
-    inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
-    return viewsResponse(diagram, views, projectionOr(input, GEOMETRY));
-  }
-});
-var resizeNode = defineEndpoint({
-  path: "/resize_node",
-  description: "Set a node view's bounds; omitted values keep the current ones. Connected edges follow, as one undoable operation.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    id: id("Node view id."),
-    left: optional(doc(number2(), "Left edge in diagram units.")),
-    top: optional(doc(number2(), "Top edge in diagram units.")),
-    width: optional(doc(number2().check(_positive()), "Width.")),
-    height: optional(doc(number2().check(_positive()), "Height.")),
-    ...projectionShape()
-  }),
-  response: elementSchema(),
-  handle: (input) => {
-    const node = requireView(input.id);
-    if (!(node instanceof type.NodeView)) {
-      throw new ApiError("NOT_FOUND", `Node view not found: ${input.id}`);
-    }
-    const bounds = node;
-    const left = input.left ?? bounds.left;
-    const top = input.top ?? bounds.top;
-    const right = left + (input.width ?? bounds.width);
-    const bottom = top + (input.height ?? bounds.height);
-    const editor = editorShowing(diagramOf(node));
-    inStarUML(
-      () => app.engine.resizeNode(editor, node, left, top, right, bottom)
-    );
-    return serialize(node, projectionOr(input, GEOMETRY));
-  }
-});
-var setViewStyle = defineEndpoint({
-  path: "/set_view_style",
-  description: "Change how views are drawn: colours, font, edge line style, stereotype display, auto-resize (the Format menu). Each given property is one undoable operation.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    ids: viewIds(),
-    fillColor: color("Fill colour, CSS hex such as '#ffcc00'."),
-    lineColor: color("Line colour."),
-    fontColor: color("Text colour."),
-    fontFace: optional(
-      doc(string2().check(_minLength(1)), "Font family, e.g. 'Arial'.")
-    ),
-    fontSize: optional(
-      doc(number2().check(_positive()), "Font size in points.")
-    ),
-    lineStyle: optional(lineStyle("Edge line style; edges only.")),
-    stereotypeDisplay: optional(
-      doc(
-        _enum(STEREOTYPE_DISPLAYS),
-        "How a UML node view shows its stereotype."
-      )
-    ),
-    autoResize: optional(
-      doc(boolean2(), "Grow node views to fit their content.")
-    ),
-    ...projectionShape()
-  }),
-  response: viewsResult(),
-  handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
-    const editor = editorShowing(diagram);
-    const e = app.engine;
-    const changes = [
-      ["fillColor", () => e.setFillColor(editor, views, input.fillColor)],
-      ["lineColor", () => e.setLineColor(editor, views, input.lineColor)],
-      ["fontColor", () => e.setFontColor(editor, views, input.fontColor)],
-      ["fontFace", () => e.setFontFace(editor, views, input.fontFace)],
-      ["fontSize", () => e.setFontSize(editor, views, input.fontSize)],
-      [
-        "lineStyle",
-        () => e.setLineStyle(editor, views, LINE_STYLES[input.lineStyle])
-      ],
-      [
-        "stereotypeDisplay",
-        () => e.setStereotypeDisplay(editor, views, input.stereotypeDisplay)
-      ],
-      ["autoResize", () => e.setAutoResize(editor, views, input.autoResize)]
-    ];
-    const given = changes.filter(([key]) => input[key] !== void 0);
-    if (given.length === 0) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `Pass at least one of ${changes.map(([key]) => key).join(", ")}`
-      );
-    }
-    for (const [, apply] of given) inStarUML(apply);
-    const fields = given.map(
-      ([key]) => key === "fontFace" || key === "fontSize" ? "font" : key
-    );
-    return viewsResponse(
-      diagram,
-      views,
-      projectionOr(input, [...new Set(fields)])
-    );
-  }
-});
-var setZOrder = defineEndpoint({
-  path: "/set_z_order",
-  description: "Bring views to the front or send them to the back of their diagram, as one undoable operation. Views nested in another view keep their order.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    ids: viewIds(),
-    position: doc(_enum(["front", "back"]), "Where to move the views.")
-  }),
-  response: object({
-    diagram: string2(),
-    order: doc(
-      array(string2()),
-      "The diagram's top-level view ids, back to front, after the change."
-    )
-  }),
-  handle: (input) => {
-    const { views, diagram } = requireViewsOnOneDiagram(input.ids);
-    const owned = diagram.ownedViews;
-    const builder = app.repository.getOperationBuilder();
-    builder.begin(
-      input.position === "front" ? "bring to front" : "send to back"
-    );
-    const topLevel = views.filter((v) => v._parent === diagram);
-    const ordered = input.position === "front" ? topLevel : topLevel.reverse();
-    for (const view of ordered) {
-      builder.fieldReorder(
-        diagram,
-        "ownedViews",
-        view,
-        input.position === "front" ? owned.length - 1 : 0
-      );
-    }
-    builder.end();
-    inStarUML(() => app.repository.doOperation(builder.getOperation()));
-    return { diagram: diagram._id, order: owned.map((v) => v._id) };
-  }
-});
-
 // src/handlers/editor.ts
 var getSelection = defineEndpoint({
   path: "/get_selection",
@@ -13111,6 +13260,7 @@ var endpoints = [
   getRefsTo,
   getConnectedNodeViews,
   layoutDiagram,
+  routeEdges,
   moveViews,
   resizeNode,
   setViewStyle,

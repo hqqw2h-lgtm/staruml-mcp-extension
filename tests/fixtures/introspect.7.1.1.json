@@ -19644,7 +19644,7 @@
     },
     {
       "path": "/layout_diagram",
-      "description": "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. Opens the diagram in the editor.",
+      "description": "Arrange a diagram's node views automatically (Format > Layout in the UI), as one undoable operation. A preset picks direction, spacing and edge style: flow-* put an edge's source before its target (flowcharts, activities, state machines), hierarchy-* put the target first (a superclass above its subclasses). fit first sizes node views to their content. Opens the diagram in the editor.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -19656,10 +19656,29 @@
             "minLength": 1,
             "description": "Diagram id; default the current diagram."
           },
+          "diagramId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Same as id."
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "flow-down",
+              "flow-up",
+              "flow-right",
+              "flow-left",
+              "hierarchy-down",
+              "hierarchy-up",
+              "hierarchy-right",
+              "hierarchy-left"
+            ],
+            "description": "flow-down|up|right|left: edges run from source to target in that direction. hierarchy-down|up|right|left: edge targets come first. Other fields override the preset's values."
+          },
           "direction": {
             "type": "string",
             "enum": ["TB", "BT", "LR", "RL"],
-            "description": "Rank direction: TB top to bottom (default), BT, LR, RL."
+            "description": "dagre's rank direction as StarUML passes it: TB (default) puts an edge's target above its source; BT, LR, RL accordingly."
           },
           "separations": {
             "type": "object",
@@ -19671,10 +19690,24 @@
             "required": ["node", "edge", "rank"],
             "description": "Spacing in diagram units between nodes, edges and ranks; StarUML's defaults when omitted."
           },
+          "nodeSeparation": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Spacing between nodes of one rank, in diagram units."
+          },
+          "rankSeparation": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Spacing between ranks, in diagram units."
+          },
           "edgeLineStyle": {
             "type": "string",
             "enum": ["rectilinear", "oblique", "roundrect", "curve"],
-            "description": "Line style applied to edges by the layout."
+            "description": "Line style applied to edges by the layout; StarUML's default is curve."
+          },
+          "fit": {
+            "type": "boolean",
+            "description": "Size node views to their content before the layout; one more undo step."
           }
         }
       },
@@ -19683,9 +19716,67 @@
         "type": "object",
         "properties": {
           "_id": { "type": "string" },
-          "direction": { "type": "string" }
+          "direction": { "type": "string" },
+          "preset": { "type": "string" },
+          "separations": {
+            "type": "object",
+            "properties": {
+              "node": { "type": "number" },
+              "edge": { "type": "number" },
+              "rank": { "type": "number" }
+            },
+            "required": ["node", "edge", "rank"],
+            "additionalProperties": false,
+            "description": "Spacing passed to the layout, when the request set any."
+          },
+          "edgeLineStyle": { "type": "string" },
+          "fitted": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Node views resized by fit."
+          }
         },
         "required": ["_id", "direction"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/route_edges",
+      "description": "Give every edge view on a diagram one line style (Format > Line Style), as one undoable operation; rectilinear and rounded edges are re-routed around their ends. Opens the diagram in the editor.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagramId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram id; default the current diagram."
+          },
+          "lineStyle": {
+            "type": "string",
+            "enum": ["rectilinear", "oblique", "roundrect", "curve"],
+            "description": "Line style for every edge."
+          }
+        },
+        "required": ["lineStyle"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": { "type": "string" },
+          "lineStyle": { "type": "string" },
+          "edges": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Edge views given the style."
+          }
+        },
+        "required": ["diagram", "lineStyle", "edges"],
         "additionalProperties": false
       }
     },
@@ -20867,6 +20958,20 @@
             "enum": ["TB", "BT", "LR", "RL"],
             "description": "Layout direction; default TB, or Mermaid's."
           },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "flow-down",
+              "flow-up",
+              "flow-right",
+              "flow-left",
+              "hierarchy-down",
+              "hierarchy-up",
+              "hierarchy-right",
+              "hierarchy-left"
+            ],
+            "description": "Layout preset for Format > Layout (see /layout_diagram); default flow-<direction>, hierarchy-<direction> for class diagrams."
+          },
           "autoLayout": {
             "type": "boolean",
             "description": "Default true: Format > Layout after building. Sequence diagrams, lanes and a system boundary keep the computed placement."
@@ -20919,6 +21024,10 @@
             "type": "string",
             "enum": ["engine", "placed"],
             "description": "engine: Format > Layout arranged it; placed: the computed placement stands."
+          },
+          "preset": {
+            "type": "string",
+            "description": "The layout preset applied."
           },
           "ids": {
             "type": "object",

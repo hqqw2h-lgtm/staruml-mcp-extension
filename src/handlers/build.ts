@@ -43,6 +43,7 @@ import { summarize } from "../serialize.js";
 import { resolveCreateType } from "../toolbox.js";
 import type { Element, View } from "../types.js";
 import { modelTypeOf } from "./elements.js";
+import { type LayoutPresetName, PRESET_NAMES } from "./views.js";
 
 /*
  * /build_diagram turns a compact spec (or Mermaid) into one /batch: the
@@ -190,6 +191,7 @@ export interface Built {
   updated: number;
   unchanged: number;
   layout: "engine" | "placed";
+  preset?: LayoutPresetName;
 }
 
 export interface Target {
@@ -204,6 +206,7 @@ export function opsFor(
   target: Target,
   direction: Direction,
   autoLayout: boolean,
+  preset: LayoutPresetName = defaultPreset(plan.kind, direction),
 ): Built {
   const ops: Op[] = [];
   const diagramRef = target.diagram?._id ?? "$diagram";
@@ -344,7 +347,7 @@ export function opsFor(
   if (engine) {
     ops.push({
       path: "/layout_diagram",
-      body: { id: diagramRef, direction },
+      body: { id: diagramRef, preset },
     });
   }
   return {
@@ -355,7 +358,20 @@ export function opsFor(
     updated,
     unchanged,
     layout: engine ? "engine" : "placed",
+    ...(engine && { preset }),
   };
+}
+
+const SIDES = { TB: "down", BT: "up", LR: "right", RL: "left" } as const;
+
+/**
+ * The layout preset for a kind built in `direction`. Class diagrams read as
+ * hierarchies, with generalization targets on top; every other kind reads
+ * along its edges, so a flowchart drawn TB starts at the top (issue #12).
+ */
+export function defaultPreset(kind: Kind, direction: Direction) {
+  const family = kind === "class" ? "hierarchy" : "flow";
+  return `${family}-${SIDES[direction]}` as LayoutPresetName;
 }
 
 /** The diagram an upsert updates: same type and name, under the parent. */
@@ -415,6 +431,12 @@ export function buildDiagramEndpoint(
       direction: z.optional(
         doc(z.enum(DIRECTIONS), "Layout direction; default TB, or Mermaid's."),
       ),
+      layout: z.optional(
+        doc(
+          z.enum(PRESET_NAMES),
+          "Layout preset for Format > Layout (see /layout_diagram); default flow-<direction>, hierarchy-<direction> for class diagrams.",
+        ),
+      ),
       autoLayout: z.optional(
         doc(
           z.boolean(),
@@ -446,6 +468,7 @@ export function buildDiagramEndpoint(
         z.enum(["engine", "placed"]),
         "engine: Format > Layout arranged it; placed: the computed placement stands.",
       ),
+      preset: z.optional(doc(z.string(), "The layout preset applied.")),
       ids: doc(
         z.record(z.string(), refSchema()),
         "Model and view ids of each node, by its name (or id) in the spec.",
@@ -494,6 +517,7 @@ export function buildDiagramEndpoint(
         { diagram, parent, name },
         direction ?? "TB",
         input.autoLayout ?? true,
+        input.layout,
       );
       const batch = endpoints().find((e) => e.path === "/batch")!;
       let data: BatchData = { results: [] };
@@ -534,6 +558,7 @@ export function buildDiagramEndpoint(
         updated: built.updated,
         unchanged: built.unchanged,
         layout: built.layout,
+        ...(built.preset && { preset: built.preset }),
         ids,
         edges,
       };

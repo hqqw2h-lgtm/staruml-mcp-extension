@@ -6,6 +6,7 @@ import {
   layoutDiagram,
   moveViews,
   resizeNode,
+  routeEdges,
   setViewStyle,
   setZOrder,
 } from "../../../src/handlers/views.js";
@@ -92,6 +93,180 @@ describe("/layout_diagram", () => {
       { direction: "up" },
       "INVALID_ARGUMENT",
       /^direction: /,
+    );
+  });
+});
+
+describe("/layout_diagram presets", () => {
+  it("runs flow presets against dagre's head-to-tail ranks", async () => {
+    const spy = vi.spyOn(env.app.engine, "layoutDiagram");
+    await classView("A");
+    const data = await ok(layoutDiagram, {
+      diagramId: env.mainDiagram._id,
+      preset: "flow-down",
+    });
+    expect(data).toEqual({
+      _id: env.mainDiagram._id,
+      direction: "BT",
+      preset: "flow-down",
+      separations: { node: 40, edge: 20, rank: 50 },
+      edgeLineStyle: "rectilinear",
+    });
+    expect(spy).toHaveBeenLastCalledWith(
+      env.app.diagrams.getEditor(),
+      env.mainDiagram,
+      "BT",
+      { node: 40, edge: 20, rank: 50 },
+      0,
+    );
+    await ok(layoutDiagram, { id: env.mainDiagram._id, preset: "flow-right" });
+    expect(spy.mock.lastCall![2]).toBe("RL");
+    await ok(layoutDiagram, {
+      id: env.mainDiagram._id,
+      preset: "hierarchy-down",
+    });
+    expect(spy.mock.lastCall![2]).toBe("TB");
+    expect((spy.mock.lastCall as unknown[])[3]).toEqual({
+      node: 50,
+      edge: 20,
+      rank: 70,
+    });
+  });
+
+  it("lets explicit fields override the preset", async () => {
+    const spy = vi.spyOn(env.app.engine, "layoutDiagram");
+    await classView("A");
+    await ok(layoutDiagram, {
+      id: env.mainDiagram._id,
+      preset: "flow-down",
+      direction: "LR",
+      separations: { node: 1, edge: 2, rank: 3 },
+      rankSeparation: 9,
+      edgeLineStyle: "curve",
+    });
+    expect(spy).toHaveBeenLastCalledWith(
+      env.app.diagrams.getEditor(),
+      env.mainDiagram,
+      "LR",
+      { node: 1, edge: 2, rank: 9 },
+      3,
+    );
+  });
+
+  it("completes partial separations with StarUML's defaults", async () => {
+    const spy = vi.spyOn(env.app.engine, "layoutDiagram");
+    await classView("A");
+    const data = await ok(layoutDiagram, {
+      id: env.mainDiagram._id,
+      nodeSeparation: 80,
+    });
+    expect(data).toEqual({
+      _id: env.mainDiagram._id,
+      direction: "TB",
+      separations: { node: 80, edge: 30, rank: 30 },
+    });
+    expect((spy.mock.lastCall as unknown[])[4]).toBeUndefined();
+  });
+
+  it("fits node views to their content first", async () => {
+    const a = await classView("A");
+    const b = await classView("B", undefined, 400);
+    const c = await classView("C", undefined, 700);
+    const pkg = await ok<Created>(createElementWithView, {
+      type: "UMLPackage",
+      diagramId: env.mainDiagram._id,
+      name: "P",
+      x: 900,
+      y: 100,
+    });
+    await ok(createEdgeWithView, {
+      type: "UMLAssociation",
+      diagramId: env.mainDiagram._id,
+      tailViewId: a.view._id,
+      headViewId: b.view._id,
+    });
+    Object.assign(view(a.view._id), { minWidth: 50, minHeight: 30 });
+    // Already at its minimum size.
+    const vb = view(b.view._id);
+    Object.assign(vb, { minWidth: vb.width, minHeight: vb.height });
+    // No minimum known yet: never drawn.
+    Object.assign(view(c.view._id), { minWidth: 0, minHeight: 0 });
+    Object.assign(view(pkg.view._id), {
+      minWidth: 10,
+      minHeight: 10,
+      containedViews: [vb],
+    });
+    const before = env.app.repository._undoStack.size();
+    const data = await ok(layoutDiagram, {
+      id: env.mainDiagram._id,
+      fit: true,
+    });
+    expect(data).toMatchObject({ fitted: 1 });
+    expect(view(a.view._id)).toMatchObject({ width: 50, height: 30 });
+    expect(view(pkg.view._id).width).not.toBe(10);
+    expect(env.app.repository._undoStack.size()).toBe(before + 2);
+    const again = await ok(layoutDiagram, {
+      id: env.mainDiagram._id,
+      fit: true,
+    });
+    expect(again).toMatchObject({ fitted: 0 });
+    expect(env.app.repository._undoStack.size()).toBe(before + 3);
+  });
+
+  it("rejects an unknown preset", async () => {
+    await fails(
+      layoutDiagram,
+      { preset: "sideways" },
+      "INVALID_ARGUMENT",
+      /^preset: /,
+    );
+  });
+});
+
+describe("/route_edges", () => {
+  it("styles every edge view on the diagram in one step", async () => {
+    const a = await classView("A");
+    const b = await classView("B", undefined, 400);
+    const edge = await ok<Created>(createEdgeWithView, {
+      type: "UMLAssociation",
+      diagramId: env.mainDiagram._id,
+      tailViewId: a.view._id,
+      headViewId: b.view._id,
+    });
+    const before = env.app.repository._undoStack.size();
+    env.app.diagrams.setCurrentDiagram(env.mainDiagram);
+    const data = await ok(routeEdges, { lineStyle: "roundrect" });
+    expect(data).toEqual({
+      diagram: env.mainDiagram._id,
+      lineStyle: "roundrect",
+      edges: 1,
+    });
+    expect(view(edge.view._id).lineStyle).toBe(2);
+    expect(env.app.repository._undoStack.size()).toBe(before + 1);
+  });
+
+  it("does nothing on a diagram without edges", async () => {
+    await classView("A");
+    const before = env.app.repository._undoStack.size();
+    const data = await ok(routeEdges, {
+      diagramId: env.mainDiagram._id,
+      lineStyle: "oblique",
+    });
+    expect(data).toMatchObject({ edges: 0 });
+    expect(env.app.repository._undoStack.size()).toBe(before);
+  });
+
+  it("needs a diagram", async () => {
+    await fails(
+      routeEdges,
+      { lineStyle: "curve" },
+      "NOT_FOUND",
+      "No diagram is open; pass 'diagramId'",
+    );
+    await fails(
+      routeEdges,
+      { diagramId: env.mainDiagram._id, lineStyle: "zigzag" },
+      "INVALID_ARGUMENT",
     );
   });
 });
