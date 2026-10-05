@@ -30,8 +30,8 @@
  * Replaces the open project with a fresh one seeded with SEED classes, then
  * fires read-only requests at a fixed concurrency: summaries, full and
  * field-projected elements, owned elements expanded one level, paged
- * find_elements, /introspect sections and a read-only /batch of five
- * lookups. Exits non-zero on any transport error or non-2xx answer, when
+ * find_elements, /introspect sections, /search_types queries and a
+ * read-only /batch of five lookups. Exits non-zero on any transport error or non-2xx answer, when
  * client p99 exceeds P99_BUDGET_MS, or when any single handler held the
  * renderer thread longer than HANDLER_BUDGET_MS (taken from the
  * Server-Timing header the server sets).
@@ -217,6 +217,15 @@ const BUILD_SPEC = {
   ],
 };
 
+const SEARCHES = [
+  "composition",
+  "state machine",
+  "erd entity",
+  "align bottom",
+  "clsdgm",
+  "UMLClass",
+];
+
 async function buildPhase(errors) {
   const times = {
     create: { client: [], handler: [] },
@@ -286,6 +295,10 @@ async function main() {
       },
     ],
     () => ["/introspect", { include: ["factory", "toolbox"] }],
+    (i) => [
+      "/search_types",
+      { query: SEARCHES[i % SEARCHES.length], limit: 10 },
+    ],
     (i) => [
       "/batch",
       {

@@ -372,6 +372,21 @@ export interface Dialogs {
   showInfoDialog(message: string): unknown;
 }
 
+/** One failed rule on one element, from Validator.validate (core/validator.js in 7.1.1). */
+export interface ValidationProblem {
+  id: string;
+  ruleId: string;
+  message: string;
+}
+
+/**
+ * core/validator.js; runs every rule in the `rules` global, which the UML and
+ * ERD extensions fill from their rules.js.
+ */
+export interface Validator {
+  validate(): ValidationProblem[];
+}
+
 export interface StarUMLApp {
   commands: CommandManager;
   project: ProjectManager;
@@ -385,6 +400,9 @@ export interface StarUMLApp {
   preferences: PreferenceManager;
   metamodels: MetamodelManager;
   toolbox: Toolbox;
+  validator?: Validator;
+  /** extensibility/extension-loader.js */
+  extensionLoader?: { getUserExtensionPath(): string };
   /** StarUML's package.json version, e.g. "7.1.1" (app-context.js). */
   version: string;
   /** StarUML's package.json. */
@@ -398,6 +416,8 @@ declare global {
   var type: Record<string, abstract new (...args: never[]) => unknown>;
   /** Metamodel definitions by type name (core/metamodel-manager.js registers into global.meta). */
   var meta: Record<string, MetaType>;
+  /** Validation rules; rules.js files push into it (src/index.js in 7.1.1). */
+  var rules: unknown[];
 }
 
 export {};

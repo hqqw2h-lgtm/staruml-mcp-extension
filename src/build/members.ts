@@ -159,3 +159,67 @@ export function parseOperation(source: string): OperationSpec {
 export function isOperation(source: string): boolean {
   return /\(.*\)/.test(source);
 }
+
+const SIGIL: Record<string, string> = {
+  public: "+",
+  private: "-",
+  protected: "#",
+  package: "~",
+};
+
+/** A type held as text or as a reference to a classifier. */
+export function typeText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "name" in value) {
+    return String((value as { name: unknown }).name);
+  }
+  return "";
+}
+
+interface MemberFields {
+  name?: unknown;
+  visibility?: unknown;
+  isStatic?: unknown;
+  isAbstract?: unknown;
+  type?: unknown;
+  multiplicity?: unknown;
+  defaultValue?: unknown;
+  direction?: unknown;
+  parameters?: unknown;
+}
+
+const sigil = (m: MemberFields) => SIGIL[String(m.visibility)] ?? "";
+
+/** The inverse of parseAttribute: "+total: double[0..1] = 0$". */
+export function formatAttribute(a: MemberFields): string {
+  const type = typeText(a.type);
+  const mult = typeof a.multiplicity === "string" ? a.multiplicity : "";
+  const def = typeof a.defaultValue === "string" ? a.defaultValue : "";
+  return (
+    `${sigil(a)}${String(a.name ?? "")}` +
+    (type ? `: ${type}` : "") +
+    (mult ? `[${mult}]` : "") +
+    (def ? ` = ${def}` : "") +
+    (a.isStatic ? "$" : "")
+  );
+}
+
+/** The inverse of parseOperation: "+place(qty: int): Order*". */
+export function formatOperation(o: MemberFields): string {
+  const params = (
+    Array.isArray(o.parameters) ? o.parameters : []
+  ) as MemberFields[];
+  const ret = params.find((p) => p.direction === "return");
+  const args = params
+    .filter((p) => p !== ret)
+    .map((p) => {
+      const type = typeText(p.type);
+      return `${String(p.name ?? "")}${type ? `: ${type}` : ""}`;
+    });
+  const returns = ret ? typeText(ret.type) : "";
+  return (
+    `${sigil(o)}${String(o.name ?? "")}(${args.join(", ")})` +
+    (returns ? `: ${returns}` : "") +
+    (o.isStatic ? "$" : o.isAbstract ? "*" : "")
+  );
+}

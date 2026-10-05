@@ -1404,6 +1404,45 @@ export class Toolbox {
   );
 }
 
+export interface MockRule {
+  id: string;
+  message: string;
+  appliesTo: string[];
+  exceptions?: string[];
+  constraint(elem: MockElement): boolean;
+}
+
+/**
+ * core/validator.js: runs the rules in the `rules` global, which rules.js
+ * files fill. A rule that throws is logged and skipped there; here too.
+ */
+export class Validator {
+  constructor(private readonly repository: Repository) {}
+  validate(): { id: string; ruleId: string; message: string }[] {
+    const failed: { id: string; ruleId: string; message: string }[] = [];
+    const rules = (globalThis as unknown as { rules: MockRule[] }).rules;
+    for (const rule of rules) {
+      const targets = rule.appliesTo
+        .flatMap((t) => this.repository.getInstancesOf(t))
+        .filter((t) => !(rule.exceptions ?? []).some((x) => is(t, x)));
+      for (const target of targets) {
+        try {
+          if (!rule.constraint(target)) {
+            failed.push({
+              id: target._id as string,
+              ruleId: rule.id,
+              message: rule.message,
+            });
+          }
+        } catch {
+          // core/validator.js logs and moves on.
+        }
+      }
+    }
+    return failed;
+  }
+}
+
 export interface MockApp {
   version: string;
   metadata: { apiVersion?: string };
@@ -1419,6 +1458,7 @@ export interface MockApp {
   dialogs: Dialogs;
   metamodels: MetamodelManager;
   toolbox: Toolbox;
+  validator: Validator;
 }
 
 export interface MockEnvironment {
@@ -1451,11 +1491,13 @@ export function installMockApp(): MockEnvironment {
     dialogs: new Dialogs(),
     metamodels: new MetamodelManager(),
     toolbox: new Toolbox(),
+    validator: new Validator(repository),
   };
   const g = globalThis as unknown as Record<string, unknown>;
   g.app = app;
   g.type = mockTypes;
   g.meta = META;
+  g.rules = [];
 
   // StarUML starts on its default template: Untitled > Model > Main.
   const project = app.project.newProject();

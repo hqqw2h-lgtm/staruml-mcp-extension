@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatAttribute,
+  formatOperation,
   isOperation,
+  typeText,
   multiline,
   parseAttribute,
   parseOperation,
@@ -72,5 +75,57 @@ describe("parseOperation", () => {
   it("tells operations from attributes by the parameter list", () => {
     expect(isOperation("go()")).toBe(true);
     expect(isOperation("go: int")).toBe(false);
+  });
+});
+
+describe("member formatting", () => {
+  it("writes attributes back in the form parseAttribute reads", () => {
+    const source = {
+      name: "id",
+      visibility: "private",
+      type: "long",
+      multiplicity: "1",
+      defaultValue: "0",
+      isStatic: true,
+    };
+    expect(formatAttribute(source)).toBe("-id: long[1] = 0$");
+    expect(parseAttribute(formatAttribute(source))).toEqual({
+      name: "id",
+      type: "long",
+      visibility: "private",
+      multiplicity: "1",
+      defaultValue: "0",
+      isStatic: true,
+    });
+    expect(formatAttribute({ name: "x", visibility: "other" })).toBe("x");
+    expect(formatAttribute({})).toBe("");
+  });
+
+  it("writes operations with parameters and a return type", () => {
+    expect(
+      formatOperation({
+        name: "place",
+        visibility: "package",
+        isAbstract: true,
+        parameters: [
+          { name: "qty", type: "int", direction: "in" },
+          { name: "item", type: { name: "Item" } },
+          { name: "", type: "Order", direction: "return" },
+        ],
+      }),
+    ).toBe("~place(qty: int, item: Item): Order*");
+    expect(formatOperation({ name: "go", parameters: [{}] })).toBe("go()");
+    expect(formatOperation({})).toBe("()");
+    expect(
+      formatOperation({ name: "s", isStatic: true, isAbstract: true }),
+    ).toBe("s()$");
+  });
+
+  it("reads a type from text or a classifier reference", () => {
+    expect(typeText("int")).toBe("int");
+    expect(typeText({ name: "Item" })).toBe("Item");
+    expect(typeText(null)).toBe("");
+    expect(typeText({})).toBe("");
+    expect(typeText(3)).toBe("");
   });
 });

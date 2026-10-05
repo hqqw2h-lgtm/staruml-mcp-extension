@@ -65,13 +65,13 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 
 | Group         | Endpoints                                                                                                                                                                     |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Catalogue     | `/introspect`, `/debug`                                                                                                                                                       |
+| Catalogue     | `/introspect`, `/search_types`, `/debug`                                                                                                                                      |
 | Commands      | `/get_all_commands`, `/describe_commands`, `/execute_command`                                                                                                                 |
 | Project       | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`                                                                                     |
 | Elements      | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`                                                  |
 | Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
 | Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
-| Diagrams      | `/build_diagram`, `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                      |
+| Diagrams      | `/build_diagram`, `/describe_diagram`, `/validate_model`, `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                              |
 | Views         | `/layout_diagram`, `/route_edges`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`                                                                           |
 | Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                   |
 | Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                  |
@@ -90,6 +90,12 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 - `endpoints`: the manifest: path, description, `readOnly` and `destructive` flags, and JSON Schemas (2020-12) of the request and of `data` in the response; `errors` gives the status per code and the error body schema. Every request is validated against its schema.
 
 `tests/fixtures/introspect.7.1.1.json` records the answer of 7.1.1; `npm run snapshot:introspect` refreshes it.
+
+### Finding types, reading diagrams, validating
+
+- `/search_types {query, limit?, categories?}` ranks diagram types, palette items, relationship ids, model types, enumerations and command ids against a fuzzy query: a whole id beats a prefix, a prefix a substring, then all query words in the id, title or description, then the query's letters in order ("clsdgm"). Descriptions and the minimal `example` request are generated from the metamodel, the factory, the palette and the command catalogue, so types added by extensions are found too.
+- `/describe_diagram {diagramId, maxChars?}` answers a few lines of text: the diagram, each node with its members (`+id: long; +total(): double`), each edge as `"tail" -[Type "name"]-> "head"`, cut to `maxChars` (default 4000).
+- `/validate_model {scope?, limit?}` runs StarUML's validation rules on the open model and lists `{id, _type, name, ruleId, message}`. StarUML loads `rules.js` only in its main process and validates the saved file there (**Model → Validate**); this endpoint loads the same files (`resources/default/rules.js` and the `rules.js` of every essential, default, dev and user extension) into the window's `rules` once and runs `app.validator`, so no save is needed.
 
 ### Creating and changing elements
 

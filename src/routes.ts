@@ -35,6 +35,8 @@ import {
   reverseCode,
 } from "./handlers/codegen.js";
 import { debug } from "./handlers/debug.js";
+import { describeDiagram, validateModel } from "./handlers/describe.js";
+import { searchTypes } from "./handlers/search.js";
 import { introspectEndpoint } from "./handlers/introspect.js";
 import {
   closeDiagram,
@@ -169,6 +171,10 @@ export const endpoints: readonly Endpoint[] = [
 
   batchEndpoint(() => endpoints),
   buildDiagramEndpoint(() => endpoints),
+
+  searchTypes,
+  describeDiagram,
+  validateModel,
 
   introspectEndpoint(() => endpoints),
   debug,

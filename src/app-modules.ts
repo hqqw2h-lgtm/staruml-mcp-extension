@@ -21,6 +21,7 @@
  *
  */
 
+import { existsSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { ApiError } from "./errors.js";
@@ -47,6 +48,11 @@ export interface DiagramExportModule {
  * resolved path, so this returns the instance StarUML already loaded.
  */
 export function appModule<T>(relative: string): T {
+  const appRequire = createRequire(join(appRoot(), "src", "index.js"));
+  return appRequire(`./${relative}`) as T;
+}
+
+function appRoot(): string {
   const resources = (process as { resourcesPath?: string }).resourcesPath;
   if (!resources) {
     throw new ApiError(
@@ -54,8 +60,42 @@ export function appModule<T>(relative: string): T {
       "StarUML's modules are only available inside StarUML",
     );
   }
-  const appRequire = createRequire(join(resources, "app", "src", "index.js"));
-  return appRequire(`./${relative}`) as T;
+  return join(resources, "app");
+}
+
+/** Every `<dir>/<extension>/rules.js` under `dir`. */
+function extensionRules(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .sort()
+    .map((name) => join(dir, name, "rules.js"))
+    .filter((file) => existsSync(file));
+}
+
+/**
+ * Loads the validation rules into this window's `rules` global and answers
+ * the files read. StarUML loads rules.js only in the main process
+ * (extension-loader.js leaves 'rules' out of DEFAULT_FEATURES; Model >
+ * Validate saves the file and asks the main process over IPC), so the
+ * renderer's app.validator starts with none. The files are the ones the
+ * main process reads: resources/default/rules.js and the rules.js of every
+ * extension under essential, default, dev and the user extension directory
+ * (main-process/application.js in 7.1.1). Each file pushes into `rules`
+ * when first required; Node's module cache keeps a second call from adding
+ * them again.
+ */
+export function loadValidationRules(userExtensions: string | null): string[] {
+  const root = appRoot();
+  const files = [
+    join(root, "resources", "default", "rules.js"),
+    ...["essential", "default", "dev"].flatMap((d) =>
+      extensionRules(join(root, "extensions", d)),
+    ),
+    ...(userExtensions ? extensionRules(userExtensions) : []),
+  ].filter((file) => existsSync(file));
+  const load = createRequire(join(root, "src", "index.js"));
+  for (const file of files) load(file);
+  return files;
 }
 
 export function diagramExport(): DiagramExportModule {

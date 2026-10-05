@@ -2753,8 +2753,8 @@ var contributors = {
 function aggregateChecks(schema) {
   const agg = {};
   const def = schema._zod.def;
-  const list = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
-  for (const ch of list)
+  const list2 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  for (const ch of list2)
     contributors[ch._zod.def.check]?.(agg, ch._zod.def);
   const bag = schema._zod.bag;
   if (bag.minimum !== void 0)
@@ -4082,6 +4082,36 @@ function parseOperation(source) {
 function isOperation(source) {
   return /\(.*\)/.test(source);
 }
+var SIGIL = {
+  public: "+",
+  private: "-",
+  protected: "#",
+  package: "~"
+};
+function typeText(value) {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "name" in value) {
+    return String(value.name);
+  }
+  return "";
+}
+var sigil = (m) => SIGIL[String(m.visibility)] ?? "";
+function formatAttribute(a) {
+  const type2 = typeText(a.type);
+  const mult = typeof a.multiplicity === "string" ? a.multiplicity : "";
+  const def = typeof a.defaultValue === "string" ? a.defaultValue : "";
+  return `${sigil(a)}${String(a.name ?? "")}` + (type2 ? `: ${type2}` : "") + (mult ? `[${mult}]` : "") + (def ? ` = ${def}` : "") + (a.isStatic ? "$" : "");
+}
+function formatOperation(o) {
+  const params = Array.isArray(o.parameters) ? o.parameters : [];
+  const ret = params.find((p) => p.direction === "return");
+  const args = params.filter((p) => p !== ret).map((p) => {
+    const type2 = typeText(p.type);
+    return `${String(p.name ?? "")}${type2 ? `: ${type2}` : ""}`;
+  });
+  const returns = ret ? typeText(ret.type) : "";
+  return `${sigil(o)}${String(o.name ?? "")}(${args.join(", ")})` + (returns ? `: ${returns}` : "") + (o.isStatic ? "$" : o.isAbstract ? "*" : "");
+}
 
 // src/build/mermaid.ts
 var fail = (line, message) => {
@@ -4171,7 +4201,7 @@ function classDiagram(lines) {
     } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text3)) {
       annotate(entry(m[2]), m[1]);
     } else if (m = RELATION.exec(text3)) {
-      const [, a, aCard, arrow, bCard, b, label] = m;
+      const [, a, aCard, arrow, bCard, b, label2] = m;
       const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
       entry(a);
       entry(b);
@@ -4180,7 +4210,7 @@ function classDiagram(lines) {
         from,
         to,
         type: type2,
-        ...label && { name: label.trim() },
+        ...label2 && { name: label2.trim() },
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
@@ -4299,13 +4329,13 @@ function flowchart(lines) {
     if (!id2) return fail(no, `expected a node at "${rest}"`);
     let after = rest.slice(id2.length);
     let shape;
-    let label;
+    let label2;
     for (const [open, close, s] of SHAPES) {
       if (after.startsWith(open)) {
         const end = after.indexOf(close, open.length);
         if (end < 0) continue;
         shape = s;
-        label = unquote(after.slice(open.length, end));
+        label2 = unquote(after.slice(open.length, end));
         after = after.slice(end + close.length);
         break;
       }
@@ -4314,12 +4344,12 @@ function flowchart(lines) {
     if (!existing2) {
       nodes.set(id2, {
         id: id2,
-        name: multiline(label ?? id2),
+        name: multiline(label2 ?? id2),
         shape: shape ?? "process",
         ...lanes.length > 0 && { lane: lanes.at(-1) }
       });
     } else if (shape !== void 0) {
-      existing2.name = multiline(label);
+      existing2.name = multiline(label2);
       existing2.shape = shape;
     }
     return [id2, after.trimStart()];
@@ -4340,9 +4370,9 @@ function flowchart(lines) {
     while (rest) {
       const link = LINK.exec(rest);
       if (!link) fail(no, `expected a link at "${rest}"`);
-      const label = link[2] ?? link[3] ?? link[4] ?? link[5];
+      const label2 = link[2] ?? link[3] ?? link[4] ?? link[5];
       const [to, after] = node(rest.slice(link[0].length), no);
-      flows.push({ from, to, ...label && { label: label.trim() } });
+      flows.push({ from, to, ...label2 && { label: label2.trim() } });
       from = to;
       rest = after;
     }
@@ -4413,8 +4443,8 @@ function usecaseSpec(lines) {
       actors: nodes.filter((n) => !round.has(n.shape)).map((n) => n.name),
       useCases: nodes.filter((n) => round.has(n.shape)).map((n) => n.name),
       relations: flows.map((f) => {
-        const label = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
-        const type2 = label === "include" || label === "extend" || label === "generalization" ? label : "association";
+        const label2 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
+        const type2 = label2 === "include" || label2 === "extend" || label2 === "generalization" ? label2 : "association";
         return {
           from: names2.get(f.from),
           to: names2.get(f.to),
@@ -4516,9 +4546,9 @@ function stateDiagram(lines) {
     )) {
       const from = state2(m[1], "from");
       const to = state2(m[2], "to");
-      const label = m[3]?.trim();
-      const guard = label ? /\[([^\]]*)\]/.exec(label) : null;
-      const trigger = label?.replace(/\[[^\]]*\]/, "").trim();
+      const label2 = m[3]?.trim();
+      const guard = label2 ? /\[([^\]]*)\]/.exec(label2) : null;
+      const trigger = label2?.replace(/\[[^\]]*\]/, "").trim();
       transitions.push({
         from,
         to,
@@ -5444,7 +5474,7 @@ function statemachinePlan(spec) {
     });
   });
   (spec.transitions ?? []).forEach((t, i) => {
-    const label = [
+    const label2 = [
       t.trigger ?? "",
       t.effect !== void 0 ? ` / ${t.effect}` : ""
     ].join("").trim();
@@ -5453,7 +5483,7 @@ function statemachinePlan(spec) {
         type: "UMLTransition",
         from: t.from,
         to: t.to,
-        ...label && { name: label },
+        ...label2 && { name: label2 },
         ...t.guard !== void 0 && { properties: { guard: t.guard } }
       },
       `transitions.${i}`
@@ -6199,11 +6229,11 @@ function changeReferences(elem, attr, op, value) {
     attr,
     Array.isArray(value) ? value : [value]
   );
-  const list = elem[attr.name];
+  const list2 = elem[attr.name];
   for (const item of items) {
-    if (op === "add" && !list.includes(item)) {
+    if (op === "add" && !list2.includes(item)) {
       inStarUML(() => app.engine.addItem(elem, attr.name, item));
-    } else if (op === "remove" && list.includes(item)) {
+    } else if (op === "remove" && list2.includes(item)) {
       inStarUML(() => app.engine.removeItem(elem, attr.name, item));
     }
   }
@@ -6219,19 +6249,19 @@ function reorder(elem, attr, value, index) {
   if (index === void 0) {
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
-  const list = elem[attr.name];
+  const list2 = elem[attr.name];
   const itemId = refId(value);
-  const item = list.find((e) => e._id === itemId);
+  const item = list2.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
       "NOT_FOUND",
       `${String(itemId)} is not in ${typeName2}.${attr.name}`
     );
   }
-  if (index >= list.length) {
+  if (index >= list2.length) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName2}.${attr.name} (${list.length} items)`
+      `index ${index} is past the end of ${typeName2}.${attr.name} (${list2.length} items)`
     );
   }
   const builder = app.repository.getOperationBuilder();
@@ -6838,9 +6868,9 @@ function modelSignature(model) {
 var Pool = class {
   bySignature = /* @__PURE__ */ new Map();
   add(signature, item) {
-    const list = this.bySignature.get(signature) ?? [];
-    list.push(item);
-    this.bySignature.set(signature, list);
+    const list2 = this.bySignature.get(signature) ?? [];
+    list2.push(item);
+    this.bySignature.set(signature, list2);
   }
   take(signature) {
     return this.bySignature.get(signature)?.shift();
@@ -6867,7 +6897,7 @@ function existing(diagram) {
   }
   return { nodes, edges };
 }
-var names = (list) => new Set((Array.isArray(list) ? list : []).map((e) => e.name));
+var names = (list2) => new Set((Array.isArray(list2) ? list2 : []).map((e) => e.name));
 function memberOps(node, owner, model) {
   const ops = [];
   const add = (field, members2, op) => {
@@ -11094,11 +11124,11 @@ function methodNames(host) {
 async function withoutDialogs(what, run) {
   const attempted = [];
   const restore = [];
-  for (const [host, name2, label] of dialogMethods()) {
+  for (const [host, name2, label2] of dialogMethods()) {
     const own2 = Object.getOwnPropertyDescriptor(host, name2);
     host[name2] = () => {
-      attempted.push(label);
-      throw new DialogRefused(label);
+      attempted.push(label2);
+      throw new DialogRefused(label2);
     };
     restore.push(() => {
       if (own2) Object.defineProperty(host, name2, own2);
@@ -11536,6 +11566,448 @@ var debug = defineEndpoint({
       data[name2] = describeSurface(app[name2]);
     }
     return data;
+  }
+});
+
+// src/app-modules.ts
+var import_node_fs2 = require("node:fs");
+var import_node_module2 = require("node:module");
+var import_node_path2 = require("node:path");
+function appModule(relative2) {
+  const appRequire = (0, import_node_module2.createRequire)((0, import_node_path2.join)(appRoot(), "src", "index.js"));
+  return appRequire(`./${relative2}`);
+}
+function appRoot() {
+  const resources = process.resourcesPath;
+  if (!resources) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      "StarUML's modules are only available inside StarUML"
+    );
+  }
+  return (0, import_node_path2.join)(resources, "app");
+}
+function extensionRules(dir) {
+  if (!(0, import_node_fs2.existsSync)(dir)) return [];
+  return (0, import_node_fs2.readdirSync)(dir).sort().map((name2) => (0, import_node_path2.join)(dir, name2, "rules.js")).filter((file) => (0, import_node_fs2.existsSync)(file));
+}
+function loadValidationRules(userExtensions) {
+  const root = appRoot();
+  const files = [
+    (0, import_node_path2.join)(root, "resources", "default", "rules.js"),
+    ...["essential", "default", "dev"].flatMap(
+      (d) => extensionRules((0, import_node_path2.join)(root, "extensions", d))
+    ),
+    ...userExtensions ? extensionRules(userExtensions) : []
+  ].filter((file) => (0, import_node_fs2.existsSync)(file));
+  const load = (0, import_node_module2.createRequire)((0, import_node_path2.join)(root, "src", "index.js"));
+  for (const file of files) load(file);
+  return files;
+}
+function diagramExport() {
+  return appModule("engine/diagram-export.js");
+}
+
+// src/handlers/describe.ts
+function label(elem) {
+  return elem.name.replace(/\s*\n\s*/g, " ");
+}
+function nodeViews(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.NodeView && v.model
+  );
+}
+function edgeViews(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.EdgeView && v.model && v.tail?.model && v.head?.model
+  );
+}
+var list = (value) => Array.isArray(value) ? value : [];
+function membersOf(model) {
+  return [
+    ...list(model.attributes).map((a) => formatAttribute(a)),
+    ...list(model.operations).map((o) => formatOperation(o)),
+    ...list(model.literals).map((l) => label(l)),
+    ...list(model.columns).map(
+      (c) => [
+        label(c),
+        typeText(c.type) + (typeof c.length === "string" && c.length ? `(${c.length})` : ""),
+        c.primaryKey ? "PK" : "",
+        c.foreignKey ? "FK" : ""
+      ].filter(Boolean).join(" ")
+    )
+  ];
+}
+var quoted = (elem) => {
+  const name2 = label(elem);
+  return name2 ? `"${name2}"` : "(unnamed)";
+};
+function nodeLine(view) {
+  const model = view.model;
+  const members2 = membersOf(model);
+  return `- ${model.constructor.name} ${quoted(model)}` + (members2.length > 0 ? ` { ${members2.join("; ")} }` : "");
+}
+function edgeLine(view) {
+  const model = view.model;
+  const name2 = label(model);
+  return `- ${quoted(view.tail.model)} -[${model.constructor.name}` + (name2 ? ` "${name2}"` : "") + `]-> ${quoted(view.head.model)}`;
+}
+var describeDiagram = defineEndpoint({
+  path: "/describe_diagram",
+  description: `A compact text summary of a diagram: its nodes with their members and its edges as 'tail -[Type "name"]-> head', cut to maxChars. Cheaper to read than the element tree.`,
+  readOnly: true,
+  destructive: false,
+  request: object({
+    diagramId: id("Diagram id."),
+    maxChars: optional(
+      doc(
+        int().check(_gte(200), _lte(2e5)),
+        "Longest text to return; default 4000. Lines past it are counted, not shown."
+      )
+    )
+  }),
+  response: object({
+    diagram: object({
+      _id: string2(),
+      _type: string2(),
+      name: nullable(string2())
+    }),
+    nodes: doc(int(), "Node views showing a model."),
+    edges: doc(int(), "Edge views showing a model."),
+    text: string2(),
+    truncated: boolean2()
+  }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.diagramId);
+    const max = input.maxChars ?? 4e3;
+    const nodes = nodeViews(diagram);
+    const edges = edgeViews(diagram);
+    const lines = [
+      `${diagram.constructor.name} ${quoted(diagram)} in ${quoted(diagram._parent)}: ${nodes.length} nodes, ${edges.length} edges`,
+      ...nodes.length > 0 ? ["Nodes:", ...nodes.map(nodeLine)] : [],
+      ...edges.length > 0 ? ["Edges:", ...edges.map(edgeLine)] : []
+    ];
+    let text3 = "";
+    let shown = 0;
+    for (const line of lines) {
+      const next = shown === 0 ? line : `${text3}
+${line}`;
+      if (next.length > max - 30) break;
+      text3 = next;
+      shown++;
+    }
+    const truncated = shown < lines.length;
+    if (truncated) text3 += `
+... ${lines.length - shown} more lines`;
+    const { _id, _type, name: name2 } = summarize(diagram);
+    return {
+      diagram: { _id, _type, name: name2 },
+      nodes: nodes.length,
+      edges: edges.length,
+      text: text3,
+      truncated
+    };
+  }
+});
+function within2(elem, ancestor) {
+  for (let e = elem; e; e = e._parent) {
+    if (e === ancestor) return true;
+  }
+  return false;
+}
+var validateModel = defineEndpoint({
+  path: "/validate_model",
+  description: "Check the open model against StarUML's validation rules (the rules.js of the core and of the UML, ERD and other extensions, what Model > Validate runs on the saved file) and list each problem with the element and rule id. Needs no save. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    scope: optional(
+      id(
+        "Only problems on this element and what it owns; default the project."
+      )
+    ),
+    limit: optional(
+      doc(
+        int().check(_gte(1), _lte(1e3)),
+        "Most problems to list; default 200. count is always the full number."
+      )
+    )
+  }),
+  response: object({
+    count: doc(int(), "Problems found in scope."),
+    rules: doc(int(), "Rules checked."),
+    problems: array(
+      object({
+        id: doc(string2(), "Element id."),
+        _type: string2(),
+        name: nullable(string2()),
+        ruleId: doc(string2(), "Rule id, e.g. UML001."),
+        message: string2()
+      })
+    )
+  }),
+  handle: (input) => {
+    const scope = input.scope === void 0 ? null : requireElement(input.scope, "Scope");
+    const validator = app.validator;
+    if (!validator || typeof validator.validate !== "function") {
+      throw new ApiError(
+        "STARUML_ERROR",
+        "This StarUML has no app.validator to run the rules"
+      );
+    }
+    const user = app.extensionLoader?.getUserExtensionPath() ?? null;
+    loadValidationRules(user);
+    const found = inStarUML(() => validator.validate());
+    const problems = found.flatMap((p) => {
+      const elem = app.repository.get(p.id);
+      if (!elem || scope && !within2(elem, scope)) return [];
+      return [
+        {
+          id: p.id,
+          _type: elem.constructor.name,
+          name: elem.name ?? null,
+          ruleId: String(p.ruleId),
+          message: String(p.message)
+        }
+      ];
+    });
+    return {
+      count: problems.length,
+      rules: rules.length,
+      problems: problems.slice(0, input.limit ?? 200)
+    };
+  }
+});
+
+// src/handlers/search.ts
+var CATEGORIES = [
+  "diagram",
+  "palette",
+  "relationship",
+  "model",
+  "enum",
+  "command"
+];
+var nodeExample = (type2) => ({
+  path: "/create_element_with_view",
+  body: { type: type2, diagramId: "<diagram id>", name: "<name>", x: 100, y: 100 }
+});
+var edgeExample = (type2) => ({
+  path: "/create_relationship",
+  body: {
+    type: type2,
+    tailId: "<source view id>",
+    headId: "<target view id>",
+    diagramId: "<diagram id>"
+  }
+});
+function ancestry(name2) {
+  const supers = lineage(name2).slice(1, 4);
+  return supers.length > 0 ? `kind of ${supers.join(" < ")}` : "root type";
+}
+function ownAttributes(name2) {
+  const attrs = (meta[name2].attributes ?? []).filter((a) => !a.transient).map((a) => a.name);
+  if (attrs.length === 0) return "";
+  const shown = attrs.slice(0, 6).join(", ");
+  return `; own attributes: ${shown}${attrs.length > 6 ? ", ..." : ""}`;
+}
+function relationshipText(model) {
+  return relationshipKind(model) === "directed" ? "directed relationship (source -> target)" : "undirected relationship (end1 -- end2)";
+}
+var article = (text3) => /^[aeiou]/.test(text3) ? "an" : "a";
+function groupDiagrams(groupId) {
+  const group = app.toolbox.groups[groupId];
+  if (!group) return "";
+  const diagrams = group.diagramTypes?.map((t) => t.name);
+  return ` in "${group.title}"${diagrams ? ` (${diagrams.join(", ")})` : ""}`;
+}
+function modelTypeOfId(id2) {
+  const candidate = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
+  return meta[candidate]?.kind === "class" ? candidate : null;
+}
+function corpus() {
+  const entries = [];
+  const diagramIds = new Set(app.factory.getDiagramIds());
+  const modelAndView = app.factory.getModelAndViewIds();
+  const modelIds = new Set(app.factory.getModelIds());
+  const palette = /* @__PURE__ */ new Set();
+  for (const item of Object.values(app.toolbox.items)) {
+    palette.add(item.id);
+    const arg = item.commandArg ?? {};
+    const creates = typeof arg.id === "string" ? arg.id : item.id;
+    const model = modelTypeOfId(creates);
+    const edge = item.rubberband === "line";
+    const custom = item.command !== void 0 && item.command !== "factory:create-model-and-view";
+    const preset = Object.entries(arg).filter(([k, v]) => k !== "id" && typeof v !== "object").map(([k, v]) => `${k}=${String(v)}`);
+    entries.push({
+      id: item.id,
+      // A palette edge is what /create_relationship takes.
+      category: edge ? "relationship" : "palette",
+      title: item.title,
+      description: `Palette ${edge ? "edge" : "node"} "${item.title}"${groupDiagrams(item.groupId)}` + (custom ? `; runs ${item.command}` : `; creates ${model ?? creates}${preset.length > 0 ? ` with ${preset.join(", ")}` : ""}`) + (model && relationshipKind(model) ? `, ${article(relationshipText(model))} ${relationshipText(model)}` : ""),
+      ...!custom && {
+        example: edge ? edgeExample(item.id) : nodeExample(item.id)
+      }
+    });
+  }
+  for (const id2 of modelAndView) {
+    if (palette.has(id2)) continue;
+    const model = modelTypeOfId(id2);
+    if (!model || !relationshipKind(model)) continue;
+    entries.push({
+      id: id2,
+      category: "relationship",
+      description: `${relationshipText(model)}${model === id2 ? "" : ` creating ${model}`}, ${ancestry(model)}`,
+      example: edgeExample(id2)
+    });
+  }
+  for (const name2 of Object.keys(meta).sort()) {
+    const metaType = meta[name2];
+    if (metaType.kind === "enum") {
+      entries.push({
+        id: name2,
+        category: "enum",
+        description: `Enumeration: ${(metaType.literals ?? []).join(" | ")}`
+      });
+      continue;
+    }
+    if (app.metamodels.isKindOf(name2, "View")) continue;
+    if (diagramIds.has(name2)) {
+      entries.push({
+        id: name2,
+        category: "diagram",
+        description: `Diagram, ${ancestry(name2)}; holds ${app.metamodels.getAvailableViewTypes(name2).length} view types`,
+        example: {
+          path: "/create_diagram",
+          body: { type: name2, parentId: "<owner id>", name: "<name>" }
+        }
+      });
+      continue;
+    }
+    if (app.metamodels.isKindOf(name2, "Diagram")) continue;
+    const ways = [
+      modelAndView.includes(name2) && "with a view",
+      modelIds.has(name2) && "as a model"
+    ].filter(Boolean);
+    entries.push({
+      id: name2,
+      category: "model",
+      description: `Model element, ${ancestry(name2)}${ownAttributes(name2)}${ways.length > 0 ? `; creatable ${ways.join(" or ")}` : "; not creatable directly"}`,
+      example: modelAndView.includes(name2) ? relationshipKind(name2) ? edgeExample(name2) : nodeExample(name2) : modelIds.has(name2) ? {
+        path: "/create_element",
+        body: { type: name2, parentId: "<owner id>", name: "<name>" }
+      } : { path: "/find_elements", body: { type: name2 } }
+    });
+  }
+  for (const [id2, info] of Object.entries(COMMANDS)) {
+    entries.push({
+      id: id2,
+      category: "command",
+      description: `Command: ${info.effect}${info.dialog === "never" ? "" : ` (dialog: ${info.dialog})`}`,
+      example: {
+        path: "/execute_command",
+        body: {
+          id: id2,
+          ...info.args.length > 0 && {
+            args: info.args.filter((a) => !a.optional).map((a) => `<${a.name}: ${a.type}>`)
+          }
+        }
+      }
+    });
+  }
+  return entries;
+}
+var cache = null;
+function typeCorpus() {
+  const key = [meta, app.toolbox.items, app.factory];
+  if (!cache || cache.key.some((k, i) => k !== key[i])) {
+    cache = { key, entries: corpus() };
+  }
+  return cache.entries;
+}
+var squash2 = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+function subsequence(q, s) {
+  let at = -1;
+  let gaps = 0;
+  for (const ch of q) {
+    const next = s.indexOf(ch, at + 1);
+    if (next < 0) return 0;
+    if (at >= 0) gaps += next - at - 1;
+    at = next;
+  }
+  return Math.max(1, 100 - gaps);
+}
+function scoreEntry(entry, query) {
+  const q = squash2(query);
+  const id2 = squash2(entry.id);
+  const title = squash2(entry.title ?? "");
+  if (!q) return 0;
+  if (id2 === q || title === q) return 1e3;
+  if (id2.startsWith(q)) return 900 - (id2.length - q.length);
+  if (id2.includes(q) || title.includes(q)) return 800 - (id2.length - q.length);
+  const words = query.toLowerCase().match(/[a-z0-9]+/g);
+  const hay = `${entry.id} ${entry.title ?? ""} ${entry.description}`.toLowerCase();
+  const found = words.filter((w) => hay.includes(w)).length;
+  if (found === words.length) return 500 + found;
+  const fuzzy = subsequence(q, id2);
+  return fuzzy > 0 ? 200 + fuzzy : 0;
+}
+var searchTypes = defineEndpoint({
+  path: "/search_types",
+  description: "Find the type, palette item, relationship or command id to use, by a fuzzy query ('composition', 'state machine', 'erd entity', 'align'). Each hit has a one-line description and a minimal example request.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    query: doc(
+      string2().check(_minLength(1)),
+      "Words or part of an id; case and punctuation are ignored."
+    ),
+    limit: optional(
+      doc(
+        int().check(_gte(1), _lte(50)),
+        "Most hits to return; default 10."
+      )
+    ),
+    categories: optional(
+      doc(
+        array(_enum(CATEGORIES)),
+        "Only these categories: diagram, palette, relationship, model, enum, command."
+      )
+    )
+  }),
+  response: object({
+    query: string2(),
+    total: doc(int(), "Entries that matched, before the limit."),
+    results: array(
+      object({
+        id: string2(),
+        category: _enum(CATEGORIES),
+        title: optional(string2()),
+        description: string2(),
+        example: optional(
+          doc(
+            object({
+              path: string2(),
+              body: record(string2(), unknown())
+            }),
+            "A minimal request; replace the <placeholders>."
+          )
+        ),
+        score: number2()
+      })
+    )
+  }),
+  handle: (input) => {
+    const only = input.categories && new Set(input.categories);
+    const order = (c) => CATEGORIES.indexOf(c);
+    const hits = typeCorpus().filter((e) => !only || only.has(e.category)).map((e) => ({ ...e, score: scoreEntry(e, input.query) })).filter((e) => e.score > 0).sort(
+      (a, b) => b.score - a.score || order(a.category) - order(b.category) || a.id.localeCompare(b.id)
+    );
+    return {
+      query: input.query,
+      total: hits.length,
+      results: hits.slice(0, input.limit ?? 10)
+    };
   }
 });
 
@@ -12730,28 +13202,8 @@ var setEditorState = defineEndpoint({
 });
 
 // src/handlers/export.ts
-var import_node_fs2 = require("node:fs");
+var import_node_fs3 = require("node:fs");
 var import_node_path3 = require("node:path");
-
-// src/app-modules.ts
-var import_node_module2 = require("node:module");
-var import_node_path2 = require("node:path");
-function appModule(relative2) {
-  const resources = process.resourcesPath;
-  if (!resources) {
-    throw new ApiError(
-      "STARUML_ERROR",
-      "StarUML's modules are only available inside StarUML"
-    );
-  }
-  const appRequire = (0, import_node_module2.createRequire)((0, import_node_path2.join)(resources, "app", "src", "index.js"));
-  return appRequire(`./${relative2}`);
-}
-function diagramExport() {
-  return appModule("engine/diagram-export.js");
-}
-
-// src/handlers/export.ts
 var MAX_SCALE = 4;
 var MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
 function withoutSelection(diagram, run) {
@@ -12922,8 +13374,8 @@ function deliver(meta3, data, path) {
 }
 function writeFile(path, data) {
   try {
-    (0, import_node_fs2.mkdirSync)((0, import_node_path3.dirname)(path), { recursive: true });
-    (0, import_node_fs2.writeFileSync)(path, data);
+    (0, import_node_fs3.mkdirSync)((0, import_node_path3.dirname)(path), { recursive: true });
+    (0, import_node_fs3.writeFileSync)(path, data);
   } catch (err) {
     throw new ApiError(
       "STARUML_ERROR",
@@ -13018,7 +13470,7 @@ var PDF_POLL_MS = 50;
 async function waitForPdf(path, timeoutMs2) {
   const deadline = Date.now() + timeoutMs2;
   for (; ; ) {
-    if ((0, import_node_fs2.existsSync)(path) && (0, import_node_fs2.readFileSync)(path).subarray(-32).includes("%%EOF")) {
+    if ((0, import_node_fs3.existsSync)(path) && (0, import_node_fs3.readFileSync)(path).subarray(-32).includes("%%EOF")) {
       return;
     }
     if (Date.now() >= deadline) {
@@ -13079,7 +13531,7 @@ var exportPdf = defineEndpoint({
     return {
       path: input.path,
       pages: diagrams.length,
-      bytes: (0, import_node_fs2.readFileSync)(input.path).length
+      bytes: (0, import_node_fs3.readFileSync)(input.path).length
     };
   }
 });
@@ -13104,9 +13556,9 @@ var exportHtml = defineEndpoint({
       );
     }
     const index = (0, import_node_path3.join)(input.path, "index.html");
-    (0, import_node_fs2.rmSync)(index, { force: true });
+    (0, import_node_fs3.rmSync)(index, { force: true });
     await app.commands.execute(command, input.path);
-    if (!(0, import_node_fs2.existsSync)(index)) {
+    if (!(0, import_node_fs3.existsSync)(index)) {
       throw new ApiError("STARUML_ERROR", `HTML export wrote no ${index}`);
     }
     return { path: input.path, index };
@@ -13281,6 +13733,9 @@ var endpoints = [
   isModified,
   batchEndpoint(() => endpoints),
   buildDiagramEndpoint(() => endpoints),
+  searchTypes,
+  describeDiagram,
+  validateModel,
   introspectEndpoint(() => endpoints),
   debug
 ];
