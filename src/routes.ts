@@ -23,6 +23,7 @@
 
 import type { Endpoint } from "./endpoint.js";
 import { batchEndpoint } from "./handlers/batch.js";
+import { buildDiagramEndpoint } from "./handlers/build.js";
 import {
   describeCommands,
   executeCommand,
@@ -165,6 +166,7 @@ export const endpoints: readonly Endpoint[] = [
   isModified,
 
   batchEndpoint(() => endpoints),
+  buildDiagramEndpoint(() => endpoints),
 
   introspectEndpoint(() => endpoints),
   debug,

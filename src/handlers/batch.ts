@@ -39,6 +39,7 @@ import type { Operation } from "../types.js";
  */
 export const NOT_ATOMIC = new Set([
   "/batch",
+  "/build_diagram",
   "/undo",
   "/redo",
   "/new_project",
@@ -54,7 +55,7 @@ export const NOT_ATOMIC = new Set([
 ]);
 
 const NAME = /^[A-Za-z_][\w-]*$/;
-const REFERENCE = /^\$([A-Za-z_][\w-]*)((?:\.[A-Za-z_$][\w$]*)*)$/;
+const REFERENCE = /^\$([A-Za-z_][\w-]*)((?:\.(?:[A-Za-z_$][\w$]*|\d+))*)$/;
 
 type Results = Map<string, { success: boolean; data?: unknown }>;
 
@@ -62,8 +63,9 @@ type Results = Map<string, { success: boolean; data?: unknown }>;
  * Replaces each string "$name" or "$name.path" with what it names in the
  * result of the op saved as `name`: an element becomes its id (`.id` is
  * accepted for `_id`), so "$cls" is the created element's id and "$cls.view"
- * and "$cls.model" those of a create_*_with_view result. "$$" escapes a
- * literal leading "$".
+ * and "$cls.model" those of a create_*_with_view result; a numeric segment
+ * indexes a list, as in "$frag.model.operands.0" of a result projected with
+ * fields: ["operands"]. "$$" escapes a literal leading "$".
  */
 export function resolveReferences(value: unknown, results: Results): unknown {
   if (typeof value === "string") {
@@ -294,7 +296,7 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
       atomic: z.optional(
         doc(
           z.boolean(),
-          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code and /reverse_code.",
+          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram.",
         ),
       ),
     }),

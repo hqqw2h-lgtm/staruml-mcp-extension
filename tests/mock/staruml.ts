@@ -532,6 +532,11 @@ interface ModelAndViewEntry {
   relationship: string | null;
 }
 
+const SEQUENCE_VIEWS: Record<string, string> = {
+  UMLLifeline: "UMLSeqLifelineView",
+  UMLMessage: "UMLSeqMessageView",
+};
+
 /** Ids with a registered factory function in 7.1.1. */
 export const MODEL_IDS: readonly string[] = introspect.factory.modelIds;
 export const DIAGRAM_IDS: readonly string[] = introspect.factory.diagramIds;
@@ -614,7 +619,12 @@ export class Factory {
     }
     assertParent(options.parent, options.id);
     const model = create(entry.modelType);
-    const view = create<View>(entry.viewType!);
+    // lifelineFn and messageFn (uml-factory.js) pick the view class by the
+    // diagram; the recorded entry has the communication diagram's, or none.
+    const onSequence = is(options.diagram, "UMLSequenceDiagram");
+    const viewType =
+      (onSequence && SEQUENCE_VIEWS[entry.modelType]) || entry.viewType!;
+    const view = create<View>(viewType);
     view.model = model;
     if (is(model, "DirectedRelationship")) {
       model.source = options.tailModel ?? null;
@@ -633,6 +643,14 @@ export class Factory {
       view.top = options.y1 ?? 0;
       view.width = (options.x2 ?? 0) - (options.x1 ?? 0);
       view.height = (options.y2 ?? 0) - (options.y1 ?? 0);
+    }
+    // pseudostateFn (uml-factory.js) stores the toolbox item's kind.
+    const kind = (options as { pseudostateKind?: string }).pseudostateKind;
+    if (entry.modelType === "UMLPseudostate" && kind) model.kind = kind;
+    if (entry.modelType === "UMLCombinedFragment") {
+      // combinedFragmentFn (uml-factory.js) starts every fragment with one operand.
+      const operand = create("UMLInteractionOperand");
+      attach(model, "operands", operand);
     }
     options.modelInitializer?.(model);
     options.viewInitializer?.(view);

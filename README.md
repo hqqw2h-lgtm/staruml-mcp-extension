@@ -66,16 +66,18 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 | Group         | Endpoints                                                                                                                                                                     |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Catalogue     | `/introspect`, `/debug`                                                                                                                                                       |
-| Commands      | `/get_all_commands`, `/execute_command`                                                                                                                                       |
+| Commands      | `/get_all_commands`, `/describe_commands`, `/execute_command`                                                                                                                 |
 | Project       | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`                                                                                     |
 | Elements      | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`                                                  |
 | Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
 | Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
-| Diagrams      | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                                        |
+| Diagrams      | `/build_diagram`, `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                      |
 | Views         | `/layout_diagram`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`                                                                                           |
 | Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                   |
 | Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                  |
-| Export        | `/export_diagram`, `/export_pdf`, `/export_html`                                                                                                                              |
+| Export        | `/export_diagram`, `/export_diagrams`, `/export_pdf`, `/export_html`                                                                                                          |
+| Code          | `/list_code_generators`, `/generate_code`, `/reverse_code`                                                                                                                    |
+| Batches       | `/batch`                                                                                                                                                                      |
 | History       | `/undo`, `/redo`, `/is_modified`                                                                                                                                              |
 
 ### `/introspect`
@@ -113,9 +115,29 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 
 `{ops: [{path, body, as?}], atomic?}` runs endpoint calls in order. A string `"$name"` anywhere in a later `body` becomes the id of the result saved `as: "name"`; `"$name.view"` and `"$name.model"` pick the parts of a `create_*_with_view` result, and any path into the result works (`.id` means `_id`). `"$$"` escapes a literal `$`.
 
-- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`, `/export_diagrams`, `/generate_code`, `/reverse_code`.
+- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`, `/export_diagrams`, `/generate_code`, `/reverse_code`, `/build_diagram`.
 - `atomic: false`: every op runs; `results` has each op's `data` or `code`/`error`, and `succeeded`/`failed` count them.
 - At most `mcp-ext.limits.maxBatchOps` ops (default 500) and `mcp-ext.limits.maxBodyKiB` of body (default 4096, for every endpoint); over either is `413 PAYLOAD_TOO_LARGE`.
+
+### `/build_diagram`
+
+One call builds a whole diagram: `{kind, spec}` or `{mermaid}`, plus optional `name`, `parentId`, `direction` (`TB`, `BT`, `LR`, `RL`), `autoLayout` (default true) and `upsert`. It runs as one `/batch`, so the diagram is one undo step and a failure leaves nothing behind, and answers `{diagram, created, updated, unchanged, layout, ids: {name: {model, view}}, edges}` rather than the model.
+
+| `kind`         | `spec`                                                                                                                                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `class`        | `packages`, `classes: [{name, kind: class\|interface\|enum\|abstract, package, attributes: ["+id: long"], operations: ["+total(): double"], literals}]`, `relations: [{from, to, type, fromMultiplicity, toMultiplicity}]` |
+| `sequence`     | `participants`, `messages: [{from, to, text, kind: sync\|async\|reply\|create\|delete}]`, `fragments: [{operator, guard, operands, from, to}]` (message indices)                                                           |
+| `usecase`      | `system`, `actors`, `useCases`, `relations: [{from, to, type: association\|include\|extend\|generalization}]`                                                                                                              |
+| `activity`     | `lanes`, `nodes: [{id, name, type: action\|initial\|final\|flowFinal\|decision\|merge\|fork\|join\|object, lane}]`, `flows: [{from, to, guard}]`                                                                           |
+| `statemachine` | `states: [{id, name, type: state\|initial\|final\|choice\|fork\|join}]`, `transitions: [{from, to, trigger, guard, effect}]`                                                                                               |
+| `erd`          | `entities: [{name, columns: ["id int PK", "name varchar(40)"]}]`, `relationships: [{from, to, fromCardinality, toCardinality, name, identifying}]`                                                                         |
+| `flowchart`    | `nodes: [{id, name, shape: process\|decision\|terminator\|data\|document\|database\|...}]`, `flows: [{from, to, label}]`                                                                                                   |
+| `mindmap`      | `root: {name, children: [...]}`                                                                                                                                                                                            |
+
+- Edges name their ends by node name (or `id` where nodes have one). In `aggregation` and `composition` relations `to` is the whole. `<br/>` and `\n` in names become line breaks.
+- Mermaid is parsed in the extension: `classDiagram`, `sequenceDiagram`, `flowchart`/`graph`, `erDiagram`, `stateDiagram`. With `kind: "activity"` or `"usecase"` a flowchart is read as that kind: stadium or circle nodes are start and end (activity) or use cases, `{}` decisions, `{{}}` forks, subgraphs lanes or the system boundary, link labels guards or include/extend. The diagram is named by `name`, else front matter `title:` or a `title` line.
+- Layout: nodes are placed deterministically (ranked rows or columns along the edges); then Format → Layout (`engine.layoutDiagram`) arranges them in `direction`, except for sequence diagrams, lanes and a system boundary, which keep the computed placement. `autoLayout: false` keeps it everywhere.
+- `upsert: true` updates the diagram of the same kind and name under the parent: nodes already on it (same type and name) gain missing attributes, operations, literals and columns and changed properties, missing nodes and edges are added, nothing is removed, and the layout is left alone when nothing was added.
 
 ### Responses
 

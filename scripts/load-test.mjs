@@ -44,10 +44,18 @@
  * of its median handler time to the non-atomic one, against
  * ATOMIC_OVERHEAD_BUDGET.
  *
+ * A third, sequential phase sends BUILDS /build_diagram requests, each a
+ * class diagram of six classes with members and five relationships laid out
+ * by the engine, every other one an upsert of the previous diagram (which
+ * adds nothing). Builds get no absolute budget, for the reason writes get
+ * none; an upsert that changes nothing runs no operation at all, so its
+ * handler p99 is held to UPSERT_BUDGET_MS.
+ *
  * Environment: STARUML_EXT_URL (default http://localhost:58322),
  * STARUML_EXT_TOKEN (when StarUML requires an access token),
  * P99_BUDGET_MS (default 250), HANDLER_BUDGET_MS (default 50), SEED (default
- * 200), WRITE_BATCHES (default 200), ATOMIC_OVERHEAD_BUDGET (default 1.25).
+ * 200), WRITE_BATCHES (default 200), ATOMIC_OVERHEAD_BUDGET (default 1.25),
+ * BUILDS (default 50), UPSERT_BUDGET_MS (default 50).
  */
 import http from "node:http";
 import { performance } from "node:perf_hooks";
@@ -70,6 +78,9 @@ const WRITE_BATCHES = Number(process.env.WRITE_BATCHES ?? 200);
 const ATOMIC_OVERHEAD_BUDGET = Number(
   process.env.ATOMIC_OVERHEAD_BUDGET ?? 1.25,
 );
+
+const BUILDS = Number(process.env.BUILDS ?? 50);
+const UPSERT_BUDGET_MS = Number(process.env.UPSERT_BUDGET_MS ?? 50);
 
 const agent = new http.Agent({ keepAlive: true, maxSockets: CONCURRENCY });
 
@@ -179,6 +190,72 @@ async function writePhase(modelId, errors) {
   };
 }
 
+const BUILD_SPEC = {
+  classes: [
+    {
+      name: "Order",
+      attributes: ["+id: long", "-total: double"],
+      operations: ["+place(): void"],
+    },
+    { name: "Line", attributes: ["+qty: int"] },
+    { name: "Product", attributes: ["+sku: String"] },
+    { name: "Customer", operations: ["+orders(): List~Order~"] },
+    { name: "Payable", kind: "interface", operations: ["pay()"] },
+    { name: "Status", kind: "enum", literals: ["NEW", "PAID"] },
+  ],
+  relations: [
+    { from: "Order", to: "Line", type: "composition" },
+    { from: "Line", to: "Product", type: "directed" },
+    {
+      from: "Customer",
+      to: "Order",
+      fromMultiplicity: "1",
+      toMultiplicity: "*",
+    },
+    { from: "Order", to: "Payable", type: "realization" },
+    { from: "Order", to: "Status", type: "dependency" },
+  ],
+};
+
+async function buildPhase(errors) {
+  const times = {
+    create: { client: [], handler: [] },
+    upsert: { client: [], handler: [] },
+  };
+  for (let i = 0; i < BUILDS; i++) {
+    const upsert = i % 2 === 1;
+    const res = await post("/build_diagram", {
+      kind: "class",
+      name: `Build ${i - (upsert ? 1 : 0)}`,
+      spec: BUILD_SPEC,
+      upsert,
+    });
+    const bucket = times[upsert ? "upsert" : "create"];
+    bucket.client.push(res.ms);
+    bucket.handler.push(res.handlerMs);
+    const expected = upsert ? 0 : 11;
+    if (res.status !== 200 || res.json?.data?.created !== expected) {
+      errors.push(
+        `/build_diagram -> ${res.status} ${JSON.stringify(res.json).slice(0, 300)}`,
+      );
+    }
+  }
+  const stats = (list) => {
+    list.sort((a, b) => a - b);
+    return {
+      p50: +percentile(list, 50).toFixed(2),
+      p99: +percentile(list, 99).toFixed(2),
+    };
+  };
+  return {
+    builds: BUILDS,
+    createClientMs: stats(times.create.client),
+    createHandlerMs: stats(times.create.handler),
+    upsertClientMs: stats(times.upsert.client),
+    upsertHandlerMs: stats(times.upsert.handler),
+  };
+}
+
 async function main() {
   const ids = await seed();
   const [modelId, ...classIds] = ids;
@@ -249,6 +326,7 @@ async function main() {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   const elapsed = (performance.now() - started) / 1000;
   const writes = await writePhase(modelId, errors);
+  const builds = await buildPhase(errors);
   agent.destroy();
   await post("/new_project", {}).catch(() => {});
 
@@ -280,7 +358,9 @@ async function main() {
       ]),
     ),
     writes,
+    builds,
     budgets: {
+      upsertHandlerP99Ms: UPSERT_BUDGET_MS,
       p99Ms: P99_BUDGET_MS,
       handlerMaxMs: HANDLER_BUDGET_MS,
       atomicOverhead: ATOMIC_OVERHEAD_BUDGET,
@@ -298,6 +378,9 @@ async function main() {
   }
   if (!(writes.atomicOverhead <= ATOMIC_OVERHEAD_BUDGET)) {
     failures.push(`atomic overhead ${writes.atomicOverhead}`);
+  }
+  if (!(builds.upsertHandlerMs.p99 <= UPSERT_BUDGET_MS)) {
+    failures.push(`upsert handler p99 ${builds.upsertHandlerMs.p99} ms`);
   }
   if (failures.length > 0) {
     console.error(`FAIL: ${failures.join("; ")}`);

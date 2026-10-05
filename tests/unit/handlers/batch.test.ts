@@ -46,7 +46,13 @@ describe("reference resolution", () => {
         success: true,
         data: {
           view: { _id: "V1", model: { $ref: "M1" } },
-          model: { _id: "M1", name: "C", size: 3, flag: true },
+          model: {
+            _id: "M1",
+            name: "C",
+            size: 3,
+            flag: true,
+            operands: [{ $ref: "O1" }],
+          },
         },
       },
     ],
@@ -63,6 +69,7 @@ describe("reference resolution", () => {
           name: "$c.model.name",
           size: "$c.model.size",
           flag: "$c.model.flag",
+          operand: "$c.model.operands.0",
           list: ["$c.view", 4, null, "plain"],
           escaped: "$$c",
           dollar: "$",
@@ -76,6 +83,7 @@ describe("reference resolution", () => {
       name: "C",
       size: 3,
       flag: true,
+      operand: "O1",
       list: ["V1", 4, null, "plain"],
       escaped: "$c",
       dollar: "$",
@@ -87,6 +95,7 @@ describe("reference resolution", () => {
     ["$bad.id", "$bad.id: op bad failed"],
     ["$c", "$c does not name a value"],
     ["$c.view.size.more", "$c.view.size.more does not name a value"],
+    ["$c.model.operands.1", "$c.model.operands.1 does not name a value"],
   ])("refuses %s", (text, message) => {
     expect(() => resolveReferences(text, results)).toThrow(message);
   });

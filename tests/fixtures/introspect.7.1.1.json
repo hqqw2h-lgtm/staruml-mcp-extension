@@ -20777,7 +20777,7 @@
           },
           "atomic": {
             "type": "boolean",
-            "description": "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code and /reverse_code."
+            "description": "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
           }
         },
         "required": ["ops"]
@@ -20819,6 +20819,146 @@
           }
         },
         "required": ["atomic", "succeeded", "failed", "results"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/build_diagram",
+      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram; a flowchart also as activity or usecase). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "class",
+              "sequence",
+              "usecase",
+              "activity",
+              "statemachine",
+              "erd",
+              "flowchart",
+              "mindmap"
+            ],
+            "description": "Diagram kind; required with spec. With mermaid it is read from the header, and 'activity' or 'usecase' reads a flowchart as that kind."
+          },
+          "spec": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
+          },
+          "mermaid": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Mermaid source instead of spec. The diagram is named by 'name', else front matter 'title:' or a 'title' line."
+          },
+          "name": { "type": "string", "description": "Diagram name." },
+          "parentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Owner of the diagram; default the project, where StarUML adds the container the kind needs (a model, interaction, activity, state machine, data model, flowchart or mind map)."
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["TB", "BT", "LR", "RL"],
+            "description": "Layout direction; default TB, or Mermaid's."
+          },
+          "autoLayout": {
+            "type": "boolean",
+            "description": "Default true: Format > Layout after building. Sequence diagrams, lanes and a system boundary keep the computed placement."
+          },
+          "upsert": {
+            "type": "boolean",
+            "description": "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members and changed properties, missing nodes and edges are added, nothing is removed."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "_type": { "type": "string" }
+            },
+            "required": ["_id", "name", "_type"],
+            "additionalProperties": false,
+            "description": "The diagram built or updated."
+          },
+          "kind": { "type": "string" },
+          "upserted": {
+            "type": "boolean",
+            "description": "An existing diagram was updated."
+          },
+          "created": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Nodes and edges added."
+          },
+          "updated": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Existing nodes given members or properties."
+          },
+          "unchanged": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Existing nodes and edges left as they were."
+          },
+          "layout": {
+            "type": "string",
+            "enum": ["engine", "placed"],
+            "description": "engine: Format > Layout arranged it; placed: the computed placement stands."
+          },
+          "ids": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "model": { "type": ["string", "null"] },
+                "view": { "type": "string" }
+              },
+              "required": ["model", "view"],
+              "additionalProperties": false
+            },
+            "description": "Model and view ids of each node, by its name (or id) in the spec."
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string", "description": "'from -> to'." },
+                "model": { "type": ["string", "null"] },
+                "view": { "type": "string" }
+              },
+              "required": ["key", "model", "view"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "diagram",
+          "kind",
+          "upserted",
+          "created",
+          "updated",
+          "unchanged",
+          "layout",
+          "ids",
+          "edges"
+        ],
         "additionalProperties": false
       }
     },

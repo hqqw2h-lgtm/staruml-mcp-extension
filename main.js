@@ -28,8 +28,8 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
+  for (var name2 in all)
+    __defProp(target, name2, { get: all[name2], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -441,8 +441,8 @@ function isPlainObject(o) {
   return true;
 }
 var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
-function escapeRegex(str2) {
-  return str2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str3) {
+  return str3.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -551,13 +551,13 @@ function finalizeIssue(iss, ctx, config2) {
   return full;
 }
 var highSurrogate = /[\uD800-\uDBFF]/;
-function codePointLength(str2) {
-  const units = str2.length;
-  if (!highSurrogate.test(str2))
+function codePointLength(str3) {
+  const units = str3.length;
+  if (!highSurrogate.test(str3))
     return units;
   let count = units;
   for (let i = 0; i < units - 1; i++) {
-    if ((str2.charCodeAt(i) & 64512) === 55296 && (str2.charCodeAt(i + 1) & 64512) === 56320) {
+    if ((str3.charCodeAt(i) & 64512) === 55296 && (str3.charCodeAt(i + 1) & 64512) === 56320) {
       count--;
       i++;
     }
@@ -720,7 +720,7 @@ function newError(Definition) {
   return new Definition();
 }
 // @__NO_SIDE_EFFECTS__
-function $constructor(name, initializer2, proto, params) {
+function $constructor(name2, initializer2, proto, params) {
   const zodProto = {};
   function Internals(def) {
     this.def = def;
@@ -738,10 +738,10 @@ function $constructor(name, initializer2, proto, params) {
       } finally {
         _zodDesc.value = void 0;
       }
-    } else if (inst._zod.traits.has(name)) {
+    } else if (inst._zod.traits.has(name2)) {
       return;
     }
-    inst._zod.traits.add(name);
+    inst._zod.traits.add(name2);
     initializer2(inst, def);
     if (initialized) {
       const own2 = Object.getPrototypeOf(inst);
@@ -767,7 +767,7 @@ function $constructor(name, initializer2, proto, params) {
   const Parent = params?.Parent ?? Object;
   class Definition extends Parent {
   }
-  Object.defineProperty(Definition, "name", { value: name });
+  Object.defineProperty(Definition, "name", { value: name2 });
   function _(def) {
     const inst = params?.Parent ? newError(Definition) : this;
     init2(inst, def);
@@ -788,10 +788,10 @@ function $constructor(name, initializer2, proto, params) {
     value: (inst) => {
       if (params?.Parent && inst instanceof params.Parent)
         return true;
-      return inst?._zod?.traits?.has(name);
+      return inst?._zod?.traits?.has(name2);
     }
   });
-  Object.defineProperty(_, "name", { value: name });
+  Object.defineProperty(_, "name", { value: name2 });
   return _;
 }
 var $ZodAsyncError = class extends Error {
@@ -2279,8 +2279,8 @@ function extractDefs(ctx, schema) {
   for (const entry of ctx.seen.entries()) {
     const id2 = ctx.metadataRegistry.get(entry[0])?.id;
     if (id2) {
-      const existing = idToSchema.get(id2);
-      if (existing && existing !== entry[0]) {
+      const existing2 = idToSchema.get(id2);
+      if (existing2 && existing2 !== entry[0]) {
         throw new Error(`Duplicate schema id "${id2}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
       }
       idToSchema.set(id2, entry[0]);
@@ -2485,12 +2485,12 @@ function finalize(ctx, schema) {
     if (ref2) {
       flattenRef(ref2);
       const refSeen = ctx.seen.get(ref2);
-      const refSchema = refSeen.schema;
-      if (refSchema.$ref && (ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0")) {
+      const refSchema2 = refSeen.schema;
+      if (refSchema2.$ref && (ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0")) {
         schema2.allOf = schema2.allOf ?? [];
-        schema2.allOf.push(refSchema);
+        schema2.allOf.push(refSchema2);
       } else {
-        assignProps(schema2, refSchema);
+        assignProps(schema2, refSchema2);
       }
       assignProps(schema2, _cached);
       const isParentRef = zodSchema._zod.parent === ref2;
@@ -2503,7 +2503,7 @@ function finalize(ctx, schema) {
           }
         }
       }
-      if (refSchema.$ref && refSeen.def) {
+      if (refSchema2.$ref && refSeen.def) {
         for (const key in schema2) {
           if (key === "$ref" || key === "allOf")
             continue;
@@ -2554,9 +2554,9 @@ function finalize(ctx, schema) {
           const allOf = json?.allOf;
           if (!Array.isArray(allOf))
             continue;
-          const existing = carriers.get(allOf);
-          if (existing)
-            existing.push(json);
+          const existing2 = carriers.get(allOf);
+          if (existing2)
+            existing2.push(json);
           else
             carriers.set(allOf, [json]);
         }
@@ -3203,12 +3203,12 @@ function rewriteKeyNames(ctx) {
   const rewrites = /* @__PURE__ */ new Map();
   for (const record2 of pendingRecords.get(ctx) ?? []) {
     const seen = ctx.seen.get(record2);
-    const names = (seen?.def ?? seen?.schema)?.propertyNames;
-    if (!names || names === true || rewrites.has(names))
+    const names2 = (seen?.def ?? seen?.schema)?.propertyNames;
+    if (!names2 || names2 === true || rewrites.has(names2))
       continue;
-    const rewritten = stringifyKeyNames(bySchema, names, /* @__PURE__ */ new Set());
-    if (rewritten !== names)
-      rewrites.set(names, rewritten);
+    const rewritten = stringifyKeyNames(bySchema, names2, /* @__PURE__ */ new Set());
+    if (rewritten !== names2)
+      rewrites.set(names2, rewritten);
   }
   if (!rewrites.size)
     return;
@@ -3781,6 +3781,7 @@ function preferencePolicy(limiter = new RateLimiter(
 // src/handlers/batch.ts
 var NOT_ATOMIC = /* @__PURE__ */ new Set([
   "/batch",
+  "/build_diagram",
   "/undo",
   "/redo",
   "/new_project",
@@ -3795,7 +3796,7 @@ var NOT_ATOMIC = /* @__PURE__ */ new Set([
   "/reverse_code"
 ]);
 var NAME = /^[A-Za-z_][\w-]*$/;
-var REFERENCE = /^\$([A-Za-z_][\w-]*)((?:\.[A-Za-z_$][\w$]*)*)$/;
+var REFERENCE = /^\$([A-Za-z_][\w-]*)((?:\.(?:[A-Za-z_$][\w$]*|\d+))*)$/;
 function resolveReferences(value, results) {
   if (typeof value === "string") {
     if (value.startsWith("$$")) return value.slice(1);
@@ -3812,16 +3813,16 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text3, name, path, results) {
-  const result = results.get(name);
+function lookup(text3, name2, path, results) {
+  const result = results.get(name2);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text3}: no earlier op is named ${name}`
+      `${text3}: no earlier op is named ${name2}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text3}: op ${name} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text3}: op ${name2} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
@@ -3872,7 +3873,7 @@ function checkPlan(ops, endpoints2, atomic) {
       `A batch takes at most ${max} ops (preference mcp-ext.limits.maxBatchOps); got ${ops.length}`
     );
   }
-  const names = /* @__PURE__ */ new Set();
+  const names2 = /* @__PURE__ */ new Set();
   ops.forEach((op, i) => {
     if (!endpoints2.has(op.path)) {
       throw new ApiError(
@@ -3887,13 +3888,13 @@ function checkPlan(ops, endpoints2, atomic) {
       );
     }
     if (op.as !== void 0) {
-      if (names.has(op.as)) {
+      if (names2.has(op.as)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
           `ops.${i}.as: ${op.as} is used twice`
         );
       }
-      names.add(op.as);
+      names2.add(op.as);
     }
   });
 }
@@ -3951,7 +3952,7 @@ function batchEndpoint(endpoints2) {
       atomic: optional(
         doc(
           boolean2(),
-          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code and /reverse_code."
+          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
         )
       )
     }),
@@ -3997,6 +3998,2816 @@ function batchEndpoint(endpoints2) {
         succeeded: results.length - failures.length,
         failed: failures.length,
         results
+      };
+    }
+  });
+}
+
+// src/build/members.ts
+function multiline(name2) {
+  return name2.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
+}
+var VISIBILITY = {
+  "+": "public",
+  "-": "private",
+  "#": "protected",
+  "~": "package"
+};
+function modifiers(text3) {
+  const last = text3.at(-1);
+  if (last === "$") return { text: text3.slice(0, -1).trim(), isStatic: true };
+  if (last === "*") return { text: text3.slice(0, -1).trim(), isAbstract: true };
+  return { text: text3 };
+}
+function visibility(text3) {
+  const v = VISIBILITY[text3.charAt(0)];
+  return v ? { text: text3.slice(1).trim(), visibility: v } : { text: text3 };
+}
+function typedName(text3) {
+  const colon = text3.indexOf(":");
+  if (colon >= 0) {
+    const type2 = text3.slice(colon + 1).trim();
+    return { name: text3.slice(0, colon).trim(), ...type2 && { type: type2 } };
+  }
+  const space = text3.lastIndexOf(" ");
+  if (space < 0) return { name: text3 };
+  return {
+    name: text3.slice(space + 1),
+    type: text3.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
+  };
+}
+function parseAttribute(source) {
+  const mod = modifiers(source.trim());
+  const vis = visibility(mod.text);
+  let text3 = vis.text;
+  let defaultValue;
+  const eq = text3.indexOf("=");
+  if (eq >= 0) {
+    defaultValue = text3.slice(eq + 1).trim();
+    text3 = text3.slice(0, eq).trim();
+  }
+  let multiplicity;
+  const mult = /\[([^\]]*)\]$/.exec(text3);
+  if (mult) {
+    multiplicity = mult[1];
+    text3 = text3.slice(0, mult.index).trim();
+  }
+  return {
+    ...typedName(text3),
+    ...vis.visibility && { visibility: vis.visibility },
+    ...mod.isStatic && { isStatic: true },
+    ...defaultValue !== void 0 && { defaultValue },
+    ...multiplicity !== void 0 && { multiplicity }
+  };
+}
+function parseOperation(source) {
+  const mod = modifiers(source.trim());
+  const vis = visibility(mod.text);
+  const open = vis.text.indexOf("(");
+  const close = vis.text.lastIndexOf(")");
+  const name2 = vis.text.slice(0, open).trim();
+  const params = vis.text.slice(open + 1, close).trim();
+  const returnType = vis.text.slice(close + 1).replace(/^\s*:/, "").trim();
+  return {
+    name: name2,
+    ...params && {
+      parameters: params.split(",").map((p) => typedName(p.trim()))
+    },
+    ...returnType && { returnType },
+    ...vis.visibility && { visibility: vis.visibility },
+    ...mod.isStatic && { isStatic: true },
+    ...mod.isAbstract && { isAbstract: true }
+  };
+}
+function isOperation(source) {
+  return /\(.*\)/.test(source);
+}
+
+// src/build/mermaid.ts
+var fail = (line, message) => {
+  throw new ApiError("INVALID_ARGUMENT", `mermaid line ${line}: ${message}`);
+};
+function preprocess(source) {
+  const raw = source.replace(/\r\n?/g, "\n").split("\n");
+  let title;
+  let start = 0;
+  if (raw[0]?.trim() === "---") {
+    const end = raw.findIndex((l, i) => i > 0 && l.trim() === "---");
+    if (end < 0) fail(1, "front matter is not closed with ---");
+    for (const l of raw.slice(1, end)) {
+      const m = /^\s*title\s*:\s*(.+?)\s*$/.exec(l);
+      if (m) title = unquote(m[1]);
+    }
+    start = end + 1;
+  }
+  const lines = [];
+  raw.forEach((text3, i) => {
+    if (i < start) return;
+    const t = text3.replace(/%%.*$/, "").trim();
+    if (t) lines.push({ no: i + 1, text: t });
+  });
+  return { ...title !== void 0 && { title }, lines };
+}
+var unquote = (s) => s.trim().replace(/^"(.*)"$/, "$1");
+function takeTitle(lines) {
+  const i = lines.findIndex((l) => /^title\s+/i.test(l.text));
+  if (i < 0) return void 0;
+  const [line] = lines.splice(i, 1);
+  return unquote(line.text.replace(/^title\s+/i, ""));
+}
+var CLASS_ARROWS = [
+  // [arrow, relation type, whether the arrow points from the second name]
+  [/^<\|--$/, "generalization", true],
+  [/^--\|>$/, "generalization", false],
+  [/^<\|\.\.$/, "realization", true],
+  [/^\.\.\|>$/, "realization", false],
+  [/^\*--$/, "composition", true],
+  [/^--\*$/, "composition", false],
+  [/^o--$/, "aggregation", true],
+  [/^--o$/, "aggregation", false],
+  [/^-->$/, "directed", false],
+  [/^<--$/, "directed", true],
+  [/^\.\.>$/, "dependency", false],
+  [/^<\.\.$/, "dependency", true],
+  [/^--$/, "association", false],
+  [/^\.\.$/, "dependency", false]
+];
+var RELATION = /^([\w.]+)\s*(?:"([^"]*)"\s*)?(<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--|\.\.)\s*(?:"([^"]*)"\s*)?([\w.]+)\s*(?::\s*(.*))?$/;
+function classDiagram(lines) {
+  const classes = /* @__PURE__ */ new Map();
+  const relations = [];
+  const entry = (name2) => {
+    const key = name2.replace(/~.*~$/, "");
+    let e = classes.get(key);
+    if (!e) {
+      e = { name: key, attributes: [], operations: [], literals: [] };
+      classes.set(key, e);
+    }
+    return e;
+  };
+  const annotate = (e, annotation) => {
+    const a = annotation.toLowerCase();
+    if (a === "interface") e.kind = "interface";
+    else if (a === "enumeration" || a === "enum") e.kind = "enum";
+    else if (a === "abstract") e.kind = "abstract";
+  };
+  const member = (e, text3) => {
+    if (/^<<(.+)>>$/.test(text3)) annotate(e, text3.slice(2, -2));
+    else if (e.kind === "enum") e.literals.push(text3);
+    else if (isOperation(text3)) e.operations.push(text3);
+    else e.attributes.push(text3);
+  };
+  let open = null;
+  for (const { no, text: text3 } of lines) {
+    if (open) {
+      if (text3 === "}") open = null;
+      else member(open, text3);
+      continue;
+    }
+    let m;
+    if (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(\{)?\s*$/.exec(text3)) {
+      const e = entry(m[1]);
+      if (m[3]) open = e;
+    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text3)) {
+      annotate(entry(m[2]), m[1]);
+    } else if (m = RELATION.exec(text3)) {
+      const [, a, aCard, arrow, bCard, b, label] = m;
+      const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
+      entry(a);
+      entry(b);
+      const [from, to, fromMul, toMul] = reversed ? [b, a, bCard, aCard] : [a, b, aCard, bCard];
+      relations.push({
+        from,
+        to,
+        type: type2,
+        ...label && { name: label.trim() },
+        ...fromMul !== void 0 && { fromMultiplicity: fromMul },
+        ...toMul !== void 0 && { toMultiplicity: toMul }
+      });
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text3)) {
+      member(entry(m[1]), m[2].trim());
+    } else if (!/^(direction\s|note\b|style\b|classDef\b|cssClass\b|click\b|link\b|callback\b|namespace\b|})/.test(
+      text3
+    )) {
+      fail(no, `cannot read "${text3}"`);
+    }
+  }
+  return {
+    classes: [...classes.values()].map((e) => ({
+      name: e.name,
+      ...e.kind && { kind: e.kind },
+      ...e.attributes.length > 0 && { attributes: e.attributes },
+      ...e.operations.length > 0 && { operations: e.operations },
+      ...e.literals.length > 0 && { literals: e.literals }
+    })),
+    relations
+  };
+}
+var MESSAGE_ARROWS = [
+  ["-->>", "reply"],
+  ["->>", "sync"],
+  ["--x", "async"],
+  ["-x", "async"],
+  ["--)", "async"],
+  ["-)", "async"],
+  ["-->", "reply"],
+  ["->", "sync"]
+];
+var MESSAGE = /^([^\s:+-][^:]*?)\s*(-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-]?)\s*([^:]+?)\s*(?::\s*(.*))?$/;
+function sequenceDiagram(lines) {
+  const participants = [];
+  const aliases = /* @__PURE__ */ new Map();
+  const messages = [];
+  const fragments = [];
+  const open = [];
+  const who = (id2) => aliases.get(id2.trim()) ?? id2.trim();
+  for (const { no, text: text3 } of lines) {
+    let m;
+    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text3)) {
+      const name2 = multiline(m[3] ?? m[2]);
+      aliases.set(m[2], name2);
+      participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text3)) {
+      const name2 = multiline(m[3] ?? m[2]);
+      aliases.set(m[2], name2);
+      participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text3)) {
+      open.push({
+        operator: m[1],
+        ...m[2] && { guard: m[2] },
+        from: messages.length,
+        no,
+        operands: []
+      });
+    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text3)) {
+      const f = open.at(-1) ?? fail(no, `${m[1]} outside a block`);
+      f.operands.push(m[2] || m[1]);
+    } else if (text3 === "end") {
+      const f = open.pop() ?? fail(no, "end without a block");
+      if (messages.length > f.from) {
+        fragments.push({
+          operator: f.operator,
+          ...f.guard && { guard: f.guard },
+          ...f.operands.length > 0 && { operands: f.operands },
+          from: f.from,
+          to: messages.length - 1
+        });
+      }
+    } else if (m = MESSAGE.exec(text3)) {
+      const kind = MESSAGE_ARROWS.find(([a]) => a === m[2])[1];
+      messages.push({
+        from: who(m[1]),
+        to: who(m[4]),
+        kind,
+        ...m[5] !== void 0 && { text: m[5].trim() }
+      });
+    } else if (!/^(autonumber|activate|deactivate|note\b|Note\b|rect\b|box\b|destroy\b|link\b|links\b)/.test(
+      text3
+    )) {
+      fail(no, `cannot read "${text3}"`);
+    }
+  }
+  if (open.length > 0)
+    fail(open.at(-1).no, `${open.at(-1).operator} is never closed with end`);
+  return { participants, messages, fragments };
+}
+var SHAPES = [
+  ["([", "])", "terminator"],
+  ["[[", "]]", "predefined"],
+  ["[(", ")]", "database"],
+  ["((", "))", "connector"],
+  ["{{", "}}", "preparation"],
+  ["[/", "/]", "data"],
+  ["[\\", "\\]", "data"],
+  ["[/", "\\]", "manualInput"],
+  ["(", ")", "alternate"],
+  ["[", "]", "process"],
+  ["{", "}", "decision"],
+  [">", "]", "document"]
+];
+var LINK = /^\s*(?:(-->|---|-\.->|-\.-|==>|===|--o|--x|<-->)(?:\|([^|]*)\|)?|--\s+([^-]+?)\s+-->|-\.\s+([^.]+?)\s+\.->|==\s+([^=]+?)\s+==>)\s*/;
+function flowchart(lines) {
+  const nodes = /* @__PURE__ */ new Map();
+  const flows = [];
+  let direction2;
+  const lanes = [];
+  const header = lines.shift();
+  const dir = /^(?:flowchart|graph)\s+(TB|TD|BT|LR|RL)\b/i.exec(header.text);
+  if (dir) direction2 = dir[1].toUpperCase().replace("TD", "TB");
+  const node = (rest, no) => {
+    const id2 = /^[\w.][\w.-]*?(?=$|[\s[({>&]|--|==|-\.)/.exec(rest)?.[0];
+    if (!id2) return fail(no, `expected a node at "${rest}"`);
+    let after = rest.slice(id2.length);
+    let shape;
+    let label;
+    for (const [open, close, s] of SHAPES) {
+      if (after.startsWith(open)) {
+        const end = after.indexOf(close, open.length);
+        if (end < 0) continue;
+        shape = s;
+        label = unquote(after.slice(open.length, end));
+        after = after.slice(end + close.length);
+        break;
+      }
+    }
+    const existing2 = nodes.get(id2);
+    if (!existing2) {
+      nodes.set(id2, {
+        id: id2,
+        name: multiline(label ?? id2),
+        shape: shape ?? "process",
+        ...lanes.length > 0 && { lane: lanes.at(-1) }
+      });
+    } else if (shape !== void 0) {
+      existing2.name = multiline(label);
+      existing2.shape = shape;
+    }
+    return [id2, after.trimStart()];
+  };
+  for (const { no, text: text3 } of lines) {
+    let m;
+    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text3)) {
+      lanes.push(multiline(unquote(m[2] ?? m[3])));
+      continue;
+    }
+    if (text3 === "end") {
+      if (lanes.pop() === void 0) fail(no, "end without a subgraph");
+      continue;
+    }
+    if (/^(direction\s|classDef\b|class\s|style\b|linkStyle\b|click\b)/.test(text3))
+      continue;
+    let [from, rest] = node(text3, no);
+    while (rest) {
+      const link = LINK.exec(rest);
+      if (!link) fail(no, `expected a link at "${rest}"`);
+      const label = link[2] ?? link[3] ?? link[4] ?? link[5];
+      const [to, after] = node(rest.slice(link[0].length), no);
+      flows.push({ from, to, ...label && { label: label.trim() } });
+      from = to;
+      rest = after;
+    }
+  }
+  if (lanes.length > 0)
+    fail(lines.at(-1).no, "subgraph is never closed with end");
+  return { ...direction2 && { direction: direction2 }, nodes: [...nodes.values()], flows };
+}
+function flowchartSpec(lines) {
+  const { direction: direction2, nodes, flows } = flowchart(lines);
+  return {
+    ...direction2 && { direction: direction2 },
+    spec: {
+      nodes: nodes.map((n) => ({ id: n.id, name: n.name, shape: n.shape })),
+      flows
+    }
+  };
+}
+function activitySpec(lines) {
+  const { direction: direction2, nodes, flows } = flowchart(lines);
+  const count = (id2, end) => flows.filter((f) => f[end] === id2).length;
+  const type2 = (n) => {
+    const ins = count(n.id, "to");
+    const outs = count(n.id, "from");
+    switch (n.shape) {
+      case "terminator":
+      case "connector":
+        return ins === 0 ? "initial" : outs === 0 ? "final" : "action";
+      case "decision":
+        return ins > 1 && outs <= 1 ? "merge" : "decision";
+      case "preparation":
+        return ins > 1 ? "join" : "fork";
+      default:
+        return "action";
+    }
+  };
+  const lanes = [...new Set(nodes.flatMap((n) => n.lane ? [n.lane] : []))];
+  return {
+    ...direction2 && { direction: direction2 },
+    spec: {
+      ...lanes.length > 0 && { lanes },
+      nodes: nodes.map((n) => {
+        const t = type2(n);
+        return {
+          id: n.id,
+          ...t === "action" || t === "decision" || t === "merge" ? { name: n.name } : {},
+          type: t,
+          ...n.lane && { lane: n.lane }
+        };
+      }),
+      flows: flows.map((f) => ({
+        from: f.from,
+        to: f.to,
+        ...f.label && { guard: f.label }
+      }))
+    }
+  };
+}
+function usecaseSpec(lines) {
+  const { direction: direction2, nodes, flows } = flowchart(lines);
+  const round = /* @__PURE__ */ new Set(["connector", "alternate", "terminator"]);
+  const names2 = new Map(nodes.map((n) => [n.id, n.name]));
+  const system = nodes.find((n) => n.lane)?.lane;
+  return {
+    ...direction2 && { direction: direction2 },
+    spec: {
+      ...system && { system },
+      actors: nodes.filter((n) => !round.has(n.shape)).map((n) => n.name),
+      useCases: nodes.filter((n) => round.has(n.shape)).map((n) => n.name),
+      relations: flows.map((f) => {
+        const label = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
+        const type2 = label === "include" || label === "extend" || label === "generalization" ? label : "association";
+        return {
+          from: names2.get(f.from),
+          to: names2.get(f.to),
+          type: type2,
+          ...type2 === "association" && f.label && { name: f.label }
+        };
+      })
+    }
+  };
+}
+var LEFT_CARD = {
+  "|o": "0..1",
+  "||": "1",
+  "}o": "0..*",
+  "}|": "1..*"
+};
+var RIGHT_CARD = {
+  "o|": "0..1",
+  "||": "1",
+  "o{": "0..*",
+  "|{": "1..*"
+};
+function erDiagram(lines) {
+  const entities = /* @__PURE__ */ new Map();
+  const relationships = [];
+  const entity = (name2) => {
+    const key = unquote(name2);
+    if (!entities.has(key)) entities.set(key, []);
+    return entities.get(key);
+  };
+  let open = null;
+  for (const { no, text: text3 } of lines) {
+    if (open) {
+      if (text3 === "}") open = null;
+      else {
+        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text3) ?? fail(no, `cannot read attribute "${text3}"`);
+        open.push(
+          [
+            m2[2],
+            m2[1],
+            ...m2[3].replace(/,/g, " ").split(/\s+/).filter(Boolean)
+          ].join(" ")
+        );
+      }
+      continue;
+    }
+    let m;
+    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text3)) {
+      open = entity(m[1]);
+    } else if (m = /^("[^"]+"|[\w-]+)\s+(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)\s+("[^"]+"|[\w-]+)\s*(?::\s*(.*))?$/.exec(
+      text3
+    )) {
+      entity(m[1]);
+      entity(m[5]);
+      relationships.push({
+        from: unquote(m[1]),
+        to: unquote(m[5]),
+        fromCardinality: LEFT_CARD[m[2]],
+        toCardinality: RIGHT_CARD[m[4]],
+        identifying: m[3] === "--",
+        ...m[6] && { name: unquote(m[6]) }
+      });
+    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text3)) {
+      entity(m[1]);
+    } else if (!/^direction\s/.test(text3)) {
+      fail(no, `cannot read "${text3}"`);
+    }
+  }
+  return {
+    entities: [...entities].map(([name2, columns]) => ({
+      name: name2,
+      ...columns.length > 0 && { columns }
+    })),
+    relationships
+  };
+}
+function stateDiagram(lines) {
+  const states = /* @__PURE__ */ new Map();
+  const transitions = [];
+  let starts = 0;
+  let ends = 0;
+  const state2 = (id2, side) => {
+    if (id2 === "[*]") {
+      const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends}`;
+      states.set(key, { id: key, type: side === "from" ? "initial" : "final" });
+      return key;
+    }
+    if (!states.has(id2)) states.set(id2, { id: id2, name: id2 });
+    return id2;
+  };
+  for (const { no, text: text3 } of lines) {
+    let m;
+    if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text3)) {
+      states.set(m[2], { id: m[2], name: multiline(m[1]) });
+    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text3)) {
+      states.set(m[1], { id: m[1], type: m[2] });
+    } else if (m = /^(\[\*\]|[\w-]+)\s*-->\s*(\[\*\]|[\w-]+)\s*(?::\s*(.*))?$/.exec(
+      text3
+    )) {
+      const from = state2(m[1], "from");
+      const to = state2(m[2], "to");
+      const label = m[3]?.trim();
+      const guard = label ? /\[([^\]]*)\]/.exec(label) : null;
+      const trigger = label?.replace(/\[[^\]]*\]/, "").trim();
+      transitions.push({
+        from,
+        to,
+        ...trigger && { trigger },
+        ...guard && { guard: guard[1] }
+      });
+    } else if (m = /^([\w-]+)\s*:\s*(.+)$/.exec(text3)) {
+      state2(m[1], "to");
+      states.get(m[1]).name = multiline(m[2]);
+    } else if ((m = /^state\s+([\w-]+)$/.exec(text3)) || (m = /^(\w[\w-]*)$/.exec(text3))) {
+      state2(m[1], "to");
+    } else if (!/^(direction\s|note\b|classDef\b|class\s|--$)/.test(text3)) {
+      fail(no, `cannot read "${text3}"`);
+    }
+  }
+  return { states: [...states.values()], transitions };
+}
+var HEADERS = [
+  [/^classDiagram(-v2)?\b/, "class"],
+  [/^sequenceDiagram\b/, "sequence"],
+  [/^(flowchart|graph)\b/, "flowchart"],
+  [/^erDiagram\b/, "erd"],
+  [/^stateDiagram(-v2)?\b/, "statemachine"]
+];
+function parseMermaid(source, as) {
+  const { title: front, lines } = preprocess(source);
+  if (lines.length === 0) fail(1, "no diagram");
+  const title = front ?? takeTitle(lines);
+  const header = lines[0];
+  const found = HEADERS.find(([re]) => re.test(header.text));
+  if (!found) {
+    return fail(
+      header.no,
+      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram or stateDiagram`
+    );
+  }
+  let kind = found[1];
+  if (kind === "flowchart" && (as === "activity" || as === "usecase"))
+    kind = as;
+  else if (as !== void 0 && as !== kind) {
+    fail(header.no, `${header.text.split(/\s/)[0]} cannot be built as ${as}`);
+  }
+  const titled = title !== void 0 ? { title: multiline(title) } : {};
+  const body = () => lines.slice(1);
+  switch (kind) {
+    case "class":
+      return { kind, ...titled, spec: classDiagram(body()) };
+    case "sequence":
+      return { kind, ...titled, spec: sequenceDiagram(body()) };
+    case "erd":
+      return { kind, ...titled, spec: erDiagram(body()) };
+    case "statemachine":
+      return { kind, ...titled, spec: stateDiagram(body()) };
+    case "activity":
+      return { kind, ...titled, ...activitySpec(lines) };
+    case "usecase":
+      return { kind, ...titled, ...usecaseSpec(lines) };
+    default:
+      return { kind, ...titled, ...flowchartSpec(lines) };
+  }
+}
+
+// src/build/place.ts
+var MARGIN = 40;
+var GAP = 60;
+function ranks(keys, edges) {
+  const rank = new Map(keys.map((k) => [k, 0]));
+  for (let round = 0; round < keys.length; round++) {
+    let changed = false;
+    for (const e of edges) {
+      const next = rank.get(e.from) + 1;
+      if (e.from !== e.to && next > rank.get(e.to) && next < keys.length) {
+        rank.set(e.to, next);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return rank;
+}
+function grid(nodes, edges, direction2, origin) {
+  const rank = ranks(
+    nodes.map((n) => n.key),
+    edges
+  );
+  const deepest = Math.max(0, ...rank.values());
+  const cellW = Math.max(...nodes.map((n) => n.width)) + GAP;
+  const cellH = Math.max(...nodes.map((n) => n.height)) + GAP;
+  const used = /* @__PURE__ */ new Map();
+  const boxes = /* @__PURE__ */ new Map();
+  for (const node of nodes) {
+    let r = rank.get(node.key);
+    if (direction2 === "BT" || direction2 === "RL") r = deepest - r;
+    const i = used.get(r) ?? 0;
+    used.set(r, i + 1);
+    const [col, row] = direction2 === "TB" || direction2 === "BT" ? [i, r] : [r, i];
+    boxes.set(node.key, {
+      x: origin.x + col * cellW + (cellW - GAP - node.width) / 2,
+      y: origin.y + row * cellH + (cellH - GAP - node.height) / 2,
+      width: node.width,
+      height: node.height
+    });
+  }
+  return boxes;
+}
+function usecaseBoxes(plan) {
+  const boxes = /* @__PURE__ */ new Map();
+  const actors = plan.nodes.filter((n) => n.type === "UMLActor");
+  const cases = plan.nodes.filter((n) => n.type === "UMLUseCase");
+  const subject = plan.nodes.find((n) => n.type === "UMLUseCaseSubject");
+  actors.forEach(
+    (a, i) => boxes.set(a.key, {
+      x: MARGIN,
+      y: MARGIN + 40 + i * 140,
+      width: a.width,
+      height: a.height
+    })
+  );
+  const left = MARGIN + 200;
+  boxes.set(subject.key, {
+    x: left,
+    y: MARGIN,
+    width: subject.width,
+    height: subject.height
+  });
+  cases.forEach(
+    (c, i) => boxes.set(c.key, {
+      x: left + (subject.width - c.width) / 2,
+      y: MARGIN + 60 + i * 80,
+      width: c.width,
+      height: c.height
+    })
+  );
+  return boxes;
+}
+var LANE_WIDTH = 220;
+var LANE_HEADER = 50;
+var ROW = 90;
+var SIDE_GAP = 20;
+function activityBoxes(plan) {
+  const lanes = plan.nodes.filter((n) => n.type === "UMLSwimlaneVert");
+  const others = plan.nodes.filter((n) => n.type !== "UMLSwimlaneVert");
+  const rank = ranks(
+    others.map((n) => n.key),
+    plan.edges
+  );
+  const deepest = Math.max(0, ...rank.values());
+  const height = LANE_HEADER + (deepest + 1) * ROW + GAP / 2;
+  const column = (n) => n.lane === void 0 ? lanes.length : lanes.findIndex((l) => l.key === n.lane);
+  const slots = /* @__PURE__ */ new Map();
+  for (const n of others) {
+    const slot = `${column(n)}:${rank.get(n.key)}`;
+    slots.set(slot, [...slots.get(slot) ?? [], n]);
+  }
+  const widths = Array.from({ length: lanes.length + 1 }, () => LANE_WIDTH);
+  for (const [slot, nodes] of slots) {
+    const c = Number(slot.split(":")[0]);
+    const needed = nodes.reduce((sum, n) => sum + n.width + SIDE_GAP, 0) + SIDE_GAP;
+    widths[c] = Math.max(widths[c], needed);
+  }
+  const lefts = widths.map(
+    (_, c) => MARGIN + widths.slice(0, c).reduce((a, w) => a + w, 0)
+  );
+  const boxes = /* @__PURE__ */ new Map();
+  lanes.forEach(
+    (lane, i) => boxes.set(lane.key, {
+      x: lefts[i],
+      y: MARGIN,
+      width: widths[i],
+      height
+    })
+  );
+  for (const [slot, nodes] of slots) {
+    const [c, r] = slot.split(":").map(Number);
+    const total = nodes.reduce((sum, n) => sum + n.width + SIDE_GAP, -SIDE_GAP);
+    let x = lefts[c] + (widths[c] - total) / 2;
+    for (const n of nodes) {
+      boxes.set(n.key, {
+        x,
+        y: MARGIN + LANE_HEADER + r * ROW + (ROW - n.height) / 2,
+        width: n.width,
+        height: n.height
+      });
+      x += n.width + SIDE_GAP;
+    }
+  }
+  return boxes;
+}
+function place(plan, direction2) {
+  let boxes;
+  if (plan.kind === "usecase" && plan.fixed) boxes = usecaseBoxes(plan);
+  else if (plan.kind === "activity" && plan.fixed) boxes = activityBoxes(plan);
+  else {
+    const free = plan.nodes.filter((n) => n.box === void 0);
+    boxes = free.length === 0 ? /* @__PURE__ */ new Map() : grid(free, plan.edges, direction2, { x: MARGIN, y: MARGIN });
+  }
+  for (const n of plan.nodes) if (n.box) boxes.set(n.key, n.box);
+  return boxes;
+}
+
+// src/build/spec.ts
+var KINDS = [
+  "class",
+  "sequence",
+  "usecase",
+  "activity",
+  "statemachine",
+  "erd",
+  "flowchart",
+  "mindmap"
+];
+var DIAGRAM_TYPES = {
+  class: "UMLClassDiagram",
+  sequence: "UMLSequenceDiagram",
+  usecase: "UMLUseCaseDiagram",
+  activity: "UMLActivityDiagram",
+  statemachine: "UMLStatechartDiagram",
+  erd: "ERDDiagram",
+  flowchart: "FCFlowchartDiagram",
+  mindmap: "MMMindmapDiagram"
+};
+var name = () => string2().check(_minLength(1));
+var strings = () => array(name());
+var nameOr = (object2) => union([name(), object2]);
+var attributeObject = () => object({
+  name: name(),
+  type: optional(string2()),
+  visibility: optional(
+    _enum(["public", "private", "protected", "package"])
+  ),
+  isStatic: optional(boolean2()),
+  defaultValue: optional(string2()),
+  multiplicity: optional(string2())
+});
+var operationObject = () => object({
+  name: name(),
+  parameters: optional(
+    array(object({ name: name(), type: optional(string2()) }))
+  ),
+  returnType: optional(string2()),
+  visibility: optional(
+    _enum(["public", "private", "protected", "package"])
+  ),
+  isStatic: optional(boolean2()),
+  isAbstract: optional(boolean2())
+});
+var relationTypes = [
+  "association",
+  "directed",
+  "aggregation",
+  "composition",
+  "generalization",
+  "realization",
+  "dependency"
+];
+var classSpec = () => object({
+  packages: optional(
+    array(
+      nameOr(object({ name: name(), stereotype: optional(string2()) }))
+    )
+  ),
+  classes: optional(
+    array(
+      object({
+        name: name(),
+        kind: optional(_enum(["class", "interface", "enum", "abstract"])),
+        stereotype: optional(string2()),
+        package: optional(doc(name(), "Owning package, by name.")),
+        attributes: optional(array(nameOr(attributeObject()))),
+        operations: optional(array(nameOr(operationObject()))),
+        literals: optional(strings()),
+        documentation: optional(string2())
+      })
+    )
+  ),
+  relations: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        type: optional(_enum(relationTypes)),
+        name: optional(string2()),
+        fromMultiplicity: optional(string2()),
+        toMultiplicity: optional(string2())
+      })
+    )
+  )
+});
+var MESSAGE_KINDS = ["sync", "async", "reply", "create", "delete"];
+var sequenceSpec = () => object({
+  participants: optional(
+    array(
+      nameOr(
+        object({
+          name: name(),
+          kind: optional(_enum(["participant", "actor"]))
+        })
+      )
+    )
+  ),
+  messages: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        text: optional(string2()),
+        kind: optional(_enum(MESSAGE_KINDS))
+      })
+    )
+  ),
+  fragments: optional(
+    array(
+      object({
+        operator: _enum([
+          "alt",
+          "opt",
+          "loop",
+          "par",
+          "break",
+          "critical",
+          "neg",
+          "strict",
+          "seq",
+          "ignore",
+          "consider",
+          "assert"
+        ]),
+        guard: optional(string2()),
+        operands: optional(
+          doc(
+            array(string2()),
+            "Guards of further operands, e.g. ['else'] for an alt; StarUML divides the fragment evenly between operands."
+          )
+        ),
+        from: doc(
+          int().check(_gte(0)),
+          "Index of the first message inside."
+        ),
+        to: doc(
+          int().check(_gte(0)),
+          "Index of the last message inside."
+        )
+      })
+    )
+  )
+});
+var usecaseSpec2 = () => object({
+  system: optional(
+    doc(name(), "System boundary drawn around the use cases.")
+  ),
+  actors: optional(strings()),
+  useCases: optional(strings()),
+  relations: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        type: optional(
+          _enum(["association", "include", "extend", "generalization"])
+        ),
+        name: optional(string2())
+      })
+    )
+  )
+});
+var ACTIVITY_NODES = [
+  "action",
+  "initial",
+  "final",
+  "flowFinal",
+  "decision",
+  "merge",
+  "fork",
+  "join",
+  "object"
+];
+var activitySpec2 = () => object({
+  lanes: optional(strings()),
+  nodes: optional(
+    array(
+      nameOr(
+        object({
+          id: optional(doc(name(), "Key for flows; default the name.")),
+          name: optional(string2()),
+          type: optional(_enum(ACTIVITY_NODES)),
+          lane: optional(name())
+        })
+      )
+    )
+  ),
+  flows: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        guard: optional(string2()),
+        name: optional(string2())
+      })
+    )
+  )
+});
+var STATE_TYPES = [
+  "state",
+  "initial",
+  "final",
+  "choice",
+  "fork",
+  "join"
+];
+var statemachineSpec = () => object({
+  states: optional(
+    array(
+      nameOr(
+        object({
+          id: optional(name()),
+          name: optional(string2()),
+          type: optional(_enum(STATE_TYPES))
+        })
+      )
+    )
+  ),
+  transitions: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        trigger: optional(string2()),
+        guard: optional(string2()),
+        effect: optional(string2())
+      })
+    )
+  )
+});
+var CARDINALITIES = ["0..1", "1", "0..*", "1..*"];
+var erdSpec = () => object({
+  entities: optional(
+    array(
+      object({
+        name: name(),
+        columns: optional(
+          array(
+            nameOr(
+              object({
+                name: name(),
+                type: optional(string2()),
+                length: optional(string2()),
+                primaryKey: optional(boolean2()),
+                foreignKey: optional(boolean2()),
+                nullable: optional(boolean2()),
+                unique: optional(boolean2())
+              })
+            )
+          )
+        )
+      })
+    )
+  ),
+  relationships: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        name: optional(string2()),
+        fromCardinality: optional(_enum(CARDINALITIES)),
+        toCardinality: optional(_enum(CARDINALITIES)),
+        identifying: optional(boolean2())
+      })
+    )
+  )
+});
+var FLOWCHART_SHAPES = {
+  process: "FCProcess",
+  decision: "FCDecision",
+  terminator: "FCTerminator",
+  data: "FCData",
+  document: "FCDocument",
+  predefined: "FCPredefinedProcess",
+  alternate: "FCAlternateProcess",
+  database: "FCDatabase",
+  manualInput: "FCManualInput",
+  preparation: "FCPreparation",
+  connector: "FCConnector",
+  delay: "FCDelay",
+  display: "FCDisplay"
+};
+var flowchartSpec2 = () => object({
+  nodes: optional(
+    array(
+      nameOr(
+        object({
+          id: optional(name()),
+          name: optional(string2()),
+          shape: optional(
+            _enum(
+              Object.keys(FLOWCHART_SHAPES)
+            )
+          )
+        })
+      )
+    )
+  ),
+  flows: optional(
+    array(
+      object({ from: name(), to: name(), label: optional(string2()) })
+    )
+  )
+});
+var mindNode = object({
+  name: name(),
+  get children() {
+    return optional(array(mindNode));
+  }
+});
+var mindmapSpec = () => object({ root: mindNode });
+var SPEC_SCHEMAS = {
+  class: classSpec,
+  sequence: sequenceSpec,
+  usecase: usecaseSpec2,
+  activity: activitySpec2,
+  statemachine: statemachineSpec,
+  erd: erdSpec,
+  flowchart: flowchartSpec2,
+  mindmap: mindmapSpec
+};
+function parseSpec(kind, spec) {
+  const result = safeParse(SPEC_SCHEMAS[kind](), spec);
+  if (!result.success) {
+    const issue2 = result.error.issues[0];
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `spec.${issue2.path.map(String).join(".")}: ${issue2.message} (for kind ${kind})`,
+      result.error.issues
+    );
+  }
+  return result.data;
+}
+var Builder = class {
+  constructor(kind) {
+    this.kind = kind;
+  }
+  kind;
+  nodes = [];
+  edges = [];
+  byKey = /* @__PURE__ */ new Map();
+  node(node) {
+    if (this.byKey.has(node.key)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec: ${node.key} is defined twice; give one of them another name or id`
+      );
+    }
+    const full = { width: 120, height: 60, ...node };
+    this.nodes.push(full);
+    this.byKey.set(full.key, full);
+    return full;
+  }
+  has(key) {
+    return this.byKey.has(key);
+  }
+  /** Ends are names as nodes are, so "a<br/>b" finds the node named "a\nb". */
+  edge(spec, where) {
+    const edge = {
+      ...spec,
+      from: multiline(spec.from),
+      to: multiline(spec.to)
+    };
+    for (const end of [edge.from, edge.to]) {
+      if (!this.byKey.has(end)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.${where}: no node named ${end}`
+        );
+      }
+    }
+    this.edges.push(edge);
+  }
+  plan(fixed = false) {
+    return { kind: this.kind, nodes: this.nodes, edges: this.edges, fixed };
+  }
+};
+var str = (value) => multiline(typeof value === "string" ? value : value.name);
+var CLASS_TYPES = {
+  class: "UMLClass",
+  abstract: "UMLClass",
+  interface: "UMLInterface",
+  enum: "UMLEnumeration"
+};
+var RELATION_TYPES = {
+  association: "UMLAssociation",
+  directed: "UMLDirectedAssociation",
+  aggregation: "UMLAggregation",
+  composition: "UMLComposition",
+  generalization: "UMLGeneralization",
+  realization: "UMLInterfaceRealization",
+  dependency: "UMLDependency"
+};
+function classPlan(spec) {
+  const b = new Builder("class");
+  for (const p of spec.packages ?? []) {
+    const stereotype = typeof p === "string" ? void 0 : p.stereotype;
+    b.node({
+      key: str(p),
+      type: "UMLPackage",
+      name: str(p),
+      ...stereotype && { properties: { stereotype } },
+      width: 200,
+      height: 120
+    });
+  }
+  (spec.classes ?? []).forEach((c, i) => {
+    const kind = c.kind ?? "class";
+    if (c.package !== void 0 && !b.has(c.package)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.classes.${i}.package: no package named ${c.package}`
+      );
+    }
+    const properties2 = {
+      ...kind === "abstract" && { isAbstract: true },
+      ...c.stereotype !== void 0 && { stereotype: c.stereotype },
+      ...c.documentation !== void 0 && { documentation: c.documentation }
+    };
+    const attributes = (c.attributes ?? []).map(
+      (a) => typeof a === "string" ? parseAttribute(a) : a
+    );
+    const operations = (c.operations ?? []).map(
+      (o) => typeof o === "string" ? parseOperation(o) : o
+    );
+    b.node({
+      key: multiline(c.name),
+      type: CLASS_TYPES[kind],
+      name: multiline(c.name),
+      ...Object.keys(properties2).length > 0 && { properties: properties2 },
+      ...c.package !== void 0 && { owner: c.package },
+      ...attributes.length > 0 && { attributes },
+      ...operations.length > 0 && { operations },
+      ...c.literals && { literals: c.literals },
+      // StarUML draws an interface as a lollipop by default, which hides
+      // its operations.
+      ...kind === "interface" && { style: { stereotypeDisplay: "label" } },
+      width: 180,
+      height: 40 + 14 * (attributes.length + operations.length + (c.literals?.length ?? 0))
+    });
+  });
+  (spec.relations ?? []).forEach((r, i) => {
+    const type2 = r.type ?? "association";
+    const ends = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
+    b.edge(
+      {
+        type: RELATION_TYPES[type2],
+        from: r.from,
+        to: r.to,
+        ...r.name !== void 0 && { name: r.name },
+        ...ends && r.fromMultiplicity !== void 0 && {
+          tailEnd: { multiplicity: r.fromMultiplicity }
+        },
+        ...ends && r.toMultiplicity !== void 0 && {
+          headEnd: { multiplicity: r.toMultiplicity }
+        }
+      },
+      `relations.${i}`
+    );
+  });
+  return b.plan();
+}
+var MESSAGE_TYPES = {
+  sync: "UMLMessage",
+  async: "UMLAsyncMessage",
+  reply: "UMLReplyMessage",
+  create: "UMLCreateMessage",
+  delete: "UMLDeleteMessage"
+};
+var SEQUENCE = {
+  left: 40,
+  top: 20,
+  spacing: 200,
+  width: 120,
+  firstMessage: 110,
+  step: 50,
+  /** Room for a fragment's operator tab and guard above its first message. */
+  header: 55,
+  footer: 20
+};
+function sequencePlan(spec) {
+  const b = new Builder("sequence");
+  const messages = (spec.messages ?? []).map((m) => ({
+    ...m,
+    from: multiline(m.from),
+    to: multiline(m.to)
+  }));
+  const participants = (spec.participants ?? []).map(str);
+  for (const m of messages) {
+    for (const end of [m.from, m.to]) {
+      if (!participants.includes(end)) participants.push(end);
+    }
+  }
+  const fragments = spec.fragments ?? [];
+  const ys = [];
+  let at = SEQUENCE.firstMessage;
+  messages.forEach((_, i) => {
+    at += SEQUENCE.header * fragments.filter((f) => f.from === i).length;
+    ys.push(at);
+    at += SEQUENCE.step + SEQUENCE.footer * fragments.filter((f) => f.to === i).length;
+  });
+  const height = at + SEQUENCE.step - SEQUENCE.top;
+  const center2 = (key) => SEQUENCE.left + participants.indexOf(key) * SEQUENCE.spacing + SEQUENCE.width / 2;
+  participants.forEach(
+    (p, i) => b.node({
+      key: p,
+      type: "UMLLifeline",
+      name: p,
+      width: SEQUENCE.width,
+      height,
+      box: {
+        x: SEQUENCE.left + i * SEQUENCE.spacing,
+        y: SEQUENCE.top,
+        width: SEQUENCE.width,
+        height
+      }
+    })
+  );
+  const y = (i) => ys[i];
+  messages.forEach((m, i) => {
+    const self = m.from === m.to;
+    b.edge(
+      {
+        type: self ? "UMLSelfMessage" : MESSAGE_TYPES[m.kind ?? "sync"],
+        from: m.from,
+        to: m.to,
+        ...m.text !== void 0 && { name: multiline(m.text) },
+        ...self && m.kind !== void 0 && m.kind !== "sync" && {
+          properties: {
+            messageSort: {
+              async: "asynchCall",
+              reply: "reply",
+              create: "createMessage",
+              delete: "deleteMessage"
+            }[m.kind]
+          }
+        },
+        geometry: {
+          x1: center2(m.from),
+          y1: y(i),
+          x2: self ? center2(m.from) + 40 : center2(m.to),
+          y2: y(i)
+        }
+      },
+      `messages.${i}`
+    );
+  });
+  fragments.forEach((f, i) => {
+    if (f.from > f.to || f.to >= messages.length) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.fragments.${i}: from and to must be message indices with from <= to < ${messages.length}`
+      );
+    }
+    const inside = messages.slice(f.from, f.to + 1);
+    const columns = inside.flatMap((m) => [m.from, m.to]).map((p) => participants.indexOf(p));
+    const outer = fragments.filter(
+      (g, j) => j !== i && g.from <= f.from && g.to >= f.to && (g.to - g.from > f.to - f.from || j < i)
+    );
+    const inset = 10 * outer.length;
+    const x = SEQUENCE.left + Math.min(...columns) * SEQUENCE.spacing - 30 + inset;
+    const x2 = SEQUENCE.left + Math.max(...columns) * SEQUENCE.spacing + SEQUENCE.width + 30 - inset;
+    const opening = fragments.filter((g) => g.from === f.from).length;
+    const closing = fragments.filter((g) => g.to === f.to).length;
+    const top = y(f.from) - SEQUENCE.header * (opening - outer.filter((g) => g.from === f.from).length) + 5;
+    const bottom = y(f.to) + SEQUENCE.step / 2 + SEQUENCE.footer * (closing - 1 - outer.filter((g) => g.to === f.to).length);
+    b.node({
+      key: `fragment ${i}`,
+      type: "UMLCombinedFragment",
+      // The operator and guard say it all; StarUML would add "CombinedFragment1".
+      name: "",
+      properties: { interactionOperator: f.operator },
+      ...f.guard !== void 0 && { guard: f.guard },
+      ...f.operands && { operands: f.operands },
+      width: x2 - x,
+      height: bottom - top,
+      box: { x, y: top, width: x2 - x, height: bottom - top }
+    });
+  });
+  return b.plan(true);
+}
+var USECASE_RELATIONS = {
+  association: "UMLAssociation",
+  include: "UMLInclude",
+  extend: "UMLExtend",
+  generalization: "UMLGeneralization"
+};
+function usecasePlan(spec) {
+  const b = new Builder("usecase");
+  const system = spec.system === void 0 ? void 0 : multiline(spec.system);
+  const useCases = (spec.useCases ?? []).map(multiline);
+  if (system !== void 0) {
+    b.node({
+      key: system,
+      type: "UMLUseCaseSubject",
+      name: system,
+      width: 260,
+      height: 100 + 80 * useCases.length
+    });
+  }
+  for (const a of spec.actors ?? []) {
+    b.node({
+      key: multiline(a),
+      type: "UMLActor",
+      name: multiline(a),
+      width: 40,
+      height: 80
+    });
+  }
+  for (const u of useCases) {
+    b.node({ key: u, type: "UMLUseCase", name: u, width: 160, height: 50 });
+  }
+  (spec.relations ?? []).forEach(
+    (r, i) => b.edge(
+      {
+        type: USECASE_RELATIONS[r.type ?? "association"],
+        from: r.from,
+        to: r.to,
+        ...r.name !== void 0 && { name: r.name }
+      },
+      `relations.${i}`
+    )
+  );
+  return b.plan(system !== void 0);
+}
+var ACTIVITY_TYPES = {
+  action: ["UMLAction", 120, 50],
+  initial: ["UMLInitialNode", 20, 20],
+  final: ["UMLActivityFinalNode", 26, 26],
+  flowFinal: ["UMLFlowFinalNode", 26, 26],
+  decision: ["UMLDecisionNode", 30, 40],
+  merge: ["UMLMergeNode", 30, 40],
+  fork: ["UMLForkNode", 120, 10],
+  join: ["UMLJoinNode", 120, 10],
+  object: ["UMLObjectNode", 120, 50]
+};
+function nodeName(name2, key, named) {
+  if (name2 !== void 0) return multiline(name2);
+  return named ? key : "";
+}
+function activityPlan(spec) {
+  const b = new Builder("activity");
+  const lanes = (spec.lanes ?? []).map(multiline);
+  for (const lane of lanes) {
+    b.node({
+      key: lane,
+      type: "UMLSwimlaneVert",
+      name: lane,
+      width: 200,
+      height: 400
+    });
+  }
+  (spec.nodes ?? []).forEach((n, i) => {
+    const o = typeof n === "string" ? { name: n } : n;
+    const type2 = o.type ?? "action";
+    const [create, width, height] = ACTIVITY_TYPES[type2];
+    if (o.lane !== void 0 && !lanes.includes(o.lane)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.nodes.${i}.lane: no lane named ${o.lane}`
+      );
+    }
+    const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+    if (key === void 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.nodes.${i}: needs a name or an id`
+      );
+    }
+    b.node({
+      key,
+      type: create,
+      name: nodeName(o.name, key, type2 === "action" || type2 === "object"),
+      ...o.lane !== void 0 && { lane: o.lane },
+      width,
+      height
+    });
+  });
+  (spec.flows ?? []).forEach(
+    (f, i) => b.edge(
+      {
+        type: "UMLControlFlow",
+        from: f.from,
+        to: f.to,
+        ...f.name !== void 0 && { name: f.name },
+        ...f.guard !== void 0 && { properties: { guard: f.guard } }
+      },
+      `flows.${i}`
+    )
+  );
+  return b.plan(lanes.length > 0);
+}
+var STATE_CREATE = {
+  state: ["UMLState", 120, 50],
+  initial: ["UMLInitialState", 20, 20],
+  final: ["UMLFinalState", 26, 26],
+  choice: ["UMLChoice", 30, 30],
+  fork: ["UMLFork", 10, 80],
+  join: ["UMLJoin", 10, 80]
+};
+function statemachinePlan(spec) {
+  const b = new Builder("statemachine");
+  (spec.states ?? []).forEach((s, i) => {
+    const o = typeof s === "string" ? { name: s } : s;
+    const type2 = o.type ?? "state";
+    const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+    if (key === void 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.states.${i}: needs a name or an id`
+      );
+    }
+    const [create, width, height] = STATE_CREATE[type2];
+    b.node({
+      key,
+      type: create,
+      name: nodeName(o.name, key, type2 === "state"),
+      width,
+      height
+    });
+  });
+  (spec.transitions ?? []).forEach((t, i) => {
+    const label = [
+      t.trigger ?? "",
+      t.effect !== void 0 ? ` / ${t.effect}` : ""
+    ].join("").trim();
+    b.edge(
+      {
+        type: "UMLTransition",
+        from: t.from,
+        to: t.to,
+        ...label && { name: label },
+        ...t.guard !== void 0 && { properties: { guard: t.guard } }
+      },
+      `transitions.${i}`
+    );
+  });
+  return b.plan();
+}
+function parseColumn(source) {
+  const words = source.trim().split(/\s+/);
+  const column = { name: words[0] };
+  const rest = words.slice(1);
+  const flags = new Set(rest.map((w) => w.toUpperCase()));
+  const type2 = rest.find((w) => !/^(PK|FK|UK|UNIQUE|NULL|NOT)$/i.test(w));
+  if (type2) {
+    const sized = /^([^(]+)\(([^)]*)\)$/.exec(type2);
+    if (sized) {
+      column.type = sized[1];
+      column.length = sized[2];
+    } else {
+      column.type = type2;
+    }
+  }
+  if (flags.has("PK")) column.primaryKey = true;
+  if (flags.has("FK")) column.foreignKey = true;
+  if (flags.has("UK") || flags.has("UNIQUE")) column.unique = true;
+  if (flags.has("NULL") && !flags.has("NOT")) column.nullable = true;
+  return column;
+}
+function erdPlan(spec) {
+  const b = new Builder("erd");
+  for (const e of spec.entities ?? []) {
+    const columns = (e.columns ?? []).map(
+      (c) => typeof c === "string" ? parseColumn(c) : c
+    );
+    b.node({
+      key: multiline(e.name),
+      type: "ERDEntity",
+      name: multiline(e.name),
+      ...columns.length > 0 && { columns },
+      width: 160,
+      height: 40 + 16 * columns.length
+    });
+  }
+  (spec.relationships ?? []).forEach(
+    (r, i) => b.edge(
+      {
+        type: "ERDRelationship",
+        from: r.from,
+        to: r.to,
+        ...r.name !== void 0 && { name: r.name },
+        ...r.identifying !== void 0 && {
+          properties: { identifying: r.identifying }
+        },
+        tailEnd: { cardinality: r.fromCardinality ?? "1" },
+        headEnd: { cardinality: r.toCardinality ?? "0..*" }
+      },
+      `relationships.${i}`
+    )
+  );
+  return b.plan();
+}
+function flowchartPlan(spec) {
+  const b = new Builder("flowchart");
+  (spec.nodes ?? []).forEach((n, i) => {
+    const o = typeof n === "string" ? { name: n } : n;
+    const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+    if (key === void 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.nodes.${i}: needs a name or an id`
+      );
+    }
+    const shape = o.shape ?? "process";
+    b.node({
+      key,
+      type: FLOWCHART_SHAPES[shape],
+      name: o.name !== void 0 ? multiline(o.name) : key,
+      width: shape === "connector" ? 40 : 140,
+      height: shape === "decision" ? 70 : shape === "connector" ? 40 : 50
+    });
+  });
+  (spec.flows ?? []).forEach(
+    (f, i) => b.edge(
+      {
+        type: "FCFlow",
+        from: f.from,
+        to: f.to,
+        ...f.label !== void 0 && { name: multiline(f.label) }
+      },
+      `flows.${i}`
+    )
+  );
+  return b.plan();
+}
+function mindmapPlan(spec) {
+  const b = new Builder("mindmap");
+  const visit = (node, parent) => {
+    const key = parent === null ? multiline(node.name) : `${parent}/${multiline(node.name)}`;
+    b.node({
+      key,
+      type: "MMNode",
+      name: multiline(node.name),
+      width: 120,
+      height: 40
+    });
+    if (parent !== null) b.edge({ type: "MMEdge", from: parent, to: key }, key);
+    for (const child of node.children ?? []) visit(child, key);
+  };
+  visit(spec.root, null);
+  return b.plan();
+}
+var PLANNERS = {
+  class: classPlan,
+  sequence: sequencePlan,
+  usecase: usecasePlan,
+  activity: activityPlan,
+  statemachine: statemachinePlan,
+  erd: erdPlan,
+  flowchart: flowchartPlan,
+  mindmap: mindmapPlan
+};
+function planFor(kind, spec) {
+  return PLANNERS[kind](parseSpec(kind, spec));
+}
+
+// src/lookup.ts
+function requireElement(id2, role = "Element") {
+  const elem = app.repository.get(id2);
+  if (!elem) throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
+  return elem;
+}
+function requireDiagram(id2, role = "Diagram") {
+  const elem = app.repository.get(id2);
+  if (!elem || !(elem instanceof type.Diagram)) {
+    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
+  }
+  return elem;
+}
+function requireView(id2, role = "View") {
+  const elem = app.repository.get(id2);
+  if (!elem || !(elem instanceof type.View)) {
+    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
+  }
+  return elem;
+}
+function requireTypeName(name2) {
+  if (!Object.hasOwn(type, name2)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name2}`);
+  }
+}
+function requireProject() {
+  const project = app.project.getProject();
+  if (!project) throw new ApiError("NO_PROJECT", "No project is open");
+  return project;
+}
+
+// src/serialize.ts
+var MAX_DEPTH = 8;
+function isElement(value) {
+  return value instanceof type.Element;
+}
+function ref(elem) {
+  return { $ref: elem._id };
+}
+function summarize(elem) {
+  return {
+    _id: elem._id,
+    _type: elem.constructor.name,
+    name: typeof elem.name === "string" ? elem.name : null,
+    _parent: elem._parent ? elem._parent._id : null
+  };
+}
+function reported(attr) {
+  return attr.name !== "_id" && attr.name !== "_parent" && !attr.transient;
+}
+function serialize(elem, projection = {}) {
+  const { fields } = projection;
+  if (!fields && projection.summary !== false) return { ...summarize(elem) };
+  const out = {
+    _id: elem._id,
+    _type: elem.constructor.name
+  };
+  const wanted = fields ? new Set(fields) : null;
+  if (!wanted || wanted.has("_parent")) {
+    out._parent = elem._parent ? elem._parent._id : null;
+  }
+  const depth = projection.depth ?? 0;
+  for (const attr of app.metamodels.getMetaAttributes(out._type)) {
+    if (!reported(attr) || wanted && !wanted.has(attr.name)) continue;
+    const value = elem[attr.name];
+    if (value === void 0) continue;
+    out[attr.name] = convert(attr, value, { ...projection, depth });
+  }
+  return out;
+}
+function convert(attr, value, projection) {
+  const owned = (child) => projection.depth > 0 ? serialize(child, { ...projection, depth: projection.depth - 1 }) : ref(child);
+  switch (attr.kind) {
+    case "ref":
+      return isElement(value) ? ref(value) : null;
+    case "refs":
+      return Array.isArray(value) ? value.filter(isElement).map(ref) : [];
+    case "obj":
+      return isElement(value) ? owned(value) : null;
+    case "objs":
+      return Array.isArray(value) ? value.filter(isElement).map(owned) : [];
+    case "var":
+      return isElement(value) ? ref(value) : value;
+    case "custom":
+      return hasWrite(value) ? value.__write() : null;
+    default:
+      return value;
+  }
+}
+function hasWrite(value) {
+  return typeof value === "object" && value !== null && typeof value.__write === "function";
+}
+function serializeValue(value, projection = {}) {
+  if (value === void 0 || value === null) return null;
+  if (isElement(value)) return serialize(value, projection);
+  if (Array.isArray(value))
+    return value.map((item) => serializeValue(item, projection));
+  if (typeof value === "function") return "[function]";
+  if (typeof value !== "object") return value;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return "[non-serializable]";
+  }
+}
+
+// src/schemas.ts
+function id(description) {
+  return doc(string2().check(_minLength(1)), description);
+}
+function typeName(description) {
+  return doc(string2().check(_minLength(1)), description);
+}
+function text2(description) {
+  return doc(string2(), description);
+}
+function coordinate(description) {
+  return optional(doc(number2(), description));
+}
+function projectionShape() {
+  return {
+    summary: optional(
+      doc(
+        boolean2(),
+        "Default true: each element is {_id, _type, name, _parent}. False returns every saved attribute. Ignored when 'fields' is given."
+      )
+    ),
+    fields: optional(
+      doc(
+        array(string2().check(_minLength(1))),
+        "Attribute names to return besides _id and _type, e.g. ['name', 'attributes']; '_parent' is accepted. Names an element lacks are omitted."
+      )
+    ),
+    depth: optional(
+      doc(
+        int().check(_gte(0), _lte(MAX_DEPTH)),
+        "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
+      )
+    )
+  };
+}
+function elementSchema() {
+  return doc(
+    looseObject({
+      _id: string2(),
+      _type: doc(string2(), "Metamodel class name."),
+      name: optional(nullable(string2())),
+      _parent: optional(
+        doc(nullable(string2()), "Owner id; null for the project.")
+      )
+    }),
+    "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
+  );
+}
+function properties(description) {
+  return optional(doc(record(string2(), unknown()), description));
+}
+function reference(description) {
+  return doc(
+    union([
+      string2().check(_minLength(1)),
+      object({ $ref: string2().check(_minLength(1)) })
+    ]),
+    description
+  );
+}
+function typeValue(description) {
+  return doc(
+    union([string2(), object({ $ref: string2().check(_minLength(1)) })]),
+    description
+  );
+}
+var ATTRIBUTE_VALUES_HELP = "Initial attribute values by name, as /introspect lists them: plain values for prim/enum attributes, an id or {$ref: id} for references, arrays of those for reference lists.";
+
+// src/toolbox.ts
+var CURSOR_OPTIONS = /* @__PURE__ */ new Set(["id", "connectable-views", "self-connection"]);
+var DEFAULT_COMMAND = "factory:create-model-and-view";
+function resolveCreateType(typeName2) {
+  const { items } = app.toolbox;
+  const item = Object.hasOwn(items, typeName2) ? items[typeName2] : void 0;
+  const custom = item?.command && item.command !== DEFAULT_COMMAND;
+  if (!item || custom) {
+    if (app.factory.getModelAndViewIds().includes(typeName2)) {
+      return { id: typeName2, preset: {} };
+    }
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      custom ? `${typeName2} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName2}`
+    );
+  }
+  const arg = item.commandArg ?? {};
+  const preset = {};
+  for (const [key, value] of Object.entries(arg)) {
+    if (!CURSOR_OPTIONS.has(key)) preset[key] = value;
+  }
+  return { id: typeof arg.id === "string" ? arg.id : typeName2, preset };
+}
+
+// src/metamodel.ts
+function isMetaClass(name2) {
+  return Object.hasOwn(meta, name2) && meta[name2].kind === "class";
+}
+function lineage(name2) {
+  const out = [];
+  for (let t = name2; t; t = meta[t]?.super) out.push(t);
+  return out;
+}
+function attributeOf(typeName2, name2) {
+  return app.metamodels.getMetaAttributes(typeName2).find((attr) => attr.name === name2);
+}
+function ownerField(owner, childType) {
+  let best = null;
+  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
+    if (attr.kind !== "objs" || !app.metamodels.isKindOf(childType, attr.type))
+      continue;
+    const depth = lineage(attr.type).length;
+    if (!best || depth > best.depth) best = { name: attr.name, depth };
+  }
+  return best?.name ?? null;
+}
+function resolveOwnerField(owner, childType, field) {
+  const ownerType = owner.constructor.name;
+  if (field === void 0) {
+    const chosen = ownerField(owner, childType);
+    if (!chosen) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${ownerType} has no list that holds ${childType}`
+      );
+    }
+    return chosen;
+  }
+  const attr = attributeOf(ownerType, field);
+  if (!attr || attr.kind !== "objs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${ownerType} has no owned-element list '${field}'`
+    );
+  }
+  if (!app.metamodels.isKindOf(childType, attr.type)) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${ownerType}.${field} holds ${attr.type}, not ${childType}`
+    );
+  }
+  return field;
+}
+function relationshipKind(typeName2) {
+  if (app.metamodels.isKindOf(typeName2, "DirectedRelationship"))
+    return "directed";
+  if (app.metamodels.isKindOf(typeName2, "UndirectedRelationship"))
+    return "undirected";
+  return null;
+}
+
+// src/values.ts
+var PRIM_CHECKS = {
+  String: (v) => typeof v === "string",
+  Image: (v) => typeof v === "string",
+  Boolean: (v) => typeof v === "boolean",
+  Integer: (v) => Number.isInteger(v),
+  Real: (v) => typeof v === "number" && Number.isFinite(v)
+};
+function refId(value) {
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value !== null && typeof value.$ref === "string") {
+    return value.$ref;
+  }
+  return null;
+}
+function invalid(owner, attr, expected) {
+  throw new ApiError(
+    "INVALID_ARGUMENT",
+    `${owner}.${attr.name} (${attr.kind} ${attr.type}) expects ${expected}`
+  );
+}
+function referenced(owner, attr, value) {
+  const id2 = refId(value);
+  if (id2 === null) invalid(owner, attr, "an element id or {$ref: id}");
+  const elem = app.repository.get(id2);
+  if (!elem) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${owner}.${attr.name}: element not found: ${id2}`
+    );
+  }
+  if (!app.metamodels.isKindOf(elem.constructor.name, attr.type)) {
+    invalid(owner, attr, `a ${attr.type}, got ${elem.constructor.name} ${id2}`);
+  }
+  return elem;
+}
+function toModelValue(owner, attr, value) {
+  switch (attr.kind) {
+    case "prim": {
+      const check = PRIM_CHECKS[attr.type];
+      if (check && !check(value)) invalid(owner, attr, `a ${attr.type}`);
+      return value;
+    }
+    case "enum": {
+      const literals = meta[attr.type]?.literals ?? [];
+      if (!literals.includes(value))
+        invalid(owner, attr, `one of ${literals.join(", ")}`);
+      return value;
+    }
+    case "ref":
+      return value === null ? null : referenced(owner, attr, value);
+    case "refs":
+      if (!Array.isArray(value))
+        invalid(owner, attr, "an array of element ids");
+      return value.map((v) => referenced(owner, attr, v));
+    case "var":
+      if (refId(value) !== null && typeof value === "object")
+        return referenced(owner, attr, value);
+      if (value !== null && typeof value === "object")
+        invalid(owner, attr, "a string, number, boolean, null or {$ref: id}");
+      return value;
+    default:
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${owner}.${attr.name} is a ${attr.kind} attribute and cannot be set here`
+      );
+  }
+}
+function settableAttribute(typeName2, name2) {
+  const attr = name2 === "_id" || name2 === "_parent" ? void 0 : attributeOf(typeName2, name2);
+  if (!attr) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${typeName2} has no field '${name2}'`
+    );
+  }
+  return attr;
+}
+function toModelValues(typeName2, properties2) {
+  const out = {};
+  for (const [name2, value] of Object.entries(properties2)) {
+    out[name2] = toModelValue(
+      typeName2,
+      settableAttribute(typeName2, name2),
+      value
+    );
+  }
+  return out;
+}
+
+// src/create.ts
+function initialValues(typeName2, name2, properties2) {
+  return toModelValues(typeName2, {
+    ...properties2,
+    ...name2 !== void 0 && { name: name2 }
+  });
+}
+function requireModelId(id2) {
+  if (!app.factory.getModelIds().includes(id2)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${id2}`);
+  }
+  if (!isMetaClass(id2)) {
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      `${id2} is registered with the factory but has no metamodel class, so StarUML cannot create it`
+    );
+  }
+}
+function createOwned(owner, typeName2, field, values, initialize = () => {
+}) {
+  requireModelId(typeName2);
+  const into = resolveOwnerField(owner, typeName2, field);
+  const elem = inStarUML(
+    () => app.factory.createModel({
+      id: typeName2,
+      parent: owner,
+      field: into,
+      modelInitializer: (m) => {
+        Object.assign(m, values);
+        initialize(m);
+      }
+    })
+  );
+  if (!elem) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not create ${typeName2} in ${owner.constructor.name}.${into}`
+    );
+  }
+  return elem;
+}
+function instantiate(typeName2) {
+  if (!isMetaClass(typeName2) || !Object.hasOwn(type, typeName2)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName2}`);
+  }
+  const Ctor = type[typeName2];
+  return new Ctor();
+}
+function diagramOf(view) {
+  let e = view;
+  while (e && !(e instanceof type.Diagram)) e = e._parent;
+  return e ?? null;
+}
+function endView(id2, diagram, role) {
+  const elem = requireElement(id2, role);
+  if (elem instanceof type.View) {
+    if (diagramOf(elem) !== diagram) {
+      throw new ApiError(
+        "NOT_FOUND",
+        `${role} ${id2} is not on diagram ${diagram._id}`
+      );
+    }
+    return elem;
+  }
+  const view = app.repository.getViewsOf(elem).find((v) => diagramOf(v) === diagram);
+  if (!view) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${role}: no view of ${id2} on diagram ${diagram._id}`
+    );
+  }
+  return view;
+}
+function center(view) {
+  const { left, top, width, height } = view;
+  if (typeof left !== "number" || typeof top !== "number" || typeof width !== "number" || typeof height !== "number") {
+    return null;
+  }
+  return { x: left + width / 2, y: top + height / 2 };
+}
+function createModelAndView(options) {
+  if (!app.factory.getModelAndViewIds().includes(options.id)) {
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      `Unknown model-and-view type: ${options.id}`
+    );
+  }
+  const view = inStarUML(
+    () => app.factory.createModelAndView({
+      ...options,
+      editor: app.diagrams.getEditor()
+    })
+  );
+  if (!view) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not create ${options.id} on diagram ${options.diagram._id}`
+    );
+  }
+  return view;
+}
+
+// src/handlers/elements.ts
+var getElementById = defineEndpoint({
+  path: "/get_element_by_id",
+  description: "Read one element by id.",
+  readOnly: true,
+  destructive: false,
+  request: object({ id: id("Element id."), ...projectionShape() }),
+  response: elementSchema(),
+  handle: (input) => serialize(requireElement(input.id), input)
+});
+var DEFAULT_PAGE_SIZE = 100;
+var MAX_PAGE_SIZE = 1e3;
+var findElements = defineEndpoint({
+  path: "/find_elements",
+  description: "Find elements by metamodel type (including subtypes) and/or exact name, a page at a time.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    type: optional(
+      typeName("Metamodel class, e.g. 'UMLClass'; subtypes match too.")
+    ),
+    name: optional(text2("Exact element name.")),
+    limit: optional(
+      doc(
+        int().check(_gte(1), _lte(MAX_PAGE_SIZE)),
+        `Page size, default ${DEFAULT_PAGE_SIZE}.`
+      )
+    ),
+    cursor: optional(
+      doc(string2().check(_minLength(1)), "nextCursor of the previous page.")
+    ),
+    ...projectionShape()
+  }),
+  response: object({
+    count: doc(int(), "Matches across all pages."),
+    elements: array(elementSchema()),
+    nextCursor: doc(
+      nullable(string2()),
+      "Pass as 'cursor' for the next page; null on the last page."
+    )
+  }),
+  handle: (input) => {
+    const { name: name2, cursor } = input;
+    let pool;
+    if (input.type !== void 0) {
+      requireTypeName(input.type);
+      pool = app.repository.getInstancesOf(input.type);
+    } else {
+      pool = app.repository.findAll(() => true);
+    }
+    const matches = (name2 === void 0 ? pool : pool.filter((e) => e.name === name2)).sort((a, b) => compare(a._id, b._id));
+    const rest = cursor === void 0 ? matches : matches.filter((e) => compare(e._id, cursor) > 0);
+    const limit = input.limit ?? DEFAULT_PAGE_SIZE;
+    const page = rest.slice(0, limit);
+    return {
+      count: matches.length,
+      elements: page.map((e) => serialize(e, input)),
+      nextCursor: rest.length > limit ? page[limit - 1]._id : null
+    };
+  }
+});
+function compare(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+var createElement = defineEndpoint({
+  path: "/create_element",
+  description: "Create a model element (no view) under an owner, e.g. a UMLClass in a UMLModel or an ERDColumn in an ERDEntity.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    type: typeName(
+      "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
+    ),
+    parentId: id("Owner element id."),
+    name: optional(text2("Element name; StarUML generates one if omitted.")),
+    field: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "Owner list to add to; default the owner's list typed most specifically for the element, e.g. 'attributes' for a UMLAttribute in a class, else 'ownedElements'."
+      )
+    ),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const parent = requireElement(input.parentId, "Parent element");
+    requireModelId(input.type);
+    const values = initialValues(input.type, input.name, input.properties);
+    return serialize(
+      createOwned(parent, input.type, input.field, values),
+      input
+    );
+  }
+});
+var UPDATE_OPS = ["set", "add", "remove", "reorder", "relocate"];
+var updateElement = defineEndpoint({
+  path: "/update_element",
+  description: "Change an element: set an attribute (references by id), add to or remove from a reference list, move an item within a list, or relocate the element to another owner. Each call is one undo step.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    id: id("Element id."),
+    op: optional(
+      doc(
+        _enum(UPDATE_OPS),
+        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parentId`, keeping its list field."
+      )
+    ),
+    field: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "Attribute name; required except for relocate."
+      )
+    ),
+    value: optional(
+      doc(
+        unknown(),
+        "set: the new value; an id or {$ref: id} for references, null to clear. add/remove: an id, {$ref: id} or an array of them. reorder: the item to move."
+      )
+    ),
+    index: optional(
+      doc(
+        int().check(_gte(0)),
+        "reorder: target position, counted after the item is taken out."
+      )
+    ),
+    parentId: optional(id("relocate: the new owner.")),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const elem = requireElement(input.id);
+    const op = input.op ?? "set";
+    if (op === "relocate") {
+      if (input.parentId === void 0) {
+        throw new ApiError("INVALID_ARGUMENT", "relocate needs parentId");
+      }
+      relocate(elem, requireElement(input.parentId, "Parent"), input.field);
+      return serialize(elem, input);
+    }
+    if (input.field === void 0) {
+      throw new ApiError("INVALID_ARGUMENT", `${op} needs field`);
+    }
+    if (input.value === void 0) {
+      throw new ApiError("INVALID_ARGUMENT", `${op} needs value`);
+    }
+    const typeName2 = elem.constructor.name;
+    const attr = settableAttribute(typeName2, input.field);
+    if (op === "set") {
+      const value = toModelValue(typeName2, attr, input.value);
+      inStarUML(() => app.engine.setProperty(elem, attr.name, value));
+    } else if (op === "reorder") {
+      reorder(elem, attr, input.value, input.index);
+    } else {
+      changeReferences(elem, attr, op, input.value);
+    }
+    return serialize(elem, input);
+  }
+});
+function changeReferences(elem, attr, op, value) {
+  const typeName2 = elem.constructor.name;
+  if (attr.kind !== "refs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${op} needs a reference list; ${typeName2}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
+    );
+  }
+  const items = toModelValue(
+    typeName2,
+    attr,
+    Array.isArray(value) ? value : [value]
+  );
+  const list = elem[attr.name];
+  for (const item of items) {
+    if (op === "add" && !list.includes(item)) {
+      inStarUML(() => app.engine.addItem(elem, attr.name, item));
+    } else if (op === "remove" && list.includes(item)) {
+      inStarUML(() => app.engine.removeItem(elem, attr.name, item));
+    }
+  }
+}
+function reorder(elem, attr, value, index) {
+  const typeName2 = elem.constructor.name;
+  if (attr.kind !== "refs" && attr.kind !== "objs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `reorder needs a list; ${typeName2}.${attr.name} is ${attr.kind}`
+    );
+  }
+  if (index === void 0) {
+    throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
+  }
+  const list = elem[attr.name];
+  const itemId = refId(value);
+  const item = list.find((e) => e._id === itemId);
+  if (!item) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${String(itemId)} is not in ${typeName2}.${attr.name}`
+    );
+  }
+  if (index >= list.length) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `index ${index} is past the end of ${typeName2}.${attr.name} (${list.length} items)`
+    );
+  }
+  const builder = app.repository.getOperationBuilder();
+  builder.begin("reorder");
+  builder.fieldReorder(elem, attr.name, item, index);
+  builder.end();
+  inStarUML(() => app.repository.doOperation(builder.getOperation()));
+}
+function containingField(elem) {
+  const owner = elem._parent;
+  if (!owner) return null;
+  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
+    const value = owner[attr.name];
+    if (Array.isArray(value) && value.includes(elem)) return attr.name;
+  }
+  return null;
+}
+function relocate(elem, newOwner, field) {
+  const current = containingField(elem);
+  if (!current) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${elem.constructor.name} ${elem._id} is not in a list of its owner and cannot be relocated`
+    );
+  }
+  if (field !== void 0 && field !== current) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `relocate keeps the list field: ${elem._id} is in '${current}', not '${field}'`
+    );
+  }
+  if (!Array.isArray(newOwner[current])) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${newOwner.constructor.name} has no list field '${current}'`
+    );
+  }
+  for (let e = newOwner; e; e = e._parent) {
+    if (e === elem) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${newOwner._id} is ${elem._id} itself or inside it`
+      );
+    }
+  }
+  if (elem._parent === newOwner) return;
+  inStarUML(() => app.engine.relocate(elem, newOwner, current));
+  if (elem._parent !== newOwner) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not relocate ${elem._id} to ${newOwner._id}`
+    );
+  }
+}
+var deleteElement = defineEndpoint({
+  path: "/delete_element",
+  description: "Delete an element with everything it owns, the views showing them, and edges attached to those views.",
+  readOnly: false,
+  destructive: true,
+  request: object({ id: id("Element id.") }),
+  response: object({
+    deleted: string2(),
+    models_deleted: int(),
+    views_deleted: int()
+  }),
+  handle: (input) => {
+    const elem = requireElement(input.id);
+    const { models, views } = collectDeletionTargets(elem);
+    inStarUML(() => app.engine.deleteElements(models, views));
+    return {
+      deleted: input.id,
+      models_deleted: models.length,
+      views_deleted: views.length
+    };
+  }
+});
+function collectDeletionTargets(root) {
+  const seen = /* @__PURE__ */ new Set();
+  const models = [];
+  const views = [];
+  const stack = [root];
+  for (let e = stack.pop(); e !== void 0; e = stack.pop()) {
+    if (seen.has(e._id)) continue;
+    seen.add(e._id);
+    if (e instanceof type.View) {
+      views.push(e);
+      stack.push(...app.repository.getEdgeViewsOf(e));
+    } else {
+      models.push(e);
+      stack.push(...app.repository.getViewsOf(e));
+    }
+    for (const field of ["ownedElements", "ownedViews", "subViews"]) {
+      const owned = e[field];
+      if (Array.isArray(owned)) stack.push(...owned);
+    }
+  }
+  return { models, views };
+}
+var createdSchema = () => object({
+  view: elementSchema(),
+  model: doc(
+    nullable(elementSchema()),
+    "Null for view-only ids such as Note or NoteLink."
+  )
+});
+function created(view, projection) {
+  return {
+    view: serialize(view, projection),
+    model: view.model ? serialize(view.model, projection) : null
+  };
+}
+var createElementWithView = defineEndpoint({
+  path: "/create_element_with_view",
+  description: "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass containerViewId for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    type: typeName(
+      "A model-and-view id of /introspect factory.modelAndViewIds, e.g. 'UMLClass', 'ERDEntity', or a toolbox item id, which applies the item's presets, e.g. 'UMLInitialState', 'UMLCompositeState', 'C4ContainerDatabase'."
+    ),
+    diagramId: id("Diagram to place the view on."),
+    parentId: optional(
+      id(
+        "Owner of the new model element; default the diagram's owner, as the diagram editor does. Items placed on a host view (toolbox option parasitic, e.g. ports and pins) are filed under the host's model by StarUML regardless."
+      )
+    ),
+    containerViewId: optional(
+      id("View that hosts or contains the new view.")
+    ),
+    name: optional(text2("Element name; StarUML generates one if omitted.")),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    x: coordinate("Left edge in diagram coordinates, default 100."),
+    y: coordinate("Top edge, default 100."),
+    x2: coordinate("Right edge, default x + 100."),
+    y2: coordinate("Bottom edge, default y + 50."),
+    ...projectionShape()
+  }),
+  response: createdSchema(),
+  handle: (input) => {
+    const diagram = requireDiagram(input.diagramId);
+    const container = input.containerViewId === void 0 ? void 0 : requireView(input.containerViewId, "Container view");
+    const parent = input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent");
+    const { id: createId, preset } = resolveCreateType(input.type);
+    const values = valuesFor(createId, input.name, input.properties);
+    const x1 = input.x ?? 100;
+    const y1 = input.y ?? 100;
+    const view = createModelAndView({
+      ...preset,
+      id: createId,
+      parent,
+      diagram,
+      x1,
+      y1,
+      x2: input.x2 ?? x1 + 100,
+      y2: input.y2 ?? y1 + 50,
+      // The toolbox's "parasitic" and "container-views" options make the
+      // view under the cursor the head view and container (engine/factory.js).
+      ...container && {
+        containerView: container,
+        headView: container,
+        headModel: container.model,
+        tailView: container,
+        tailModel: container.model
+      },
+      modelInitializer: (m) => {
+        Object.assign(m, values);
+      }
+    });
+    return created(view, input);
+  }
+});
+function valuesFor(id2, name2, props) {
+  const modelType = modelTypeOf(id2);
+  if (modelType) return initialValues(modelType, name2, props);
+  if (name2 !== void 0 || props !== void 0) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${id2} creates only a view; name and properties do not apply`
+    );
+  }
+  return {};
+}
+function modelTypeOf(id2) {
+  const candidate = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
+  return isMetaClass(candidate) ? candidate : null;
+}
+
+// src/handlers/build.ts
+var DIRECTIONS = ["TB", "BT", "LR", "RL"];
+function within(elem, ancestor) {
+  for (let e = elem; e; e = e._parent) {
+    if (e === ancestor) return true;
+  }
+  return false;
+}
+function signatureOf(type2) {
+  const { id: createId, preset } = resolveCreateType(type2);
+  const kind = preset.pseudostateKind;
+  return `${modelTypeOf(createId)}:${typeof kind === "string" ? kind : ""}`;
+}
+function modelSignature(model) {
+  const name2 = model.constructor.name;
+  return `${name2}:${name2 === "UMLPseudostate" ? String(model.kind) : ""}`;
+}
+var Pool = class {
+  bySignature = /* @__PURE__ */ new Map();
+  add(signature, item) {
+    const list = this.bySignature.get(signature) ?? [];
+    list.push(item);
+    this.bySignature.set(signature, list);
+  }
+  take(signature) {
+    return this.bySignature.get(signature)?.shift();
+  }
+};
+var isEdge = (v) => "tail" in v && "head" in v;
+function existing(diagram) {
+  const nodes = new Pool();
+  const edges = new Pool();
+  for (const view of diagram.ownedViews) {
+    const model = view.model;
+    if (!model) continue;
+    const name2 = model.name;
+    if (isEdge(view)) {
+      const tail = view.tail.model;
+      const head = view.head.model;
+      edges.add(
+        `${modelSignature(model)}|${name2}|${tail?._id}|${head?._id}`,
+        view
+      );
+    } else {
+      nodes.add(`${modelSignature(model)}|${name2}`, view);
+    }
+  }
+  return { nodes, edges };
+}
+var names = (list) => new Set((Array.isArray(list) ? list : []).map((e) => e.name));
+function memberOps(node, owner, model) {
+  const ops = [];
+  const add = (field, members2, op) => {
+    const have = names(model?.[field]);
+    for (const member of members2 ?? []) {
+      if (have.has(member.name)) continue;
+      have.add(member.name);
+      ops.push(op(member));
+    }
+  };
+  add("attributes", node.attributes, (a) => ({
+    path: "/add_attribute",
+    body: { ownerId: owner, ...a }
+  }));
+  add("operations", node.operations, (o) => ({
+    path: "/add_operation",
+    body: { ownerId: owner, ...o }
+  }));
+  add(
+    "literals",
+    node.literals?.map((name2) => ({ name: name2 })),
+    ({ name: name2 }) => ({
+      path: "/add_enumeration_literal",
+      body: { enumerationId: owner, name: name2 }
+    })
+  );
+  add("columns", node.columns, (c) => {
+    const { name: name2, ...properties2 } = c;
+    return {
+      path: "/create_element",
+      body: { type: "ERDColumn", parentId: owner, name: name2, properties: properties2 }
+    };
+  });
+  return ops;
+}
+function propertyOps(node, model) {
+  return Object.entries(node.properties ?? {}).filter(([field, value]) => model[field] !== value).map(([field, value]) => ({
+    path: "/update_element",
+    body: { id: model._id, field, value }
+  }));
+}
+function opsFor(plan, target, direction2, autoLayout) {
+  const ops = [];
+  const diagramRef = target.diagram?._id ?? "$diagram";
+  if (!target.diagram) {
+    ops.push({
+      path: "/create_diagram",
+      as: "diagram",
+      body: {
+        type: DIAGRAM_TYPES[plan.kind],
+        parentId: target.parent._id,
+        ...target.name !== void 0 && { name: target.name }
+      }
+    });
+  }
+  if (!target.diagram && plan.kind === "sequence" && target.name !== void 0) {
+    ops.push({
+      path: "/update_element",
+      body: { id: "$diagram._parent", field: "name", value: target.name }
+    });
+  }
+  const pools = target.diagram ? existing(target.diagram) : null;
+  const boxes = place(plan, direction2);
+  const refs = /* @__PURE__ */ new Map();
+  const created2 = /* @__PURE__ */ new Map();
+  const reused = /* @__PURE__ */ new Map();
+  let updated = 0;
+  let unchanged = 0;
+  plan.nodes.forEach((node, i) => {
+    const found = pools?.nodes.take(`${signatureOf(node.type)}|${node.name}`);
+    if (found) {
+      const model = found.model;
+      const ref2 = { model: model._id, view: found._id };
+      refs.set(node.key, ref2);
+      reused.set(node.key, ref2);
+      const more = [
+        ...propertyOps(node, model),
+        ...memberOps(node, model._id, model)
+      ];
+      if (more.length > 0) updated++;
+      else unchanged++;
+      ops.push(...more);
+      return;
+    }
+    const as = `n${i}`;
+    const box = boxes.get(node.key);
+    refs.set(node.key, { model: `$${as}.model`, view: `$${as}.view` });
+    created2.set(as, node.key);
+    ops.push({
+      path: "/create_element_with_view",
+      as,
+      body: {
+        type: node.type,
+        diagramId: diagramRef,
+        ...node.owner !== void 0 && {
+          parentId: refs.get(node.owner).model
+        },
+        name: node.name,
+        ...node.properties && { properties: node.properties },
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        x2: Math.round(box.x + box.width),
+        y2: Math.round(box.y + box.height),
+        ...node.guard !== void 0 && { fields: ["operands"] }
+      }
+    });
+    ops.push(...memberOps(node, `$${as}.model`));
+    if (node.style) {
+      ops.push({
+        path: "/set_view_style",
+        body: { ids: [`$${as}.view`], ...node.style }
+      });
+    }
+    for (const guard of node.operands ?? []) {
+      ops.push({
+        path: "/create_element",
+        body: {
+          type: "UMLInteractionOperand",
+          parentId: `$${as}.model`,
+          name: "",
+          properties: { guard }
+        }
+      });
+    }
+    if (node.guard !== void 0) {
+      ops.push({
+        path: "/update_element",
+        body: {
+          id: `$${as}.model.operands.0`,
+          field: "guard",
+          value: node.guard
+        }
+      });
+    }
+  });
+  const edgeOps = [];
+  plan.edges.forEach((edge, i) => {
+    const tail = refs.get(edge.from);
+    const head = refs.get(edge.to);
+    const found = pools?.edges.take(
+      `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`
+    );
+    const key = `${edge.from} -> ${edge.to}`;
+    if (found) {
+      unchanged++;
+      return;
+    }
+    const as = `e${i}`;
+    edgeOps.push({ key, as });
+    ops.push({
+      path: "/create_relationship",
+      as,
+      body: {
+        type: edge.type,
+        tailId: tail.view,
+        headId: head.view,
+        diagramId: diagramRef,
+        ...edge.name !== void 0 && { name: edge.name },
+        ...edge.properties && { properties: edge.properties },
+        ...edge.tailEnd && { tailEnd: edge.tailEnd },
+        ...edge.headEnd && { headEnd: edge.headEnd },
+        ...edge.geometry
+      }
+    });
+  });
+  const engine = autoLayout && !plan.fixed && typeof app.engine.layoutDiagram === "function" && (created2.size > 0 || edgeOps.length > 0);
+  if (engine) {
+    ops.push({
+      path: "/layout_diagram",
+      body: { id: diagramRef, direction: direction2 }
+    });
+  }
+  return {
+    ops,
+    created: created2,
+    reused,
+    edgeOps,
+    updated,
+    unchanged,
+    layout: engine ? "engine" : "placed"
+  };
+}
+function findDiagram(kind, name2, parent) {
+  if (name2 === void 0) return null;
+  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind]).find((d) => d.name === name2 && within(d, parent)) ?? null;
+}
+var refSchema = () => object({
+  model: nullable(string2()),
+  view: string2()
+});
+function buildDiagramEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/build_diagram",
+    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram; a flowchart also as activity or usecase). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
+    readOnly: false,
+    destructive: false,
+    request: object({
+      kind: optional(
+        doc(
+          _enum(KINDS),
+          "Diagram kind; required with spec. With mermaid it is read from the header, and 'activity' or 'usecase' reads a flowchart as that kind."
+        )
+      ),
+      spec: optional(
+        doc(
+          record(string2(), unknown()),
+          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
+        )
+      ),
+      mermaid: optional(
+        doc(
+          string2().check(_minLength(1)),
+          "Mermaid source instead of spec. The diagram is named by 'name', else front matter 'title:' or a 'title' line."
+        )
+      ),
+      name: optional(doc(string2(), "Diagram name.")),
+      parentId: optional(
+        id(
+          "Owner of the diagram; default the project, where StarUML adds the container the kind needs (a model, interaction, activity, state machine, data model, flowchart or mind map)."
+        )
+      ),
+      direction: optional(
+        doc(_enum(DIRECTIONS), "Layout direction; default TB, or Mermaid's.")
+      ),
+      autoLayout: optional(
+        doc(
+          boolean2(),
+          "Default true: Format > Layout after building. Sequence diagrams, lanes and a system boundary keep the computed placement."
+        )
+      ),
+      upsert: optional(
+        doc(
+          boolean2(),
+          "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members and changed properties, missing nodes and edges are added, nothing is removed."
+        )
+      )
+    }),
+    response: object({
+      diagram: doc(
+        object({
+          _id: string2(),
+          name: nullable(string2()),
+          _type: string2()
+        }),
+        "The diagram built or updated."
+      ),
+      kind: string2(),
+      upserted: doc(boolean2(), "An existing diagram was updated."),
+      created: doc(int(), "Nodes and edges added."),
+      updated: doc(int(), "Existing nodes given members or properties."),
+      unchanged: doc(int(), "Existing nodes and edges left as they were."),
+      layout: doc(
+        _enum(["engine", "placed"]),
+        "engine: Format > Layout arranged it; placed: the computed placement stands."
+      ),
+      ids: doc(
+        record(string2(), refSchema()),
+        "Model and view ids of each node, by its name (or id) in the spec."
+      ),
+      edges: array(
+        object({
+          key: doc(string2(), "'from -> to'."),
+          model: nullable(string2()),
+          view: string2()
+        })
+      )
+    }),
+    handle: async (input) => {
+      if (input.spec === void 0 === (input.mermaid === void 0)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          "Pass either spec (with kind) or mermaid"
+        );
+      }
+      let kind;
+      let spec;
+      let title;
+      let direction2 = input.direction;
+      if (input.mermaid !== void 0) {
+        const parsed = parseMermaid(input.mermaid, input.kind);
+        kind = parsed.kind;
+        spec = parsed.spec;
+        title = parsed.title;
+        direction2 ??= parsed.direction;
+      } else if (input.kind === void 0) {
+        throw new ApiError("INVALID_ARGUMENT", "kind: required with spec");
+      } else {
+        kind = input.kind;
+        spec = input.spec;
+      }
+      const plan = planFor(kind, spec);
+      const parent = input.parentId === void 0 ? requireProject() : requireElement(input.parentId, "Parent");
+      const raw = input.name ?? title;
+      const name2 = raw === void 0 ? void 0 : multiline(raw);
+      const diagram = input.upsert ? findDiagram(kind, name2, parent) : null;
+      const built = opsFor(
+        plan,
+        { diagram, parent, name: name2 },
+        direction2 ?? "TB",
+        input.autoLayout ?? true
+      );
+      const batch = endpoints2().find((e) => e.path === "/batch");
+      let data = { results: [] };
+      if (built.ops.length > 0) {
+        const result = await batch.handler({ ops: built.ops });
+        if (!result.success) {
+          throw new ApiError(
+            result.code,
+            `build_diagram: ${result.error}`,
+            result.details
+          );
+        }
+        data = result.data;
+      }
+      const byName = new Map(
+        data.results.flatMap((r) => r.as ? [[r.as, r.data]] : [])
+      );
+      const ids2 = {};
+      for (const [key, ref2] of built.reused) ids2[key] = ref2;
+      for (const [as, key] of built.created) {
+        const r = byName.get(as);
+        ids2[key] = { model: r.model._id, view: r.view._id };
+      }
+      const edges = built.edgeOps.map(({ key, as }) => {
+        const r = byName.get(as);
+        return { key, model: r.model._id, view: r.view._id };
+      });
+      const target = diagram ?? requireElement(byName.get("diagram")._id);
+      const { _id, _type, name: diagramName } = summarize(target);
+      return {
+        diagram: { _id, _type, name: diagramName },
+        kind,
+        upserted: diagram !== null,
+        created: built.created.size + edges.length,
+        updated: built.updated,
+        unchanged: built.unchanged,
+        layout: built.layout,
+        ids: ids2,
+        edges
       };
     }
   });
@@ -7848,8 +10659,8 @@ var DialogRefused = class extends Error {
 function dialogMethods() {
   const found = [];
   const dialogs = app.dialogs;
-  for (const name of methodNames(dialogs)) {
-    if (name.startsWith("show")) found.push([dialogs, name, `dialogs.${name}`]);
+  for (const name2 of methodNames(dialogs)) {
+    if (name2.startsWith("show")) found.push([dialogs, name2, `dialogs.${name2}`]);
   }
   for (const [key, value] of Object.entries(app)) {
     const host = value;
@@ -7860,24 +10671,24 @@ function dialogMethods() {
   return found;
 }
 function methodNames(host) {
-  const names = new Set(Object.keys(host));
-  for (const name of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
-    names.add(name);
+  const names2 = new Set(Object.keys(host));
+  for (const name2 of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
+    names2.add(name2);
   }
-  return [...names].filter((n) => typeof host[n] === "function");
+  return [...names2].filter((n) => typeof host[n] === "function");
 }
 async function withoutDialogs(what, run) {
   const attempted = [];
   const restore = [];
-  for (const [host, name, label] of dialogMethods()) {
-    const own2 = Object.getOwnPropertyDescriptor(host, name);
-    host[name] = () => {
+  for (const [host, name2, label] of dialogMethods()) {
+    const own2 = Object.getOwnPropertyDescriptor(host, name2);
+    host[name2] = () => {
       attempted.push(label);
       throw new DialogRefused(label);
     };
     restore.push(() => {
-      if (own2) Object.defineProperty(host, name, own2);
-      else delete host[name];
+      if (own2) Object.defineProperty(host, name2, own2);
+      else delete host[name2];
     });
   }
   let outcome;
@@ -7898,149 +10709,6 @@ async function withoutDialogs(what, run) {
   if ("error" in outcome) throw outcome.error;
   return outcome.value;
 }
-
-// src/serialize.ts
-var MAX_DEPTH = 8;
-function isElement(value) {
-  return value instanceof type.Element;
-}
-function ref(elem) {
-  return { $ref: elem._id };
-}
-function summarize(elem) {
-  return {
-    _id: elem._id,
-    _type: elem.constructor.name,
-    name: typeof elem.name === "string" ? elem.name : null,
-    _parent: elem._parent ? elem._parent._id : null
-  };
-}
-function reported(attr) {
-  return attr.name !== "_id" && attr.name !== "_parent" && !attr.transient;
-}
-function serialize(elem, projection = {}) {
-  const { fields } = projection;
-  if (!fields && projection.summary !== false) return { ...summarize(elem) };
-  const out = {
-    _id: elem._id,
-    _type: elem.constructor.name
-  };
-  const wanted = fields ? new Set(fields) : null;
-  if (!wanted || wanted.has("_parent")) {
-    out._parent = elem._parent ? elem._parent._id : null;
-  }
-  const depth = projection.depth ?? 0;
-  for (const attr of app.metamodels.getMetaAttributes(out._type)) {
-    if (!reported(attr) || wanted && !wanted.has(attr.name)) continue;
-    const value = elem[attr.name];
-    if (value === void 0) continue;
-    out[attr.name] = convert(attr, value, { ...projection, depth });
-  }
-  return out;
-}
-function convert(attr, value, projection) {
-  const owned = (child) => projection.depth > 0 ? serialize(child, { ...projection, depth: projection.depth - 1 }) : ref(child);
-  switch (attr.kind) {
-    case "ref":
-      return isElement(value) ? ref(value) : null;
-    case "refs":
-      return Array.isArray(value) ? value.filter(isElement).map(ref) : [];
-    case "obj":
-      return isElement(value) ? owned(value) : null;
-    case "objs":
-      return Array.isArray(value) ? value.filter(isElement).map(owned) : [];
-    case "var":
-      return isElement(value) ? ref(value) : value;
-    case "custom":
-      return hasWrite(value) ? value.__write() : null;
-    default:
-      return value;
-  }
-}
-function hasWrite(value) {
-  return typeof value === "object" && value !== null && typeof value.__write === "function";
-}
-function serializeValue(value, projection = {}) {
-  if (value === void 0 || value === null) return null;
-  if (isElement(value)) return serialize(value, projection);
-  if (Array.isArray(value))
-    return value.map((item) => serializeValue(item, projection));
-  if (typeof value === "function") return "[function]";
-  if (typeof value !== "object") return value;
-  try {
-    return JSON.parse(JSON.stringify(value));
-  } catch {
-    return "[non-serializable]";
-  }
-}
-
-// src/schemas.ts
-function id(description) {
-  return doc(string2().check(_minLength(1)), description);
-}
-function typeName(description) {
-  return doc(string2().check(_minLength(1)), description);
-}
-function text2(description) {
-  return doc(string2(), description);
-}
-function coordinate(description) {
-  return optional(doc(number2(), description));
-}
-function projectionShape() {
-  return {
-    summary: optional(
-      doc(
-        boolean2(),
-        "Default true: each element is {_id, _type, name, _parent}. False returns every saved attribute. Ignored when 'fields' is given."
-      )
-    ),
-    fields: optional(
-      doc(
-        array(string2().check(_minLength(1))),
-        "Attribute names to return besides _id and _type, e.g. ['name', 'attributes']; '_parent' is accepted. Names an element lacks are omitted."
-      )
-    ),
-    depth: optional(
-      doc(
-        int().check(_gte(0), _lte(MAX_DEPTH)),
-        "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
-      )
-    )
-  };
-}
-function elementSchema() {
-  return doc(
-    looseObject({
-      _id: string2(),
-      _type: doc(string2(), "Metamodel class name."),
-      name: optional(nullable(string2())),
-      _parent: optional(
-        doc(nullable(string2()), "Owner id; null for the project.")
-      )
-    }),
-    "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
-  );
-}
-function properties(description) {
-  return optional(doc(record(string2(), unknown()), description));
-}
-function reference(description) {
-  return doc(
-    union([
-      string2().check(_minLength(1)),
-      object({ $ref: string2().check(_minLength(1)) })
-    ]),
-    description
-  );
-}
-function typeValue(description) {
-  return doc(
-    union([string2(), object({ $ref: string2().check(_minLength(1)) })]),
-    description
-  );
-}
-var ATTRIBUTE_VALUES_HELP = "Initial attribute values by name, as /introspect lists them: plain values for prim/enum attributes, an id or {$ref: id} for references, arrays of those for reference lists.";
 
 // src/handlers/commands.ts
 var getAllCommands = defineEndpoint({
@@ -8071,11 +10739,11 @@ function refuseDialog(id2, args) {
   }
   const needed = info?.avoidWith ?? 0;
   if (info?.dialog === "without-args" && args.length < needed) {
-    const names = info.args.slice(0, needed).map((a) => a.name);
+    const names2 = info.args.slice(0, needed).map((a) => a.name);
     throw new ApiError(
       "DIALOG_REQUIRED",
-      `${id2} opens a dialog unless given ${names.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
-      { dialog: "without-args", args: names }
+      `${id2} opens a dialog unless given ${names2.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
+      { dialog: "without-args", args: names2 }
     );
   }
 }
@@ -8183,39 +10851,6 @@ var executeCommand = defineEndpoint({
 var import_node_fs = require("node:fs");
 var import_node_module = require("node:module");
 var import_node_path = require("node:path");
-
-// src/lookup.ts
-function requireElement(id2, role = "Element") {
-  const elem = app.repository.get(id2);
-  if (!elem) throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  return elem;
-}
-function requireDiagram(id2, role = "Diagram") {
-  const elem = app.repository.get(id2);
-  if (!elem || !(elem instanceof type.Diagram)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  }
-  return elem;
-}
-function requireView(id2, role = "View") {
-  const elem = app.repository.get(id2);
-  if (!elem || !(elem instanceof type.View)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  }
-  return elem;
-}
-function requireTypeName(name) {
-  if (!Object.hasOwn(type, name)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name}`);
-  }
-}
-function requireProject() {
-  const project = app.project.getProject();
-  if (!project) throw new ApiError("NO_PROJECT", "No project is open");
-  return project;
-}
-
-// src/handlers/codegen.ts
 var GENERATORS = {
   java: { extension: "staruml.java", analyzer: "code-analyzer.js" },
   cpp: { extension: "staruml.cpp", analyzer: "code-analyzer.js" },
@@ -8471,7 +11106,7 @@ var surfaceSchema = () => object({
 var debugResponse = object({
   app_keys: array(string2()),
   ...Object.fromEntries(
-    INTROSPECTED_MANAGERS.map((name) => [name, surfaceSchema()])
+    INTROSPECTED_MANAGERS.map((name2) => [name2, surfaceSchema()])
   )
 });
 var debug = defineEndpoint({
@@ -8483,69 +11118,12 @@ var debug = defineEndpoint({
   response: debugResponse,
   handle: () => {
     const data = { app_keys: Object.keys(app).sort() };
-    for (const name of INTROSPECTED_MANAGERS) {
-      data[name] = describeSurface(app[name]);
+    for (const name2 of INTROSPECTED_MANAGERS) {
+      data[name2] = describeSurface(app[name2]);
     }
     return data;
   }
 });
-
-// src/metamodel.ts
-function isMetaClass(name) {
-  return Object.hasOwn(meta, name) && meta[name].kind === "class";
-}
-function lineage(name) {
-  const out = [];
-  for (let t = name; t; t = meta[t]?.super) out.push(t);
-  return out;
-}
-function attributeOf(typeName2, name) {
-  return app.metamodels.getMetaAttributes(typeName2).find((attr) => attr.name === name);
-}
-function ownerField(owner, childType) {
-  let best = null;
-  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
-    if (attr.kind !== "objs" || !app.metamodels.isKindOf(childType, attr.type))
-      continue;
-    const depth = lineage(attr.type).length;
-    if (!best || depth > best.depth) best = { name: attr.name, depth };
-  }
-  return best?.name ?? null;
-}
-function resolveOwnerField(owner, childType, field) {
-  const ownerType = owner.constructor.name;
-  if (field === void 0) {
-    const chosen = ownerField(owner, childType);
-    if (!chosen) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `${ownerType} has no list that holds ${childType}`
-      );
-    }
-    return chosen;
-  }
-  const attr = attributeOf(ownerType, field);
-  if (!attr || attr.kind !== "objs") {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${ownerType} has no owned-element list '${field}'`
-    );
-  }
-  if (!app.metamodels.isKindOf(childType, attr.type)) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${ownerType}.${field} holds ${attr.type}, not ${childType}`
-    );
-  }
-  return field;
-}
-function relationshipKind(typeName2) {
-  if (app.metamodels.isKindOf(typeName2, "DirectedRelationship"))
-    return "directed";
-  if (app.metamodels.isKindOf(typeName2, "UndirectedRelationship"))
-    return "undirected";
-  return null;
-}
 
 // src/handlers/introspect.ts
 var SECTIONS = ["factory", "metamodel", "toolbox", "endpoints"];
@@ -8704,8 +11282,8 @@ function describeAttribute(attr) {
     ...attr.options && { options: [...attr.options] }
   };
 }
-function describeType(name, ids2, inherited) {
-  const metaType = meta[name];
+function describeType(name2, ids2, inherited) {
+  const metaType = meta[name2];
   if (metaType.kind === "enum") {
     return {
       kind: "enum",
@@ -8720,24 +11298,24 @@ function describeType(name, ids2, inherited) {
       creatable: { model: false, modelAndView: false, diagram: false }
     };
   }
-  const isDiagram = app.metamodels.isKindOf(name, "Diagram");
-  const attributes = inherited ? app.metamodels.getMetaAttributes(name) : metaType.attributes ?? [];
+  const isDiagram = app.metamodels.isKindOf(name2, "Diagram");
+  const attributes = inherited ? app.metamodels.getMetaAttributes(name2) : metaType.attributes ?? [];
   return {
     kind: "class",
     super: metaType.super ?? null,
-    supers: lineage(name).slice(1),
+    supers: lineage(name2).slice(1),
     attributes: attributes.map(describeAttribute),
-    viewType: app.metamodels.getViewTypeOf(name),
+    viewType: app.metamodels.getViewTypeOf(name2),
     ...isDiagram && {
-      viewTypes: app.metamodels.getAvailableViewTypes(name)
+      viewTypes: app.metamodels.getAvailableViewTypes(name2)
     },
-    relationship: relationshipKind(name),
-    isView: app.metamodels.isKindOf(name, "View"),
+    relationship: relationshipKind(name2),
+    isView: app.metamodels.isKindOf(name2, "View"),
     isDiagram,
     creatable: {
-      model: ids2.model.has(name),
-      modelAndView: ids2.modelAndView.has(name),
-      diagram: ids2.diagram.has(name)
+      model: ids2.model.has(name2),
+      modelAndView: ids2.modelAndView.has(name2),
+      diagram: ids2.diagram.has(name2)
     }
   };
 }
@@ -8846,13 +11424,13 @@ function introspectEndpoint(endpoints2) {
           modelAndView: new Set(ids2.modelAndView),
           diagram: new Set(ids2.diagram)
         };
-        const names = (input.types ?? Object.keys(meta)).filter(
-          (name) => Object.hasOwn(meta, name)
+        const names2 = (input.types ?? Object.keys(meta)).filter(
+          (name2) => Object.hasOwn(meta, name2)
         );
         out.metamodel = Object.fromEntries(
-          names.sort().map((name) => [
-            name,
-            describeType(name, sets, input.inherited === true)
+          names2.sort().map((name2) => [
+            name2,
+            describeType(name2, sets, input.inherited === true)
           ])
         );
       }
@@ -8886,14 +11464,14 @@ var createDiagram = defineEndpoint({
   response: elementSchema(),
   handle: (input) => {
     const parent = requireElement(input.parentId, "Parent element");
-    const { name } = input;
+    const { name: name2 } = input;
     const diagram = inStarUML(
       () => app.factory.createDiagram({
         id: input.type,
         parent,
-        ...name !== void 0 && {
+        ...name2 !== void 0 && {
           diagramInitializer: (d) => {
-            d.name = name;
+            d.name = name2;
           }
         }
       })
@@ -8931,615 +11509,6 @@ var closeDiagram = defineEndpoint({
     return { closed: diagram._id };
   }
 });
-
-// src/values.ts
-var PRIM_CHECKS = {
-  String: (v) => typeof v === "string",
-  Image: (v) => typeof v === "string",
-  Boolean: (v) => typeof v === "boolean",
-  Integer: (v) => Number.isInteger(v),
-  Real: (v) => typeof v === "number" && Number.isFinite(v)
-};
-function refId(value) {
-  if (typeof value === "string") return value;
-  if (typeof value === "object" && value !== null && typeof value.$ref === "string") {
-    return value.$ref;
-  }
-  return null;
-}
-function invalid(owner, attr, expected) {
-  throw new ApiError(
-    "INVALID_ARGUMENT",
-    `${owner}.${attr.name} (${attr.kind} ${attr.type}) expects ${expected}`
-  );
-}
-function referenced(owner, attr, value) {
-  const id2 = refId(value);
-  if (id2 === null) invalid(owner, attr, "an element id or {$ref: id}");
-  const elem = app.repository.get(id2);
-  if (!elem) {
-    throw new ApiError(
-      "NOT_FOUND",
-      `${owner}.${attr.name}: element not found: ${id2}`
-    );
-  }
-  if (!app.metamodels.isKindOf(elem.constructor.name, attr.type)) {
-    invalid(owner, attr, `a ${attr.type}, got ${elem.constructor.name} ${id2}`);
-  }
-  return elem;
-}
-function toModelValue(owner, attr, value) {
-  switch (attr.kind) {
-    case "prim": {
-      const check = PRIM_CHECKS[attr.type];
-      if (check && !check(value)) invalid(owner, attr, `a ${attr.type}`);
-      return value;
-    }
-    case "enum": {
-      const literals = meta[attr.type]?.literals ?? [];
-      if (!literals.includes(value))
-        invalid(owner, attr, `one of ${literals.join(", ")}`);
-      return value;
-    }
-    case "ref":
-      return value === null ? null : referenced(owner, attr, value);
-    case "refs":
-      if (!Array.isArray(value))
-        invalid(owner, attr, "an array of element ids");
-      return value.map((v) => referenced(owner, attr, v));
-    case "var":
-      if (refId(value) !== null && typeof value === "object")
-        return referenced(owner, attr, value);
-      if (value !== null && typeof value === "object")
-        invalid(owner, attr, "a string, number, boolean, null or {$ref: id}");
-      return value;
-    default:
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `${owner}.${attr.name} is a ${attr.kind} attribute and cannot be set here`
-      );
-  }
-}
-function settableAttribute(typeName2, name) {
-  const attr = name === "_id" || name === "_parent" ? void 0 : attributeOf(typeName2, name);
-  if (!attr) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${typeName2} has no field '${name}'`
-    );
-  }
-  return attr;
-}
-function toModelValues(typeName2, properties2) {
-  const out = {};
-  for (const [name, value] of Object.entries(properties2)) {
-    out[name] = toModelValue(
-      typeName2,
-      settableAttribute(typeName2, name),
-      value
-    );
-  }
-  return out;
-}
-
-// src/create.ts
-function initialValues(typeName2, name, properties2) {
-  return toModelValues(typeName2, {
-    ...properties2,
-    ...name !== void 0 && { name }
-  });
-}
-function requireModelId(id2) {
-  if (!app.factory.getModelIds().includes(id2)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${id2}`);
-  }
-  if (!isMetaClass(id2)) {
-    throw new ApiError(
-      "UNKNOWN_TYPE",
-      `${id2} is registered with the factory but has no metamodel class, so StarUML cannot create it`
-    );
-  }
-}
-function createOwned(owner, typeName2, field, values, initialize = () => {
-}) {
-  requireModelId(typeName2);
-  const into = resolveOwnerField(owner, typeName2, field);
-  const elem = inStarUML(
-    () => app.factory.createModel({
-      id: typeName2,
-      parent: owner,
-      field: into,
-      modelInitializer: (m) => {
-        Object.assign(m, values);
-        initialize(m);
-      }
-    })
-  );
-  if (!elem) {
-    throw new ApiError(
-      "STARUML_ERROR",
-      `StarUML did not create ${typeName2} in ${owner.constructor.name}.${into}`
-    );
-  }
-  return elem;
-}
-function instantiate(typeName2) {
-  if (!isMetaClass(typeName2) || !Object.hasOwn(type, typeName2)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName2}`);
-  }
-  const Ctor = type[typeName2];
-  return new Ctor();
-}
-function diagramOf(view) {
-  let e = view;
-  while (e && !(e instanceof type.Diagram)) e = e._parent;
-  return e ?? null;
-}
-function endView(id2, diagram, role) {
-  const elem = requireElement(id2, role);
-  if (elem instanceof type.View) {
-    if (diagramOf(elem) !== diagram) {
-      throw new ApiError(
-        "NOT_FOUND",
-        `${role} ${id2} is not on diagram ${diagram._id}`
-      );
-    }
-    return elem;
-  }
-  const view = app.repository.getViewsOf(elem).find((v) => diagramOf(v) === diagram);
-  if (!view) {
-    throw new ApiError(
-      "NOT_FOUND",
-      `${role}: no view of ${id2} on diagram ${diagram._id}`
-    );
-  }
-  return view;
-}
-function center(view) {
-  const { left, top, width, height } = view;
-  if (typeof left !== "number" || typeof top !== "number" || typeof width !== "number" || typeof height !== "number") {
-    return null;
-  }
-  return { x: left + width / 2, y: top + height / 2 };
-}
-function createModelAndView(options) {
-  if (!app.factory.getModelAndViewIds().includes(options.id)) {
-    throw new ApiError(
-      "UNKNOWN_TYPE",
-      `Unknown model-and-view type: ${options.id}`
-    );
-  }
-  const view = inStarUML(
-    () => app.factory.createModelAndView({
-      ...options,
-      editor: app.diagrams.getEditor()
-    })
-  );
-  if (!view) {
-    throw new ApiError(
-      "STARUML_ERROR",
-      `StarUML did not create ${options.id} on diagram ${options.diagram._id}`
-    );
-  }
-  return view;
-}
-
-// src/toolbox.ts
-var CURSOR_OPTIONS = /* @__PURE__ */ new Set(["id", "connectable-views", "self-connection"]);
-var DEFAULT_COMMAND = "factory:create-model-and-view";
-function resolveCreateType(typeName2) {
-  const { items } = app.toolbox;
-  const item = Object.hasOwn(items, typeName2) ? items[typeName2] : void 0;
-  const custom = item?.command && item.command !== DEFAULT_COMMAND;
-  if (!item || custom) {
-    if (app.factory.getModelAndViewIds().includes(typeName2)) {
-      return { id: typeName2, preset: {} };
-    }
-    throw new ApiError(
-      "UNKNOWN_TYPE",
-      custom ? `${typeName2} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName2}`
-    );
-  }
-  const arg = item.commandArg ?? {};
-  const preset = {};
-  for (const [key, value] of Object.entries(arg)) {
-    if (!CURSOR_OPTIONS.has(key)) preset[key] = value;
-  }
-  return { id: typeof arg.id === "string" ? arg.id : typeName2, preset };
-}
-
-// src/handlers/elements.ts
-var getElementById = defineEndpoint({
-  path: "/get_element_by_id",
-  description: "Read one element by id.",
-  readOnly: true,
-  destructive: false,
-  request: object({ id: id("Element id."), ...projectionShape() }),
-  response: elementSchema(),
-  handle: (input) => serialize(requireElement(input.id), input)
-});
-var DEFAULT_PAGE_SIZE = 100;
-var MAX_PAGE_SIZE = 1e3;
-var findElements = defineEndpoint({
-  path: "/find_elements",
-  description: "Find elements by metamodel type (including subtypes) and/or exact name, a page at a time.",
-  readOnly: true,
-  destructive: false,
-  request: object({
-    type: optional(
-      typeName("Metamodel class, e.g. 'UMLClass'; subtypes match too.")
-    ),
-    name: optional(text2("Exact element name.")),
-    limit: optional(
-      doc(
-        int().check(_gte(1), _lte(MAX_PAGE_SIZE)),
-        `Page size, default ${DEFAULT_PAGE_SIZE}.`
-      )
-    ),
-    cursor: optional(
-      doc(string2().check(_minLength(1)), "nextCursor of the previous page.")
-    ),
-    ...projectionShape()
-  }),
-  response: object({
-    count: doc(int(), "Matches across all pages."),
-    elements: array(elementSchema()),
-    nextCursor: doc(
-      nullable(string2()),
-      "Pass as 'cursor' for the next page; null on the last page."
-    )
-  }),
-  handle: (input) => {
-    const { name, cursor } = input;
-    let pool;
-    if (input.type !== void 0) {
-      requireTypeName(input.type);
-      pool = app.repository.getInstancesOf(input.type);
-    } else {
-      pool = app.repository.findAll(() => true);
-    }
-    const matches = (name === void 0 ? pool : pool.filter((e) => e.name === name)).sort((a, b) => compare(a._id, b._id));
-    const rest = cursor === void 0 ? matches : matches.filter((e) => compare(e._id, cursor) > 0);
-    const limit = input.limit ?? DEFAULT_PAGE_SIZE;
-    const page = rest.slice(0, limit);
-    return {
-      count: matches.length,
-      elements: page.map((e) => serialize(e, input)),
-      nextCursor: rest.length > limit ? page[limit - 1]._id : null
-    };
-  }
-});
-function compare(a, b) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
-var createElement = defineEndpoint({
-  path: "/create_element",
-  description: "Create a model element (no view) under an owner, e.g. a UMLClass in a UMLModel or an ERDColumn in an ERDEntity.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    type: typeName(
-      "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
-    ),
-    parentId: id("Owner element id."),
-    name: optional(text2("Element name; StarUML generates one if omitted.")),
-    field: optional(
-      doc(
-        string2().check(_minLength(1)),
-        "Owner list to add to; default the owner's list typed most specifically for the element, e.g. 'attributes' for a UMLAttribute in a class, else 'ownedElements'."
-      )
-    ),
-    properties: properties(ATTRIBUTE_VALUES_HELP),
-    ...projectionShape()
-  }),
-  response: elementSchema(),
-  handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent element");
-    requireModelId(input.type);
-    const values = initialValues(input.type, input.name, input.properties);
-    return serialize(
-      createOwned(parent, input.type, input.field, values),
-      input
-    );
-  }
-});
-var UPDATE_OPS = ["set", "add", "remove", "reorder", "relocate"];
-var updateElement = defineEndpoint({
-  path: "/update_element",
-  description: "Change an element: set an attribute (references by id), add to or remove from a reference list, move an item within a list, or relocate the element to another owner. Each call is one undo step.",
-  readOnly: false,
-  destructive: true,
-  request: object({
-    id: id("Element id."),
-    op: optional(
-      doc(
-        _enum(UPDATE_OPS),
-        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parentId`, keeping its list field."
-      )
-    ),
-    field: optional(
-      doc(
-        string2().check(_minLength(1)),
-        "Attribute name; required except for relocate."
-      )
-    ),
-    value: optional(
-      doc(
-        unknown(),
-        "set: the new value; an id or {$ref: id} for references, null to clear. add/remove: an id, {$ref: id} or an array of them. reorder: the item to move."
-      )
-    ),
-    index: optional(
-      doc(
-        int().check(_gte(0)),
-        "reorder: target position, counted after the item is taken out."
-      )
-    ),
-    parentId: optional(id("relocate: the new owner.")),
-    ...projectionShape()
-  }),
-  response: elementSchema(),
-  handle: (input) => {
-    const elem = requireElement(input.id);
-    const op = input.op ?? "set";
-    if (op === "relocate") {
-      if (input.parentId === void 0) {
-        throw new ApiError("INVALID_ARGUMENT", "relocate needs parentId");
-      }
-      relocate(elem, requireElement(input.parentId, "Parent"), input.field);
-      return serialize(elem, input);
-    }
-    if (input.field === void 0) {
-      throw new ApiError("INVALID_ARGUMENT", `${op} needs field`);
-    }
-    if (input.value === void 0) {
-      throw new ApiError("INVALID_ARGUMENT", `${op} needs value`);
-    }
-    const typeName2 = elem.constructor.name;
-    const attr = settableAttribute(typeName2, input.field);
-    if (op === "set") {
-      const value = toModelValue(typeName2, attr, input.value);
-      inStarUML(() => app.engine.setProperty(elem, attr.name, value));
-    } else if (op === "reorder") {
-      reorder(elem, attr, input.value, input.index);
-    } else {
-      changeReferences(elem, attr, op, input.value);
-    }
-    return serialize(elem, input);
-  }
-});
-function changeReferences(elem, attr, op, value) {
-  const typeName2 = elem.constructor.name;
-  if (attr.kind !== "refs") {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${op} needs a reference list; ${typeName2}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
-    );
-  }
-  const items = toModelValue(
-    typeName2,
-    attr,
-    Array.isArray(value) ? value : [value]
-  );
-  const list = elem[attr.name];
-  for (const item of items) {
-    if (op === "add" && !list.includes(item)) {
-      inStarUML(() => app.engine.addItem(elem, attr.name, item));
-    } else if (op === "remove" && list.includes(item)) {
-      inStarUML(() => app.engine.removeItem(elem, attr.name, item));
-    }
-  }
-}
-function reorder(elem, attr, value, index) {
-  const typeName2 = elem.constructor.name;
-  if (attr.kind !== "refs" && attr.kind !== "objs") {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `reorder needs a list; ${typeName2}.${attr.name} is ${attr.kind}`
-    );
-  }
-  if (index === void 0) {
-    throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
-  }
-  const list = elem[attr.name];
-  const itemId = refId(value);
-  const item = list.find((e) => e._id === itemId);
-  if (!item) {
-    throw new ApiError(
-      "NOT_FOUND",
-      `${String(itemId)} is not in ${typeName2}.${attr.name}`
-    );
-  }
-  if (index >= list.length) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName2}.${attr.name} (${list.length} items)`
-    );
-  }
-  const builder = app.repository.getOperationBuilder();
-  builder.begin("reorder");
-  builder.fieldReorder(elem, attr.name, item, index);
-  builder.end();
-  inStarUML(() => app.repository.doOperation(builder.getOperation()));
-}
-function containingField(elem) {
-  const owner = elem._parent;
-  if (!owner) return null;
-  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
-    const value = owner[attr.name];
-    if (Array.isArray(value) && value.includes(elem)) return attr.name;
-  }
-  return null;
-}
-function relocate(elem, newOwner, field) {
-  const current = containingField(elem);
-  if (!current) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${elem.constructor.name} ${elem._id} is not in a list of its owner and cannot be relocated`
-    );
-  }
-  if (field !== void 0 && field !== current) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `relocate keeps the list field: ${elem._id} is in '${current}', not '${field}'`
-    );
-  }
-  if (!Array.isArray(newOwner[current])) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${newOwner.constructor.name} has no list field '${current}'`
-    );
-  }
-  for (let e = newOwner; e; e = e._parent) {
-    if (e === elem) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `${newOwner._id} is ${elem._id} itself or inside it`
-      );
-    }
-  }
-  if (elem._parent === newOwner) return;
-  inStarUML(() => app.engine.relocate(elem, newOwner, current));
-  if (elem._parent !== newOwner) {
-    throw new ApiError(
-      "STARUML_ERROR",
-      `StarUML did not relocate ${elem._id} to ${newOwner._id}`
-    );
-  }
-}
-var deleteElement = defineEndpoint({
-  path: "/delete_element",
-  description: "Delete an element with everything it owns, the views showing them, and edges attached to those views.",
-  readOnly: false,
-  destructive: true,
-  request: object({ id: id("Element id.") }),
-  response: object({
-    deleted: string2(),
-    models_deleted: int(),
-    views_deleted: int()
-  }),
-  handle: (input) => {
-    const elem = requireElement(input.id);
-    const { models, views } = collectDeletionTargets(elem);
-    inStarUML(() => app.engine.deleteElements(models, views));
-    return {
-      deleted: input.id,
-      models_deleted: models.length,
-      views_deleted: views.length
-    };
-  }
-});
-function collectDeletionTargets(root) {
-  const seen = /* @__PURE__ */ new Set();
-  const models = [];
-  const views = [];
-  const stack = [root];
-  for (let e = stack.pop(); e !== void 0; e = stack.pop()) {
-    if (seen.has(e._id)) continue;
-    seen.add(e._id);
-    if (e instanceof type.View) {
-      views.push(e);
-      stack.push(...app.repository.getEdgeViewsOf(e));
-    } else {
-      models.push(e);
-      stack.push(...app.repository.getViewsOf(e));
-    }
-    for (const field of ["ownedElements", "ownedViews", "subViews"]) {
-      const owned = e[field];
-      if (Array.isArray(owned)) stack.push(...owned);
-    }
-  }
-  return { models, views };
-}
-var createdSchema = () => object({
-  view: elementSchema(),
-  model: doc(
-    nullable(elementSchema()),
-    "Null for view-only ids such as Note or NoteLink."
-  )
-});
-function created(view, projection) {
-  return {
-    view: serialize(view, projection),
-    model: view.model ? serialize(view.model, projection) : null
-  };
-}
-var createElementWithView = defineEndpoint({
-  path: "/create_element_with_view",
-  description: "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass containerViewId for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    type: typeName(
-      "A model-and-view id of /introspect factory.modelAndViewIds, e.g. 'UMLClass', 'ERDEntity', or a toolbox item id, which applies the item's presets, e.g. 'UMLInitialState', 'UMLCompositeState', 'C4ContainerDatabase'."
-    ),
-    diagramId: id("Diagram to place the view on."),
-    parentId: optional(
-      id(
-        "Owner of the new model element; default the diagram's owner, as the diagram editor does. Items placed on a host view (toolbox option parasitic, e.g. ports and pins) are filed under the host's model by StarUML regardless."
-      )
-    ),
-    containerViewId: optional(
-      id("View that hosts or contains the new view.")
-    ),
-    name: optional(text2("Element name; StarUML generates one if omitted.")),
-    properties: properties(ATTRIBUTE_VALUES_HELP),
-    x: coordinate("Left edge in diagram coordinates, default 100."),
-    y: coordinate("Top edge, default 100."),
-    x2: coordinate("Right edge, default x + 100."),
-    y2: coordinate("Bottom edge, default y + 50."),
-    ...projectionShape()
-  }),
-  response: createdSchema(),
-  handle: (input) => {
-    const diagram = requireDiagram(input.diagramId);
-    const container = input.containerViewId === void 0 ? void 0 : requireView(input.containerViewId, "Container view");
-    const parent = input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent");
-    const { id: createId, preset } = resolveCreateType(input.type);
-    const values = valuesFor(createId, input.name, input.properties);
-    const x1 = input.x ?? 100;
-    const y1 = input.y ?? 100;
-    const view = createModelAndView({
-      ...preset,
-      id: createId,
-      parent,
-      diagram,
-      x1,
-      y1,
-      x2: input.x2 ?? x1 + 100,
-      y2: input.y2 ?? y1 + 50,
-      // The toolbox's "parasitic" and "container-views" options make the
-      // view under the cursor the head view and container (engine/factory.js).
-      ...container && {
-        containerView: container,
-        headView: container,
-        headModel: container.model,
-        tailView: container,
-        tailModel: container.model
-      },
-      modelInitializer: (m) => {
-        Object.assign(m, values);
-      }
-    });
-    return created(view, input);
-  }
-});
-function valuesFor(id2, name, props) {
-  const modelType = modelTypeOf(id2);
-  if (modelType) return initialValues(modelType, name, props);
-  if (name !== void 0 || props !== void 0) {
-    throw new ApiError(
-      "INVALID_ARGUMENT",
-      `${id2} creates only a view; name and properties do not apply`
-    );
-  }
-  return {};
-}
-function modelTypeOf(id2) {
-  const candidate = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
-  return isMetaClass(candidate) ? candidate : null;
-}
 
 // src/handlers/project.ts
 var filename = (description) => doc(string2().check(_minLength(1)), description);
@@ -9635,7 +11604,7 @@ var openProject = defineEndpoint({
 });
 
 // src/handlers/features.ts
-var visibility = () => optional(
+var visibility2 = () => optional(
   doc(
     _enum(["public", "protected", "private", "package"]),
     "Default public."
@@ -9644,11 +11613,11 @@ var visibility = () => optional(
 var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "Default none."));
 var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
 var flag = (description) => optional(doc(boolean2(), description));
-var str = (description) => optional(text2(description));
-function pick2(input, names) {
+var str2 = (description) => optional(text2(description));
+function pick2(input, names2) {
   const out = {};
-  for (const name of names) {
-    if (input[name] !== void 0) out[name] = input[name];
+  for (const name2 of names2) {
+    if (input[name2] !== void 0) out[name2] = input[name2];
   }
   return out;
 }
@@ -9670,21 +11639,21 @@ var structuralShape = () => ({
       "A type name such as 'String', or {$ref: id} of a classifier in the model."
     )
   ),
-  visibility: visibility(),
-  multiplicity: str("E.g. '0..1', '1', '*', '1..*'."),
-  defaultValue: str("Default value as text."),
+  visibility: visibility2(),
+  multiplicity: str2("E.g. '0..1', '1', '*', '1..*'."),
+  defaultValue: str2("Default value as text."),
   isStatic: flag("Class-level feature."),
   isReadOnly: flag("Read only."),
   isDerived: flag("Derived."),
   isID: flag("Part of the identity."),
   aggregation: aggregation(),
-  documentation: str("Documentation text."),
+  documentation: str2("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
-function featureValues(typeName2, input, names) {
+function featureValues(typeName2, input, names2) {
   return initialValues(typeName2, input.name, {
     ...input.properties,
-    ...pick2(input, names)
+    ...pick2(input, names2)
   });
 }
 var addAttribute = defineEndpoint({
@@ -9722,10 +11691,10 @@ var parameterShape = () => ({
     typeValue("A type name, or {$ref: id} of a classifier in the model.")
   ),
   direction: direction(),
-  multiplicity: str("E.g. '0..1', '*'."),
-  defaultValue: str("Default value as text."),
+  multiplicity: str2("E.g. '0..1', '*'."),
+  defaultValue: str2("Default value as text."),
   isReadOnly: flag("Read only."),
-  documentation: str("Documentation text."),
+  documentation: str2("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
 var OPERATION = [
@@ -9744,12 +11713,12 @@ var addOperation = defineEndpoint({
   request: object({
     ownerId: id("Classifier id."),
     name: text2("Operation name."),
-    visibility: visibility(),
+    visibility: visibility2(),
     isStatic: flag("Class-level operation."),
     isAbstract: flag("Abstract."),
     isQuery: flag("Does not change state."),
-    specification: str("Body or specification text."),
-    documentation: str("Documentation text."),
+    specification: str2("Body or specification text."),
+    documentation: str2("Documentation text."),
     parameters: optional(
       doc(array(object(parameterShape())), "In declaration order.")
     ),
@@ -9820,7 +11789,7 @@ var addEnumerationLiteral = defineEndpoint({
   request: object({
     enumerationId: id("UMLEnumeration id."),
     name: text2("Literal name."),
-    documentation: str("Documentation text."),
+    documentation: str2("Documentation text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
@@ -9873,13 +11842,13 @@ var addSlot = defineEndpoint({
   destructive: false,
   request: object({
     instanceId: id("Instance id, e.g. a UMLObject."),
-    name: str("Slot name; usually the defining attribute's name."),
+    name: str2("Slot name; usually the defining attribute's name."),
     definingFeature: optional(
       reference(
         "The UMLAttribute (or other structural feature) the slot sets."
       )
     ),
-    value: str("Value as text."),
+    value: str2("Value as text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
@@ -10814,8 +12783,8 @@ function writeFile(path, data) {
   }
 }
 function fileStem(diagram, taken) {
-  const name = typeof diagram.name === "string" ? diagram.name : "";
-  const clean = name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  const name2 = typeof diagram.name === "string" ? diagram.name : "";
+  const clean = name2.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
   const stem = clean === "" || taken.has(clean.toLowerCase()) ? `${clean || "diagram"}-${diagram._id}` : clean;
   taken.add(stem.toLowerCase());
   return stem;
@@ -11161,6 +13130,7 @@ var endpoints = [
   redo,
   isModified,
   batchEndpoint(() => endpoints),
+  buildDiagramEndpoint(() => endpoints),
   introspectEndpoint(() => endpoints),
   debug
 ];

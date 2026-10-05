@@ -1,0 +1,175 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLUseCaseDiagram",
+   "name": "Free UC",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLActorView",
+     "model": {
+      "$ref": "#5"
+     },
+     "left": 20,
+     "top": 20,
+     "width": 40,
+     "height": 80
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLUseCaseView",
+     "model": {
+      "$ref": "#7"
+     },
+     "left": 20,
+     "top": 120,
+     "width": 160,
+     "height": 50
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLUseCaseView",
+     "model": {
+      "$ref": "#9"
+     },
+     "left": 20,
+     "top": 220,
+     "width": 160,
+     "height": 50
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLAssociationView",
+     "model": {
+      "$ref": "#11"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLExtendView",
+     "model": {
+      "$ref": "#13"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLActor",
+   "name": "Customer",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLUseCase",
+   "name": "Browse",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLUseCase",
+   "name": "Buy",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLAssociation",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#14",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#5"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#15",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLExtend",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ]
+}
