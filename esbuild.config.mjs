@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
 import esbuild from "esbuild";
+
+const { version } = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
+);
 
 const watch = process.argv.includes("--watch");
 
@@ -15,6 +20,7 @@ const options = {
     // Provided by StarUML runtime (Electron)
     "electron",
   ],
+  define: { __EXTENSION_VERSION__: JSON.stringify(version) },
   logLevel: "info",
 };
 

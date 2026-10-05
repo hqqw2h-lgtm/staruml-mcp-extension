@@ -1,4 +1,6 @@
+import { failure } from "../errors.js";
 import type { Handler } from "../http-server.js";
+import type { Element } from "../types.js";
 
 export const createDiagram: Handler = (body) => {
   const typeName = body.type;
@@ -13,7 +15,10 @@ export const createDiagram: Handler = (body) => {
     };
   }
   if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' (string) missing" };
+    return {
+      success: false,
+      error: "Required field 'parentId' (string) missing",
+    };
   }
 
   const parent = app.repository.get(parentId);
@@ -26,55 +31,58 @@ export const createDiagram: Handler = (body) => {
       id: typeName,
       parent,
       ...(name !== undefined && {
-        diagramInitializer: (d) => {
+        diagramInitializer: (d: Element) => {
           d.name = name;
         },
       }),
     });
-    const d = diagram as Record<string, unknown>;
+    if (!diagram) {
+      return { success: false, error: `Unknown diagram type: ${typeName}` };
+    }
     return {
       success: true,
       data: {
-        _id: d._id,
-        name: d.name,
-        type: (diagram.constructor as { name?: string }).name,
+        _id: diagram._id,
+        name: diagram.name,
+        type: diagram.constructor.name,
       },
     };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 
-export const switchDiagram: Handler = (body) => {
+/** Resolves `body.id` to a diagram; setCurrentDiagram accepts any element and would break the editor. */
+function requireDiagram(body: Record<string, unknown>): Element | string {
   const id = body.id;
   if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' (diagram id) missing" };
+    return "Required field 'id' (diagram id) missing";
   }
   const diagram = app.repository.get(id);
-  if (!diagram) {
-    return { success: false, error: `Diagram not found: ${id}` };
+  if (!diagram || !(diagram instanceof type.Diagram)) {
+    return `Diagram not found: ${id}`;
   }
+  return diagram;
+}
+
+export const switchDiagram: Handler = (body) => {
+  const diagram = requireDiagram(body);
+  if (typeof diagram === "string") return { success: false, error: diagram };
   try {
     app.diagrams.setCurrentDiagram(diagram);
-    return { success: true, data: { _id: id } };
+    return { success: true, data: { _id: diagram._id } };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 
 export const closeDiagramById: Handler = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' missing" };
-  }
-  const diagram = app.repository.get(id);
-  if (!diagram) {
-    return { success: false, error: `Diagram not found: ${id}` };
-  }
+  const diagram = requireDiagram(body);
+  if (typeof diagram === "string") return { success: false, error: diagram };
   try {
     app.diagrams.closeDiagram(diagram);
-    return { success: true, data: { closed: id } };
+    return { success: true, data: { closed: diagram._id } };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };

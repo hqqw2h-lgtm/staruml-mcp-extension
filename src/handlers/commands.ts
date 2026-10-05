@@ -1,63 +1,48 @@
-import type { Handler, HandlerResult } from "../http-server.js";
+import { errorMessage, failure } from "../errors.js";
+import type { Handler } from "../http-server.js";
 
-function collectCommandIds(): string[] {
-  const cmds = app.commands as unknown as {
-    commandNames?: unknown;
-    commands?: Record<string, unknown>;
-  };
-  if (Array.isArray(cmds.commandNames)) {
-    return cmds.commandNames.filter((x) => typeof x === "string");
-  }
-  if (cmds.commandNames && typeof cmds.commandNames === "object") {
-    return Object.keys(cmds.commandNames);
-  }
-  if (cmds.commands && typeof cmds.commands === "object") {
-    return Object.keys(cmds.commands);
-  }
-  return [];
+/**
+ * `commands` holds every registered command; `commandNames` only those
+ * registered with a display name (engine/command-manager.js), so it undercounts.
+ */
+function commandIds(): string[] {
+  return Object.keys(app.commands.commands);
 }
 
 export const getAllCommands: Handler = () => {
-  try {
-    const ids = collectCommandIds();
-    return { success: true, data: { count: ids.length, ids: [...ids].sort() } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
+  const ids = commandIds().sort();
+  return { success: true, data: { count: ids.length, ids } };
 };
 
-export const executeCommand: Handler = async (body): Promise<HandlerResult> => {
+export const executeCommand: Handler = async (body) => {
   const id = body.id;
   if (typeof id !== "string" || id.length === 0) {
     return { success: false, error: "Required field 'id' (string) missing" };
   }
-  const args = Array.isArray(body.args) ? body.args : [];
+  const args: unknown[] = Array.isArray(body.args) ? body.args : [];
 
-  const knownIds = collectCommandIds();
-  if (!knownIds.includes(id)) {
+  // execute() returns false for an unknown id, which is indistinguishable from a
+  // command that legitimately returns false, so check registration first.
+  if (!Object.hasOwn(app.commands.commands, id)) {
     return { success: false, error: `Command not registered: ${id}` };
   }
 
   try {
-    const result = await Promise.resolve(app.commands.execute(id, ...args));
-    return { success: true, data: { id, result: serialize(result) } };
+    const result: unknown = await app.commands.execute(id, ...args);
+    return { success: true, data: { id, result: toJson(result) } };
   } catch (err) {
-    return {
-      success: false,
-      error: `Command ${id} threw: ${err instanceof Error ? err.message : String(err)}`,
-    };
+    return failure(`Command ${id} threw: ${errorMessage(err)}`);
   }
 };
 
-function serialize(value: unknown): unknown {
+/** Command results may be model elements with cyclic references or functions. */
+function toJson(value: unknown): unknown {
   if (value === null || value === undefined) return null;
   if (typeof value === "function") return "[function]";
-  if (typeof value === "object") {
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch {
-      return "[non-serializable]";
-    }
+  if (typeof value !== "object") return value;
+  try {
+    return JSON.parse(JSON.stringify(value)) as unknown;
+  } catch {
+    return "[non-serializable]";
   }
-  return value;
 }

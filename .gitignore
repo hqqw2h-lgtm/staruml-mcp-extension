@@ -5,3 +5,4 @@ main.js.map
 Thumbs.db
 .vscode/
 .idea/
+coverage/

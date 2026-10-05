@@ -5,6 +5,7 @@ Source: https://files.staruml.io/api-docs/2.0.0/api/modules/diagrams/DiagramMana
 Accessed via `app.diagrams`. Manages open diagram tabs + canvas state.
 
 ## Events
+
 - `currentDiagramChanged: (diagram)`
 - `viewDoubleClicked: (view, x, y)`
 - `selectionChanged: (views)`
@@ -24,12 +25,14 @@ Accessed via `app.diagrams`. Manages open diagram tabs + canvas state.
 - `updateDiagram(diagram)`
 
 ## Selection + interaction
+
 - `selectAll()` — select all view elements on current diagram
 - `selectInDiagram(view)` — open diagram + scroll to view + select
 - `deselectAll()`
 - `setActiveHandler(handler)` — tool handler
 
 ## Canvas / viewport
+
 - `getEditor(): Editor`
 - `getHiddenEditor()`
 - `getDiagramArea(): Rect`
@@ -39,9 +42,11 @@ Accessed via `app.diagrams`. Manages open diagram tabs + canvas state.
 - `repaint()`
 
 ## Grid
+
 - `showGrid()` / `hideGrid()` / `toggleGrid()` / `isGridVisible(): boolean`
 
 ## Notes for MCP extension
+
 - Our tools `switch_diagram` ↔ `setCurrentDiagram`, `close_diagram` ↔ `closeDiagram`.
 - `openDiagram` (add to working set) is subtly different from `setCurrentDiagram` (open + focus). Consider exposing both.
 - Could expose zoom/scroll/grid via a new `diagram_view_control` tool set.

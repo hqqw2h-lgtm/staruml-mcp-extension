@@ -7,40 +7,51 @@ Accessed via `app.factory`. Creates model, view, and diagram elements. Dispatche
 ## Key creation functions (positional args!)
 
 ### `createDiagram(id, parent, options): Diagram`
+
 Create a diagram element.
+
 - `id` — string (diagram type, e.g. `'UMLClassDiagram'`)
 - `parent` — Model
 - `options` — Object
 
 ### `createModel(id, parent, field, options): Model`
+
 Create a model element (no view).
+
 - `id` — string (type, e.g. `'UMLClass'`)
 - `parent` — Model
 - `field` — string (which array field to append into, e.g. `'ownedElements'`)
 - `options` — Object `{ precondition, modelType, field, modelInitializer }`
 
 ### `createModelAndView(id, parent, diagram, options): View`
+
 Create model + view in one call.
+
 - `id` — string (combined type, e.g. `'UMLActor'`, `'UMLUseCase'`)
 - `parent` — Model (owner)
 - `diagram` — Diagram (target)
 - `options` — Object `{ precondition, modelType, viewType, field, modelInitializer, viewInitializer, x1, y1, x2, y2, containerView }`
 
 ### `createViewAndRelationships(editor, x, y, model, containerView)`
+
 Create a view of a given model **with relationship views auto-drawn**.
 
 ### `createViewOf(model, diagram, options)`
+
 Create a view element of an existing model based on diagram type.
 
 ## Discovery helpers
 
 ### `getDiagramIds(): string[]`
+
 Returns all registered IDs usable with `createDiagram`.
 
 ### `getModelIds(): string[]`
+
 Returns all registered IDs usable with `createModel`.
 
 ### `getModelAndViewIds(): string[]`
+
 Returns all registered IDs usable with `createModelAndView`. **Use this to discover valid element types for populating diagrams.**
 
 ## Registration (extension authors)
@@ -65,8 +76,13 @@ Returns all registered IDs usable with `createModelAndView`. **Use this to disco
 - Our `createElementWithView` handler passes `{id, parent, diagram, ...}` as a single options object. Per docs, signature is **positional** `createModelAndView(id, parent, diagram, options)`. The handler should call:
   ```js
   factory.createModelAndView(typeName, parent, diagram, {
-    modelInitializer: (m) => { m.name = name; },
-    x1, y1, x2, y2,
+    modelInitializer: (m) => {
+      m.name = name;
+    },
+    x1,
+    y1,
+    x2,
+    y2,
   });
   ```
 - Expose `getModelAndViewIds()` / `getDiagramIds()` as new MCP tools so agents can discover valid type names instead of guessing.

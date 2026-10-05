@@ -32,12 +32,12 @@ If you only want to curl StarUML from your own scripts, install just this extens
 
 All `POST` + JSON body. Response: `{success, data?, error?}`. Base URL: `http://localhost:58322`
 
-| Group | Endpoints |
-|---|---|
-| Commands | `/get_all_commands`, `/execute_command` |
-| Project | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project` |
+| Group        | Endpoints                                                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Commands     | `/get_all_commands`, `/execute_command`                                                         |
+| Project      | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`       |
 | Element CRUD | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element` |
-| Diagrams | `/create_diagram`, `/switch_diagram`, `/close_diagram` |
+| Diagrams     | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                          |
 
 ## Building from source
 

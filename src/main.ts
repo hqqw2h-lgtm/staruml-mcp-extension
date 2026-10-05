@@ -1,138 +1,56 @@
-import { ExtensionHttpServer, type Handler } from "./http-server.js";
-import { executeCommand, getAllCommands } from "./handlers/commands.js";
-import {
-  getProjectInfo,
-  saveProject,
-  saveProjectAs,
-  newProject,
-  openProject,
-} from "./handlers/project.js";
-import {
-  getElementById,
-  findElements,
-  createElement,
-  updateElement,
-  deleteElement,
-  createElementWithView,
-  createEdgeWithView,
-} from "./handlers/elements.js";
-import {
-  createDiagram,
-  switchDiagram,
-  closeDiagramById,
-} from "./handlers/diagrams.js";
-import "./types.js";
+import { ExtensionHttpServer } from "./http-server.js";
+import { errorMessage } from "./errors.js";
+import { routes } from "./routes.js";
+import { EXTENSION_NAME, EXTENSION_VERSION } from "./version.js";
 
-// Debug handler — introspect `app` namespace so we can learn the real API shape
-const debugHandler: Handler = () => {
-  const appKeys = Object.keys(app).sort();
-  const commandsInfo: Record<string, unknown> = {
-    type: typeof app.commands,
-    keys: app.commands ? Object.keys(app.commands).sort() : null,
-    proto: app.commands ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.commands)).sort() : null,
-  };
-  const repositoryInfo: Record<string, unknown> = {
-    type: typeof app.repository,
-    keys: app.repository ? Object.keys(app.repository).sort() : null,
-    proto: app.repository ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.repository)).sort() : null,
-  };
-  const engineInfo: Record<string, unknown> = {
-    type: typeof app.engine,
-    keys: app.engine ? Object.keys(app.engine).sort() : null,
-    proto: app.engine ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.engine)).sort() : null,
-  };
-  const factoryInfo: Record<string, unknown> = {
-    type: typeof app.factory,
-    keys: app.factory ? Object.keys(app.factory).sort() : null,
-    proto: app.factory ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.factory)).sort() : null,
-  };
-  const diagramsInfo: Record<string, unknown> = {
-    type: typeof app.diagrams,
-    keys: app.diagrams ? Object.keys(app.diagrams).sort() : null,
-    proto: app.diagrams ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.diagrams)).sort() : null,
-  };
-  return {
-    success: true,
-    data: {
-      app_keys: appKeys,
-      commands: commandsInfo,
-      repository: repositoryInfo,
-      engine: engineInfo,
-      factory: factoryInfo,
-      diagrams: diagramsInfo,
-    },
-  };
-};
+/** One above StarUML's built-in API server (58321) so both can run side by side. */
+export const DEFAULT_PORT = 58322;
 
-const EXT_PORT = 58322;
-const LOG_PREFIX = "[staruml-mcp-ext]";
-
-const handlers: Record<string, Handler> = {
-  // Commands
-  "/get_all_commands": getAllCommands,
-  "/execute_command": executeCommand,
-
-  // Project lifecycle
-  "/get_project_info": getProjectInfo,
-  "/save_project": saveProject,
-  "/save_project_as": saveProjectAs,
-  "/new_project": newProject,
-  "/open_project": openProject,
-
-  // Element CRUD
-  "/get_element_by_id": getElementById,
-  "/find_elements": findElements,
-  "/create_element": createElement,
-  "/update_element": updateElement,
-  "/delete_element": deleteElement,
-  "/create_element_with_view": createElementWithView,
-  "/create_edge_with_view": createEdgeWithView,
-
-  // Diagram management
-  "/create_diagram": createDiagram,
-  "/switch_diagram": switchDiagram,
-  "/close_diagram": closeDiagramById,
-
-  // Debug
-  "/debug": debugHandler,
-};
+const LOG_PREFIX = `[${EXTENSION_NAME}]`;
 
 let server: ExtensionHttpServer | null = null;
 
-async function init(): Promise<void> {
+/**
+ * Entry point called by StarUML's extension loader with no arguments
+ * (docs: developing-extensions/getting-started). A failure to bind is logged
+ * rather than thrown so the rest of StarUML keeps loading.
+ */
+export async function init(port: number = DEFAULT_PORT): Promise<void> {
+  const candidate = new ExtensionHttpServer({
+    port,
+    handlers: routes,
+    onLog: (level, msg) =>
+      level === "error" ? console.error(msg) : console.log(msg),
+  });
   try {
-    server = new ExtensionHttpServer({
-      port: EXT_PORT,
-      handlers,
-      onLog: (level, msg) => {
-        if (level === "error") {
-          console.error(msg);
-        } else {
-          console.log(msg);
-        }
-      },
-    });
-    await server.start();
-
-    // Register a command so user can stop the server via Command Palette if needed
-    app.commands.register(
-      "mcp-ext:server-info",
-      "MCP Ext: Server Info",
-      showServerInfo,
-    );
+    await candidate.start();
   } catch (err) {
     console.error(
-      `${LOG_PREFIX} Failed to start HTTP server on port ${EXT_PORT}:`,
-      err instanceof Error ? err.message : err,
+      `${LOG_PREFIX} failed to listen on port ${port}: ${errorMessage(err)}`,
     );
+    return;
   }
-}
-
-function showServerInfo(): void {
-  const endpoints = Object.keys(handlers).sort().join("\n  ");
-  window.alert(
-    `staruml-mcp-extension v0.2.0\n\nListening on http://localhost:${EXT_PORT}\n\nEndpoints:\n  ${endpoints}`,
+  server = candidate;
+  app.commands.register(
+    "mcp-ext:server-info",
+    showServerInfo,
+    "MCP Extension: Server Info",
   );
 }
 
-exports.init = init;
+/** Not called by StarUML; lets tests and a future reload command release the port. */
+export async function shutdown(): Promise<void> {
+  const running = server;
+  server = null;
+  await running?.stop();
+}
+
+export function showServerInfo(): void {
+  const address = server?.address;
+  const status = address
+    ? `Listening on http://${address.address}:${address.port}`
+    : "HTTP server is not running";
+  app.dialogs.showInfoDialog(
+    `${EXTENSION_NAME} v${EXTENSION_VERSION}\n\n${status}\n\nEndpoints:\n  ${Object.keys(routes).sort().join("\n  ")}`,
+  );
+}

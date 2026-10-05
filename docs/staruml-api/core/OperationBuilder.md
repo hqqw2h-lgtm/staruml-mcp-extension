@@ -5,6 +5,7 @@ Source: https://files.staruml.io/api-docs/2.0.0/api/modules/core/OperationBuilde
 Accessed via `app.repository.operationBuilder`. Builds transactional Operation objects that can be passed to `Repository.doOperation(op)` — gives one atomic undo step for multi-element changes.
 
 ## Events
+
 - `insert / remove: (elem)`
 - `fieldAssign: (elem, field, val)`
 - `fieldInsert / fieldInsertAt / fieldRemove / fieldRemoveAt: (elem, field, val, ...)`
@@ -27,6 +28,7 @@ app.repository.doOperation(op);
 ## Functions
 
 ### Transaction
+
 - `begin(opName)` — start building op
 - `end()` — commit building
 - `discard()` — cancel
@@ -34,10 +36,12 @@ app.repository.doOperation(op);
 - `getTimestamp()`
 
 ### Element ops
+
 - `insert(elem)` — create new element
 - `remove(elem)` — delete element
 
 ### Field ops (array-valued fields like `ownedElements`, `attributes`)
+
 - `fieldAssign(elem, field, val)` — set scalar field
 - `fieldInsert(elem, field, val)` — append to array
 - `fieldInsertAt(elem, field, val, pos)` — insert at index
@@ -47,5 +51,6 @@ app.repository.doOperation(op);
 - `fieldRelocate(elem, field, oldParent, newParent)` — move between parents
 
 ## Notes for MCP extension
+
 - Our current `delete_element` uses `engine.deleteElements()` directly. For safer cascaded delete we could compose an Operation here, then `doOperation(op)`, giving single-undo semantics.
 - Useful for batch CRUD tools that modify many elements atomically.

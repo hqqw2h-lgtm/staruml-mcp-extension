@@ -1,7 +1,7 @@
 {
   "name": "staruml-mcp-extension",
   "title": "MCP Extension for StarUML",
-  "description": "Extends StarUML HTTP API with endpoints for element CRUD, project ops, and command execution — enabling MCP clients to drive StarUML programmatically.",
+  "description": "Extends StarUML HTTP API with endpoints for element CRUD, project ops, and command execution \u2014 enabling MCP clients to drive StarUML programmatically.",
   "homepage": "https://github.com/ezrabrilliant/staruml-mcp-extension",
   "version": "0.2.2",
   "keywords": [
@@ -32,14 +32,23 @@
     "dev": "node esbuild.config.mjs --watch",
     "install:local": "node scripts/install-local.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:live": "vitest run --mode live",
+    "test:load": "node scripts/load-test.mjs"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "esbuild": "^0.24.0",
-    "typescript": "^5.5.0",
-    "eslint": "^9.0.0",
     "@eslint/js": "^9.39.4",
-    "typescript-eslint": "^8.58.2"
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.9",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^4.1.11"
   }
 }

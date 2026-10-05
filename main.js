@@ -5,6 +5,10 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -21,125 +25,175 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/main.ts
+var main_exports = {};
+__export(main_exports, {
+  DEFAULT_PORT: () => DEFAULT_PORT,
+  init: () => init,
+  showServerInfo: () => showServerInfo,
+  shutdown: () => shutdown
+});
+module.exports = __toCommonJS(main_exports);
 
 // src/http-server.ts
 var import_node_http = __toESM(require("node:http"));
+var import_node_perf_hooks = require("node:perf_hooks");
+
+// src/errors.ts
+function errorMessage(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+function failure(err) {
+  return { success: false, error: errorMessage(err) };
+}
+
+// src/version.ts
+var EXTENSION_NAME = "staruml-mcp-extension";
+var EXTENSION_VERSION = "0.2.2";
+
+// src/http-server.ts
+function createRequestListener(handlers, log) {
+  return async (req, res) => {
+    const path = req.url.split("?")[0];
+    if (req.method === "GET" && path === "/") {
+      sendJson(res, 200, {
+        name: EXTENSION_NAME,
+        version: EXTENSION_VERSION,
+        endpoints: Object.keys(handlers).sort()
+      });
+      return;
+    }
+    if (req.method !== "POST") {
+      sendJson(res, 405, {
+        success: false,
+        error: `Method ${req.method} not allowed`
+      });
+      return;
+    }
+    const handler = Object.hasOwn(handlers, path) ? handlers[path] : void 0;
+    if (!handler) {
+      sendJson(res, 404, { success: false, error: `No handler for ${path}` });
+      return;
+    }
+    let raw;
+    try {
+      raw = await readBody(req);
+    } catch (err) {
+      sendJson(res, 400, {
+        success: false,
+        error: `Failed to read body: ${errorMessage(err)}`
+      });
+      return;
+    }
+    let body;
+    try {
+      body = raw.length === 0 ? {} : JSON.parse(raw);
+    } catch (err) {
+      sendJson(res, 400, {
+        success: false,
+        error: `Invalid JSON: ${errorMessage(err)}`
+      });
+      return;
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      sendJson(res, 400, {
+        success: false,
+        error: "Request body must be a JSON object"
+      });
+      return;
+    }
+    const started = import_node_perf_hooks.performance.now();
+    try {
+      const result = await handler(body);
+      sendJson(res, result.success ? 200 : 400, result, started);
+    } catch (err) {
+      log(
+        "error",
+        `[${EXTENSION_NAME}] handler ${path} threw: ${stackOf(err)}`
+      );
+      sendJson(res, 500, { success: false, error: errorMessage(err) }, started);
+    }
+  };
+}
 var ExtensionHttpServer = class {
+  server = null;
+  port;
+  host;
+  listener;
+  log;
   constructor(options) {
-    this.server = null;
     this.port = options.port;
     this.host = options.host ?? "127.0.0.1";
-    this.handlers = options.handlers;
     this.log = options.onLog ?? (() => {
     });
+    this.listener = createRequestListener(options.handlers, this.log);
+  }
+  /** Bound port, which differs from the configured one when that was 0. */
+  get address() {
+    return this.server ? this.server.address() : null;
   }
   start() {
     return new Promise((resolve, reject) => {
-      const server2 = import_node_http.default.createServer((req, res) => this.handleRequest(req, res));
+      const server2 = import_node_http.default.createServer(
+        (req, res) => void this.listener(req, res)
+      );
       server2.once("error", reject);
       server2.listen(this.port, this.host, () => {
-        this.log("info", `[staruml-mcp-ext] HTTP server listening on http://${this.host}:${this.port}`);
+        server2.off("error", reject);
         this.server = server2;
+        const { port } = server2.address();
+        this.log(
+          "info",
+          `[${EXTENSION_NAME}] listening on http://${this.host}:${port}`
+        );
         resolve();
       });
     });
   }
   stop() {
-    return new Promise((resolve) => {
-      if (!this.server) return resolve();
-      this.server.close(() => {
-        this.server = null;
-        resolve();
-      });
-    });
-  }
-  async handleRequest(req, res) {
-    const url = req.url ?? "/";
-    if (req.method === "GET" && url === "/") {
-      this.sendJson(res, 200, {
-        name: "staruml-mcp-extension",
-        version: "0.2.2",
-        endpoints: Object.keys(this.handlers).sort()
-      });
-      return;
-    }
-    if (req.method !== "POST") {
-      this.sendJson(res, 405, { success: false, error: `Method ${req.method} not allowed` });
-      return;
-    }
-    const slug = url.split("?")[0] ?? "";
-    const handler = this.handlers[slug];
-    if (!handler) {
-      this.sendJson(res, 404, { success: false, error: `No handler for ${slug}` });
-      return;
-    }
-    let body = {};
-    try {
-      const raw = await this.readBody(req);
-      body = raw ? JSON.parse(raw) : {};
-    } catch (err) {
-      this.sendJson(res, 400, {
-        success: false,
-        error: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`
-      });
-      return;
-    }
-    try {
-      const result = await handler(body);
-      this.sendJson(res, result.success ? 200 : 400, result);
-    } catch (err) {
-      this.log(
-        "error",
-        `[staruml-mcp-ext] handler ${slug} threw: ${err instanceof Error ? err.stack : String(err)}`
-      );
-      this.sendJson(res, 500, {
-        success: false,
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-  }
-  readBody(req) {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      req.setEncoding("utf-8");
-      req.on("data", (chunk) => {
-        data += chunk;
-      });
-      req.on("end", () => resolve(data));
-      req.on("error", reject);
-    });
-  }
-  sendJson(res, status, body) {
-    const text = JSON.stringify(body);
-    res.writeHead(status, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Content-Length": Buffer.byteLength(text)
-    });
-    res.end(text);
+    const server2 = this.server;
+    if (!server2) return Promise.resolve();
+    this.server = null;
+    return new Promise((resolve) => server2.close(() => resolve()));
   }
 };
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.setEncoding("utf-8");
+    req.on("data", (chunk) => {
+      data += chunk;
+    });
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+}
+function sendJson(res, status, body, handlerStarted) {
+  const text = JSON.stringify(body);
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": Buffer.byteLength(text)
+  };
+  if (handlerStarted !== void 0) {
+    const ms = import_node_perf_hooks.performance.now() - handlerStarted;
+    headers["Server-Timing"] = `handler;dur=${ms.toFixed(3)}`;
+  }
+  res.writeHead(status, headers);
+  res.end(text);
+}
+function stackOf(err) {
+  return err instanceof Error ? String(err.stack) : String(err);
+}
 
 // src/handlers/commands.ts
-function collectCommandIds() {
-  const cmds = app.commands;
-  if (Array.isArray(cmds.commandNames)) {
-    return cmds.commandNames.filter((x) => typeof x === "string");
-  }
-  if (cmds.commandNames && typeof cmds.commandNames === "object") {
-    return Object.keys(cmds.commandNames);
-  }
-  if (cmds.commands && typeof cmds.commands === "object") {
-    return Object.keys(cmds.commands);
-  }
-  return [];
+function commandIds() {
+  return Object.keys(app.commands.commands);
 }
 var getAllCommands = () => {
-  try {
-    const ids = collectCommandIds();
-    return { success: true, data: { count: ids.length, ids: [...ids].sort() } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
+  const ids = commandIds().sort();
+  return { success: true, data: { count: ids.length, ids } };
 };
 var executeCommand = async (body) => {
   const id = body.id;
@@ -147,95 +201,134 @@ var executeCommand = async (body) => {
     return { success: false, error: "Required field 'id' (string) missing" };
   }
   const args = Array.isArray(body.args) ? body.args : [];
-  const knownIds = collectCommandIds();
-  if (!knownIds.includes(id)) {
+  if (!Object.hasOwn(app.commands.commands, id)) {
     return { success: false, error: `Command not registered: ${id}` };
   }
   try {
-    const result = await Promise.resolve(app.commands.execute(id, ...args));
-    return { success: true, data: { id, result: serialize(result) } };
+    const result = await app.commands.execute(id, ...args);
+    return { success: true, data: { id, result: toJson(result) } };
   } catch (err) {
-    return {
-      success: false,
-      error: `Command ${id} threw: ${err instanceof Error ? err.message : String(err)}`
-    };
+    return failure(`Command ${id} threw: ${errorMessage(err)}`);
   }
 };
-function serialize(value) {
+function toJson(value) {
   if (value === null || value === void 0) return null;
   if (typeof value === "function") return "[function]";
-  if (typeof value === "object") {
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch {
-      return "[non-serializable]";
-    }
+  if (typeof value !== "object") return value;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return "[non-serializable]";
   }
-  return value;
 }
 
-// src/handlers/project.ts
-var getProjectInfo = () => {
-  try {
-    const project = app.project.getProject();
-    const filename = app.project.getFilename();
-    return { success: true, data: { filename, project: summarize(project) } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+// src/handlers/debug.ts
+var INTROSPECTED_MANAGERS = [
+  "commands",
+  "project",
+  "repository",
+  "factory",
+  "engine",
+  "diagrams",
+  "preferences",
+  "selections",
+  "dialogs"
+];
+function describeSurface(target) {
+  if (target === null || typeof target !== "object") {
+    return { type: typeof target, keys: null, proto: null };
   }
-};
-var saveProject = async (body) => {
-  const filename = typeof body.filename === "string" ? body.filename : void 0;
-  try {
-    await app.project.save(filename);
-    const saved = app.project.getFilename();
-    return { success: true, data: { filename: saved } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-var saveProjectAs = async (body) => {
-  const filename = body.filename;
-  if (typeof filename !== "string" || filename.length === 0) {
-    return { success: false, error: "Required field 'filename' (string) missing" };
-  }
-  try {
-    await app.project.saveAs(filename);
-    return { success: true, data: { filename } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-var newProject = () => {
-  try {
-    app.project.newProject();
-    return { success: true, data: null };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-var openProject = async (body) => {
-  const filename = body.filename;
-  if (typeof filename !== "string" || filename.length === 0) {
-    return { success: false, error: "Required field 'filename' (string) missing" };
-  }
-  try {
-    const project = app.project;
-    await Promise.resolve(project.load(filename));
-    return { success: true, data: { filename } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-function summarize(project) {
-  if (!project || typeof project !== "object") return project;
-  const p = project;
   return {
-    _id: p._id,
-    name: p.name,
-    ownedElementsCount: Array.isArray(p.ownedElements) ? p.ownedElements.length : 0
+    type: "object",
+    keys: Object.keys(target).sort(),
+    proto: Object.getOwnPropertyNames(Object.getPrototypeOf(target)).sort()
   };
 }
+var debug = () => {
+  const data = { app_keys: Object.keys(app).sort() };
+  for (const name of INTROSPECTED_MANAGERS) {
+    data[name] = describeSurface(app[name]);
+  }
+  return { success: true, data };
+};
+
+// src/handlers/diagrams.ts
+var createDiagram = (body) => {
+  const typeName = body.type;
+  const parentId = body.parentId;
+  const name = typeof body.name === "string" ? body.name : void 0;
+  if (typeof typeName !== "string" || typeName.length === 0) {
+    return {
+      success: false,
+      error: "Required field 'type' (string) missing. Example: 'UMLClassDiagram', 'UMLUseCaseDiagram', 'UMLSequenceDiagram', 'UMLActivityDiagram', 'ERDDiagram'"
+    };
+  }
+  if (typeof parentId !== "string" || parentId.length === 0) {
+    return {
+      success: false,
+      error: "Required field 'parentId' (string) missing"
+    };
+  }
+  const parent = app.repository.get(parentId);
+  if (!parent) {
+    return { success: false, error: `Parent element not found: ${parentId}` };
+  }
+  try {
+    const diagram = app.factory.createDiagram({
+      id: typeName,
+      parent,
+      ...name !== void 0 && {
+        diagramInitializer: (d) => {
+          d.name = name;
+        }
+      }
+    });
+    if (!diagram) {
+      return { success: false, error: `Unknown diagram type: ${typeName}` };
+    }
+    return {
+      success: true,
+      data: {
+        _id: diagram._id,
+        name: diagram.name,
+        type: diagram.constructor.name
+      }
+    };
+  } catch (err) {
+    return failure(err);
+  }
+};
+function requireDiagram(body) {
+  const id = body.id;
+  if (typeof id !== "string" || id.length === 0) {
+    return "Required field 'id' (diagram id) missing";
+  }
+  const diagram = app.repository.get(id);
+  if (!diagram || !(diagram instanceof type.Diagram)) {
+    return `Diagram not found: ${id}`;
+  }
+  return diagram;
+}
+var switchDiagram = (body) => {
+  const diagram = requireDiagram(body);
+  if (typeof diagram === "string") return { success: false, error: diagram };
+  try {
+    app.diagrams.setCurrentDiagram(diagram);
+    return { success: true, data: { _id: diagram._id } };
+  } catch (err) {
+    return failure(err);
+  }
+};
+var closeDiagramById = (body) => {
+  const diagram = requireDiagram(body);
+  if (typeof diagram === "string") return { success: false, error: diagram };
+  try {
+    app.diagrams.closeDiagram(diagram);
+    return { success: true, data: { closed: diagram._id } };
+  } catch (err) {
+    return failure(err);
+  }
+};
 
 // src/handlers/elements.ts
 var getElementById = (body) => {
@@ -254,10 +347,13 @@ var findElements = (body) => {
   const nameFilter = typeof body.name === "string" ? body.name : null;
   try {
     const pool = typeName ? app.repository.getInstancesOf(typeName) : app.repository.findAll(() => true);
-    const filtered = nameFilter ? pool.filter((e) => e.name === nameFilter) : pool;
-    return { success: true, data: { count: filtered.length, elements: filtered.map(shallow) } };
+    const filtered = nameFilter === null ? pool : pool.filter((e) => e.name === nameFilter);
+    return {
+      success: true,
+      data: { count: filtered.length, elements: filtered.map(shallow) }
+    };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 var createElement = (body) => {
@@ -265,10 +361,16 @@ var createElement = (body) => {
   const parentId = body.parentId;
   const name = typeof body.name === "string" ? body.name : void 0;
   if (typeof typeName !== "string" || typeName.length === 0) {
-    return { success: false, error: "Required field 'type' (string) missing, e.g. 'UMLClass'" };
+    return {
+      success: false,
+      error: "Required field 'type' (string) missing, e.g. 'UMLClass'"
+    };
   }
   if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' (string) missing" };
+    return {
+      success: false,
+      error: "Required field 'parentId' (string) missing"
+    };
   }
   const parent = app.repository.get(parentId);
   if (!parent) {
@@ -284,9 +386,12 @@ var createElement = (body) => {
         }
       }
     });
+    if (!elem) {
+      return { success: false, error: `Unknown model type: ${typeName}` };
+    }
     return { success: true, data: shallow(elem) };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 var updateElement = (body) => {
@@ -303,11 +408,17 @@ var updateElement = (body) => {
   if (!elem) {
     return { success: false, error: `Element not found: ${id}` };
   }
+  if (typeof elem[field] === "undefined") {
+    return {
+      success: false,
+      error: `${elem.constructor.name} has no field '${field}'`
+    };
+  }
   try {
     app.engine.setProperty(elem, field, value);
     return { success: true, data: shallow(elem) };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 var deleteElement = (body) => {
@@ -331,7 +442,7 @@ var deleteElement = (body) => {
       }
     };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 function collectDeletionTargets(root) {
@@ -339,36 +450,22 @@ function collectDeletionTargets(root) {
   const models = [];
   const views = [];
   const stack = [root];
-  while (stack.length) {
-    const e = stack.pop();
-    const eid = typeof e._id === "string" ? e._id : "";
-    if (!eid || seen.has(eid)) continue;
-    seen.add(eid);
-    if (isView(e)) {
+  for (let e = stack.pop(); e !== void 0; e = stack.pop()) {
+    if (seen.has(e._id)) continue;
+    seen.add(e._id);
+    if (e instanceof type.View) {
       views.push(e);
+      stack.push(...app.repository.getEdgeViewsOf(e));
     } else {
       models.push(e);
+      stack.push(...app.repository.getViewsOf(e));
     }
-    const owned = Array.isArray(e.ownedElements) ? e.ownedElements : [];
-    for (const child of owned) stack.push(child);
-    const ownedViews = Array.isArray(e.ownedViews) ? e.ownedViews : [];
-    for (const v of ownedViews) stack.push(v);
-    const subViews = Array.isArray(e.subViews) ? e.subViews : [];
-    for (const v of subViews) stack.push(v);
-    try {
-      const repo = app.repository;
-      if (repo.getViewsOf) for (const v of repo.getViewsOf(e) ?? []) stack.push(v);
-      if (repo.getEdgeViewsOf) for (const v of repo.getEdgeViewsOf(e) ?? []) stack.push(v);
-    } catch {
+    for (const field of ["ownedElements", "ownedViews", "subViews"]) {
+      const owned = e[field];
+      if (Array.isArray(owned)) stack.push(...owned);
     }
   }
   return { models, views };
-}
-function isView(e) {
-  if (e.model && typeof e.model === "object") return true;
-  const ctor = e.constructor;
-  const name = ctor?.name ?? "";
-  return name.endsWith("View") || name === "Shape" || name === "Edge";
 }
 var createElementWithView = (body) => {
   const typeName = body.type;
@@ -380,7 +477,10 @@ var createElementWithView = (body) => {
   const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
   const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
   if (typeof typeName !== "string" || typeName.length === 0) {
-    return { success: false, error: "Required field 'type' missing (e.g. 'UMLUseCase', 'UMLActor', 'UMLAction')" };
+    return {
+      success: false,
+      error: "Required field 'type' missing (e.g. 'UMLUseCase', 'UMLActor', 'UMLAction')"
+    };
   }
   if (typeof parentId !== "string" || parentId.length === 0) {
     return { success: false, error: "Required field 'parentId' missing" };
@@ -389,9 +489,11 @@ var createElementWithView = (body) => {
     return { success: false, error: "Required field 'diagramId' missing" };
   }
   const parent = app.repository.get(parentId);
-  if (!parent) return { success: false, error: `Parent not found: ${parentId}` };
+  if (!parent)
+    return { success: false, error: `Parent not found: ${parentId}` };
   const diagram = app.repository.get(diagramId);
-  if (!diagram) return { success: false, error: `Diagram not found: ${diagramId}` };
+  if (!diagram)
+    return { success: false, error: `Diagram not found: ${diagramId}` };
   try {
     const factory = app.factory;
     const options = { x1, y1, x2, y2 };
@@ -410,7 +512,7 @@ var createElementWithView = (body) => {
       }
     };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 var createEdgeWithView = (body) => {
@@ -421,7 +523,10 @@ var createEdgeWithView = (body) => {
   const headViewId = body.headViewId;
   const name = typeof body.name === "string" ? body.name : void 0;
   if (typeof typeName !== "string" || typeName.length === 0) {
-    return { success: false, error: "Required field 'type' missing (e.g. 'UMLAssociation', 'UMLControlFlow')" };
+    return {
+      success: false,
+      error: "Required field 'type' missing (e.g. 'UMLAssociation', 'UMLControlFlow')"
+    };
   }
   if (typeof parentId !== "string" || parentId.length === 0) {
     return { success: false, error: "Required field 'parentId' missing" };
@@ -430,16 +535,23 @@ var createEdgeWithView = (body) => {
     return { success: false, error: "Required field 'diagramId' missing" };
   }
   if (typeof tailViewId !== "string" || typeof headViewId !== "string") {
-    return { success: false, error: "Required fields 'tailViewId' and 'headViewId' missing" };
+    return {
+      success: false,
+      error: "Required fields 'tailViewId' and 'headViewId' missing"
+    };
   }
   const parent = app.repository.get(parentId);
   const diagram = app.repository.get(diagramId);
   const tailView = app.repository.get(tailViewId);
   const headView = app.repository.get(headViewId);
-  if (!parent) return { success: false, error: `Parent not found: ${parentId}` };
-  if (!diagram) return { success: false, error: `Diagram not found: ${diagramId}` };
-  if (!tailView) return { success: false, error: `Tail view not found: ${tailViewId}` };
-  if (!headView) return { success: false, error: `Head view not found: ${headViewId}` };
+  if (!parent)
+    return { success: false, error: `Parent not found: ${parentId}` };
+  if (!diagram)
+    return { success: false, error: `Diagram not found: ${diagramId}` };
+  if (!tailView)
+    return { success: false, error: `Tail view not found: ${tailViewId}` };
+  if (!headView)
+    return { success: false, error: `Head view not found: ${headViewId}` };
   try {
     const factory = app.factory;
     const options = {
@@ -463,7 +575,7 @@ var createEdgeWithView = (body) => {
       }
     };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return failure(err);
   }
 };
 function shallow(elem) {
@@ -474,10 +586,16 @@ function shallow(elem) {
       out[key] = val;
     } else if (Array.isArray(val)) {
       out[key] = val.map(
-        (item) => item && typeof item === "object" && "_id" in item ? { _id: item._id, name: item.name } : item
+        (item) => item && typeof item === "object" && "_id" in item ? {
+          _id: item._id,
+          name: item.name
+        } : item
       );
     } else if (typeof val === "object" && "_id" in val) {
-      out[key] = { _id: val._id, name: val.name };
+      out[key] = {
+        _id: val._id,
+        name: val.name
+      };
     } else {
       out[key] = val;
     }
@@ -485,133 +603,80 @@ function shallow(elem) {
   return out;
 }
 
-// src/handlers/diagrams.ts
-var createDiagram = (body) => {
-  const typeName = body.type;
-  const parentId = body.parentId;
-  const name = typeof body.name === "string" ? body.name : void 0;
-  if (typeof typeName !== "string" || typeName.length === 0) {
-    return {
-      success: false,
-      error: "Required field 'type' (string) missing. Example: 'UMLClassDiagram', 'UMLUseCaseDiagram', 'UMLSequenceDiagram', 'UMLActivityDiagram', 'ERDDiagram'"
-    };
-  }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' (string) missing" };
-  }
-  const parent = app.repository.get(parentId);
-  if (!parent) {
-    return { success: false, error: `Parent element not found: ${parentId}` };
-  }
-  try {
-    const diagram = app.factory.createDiagram({
-      id: typeName,
-      parent,
-      ...name !== void 0 && {
-        diagramInitializer: (d2) => {
-          d2.name = name;
-        }
-      }
-    });
-    const d = diagram;
-    return {
-      success: true,
-      data: {
-        _id: d._id,
-        name: d.name,
-        type: diagram.constructor.name
-      }
-    };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-var switchDiagram = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' (diagram id) missing" };
-  }
-  const diagram = app.repository.get(id);
-  if (!diagram) {
-    return { success: false, error: `Diagram not found: ${id}` };
-  }
-  try {
-    app.diagrams.setCurrentDiagram(diagram);
-    return { success: true, data: { _id: id } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-var closeDiagramById = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' missing" };
-  }
-  const diagram = app.repository.get(id);
-  if (!diagram) {
-    return { success: false, error: `Diagram not found: ${id}` };
-  }
-  try {
-    app.diagrams.closeDiagram(diagram);
-    return { success: true, data: { closed: id } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-
-// src/main.ts
-var debugHandler = () => {
-  const appKeys = Object.keys(app).sort();
-  const commandsInfo = {
-    type: typeof app.commands,
-    keys: app.commands ? Object.keys(app.commands).sort() : null,
-    proto: app.commands ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.commands)).sort() : null
-  };
-  const repositoryInfo = {
-    type: typeof app.repository,
-    keys: app.repository ? Object.keys(app.repository).sort() : null,
-    proto: app.repository ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.repository)).sort() : null
-  };
-  const engineInfo = {
-    type: typeof app.engine,
-    keys: app.engine ? Object.keys(app.engine).sort() : null,
-    proto: app.engine ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.engine)).sort() : null
-  };
-  const factoryInfo = {
-    type: typeof app.factory,
-    keys: app.factory ? Object.keys(app.factory).sort() : null,
-    proto: app.factory ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.factory)).sort() : null
-  };
-  const diagramsInfo = {
-    type: typeof app.diagrams,
-    keys: app.diagrams ? Object.keys(app.diagrams).sort() : null,
-    proto: app.diagrams ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.diagrams)).sort() : null
-  };
+// src/handlers/project.ts
+var getProjectInfo = () => {
+  const project = app.project.getProject();
+  const filename = app.project.getFilename();
   return {
     success: true,
-    data: {
-      app_keys: appKeys,
-      commands: commandsInfo,
-      repository: repositoryInfo,
-      engine: engineInfo,
-      factory: factoryInfo,
-      diagrams: diagramsInfo
-    }
+    data: { filename, project: project && summarize(project) }
   };
 };
-var EXT_PORT = 58322;
-var LOG_PREFIX = "[staruml-mcp-ext]";
-var handlers = {
-  // Commands
+var saveProject = async (body) => {
+  const filename = typeof body.filename === "string" ? body.filename : void 0;
+  try {
+    await app.project.save(filename);
+    return { success: true, data: { filename: app.project.getFilename() } };
+  } catch (err) {
+    return failure(err);
+  }
+};
+var saveProjectAs = async (body) => {
+  const filename = body.filename;
+  if (typeof filename !== "string" || filename.length === 0) {
+    return {
+      success: false,
+      error: "Required field 'filename' (string) missing"
+    };
+  }
+  try {
+    await app.project.saveAs(filename);
+    return { success: true, data: { filename } };
+  } catch (err) {
+    return failure(err);
+  }
+};
+var newProject = () => {
+  try {
+    app.project.newProject();
+    return { success: true, data: null };
+  } catch (err) {
+    return failure(err);
+  }
+};
+var openProject = async (body) => {
+  const filename = body.filename;
+  if (typeof filename !== "string" || filename.length === 0) {
+    return {
+      success: false,
+      error: "Required field 'filename' (string) missing"
+    };
+  }
+  try {
+    const project = app.project;
+    await project.load(filename);
+    return { success: true, data: { filename } };
+  } catch (err) {
+    return failure(err);
+  }
+};
+function summarize(project) {
+  return {
+    _id: project._id,
+    name: project.name,
+    ownedElementsCount: project.ownedElements.length
+  };
+}
+
+// src/routes.ts
+var routes = {
   "/get_all_commands": getAllCommands,
   "/execute_command": executeCommand,
-  // Project lifecycle
   "/get_project_info": getProjectInfo,
   "/save_project": saveProject,
   "/save_project_as": saveProjectAs,
   "/new_project": newProject,
   "/open_project": openProject,
-  // Element CRUD
   "/get_element_by_id": getElementById,
   "/find_elements": findElements,
   "/create_element": createElement,
@@ -619,50 +684,59 @@ var handlers = {
   "/delete_element": deleteElement,
   "/create_element_with_view": createElementWithView,
   "/create_edge_with_view": createEdgeWithView,
-  // Diagram management
   "/create_diagram": createDiagram,
   "/switch_diagram": switchDiagram,
   "/close_diagram": closeDiagramById,
-  // Debug
-  "/debug": debugHandler
+  "/debug": debug
 };
+
+// src/main.ts
+var DEFAULT_PORT = 58322;
+var LOG_PREFIX = `[${EXTENSION_NAME}]`;
 var server = null;
-async function init() {
+async function init(port = DEFAULT_PORT) {
+  const candidate = new ExtensionHttpServer({
+    port,
+    handlers: routes,
+    onLog: (level, msg) => level === "error" ? console.error(msg) : console.log(msg)
+  });
   try {
-    server = new ExtensionHttpServer({
-      port: EXT_PORT,
-      handlers,
-      onLog: (level, msg) => {
-        if (level === "error") {
-          console.error(msg);
-        } else {
-          console.log(msg);
-        }
-      }
-    });
-    await server.start();
-    app.commands.register(
-      "mcp-ext:server-info",
-      "MCP Ext: Server Info",
-      showServerInfo
-    );
+    await candidate.start();
   } catch (err) {
     console.error(
-      `${LOG_PREFIX} Failed to start HTTP server on port ${EXT_PORT}:`,
-      err instanceof Error ? err.message : err
+      `${LOG_PREFIX} failed to listen on port ${port}: ${errorMessage(err)}`
     );
+    return;
   }
-}
-function showServerInfo() {
-  const endpoints = Object.keys(handlers).sort().join("\n  ");
-  window.alert(
-    `staruml-mcp-extension v0.2.0
-
-Listening on http://localhost:${EXT_PORT}
-
-Endpoints:
-  ${endpoints}`
+  server = candidate;
+  app.commands.register(
+    "mcp-ext:server-info",
+    showServerInfo,
+    "MCP Extension: Server Info"
   );
 }
-exports.init = init;
+async function shutdown() {
+  const running = server;
+  server = null;
+  await running?.stop();
+}
+function showServerInfo() {
+  const address = server?.address;
+  const status = address ? `Listening on http://${address.address}:${address.port}` : "HTTP server is not running";
+  app.dialogs.showInfoDialog(
+    `${EXTENSION_NAME} v${EXTENSION_VERSION}
+
+${status}
+
+Endpoints:
+  ${Object.keys(routes).sort().join("\n  ")}`
+  );
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  DEFAULT_PORT,
+  init,
+  showServerInfo,
+  shutdown
+});
 //# sourceMappingURL=main.js.map
