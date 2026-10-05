@@ -1,0 +1,141 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Repository",
+  "category": "domain",
+  "intent": "Mediate between the domain and data mapping with a collection-like interface for domain objects.",
+  "roles": [
+    {
+      "name": "Repository",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Collection-like access to the aggregate's entities.",
+      "documentation": "{Repository} stores and finds {Entity} objects as if they were in memory.",
+      "operations": [
+        {
+          "name": "findById",
+          "isAbstract": true,
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "id",
+              "type": "Object",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Entity}"
+        },
+        {
+          "name": "findAll",
+          "isAbstract": true,
+          "isQuery": true,
+          "returnType": "{Entity}"
+        },
+        {
+          "name": "save",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RepositoryImpl",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Maps the collection operations to storage.",
+      "operations": [
+        {
+          "name": "findById",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "id",
+              "type": "Object",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Entity}"
+        },
+        {
+          "name": "findAll",
+          "isQuery": true,
+          "returnType": "{Entity}"
+        },
+        {
+          "name": "save",
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Entity",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "The aggregate root stored.",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Object",
+          "visibility": "private",
+          "isID": true,
+          "isReadOnly": true
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "RepositoryImpl",
+      "to": "Repository"
+    },
+    {
+      "type": "dependency",
+      "from": "Repository",
+      "to": "Entity"
+    }
+  ],
+  "checks": [
+    {
+      "id": "repository-queries",
+      "role": "Repository",
+      "property": "isQuery",
+      "equals": true,
+      "message": "Finding does not change the repository: its finders are queries.",
+      "member": "findById"
+    }
+  ]
+}

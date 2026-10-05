@@ -1,0 +1,127 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Adapter",
+  "category": "structural",
+  "intent": "Convert the interface of a class into another interface clients expect.",
+  "roles": [
+    {
+      "name": "Target",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "The interface clients use.",
+      "operations": [
+        {
+          "name": "request",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "Adapter",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Implements the target interface by calling the adaptee.",
+      "documentation": "{Adapter} adapts {Adaptee} to {Target}.",
+      "operations": [
+        {
+          "name": "request"
+        }
+      ]
+    },
+    {
+      "name": "Adaptee",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "The class with the interface to adapt.",
+      "operations": [
+        {
+          "name": "specificRequest"
+        }
+      ]
+    },
+    {
+      "name": "Client",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Uses the target interface.",
+      "optional": true
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "Adapter",
+      "to": "Target"
+    },
+    {
+      "type": "association",
+      "from": "Adapter",
+      "to": "Adaptee",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "adaptee",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "association",
+      "from": "Client",
+      "to": "Target",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "target"
+      }
+    }
+  ],
+  "alsoKnownAs": ["Wrapper"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Adapter",
+        "text": "request()"
+      },
+      {
+        "from": "Adapter",
+        "to": "Adaptee",
+        "text": "specificRequest()"
+      }
+    ],
+    "participants": ["Client", "Adapter", "Adaptee"]
+  },
+  "variants": {
+    "class": {
+      "description": "The adapter inherits from the adaptee instead of holding it.",
+      "relationships": [
+        {
+          "type": "realization",
+          "from": "Adapter",
+          "to": "Target"
+        },
+        {
+          "type": "generalization",
+          "from": "Adapter",
+          "to": "Adaptee"
+        },
+        {
+          "type": "association",
+          "from": "Client",
+          "to": "Target",
+          "fromEnd": {
+            "navigable": "notNavigable"
+          },
+          "toEnd": {
+            "navigable": "navigable",
+            "name": "target"
+          }
+        }
+      ]
+    }
+  }
+}

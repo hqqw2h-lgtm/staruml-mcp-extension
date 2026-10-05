@@ -37,7 +37,8 @@
  * /lint_diagram and /uml_lint over them, and the read-only planning
  * endpoints: /diff_diagram, a /build_diagram dryRun and /diff_since of a
  * snapshot taken after seeding, a /build_model dryRun of a small object
- * spec and /check_messages over the seeded package. Exits non-zero on any transport error or
+ * spec and /check_messages over the seeded package, /apply_pattern dry
+ * runs and /detect_patterns over the seeded package. Exits non-zero on any transport error or
  * non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or when any single
  * handler held the renderer thread longer than HANDLER_BUDGET_MS (taken
  * from the Server-Timing header the server sets).
@@ -196,6 +197,15 @@ async function writePhase(modelId, errors) {
   };
 }
 
+/** Patterns /apply_pattern plans (dry run) in the read mix, in turn. */
+const PATTERNS = [
+  "Strategy",
+  "Observer",
+  "Composite",
+  "Singleton",
+  "Repository",
+];
+
 /** An object-level spec /build_model plans (dry run) in the read mix. */
 const MODEL_SPEC = {
   system: "Planned",
@@ -344,6 +354,18 @@ async function main() {
     () => ["/diff_since", { snapshot: "load", limit: 20 }],
     () => ["/build_model", { spec: MODEL_SPEC, dryRun: true }],
     () => ["/check_messages", { scope: "Load" }],
+    (i) => [
+      "/apply_pattern",
+      {
+        pattern: PATTERNS[i % PATTERNS.length],
+        parent: "Load",
+        dryRun: true,
+      },
+    ],
+    () => [
+      "/detect_patterns",
+      { scope: "Load", patterns: ["Strategy", "Singleton", "Composite"] },
+    ],
     () => ["/get_project_info", {}],
     (i) => [
       "/get_element_by_id",

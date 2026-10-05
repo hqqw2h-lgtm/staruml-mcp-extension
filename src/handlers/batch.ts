@@ -390,6 +390,12 @@ export async function runBatch(
   };
 }
 
+/**
+ * runBatch as the composite endpoints call it, an object so tests can
+ * watch the ops a call runs and compare them with its dry run's plan.
+ */
+export const batchRunner = { run: runBatch };
+
 export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
   return defineEndpoint({
     path: "/batch",

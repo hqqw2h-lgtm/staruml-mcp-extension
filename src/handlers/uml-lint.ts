@@ -27,7 +27,10 @@ import { ApiError } from "../errors.js";
 import { requireElement, requireProject } from "../lookup.js";
 import { byId, pathOf } from "../refs.js";
 import { ref } from "../schemas.js";
+import { violations } from "../patterns/detect.js";
+import { findPattern, patterns, withVariant } from "../patterns/index.js";
 import type { Element } from "../types.js";
+import { detectIn } from "./patterns.js";
 import {
   counted,
   countsSchema,
@@ -55,6 +58,7 @@ export const UML_RULES = {
   U010: "state-machine-without-final",
   U011: "entity-without-primary-key",
   U012: "naming",
+  U013: "pattern-consistency",
 } as const;
 type UmlRule = keyof typeof UML_RULES;
 
@@ -71,6 +75,7 @@ const DEFAULT_SEVERITY: Record<UmlRule, Severity> = {
   U010: "info",
   U011: "warning",
   U012: "info",
+  U013: "warning",
 };
 
 export interface UmlFinding {
@@ -393,12 +398,34 @@ function naming(l: Lint, patterns: [NamingKind, string, RegExp][]): void {
   }
 }
 
+/**
+ * A detected instance below this confidence is too unlike its pattern for
+ * the pattern's checks to say anything about it.
+ */
+export const PATTERN_CONFIDENCE = 0.75;
+
+/** The checks a pattern states, on every instance /detect_patterns finds. */
+function patternConsistency(l: Lint): void {
+  for (const d of detectIn(l.scope, patterns(), PATTERN_CONFIDENCE)) {
+    const pattern = withVariant(findPattern(d.pattern), d.variant);
+    for (const { check, element } of violations(pattern, d.binding)) {
+      const shown = JSON.stringify(check.equals);
+      l.add(
+        "U013",
+        element,
+        `${pattern.name} (${check.role}): ${check.message}`,
+        `Set ${check.property} to ${shown}: /update_element {ref: '${pathOf(element)!}', field: '${check.property}', value: ${shown}}, or /apply_pattern {pattern: '${pattern.name}'} with the roles bound.`,
+      );
+    }
+  }
+}
+
 const RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
 
 export function lintModel(
   scope: Element,
   severity: Map<UmlRule, Severity>,
-  patterns: [NamingKind, string, RegExp][],
+  namingPatterns: [NamingKind, string, RegExp][],
 ): UmlFinding[] {
   const l = new Lint(scope, severity);
   if (l.on("U001") || l.on("U002")) associations(l);
@@ -409,7 +436,8 @@ export function lintModel(
   if (l.on("U008")) useCases(l);
   stateMachines(l);
   if (l.on("U011")) entities(l);
-  if (l.on("U012")) naming(l, patterns);
+  if (l.on("U012")) naming(l, namingPatterns);
+  if (l.on("U013")) patternConsistency(l);
   return l.findings.sort(
     (a, b) =>
       RANK[a.severity] - RANK[b.severity] || a.rule.localeCompare(b.rule),
@@ -422,7 +450,7 @@ const pattern = () => z.optional(z.union([z.string(), z.literal(false)]));
 export const umlLint = defineEndpoint({
   path: "/uml_lint",
   description:
-    "Check the model for modelling mistakes StarUML's own validation does not look for: association ends without multiplicity (U001) or navigability (U002), attributes without a type (U003), relationships missing an end (U004), abstract classes without a subclass (U005), interfaces nobody realizes (U006), sequence messages that name no operation of the receiver (U007), use cases without an actor (U008), state machines without an initial (U009) or final state (U010), ERD entities without a primary key (U011) and names off the naming convention (U012). Each finding has a rule id, the element's id and path, and a one-line fix. Read-only.",
+    "Check the model for modelling mistakes StarUML's own validation does not look for: association ends without multiplicity (U001) or navigability (U002), attributes without a type (U003), relationships missing an end (U004), abstract classes without a subclass (U005), interfaces nobody realizes (U006), sequence messages that name no operation of the receiver (U007), use cases without an actor (U008), state machines without an initial (U009) or final state (U010), ERD entities without a primary key (U011), names off the naming convention (U012) and detected design patterns that break a rule of their pattern, e.g. a singleton with a public constructor (U013, see /detect_patterns). Each finding has a rule id, the element's id and path, and a one-line fix. Read-only.",
   readOnly: true,
   destructive: false,
   request: z.object({

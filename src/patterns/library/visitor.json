@@ -1,0 +1,137 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Visitor",
+  "category": "behavioral",
+  "intent": "Represent an operation on the elements of an object structure without changing their classes.",
+  "roles": [
+    {
+      "name": "Visitor",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares a visit operation per element class.",
+      "operations": [
+        {
+          "name": "visit",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "element",
+              "type": "{Element}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteVisitor",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Implements one operation over the structure.",
+      "operations": [
+        {
+          "name": "visit",
+          "parameters": [
+            {
+              "name": "element",
+              "type": "{Element}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Element",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares accept.",
+      "operations": [
+        {
+          "name": "accept",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "visitor",
+              "type": "{Visitor}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteElement",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Accepts a visitor by calling its visit.",
+      "operations": [
+        {
+          "name": "accept",
+          "parameters": [
+            {
+              "name": "visitor",
+              "type": "{Visitor}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ObjectStructure",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Holds the elements and lets a visitor visit them.",
+      "operations": [
+        {
+          "name": "accept",
+          "parameters": [
+            {
+              "name": "visitor",
+              "type": "{Visitor}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcreteVisitor",
+      "to": "Visitor"
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteElement",
+      "to": "Element"
+    },
+    {
+      "type": "aggregation",
+      "from": "ObjectStructure",
+      "to": "Element",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "elements",
+        "multiplicity": "0..*"
+      }
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "ObjectStructure",
+        "to": "ConcreteElement",
+        "text": "accept(visitor)"
+      },
+      {
+        "from": "ConcreteElement",
+        "to": "ConcreteVisitor",
+        "text": "visit(element)"
+      }
+    ],
+    "participants": ["ObjectStructure", "ConcreteElement", "ConcreteVisitor"]
+  }
+}

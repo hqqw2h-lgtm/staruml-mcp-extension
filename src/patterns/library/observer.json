@@ -1,0 +1,237 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Observer",
+  "category": "behavioral",
+  "intent": "Define a one-to-many dependency so that when one object changes state its dependents are notified.",
+  "roles": [
+    {
+      "name": "Subject",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Knows its observers and notifies them.",
+      "properties": {
+        "isAbstract": true
+      },
+      "documentation": "{Subject} notifies its {Observer}s of every change.",
+      "operations": [
+        {
+          "name": "attach",
+          "parameters": [
+            {
+              "name": "observer",
+              "type": "{Observer}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "detach",
+          "parameters": [
+            {
+              "name": "observer",
+              "type": "{Observer}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "notify",
+          "visibility": "protected"
+        }
+      ]
+    },
+    {
+      "name": "Observer",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of objects told about changes.",
+      "operations": [
+        {
+          "name": "update",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "ConcreteSubject",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Holds the state observers depend on.",
+      "attributes": [
+        {
+          "name": "state",
+          "type": "Object",
+          "visibility": "private"
+        }
+      ],
+      "operations": [
+        {
+          "name": "getState",
+          "isQuery": true,
+          "returnType": "Object"
+        },
+        {
+          "name": "setState",
+          "parameters": [
+            {
+              "name": "state",
+              "type": "Object",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteObserver",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Keeps its state consistent with the subject's.",
+      "operations": [
+        {
+          "name": "update"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "ConcreteSubject",
+      "to": "Subject"
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteObserver",
+      "to": "Observer"
+    },
+    {
+      "type": "aggregation",
+      "from": "Subject",
+      "to": "Observer",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "observers",
+        "multiplicity": "0..*"
+      }
+    },
+    {
+      "type": "association",
+      "from": "ConcreteObserver",
+      "to": "ConcreteSubject",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "subject",
+        "multiplicity": "1"
+      }
+    }
+  ],
+  "alsoKnownAs": ["Publish-Subscribe", "Dependents"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "ConcreteSubject",
+        "to": "ConcreteSubject",
+        "text": "notify()"
+      },
+      {
+        "from": "ConcreteSubject",
+        "to": "ConcreteObserver",
+        "text": "update()"
+      },
+      {
+        "from": "ConcreteObserver",
+        "to": "ConcreteSubject",
+        "text": "getState()"
+      }
+    ],
+    "participants": ["ConcreteSubject", "ConcreteObserver"]
+  },
+  "variants": {
+    "interface-subject": {
+      "description": "The subject is an interface its concrete subjects realize.",
+      "roles": {
+        "Subject": {
+          "type": "UMLInterface",
+          "properties": {},
+          "operations": [
+            {
+              "name": "attach",
+              "isAbstract": true,
+              "parameters": [
+                {
+                  "name": "observer",
+                  "type": "{Observer}",
+                  "direction": "in"
+                }
+              ]
+            },
+            {
+              "name": "detach",
+              "isAbstract": true,
+              "parameters": [
+                {
+                  "name": "observer",
+                  "type": "{Observer}",
+                  "direction": "in"
+                }
+              ]
+            },
+            {
+              "name": "notify",
+              "isAbstract": true
+            }
+          ]
+        }
+      },
+      "relationships": [
+        {
+          "type": "realization",
+          "from": "ConcreteSubject",
+          "to": "Subject"
+        },
+        {
+          "type": "realization",
+          "from": "ConcreteObserver",
+          "to": "Observer"
+        },
+        {
+          "type": "aggregation",
+          "from": "Subject",
+          "to": "Observer",
+          "toEnd": {
+            "navigable": "navigable",
+            "name": "observers",
+            "multiplicity": "0..*"
+          }
+        },
+        {
+          "type": "association",
+          "from": "ConcreteObserver",
+          "to": "ConcreteSubject",
+          "fromEnd": {
+            "navigable": "notNavigable"
+          },
+          "toEnd": {
+            "navigable": "navigable",
+            "name": "subject",
+            "multiplicity": "1"
+          }
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "id": "observer-update-abstract",
+      "role": "Observer",
+      "property": "isAbstract",
+      "equals": true,
+      "message": "An observer's update is abstract; each concrete observer reacts its own way.",
+      "member": "update"
+    }
+  ]
+}

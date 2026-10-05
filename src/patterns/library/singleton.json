@@ -1,0 +1,87 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Singleton",
+  "category": "creational",
+  "intent": "Ensure a class has only one instance and provide a global point of access to it.",
+  "roles": [
+    {
+      "name": "Singleton",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "The class with one instance.",
+      "properties": {
+        "isLeaf": true
+      },
+      "documentation": "{Singleton} has exactly one instance, reached through getInstance().",
+      "attributes": [
+        {
+          "name": "instance",
+          "type": "{Singleton}",
+          "visibility": "private",
+          "isStatic": true
+        }
+      ],
+      "operations": [
+        {
+          "name": "{Singleton}",
+          "visibility": "private",
+          "stereotype": "create"
+        },
+        {
+          "name": "getInstance",
+          "visibility": "public",
+          "isStatic": true,
+          "returnType": "{Singleton}"
+        }
+      ]
+    }
+  ],
+  "relationships": [],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Singleton",
+        "text": "getInstance()"
+      }
+    ],
+    "participants": ["Client", "Singleton"]
+  },
+  "variants": {
+    "eager": {
+      "description": "The instance is made when the class loads.",
+      "roles": {
+        "Singleton": {
+          "attributes": [
+            {
+              "name": "instance",
+              "type": "{Singleton}",
+              "visibility": "private",
+              "isStatic": true,
+              "isReadOnly": true,
+              "defaultValue": "new {Singleton}()"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "checks": [
+    {
+      "id": "singleton-private-constructor",
+      "role": "Singleton",
+      "property": "visibility",
+      "equals": "private",
+      "message": "A singleton's constructor is private, so no other class can make a second instance.",
+      "member": "{Singleton}"
+    },
+    {
+      "id": "singleton-static-instance",
+      "role": "Singleton",
+      "property": "isStatic",
+      "equals": true,
+      "message": "A singleton keeps its one instance in a static attribute.",
+      "member": "instance"
+    }
+  ]
+}

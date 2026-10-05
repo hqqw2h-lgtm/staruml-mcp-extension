@@ -1,0 +1,55 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Entity",
+  "category": "domain",
+  "intent": "Model a domain object by a continuous identity rather than its attributes.",
+  "roles": [
+    {
+      "name": "Entity",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "An object with an identity that lasts through its changes.",
+      "stereotype": "entity",
+      "documentation": "{Entity} is identified by its id, whatever its other attributes.",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Object",
+          "visibility": "private",
+          "isID": true,
+          "isReadOnly": true
+        }
+      ],
+      "operations": [
+        {
+          "name": "equals",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "other",
+              "type": "Object",
+              "direction": "in"
+            }
+          ],
+          "returnType": "boolean"
+        },
+        {
+          "name": "hashCode",
+          "isQuery": true,
+          "returnType": "int"
+        }
+      ]
+    }
+  ],
+  "relationships": [],
+  "checks": [
+    {
+      "id": "entity-identity",
+      "role": "Entity",
+      "property": "isID",
+      "equals": true,
+      "message": "An entity's id attribute is its identity (isID).",
+      "member": "id"
+    }
+  ]
+}

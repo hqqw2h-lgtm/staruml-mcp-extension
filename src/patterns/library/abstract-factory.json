@@ -1,0 +1,97 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Abstract Factory",
+  "category": "creational",
+  "intent": "Provide an interface for creating families of related objects without naming their concrete classes.",
+  "roles": [
+    {
+      "name": "AbstractFactory",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares a creation operation per product kind.",
+      "documentation": "{AbstractFactory} creates the products of one family.",
+      "operations": [
+        {
+          "name": "createProductA",
+          "isAbstract": true,
+          "returnType": "{AbstractProductA}"
+        },
+        {
+          "name": "createProductB",
+          "isAbstract": true,
+          "returnType": "{AbstractProductB}"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteFactory",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Creates the products of one family.",
+      "operations": [
+        {
+          "name": "createProductA",
+          "returnType": "{AbstractProductA}"
+        },
+        {
+          "name": "createProductB",
+          "returnType": "{AbstractProductB}"
+        }
+      ]
+    },
+    {
+      "name": "AbstractProductA",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of the first product kind."
+    },
+    {
+      "name": "AbstractProductB",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of the second product kind."
+    },
+    {
+      "name": "ProductA",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "A family's first product."
+    },
+    {
+      "name": "ProductB",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "A family's second product."
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcreteFactory",
+      "to": "AbstractFactory"
+    },
+    {
+      "type": "realization",
+      "from": "ProductA",
+      "to": "AbstractProductA"
+    },
+    {
+      "type": "realization",
+      "from": "ProductB",
+      "to": "AbstractProductB"
+    },
+    {
+      "type": "dependency",
+      "from": "ConcreteFactory",
+      "to": "ProductA",
+      "stereotype": "create"
+    },
+    {
+      "type": "dependency",
+      "from": "ConcreteFactory",
+      "to": "ProductB",
+      "stereotype": "create"
+    }
+  ],
+  "alsoKnownAs": ["Kit"]
+}

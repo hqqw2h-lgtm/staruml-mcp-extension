@@ -23,8 +23,9 @@
 
 import { ApiError } from "../errors.js";
 import type { AttributeSpec, OperationSpec } from "../build/members.js";
+import { type Change, type ModelOp, type Node, Planner } from "./planner.js";
 import { uniqueNames } from "../build/spec.js";
-import { candidate, escapeName, pathOf, tryResolve } from "../refs.js";
+import { pathOf, tryResolve } from "../refs.js";
 import type { Element } from "../types.js";
 import type {
   ClassSpec,
@@ -44,18 +45,7 @@ import type {
  * updates what differs and adds what is missing.
  */
 
-export interface ModelOp {
-  path: string;
-  body: Record<string, unknown>;
-  as?: string;
-}
-
-export interface Change {
-  path: string;
-  type: string;
-  /** Updated: the attributes the update sets. */
-  fields?: string[];
-}
+export type { Change, ModelOp } from "./planner.js";
 
 export interface ModelPlan {
   ops: ModelOp[];
@@ -65,14 +55,6 @@ export interface ModelPlan {
   /** Ids (or "$name" placeholders) of the containers and classifiers, by path. */
   refs: Map<string, string>;
   root: { ref: string; path: string };
-  warnings: string[];
-}
-
-/** An element of the plan: existing (elem set, ref its id) or to be made. */
-interface Node {
-  ref: string;
-  elem: Element | null;
-  path: string;
 }
 
 const CLASS_TYPES = {
@@ -99,296 +81,28 @@ const STATE_TYPES: Record<StateType, [type: string, kind?: string]> = {
   join: ["UMLPseudostate", "join"],
 };
 
-const list = (value: unknown) =>
-  Array.isArray(value) ? (value as Element[]) : [];
-const isRef = (v: unknown): v is { $ref: string } =>
-  typeof v === "object" && v !== null && "$ref" in v;
-
-/** Whether an element's value already is what the spec asks for. */
-function same(current: unknown, wanted: unknown): boolean {
-  if (isRef(wanted)) {
-    return (current as Element | null | undefined)?._id === wanted.$ref;
-  }
-  if (typeof wanted === "string" && current && typeof current === "object") {
-    // A type given as text matches a classifier of that name.
-    return (current as Element).name === wanted;
-  }
-  return current === wanted;
-}
-
-const childPath = (owner: string, name: string, sep = "/") =>
-  owner ? `${owner}${sep}${escapeName(name)}` : escapeName(name);
-
 /** A message's operation name: "save(entity)" calls save; prose calls nothing. */
 export function calledName(text: string): string | null {
   const name = text.replace(/\(.*$/s, "").trim();
   return /^[A-Za-z_$][\w$]*$/.test(name) ? name : null;
 }
 
-class Planner {
-  readonly ops: ModelOp[] = [];
-  readonly created: Change[] = [];
-  readonly updated: Change[] = [];
-  readonly refs = new Map<string, string>();
-  readonly warnings: string[] = [];
-  unchanged = 0;
-  private n = 0;
-  /** Existing elements already matched, so two specs never take one. */
-  private readonly claimed = new Set<Element>();
-
-  constructor(private readonly upsert: boolean) {}
-
-  private alias(): string {
-    return `m${this.n++}`;
-  }
-
-  private claim<T extends Element | undefined>(elem: T): T {
-    if (elem) this.claimed.add(elem);
-    return elem;
-  }
-
-  /** Sets what differs on an existing element. */
-  private update(
-    elem: Element,
-    props: Record<string, unknown>,
-    path: string,
-  ): void {
-    const fields = Object.keys(props).filter((k) => !same(elem[k], props[k]));
-    if (fields.length === 0) {
-      this.unchanged++;
-      return;
-    }
-    for (const field of fields) {
-      this.ops.push({
-        path: "/update_element",
-        body: { ref: elem._id, field, value: props[field] },
-      });
-    }
-    this.updated.push({ path, type: elem.constructor.name, fields });
-  }
-
-  private existing(
-    owner: Node,
-    field: string,
-    test: (e: Element) => boolean,
-  ): Element | undefined {
-    return list(owner.elem?.[field]).find(
-      (e) => !this.claimed.has(e) && test(e),
-    );
-  }
-
-  /** An element owned by `owner`, matched by type and name, made when missing. */
-  element(
-    owner: Node,
-    type: string,
-    name: string,
-    props: Record<string, unknown>,
-    field = "ownedElements",
-    extra: (e: Element) => boolean = () => true,
-    fields?: string[],
-  ): Node {
-    const path = childPath(owner.path, name);
-    const found = this.claim(
-      this.existing(
-        owner,
-        field,
-        (e) => e.constructor.name === type && e.name === name && extra(e),
-      ),
-    );
-    if (found) {
-      if (!this.upsert) {
-        throw new ApiError(
-          "DUPLICATE_NAME",
-          `${path} exists; pass upsert: true to update it`,
-          { existing: candidate(found) },
-        );
-      }
-      this.update(found, props, path);
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    this.ops.push({
-      path: "/create_element",
-      as,
-      body: {
-        type,
-        parent: owner.ref,
-        name,
-        field,
-        ...(Object.keys(props).length > 0 && { properties: props }),
-        ...(fields && { fields: ["_parent", ...fields] }),
-      },
-    });
-    this.created.push({ path, type });
-    return { ref: `$${as}`, elem: null, path };
-  }
-
-  attribute(
-    owner: Node,
-    a: AttributeSpec,
-    type: unknown,
-    field = "attributes",
-  ): Node {
-    const path = childPath(owner.path, a.name, ".");
-    const props = {
-      ...(type !== undefined && { type }),
-      ...(a.visibility !== undefined && { visibility: a.visibility }),
-      ...(a.isStatic !== undefined && { isStatic: a.isStatic }),
-      ...(a.multiplicity !== undefined && { multiplicity: a.multiplicity }),
-      ...(a.defaultValue !== undefined && { defaultValue: a.defaultValue }),
-    };
-    const found = this.claim(
-      this.existing(owner, field, (e) => e.name === a.name),
-    );
-    if (found) {
-      this.update(found, props, path);
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    this.ops.push({
-      path: "/add_attribute",
-      as,
-      body: { ref: owner.ref, name: a.name, ...props },
-    });
-    this.created.push({ path, type: "UMLAttribute" });
-    return { ref: `$${as}`, elem: null, path };
-  }
-
-  operation(
-    owner: Node,
-    o: OperationSpec,
-    typeOf: (name: string | undefined) => unknown,
-  ): Node {
-    const types = (o.parameters ?? []).map((p) => p.type ?? "");
-    const path = `${owner.path}#${escapeName(o.name)}(${types.map(escapeName).join(", ")})`;
-    const props = {
-      ...(o.visibility !== undefined && { visibility: o.visibility }),
-      ...(o.isStatic !== undefined && { isStatic: o.isStatic }),
-      ...(o.isAbstract !== undefined && { isAbstract: o.isAbstract }),
-    };
-    const found = this.claim(
-      this.existing(owner, "operations", (e) => e.name === o.name),
-    );
-    if (found) {
-      this.update(found, props, path);
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    const returnType = typeOf(o.returnType);
-    this.ops.push({
-      path: "/add_operation",
-      as,
-      body: {
-        ref: owner.ref,
-        name: o.name,
-        ...props,
-        ...(o.parameters && {
-          parameters: o.parameters.map((p) => ({
-            name: p.name,
-            ...(p.type !== undefined && { type: typeOf(p.type) }),
-          })),
-        }),
-        ...(returnType !== undefined && { returnType }),
-      },
-    });
-    this.created.push({ path, type: "UMLOperation" });
-    return { ref: `$${as}`, elem: null, path };
-  }
-
-  literal(owner: Node, name: string): void {
-    const found = this.claim(
-      this.existing(owner, "literals", (e) => e.name === name),
-    );
-    if (found) {
-      this.unchanged++;
-      return;
-    }
-    this.ops.push({
-      path: "/add_enumeration_literal",
-      body: { ref: owner.ref, name },
-    });
-    this.created.push({
-      path: childPath(owner.path, name, "."),
-      type: "UMLEnumerationLiteral",
-    });
-  }
-
-  /** A model-only relationship, unless the same one already joins the ends. */
-  relationship(
-    type: string,
-    tail: Node,
-    head: Node,
-    more: {
-      name?: string;
-      tailEnd?: Record<string, unknown>;
-      headEnd?: Record<string, unknown>;
-      properties?: Record<string, unknown>;
-    } = {},
-  ): Node {
-    const path = `${tail.path} -> ${head.path}`;
-    const found =
-      tail.elem && head.elem
-        ? this.claim(
-            findRelationship(
-              type,
-              tail.elem,
-              head.elem,
-              more.name ?? "",
-              this.claimed,
-            ),
-          )
-        : undefined;
-    if (found) {
-      this.unchanged++;
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    this.ops.push({
-      path: "/create_relationship",
-      as,
-      body: {
-        type,
-        tail: tail.ref,
-        head: head.ref,
-        ...(more.name !== undefined && { name: more.name }),
-        ...(more.properties && { properties: more.properties }),
-        ...(more.tailEnd && { tailEnd: more.tailEnd }),
-        ...(more.headEnd && { headEnd: more.headEnd }),
-      },
-    });
-    this.created.push({ path, type });
-    return { ref: `$${as}.model`, elem: null, path };
-  }
-
-  plan(root: Node): ModelPlan {
-    return {
-      ops: this.ops,
-      created: this.created,
-      updated: this.updated,
-      unchanged: this.unchanged,
-      refs: this.refs,
-      root: { ref: root.ref, path: root.path },
-      warnings: this.warnings,
-    };
-  }
+function attributeProps(a: AttributeSpec, type: unknown) {
+  return {
+    ...(type !== undefined && { type }),
+    ...(a.visibility !== undefined && { visibility: a.visibility }),
+    ...(a.isStatic !== undefined && { isStatic: a.isStatic }),
+    ...(a.multiplicity !== undefined && { multiplicity: a.multiplicity }),
+    ...(a.defaultValue !== undefined && { defaultValue: a.defaultValue }),
+  };
 }
 
-/** The relationship of `type` and `name` from `tail` to `head`, if there is one. */
-function findRelationship(
-  type: string,
-  tail: Element,
-  head: Element,
-  name: string,
-  claimed: ReadonlySet<Element>,
-): Element | undefined {
-  return app.repository.getRelationshipsOf(tail).find((r) => {
-    if (claimed.has(r) || r.constructor.name !== type) return false;
-    const [from, to] =
-      "source" in r
-        ? [r.source, r.target]
-        : [(r.end1 as Element).reference, (r.end2 as Element).reference];
-    return r.name === name && from === tail && to === head;
-  });
+function operationProps(o: OperationSpec) {
+  return {
+    ...(o.visibility !== undefined && { visibility: o.visibility }),
+    ...(o.isStatic !== undefined && { isStatic: o.isStatic }),
+    ...(o.isAbstract !== undefined && { isAbstract: o.isAbstract }),
+  };
 }
 
 /** Ends of an association a relationship word makes. */
@@ -607,9 +321,23 @@ export function planModel(spec: ModelSpec, options: PlanOptions): ModelPlan {
   // Members.
   const operations = new Map<string, Node>();
   for (const { node, spec: c } of classes.values()) {
-    for (const a of c.attributes) p.attribute(node, a, typeOf(a.type));
+    for (const a of c.attributes) {
+      p.attribute(node, a.name, attributeProps(a, typeOf(a.type)));
+    }
     for (const o of c.operations) {
-      operations.set(`${c.name}#${o.name}`, p.operation(node, o, typeOf));
+      operations.set(
+        `${c.name}#${o.name}`,
+        p.operation(
+          node,
+          o.name,
+          operationProps(o),
+          (o.parameters ?? []).map((x) => ({
+            name: x.name,
+            ...(x.type !== undefined && { type: typeOf(x.type) }),
+          })),
+          typeOf(o.returnType),
+        ),
+      );
     }
     for (const l of c.literals) p.literal(node, l);
   }
@@ -708,7 +436,14 @@ export function planModel(spec: ModelSpec, options: PlanOptions): ModelPlan {
         : classifier(l.subject, `spec.lifecycles.${i}.subject`),
     ),
   );
-  return p.plan(root);
+  return {
+    ops: p.ops,
+    created: p.created,
+    updated: p.updated,
+    unchanged: p.unchanged,
+    refs: p.refs,
+    root: { ref: root.ref, path: root.path },
+  };
 }
 
 interface Lookups {
@@ -754,8 +489,8 @@ function collaboration(
     if (typeNode) typeNames.set(part.name, part.type ?? part.name);
     const role = p.attribute(
       collab,
-      { name: part.name },
-      typeNode ? { $ref: typeNode.ref } : undefined,
+      part.name,
+      typeNode ? { type: { $ref: typeNode.ref } } : {},
     );
     lifelines.set(
       part.name,

@@ -1,0 +1,109 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Command",
+  "category": "behavioral",
+  "intent": "Encapsulate a request as an object, to parameterize, queue, log or undo requests.",
+  "roles": [
+    {
+      "name": "Command",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares the operation that executes.",
+      "operations": [
+        {
+          "name": "execute",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "ConcreteCommand",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Binds a receiver to an action.",
+      "operations": [
+        {
+          "name": "execute"
+        }
+      ]
+    },
+    {
+      "name": "Invoker",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Asks the command to carry out the request.",
+      "operations": [
+        {
+          "name": "setCommand",
+          "parameters": [
+            {
+              "name": "command",
+              "type": "{Command}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "executeCommand"
+        }
+      ]
+    },
+    {
+      "name": "Receiver",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Knows how to perform the request.",
+      "operations": [
+        {
+          "name": "action"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcreteCommand",
+      "to": "Command"
+    },
+    {
+      "type": "aggregation",
+      "from": "Invoker",
+      "to": "Command",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "command",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "association",
+      "from": "ConcreteCommand",
+      "to": "Receiver",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "receiver",
+        "multiplicity": "1"
+      }
+    }
+  ],
+  "alsoKnownAs": ["Action", "Transaction"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Invoker",
+        "to": "ConcreteCommand",
+        "text": "execute()"
+      },
+      {
+        "from": "ConcreteCommand",
+        "to": "Receiver",
+        "text": "action()"
+      }
+    ],
+    "participants": ["Invoker", "ConcreteCommand", "Receiver"]
+  }
+}

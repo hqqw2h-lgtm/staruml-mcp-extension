@@ -1,0 +1,348 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Proxy sequence",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLInterface",
+     "name": "Subject",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#4",
+       "_type": "UMLOperation",
+       "name": "request",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": true
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLClass",
+     "name": "RealSubject",
+     "ownedElements": [
+      {
+       "_id": "#6",
+       "_type": "UMLInterfaceRealization",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#5"
+       },
+       "target": {
+        "$ref": "#3"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#7",
+       "_type": "UMLOperation",
+       "name": "request",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLClass",
+     "name": "Proxy",
+     "ownedElements": [
+      {
+       "_id": "#9",
+       "_type": "UMLInterfaceRealization",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#8"
+       },
+       "target": {
+        "$ref": "#3"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      },
+      {
+       "_id": "#10",
+       "_type": "UMLAssociation",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "end1": {
+        "_id": "#11",
+        "_type": "UMLAssociationEnd",
+        "name": "",
+        "ownedElements": [],
+        "documentation": "",
+        "reference": {
+         "$ref": "#8"
+        },
+        "stereotype": "",
+        "visibility": "public",
+        "navigable": "notNavigable",
+        "aggregation": "none",
+        "multiplicity": "",
+        "defaultValue": "",
+        "isReadOnly": false,
+        "isID": false
+       },
+       "end2": {
+        "_id": "#12",
+        "_type": "UMLAssociationEnd",
+        "name": "realSubject",
+        "ownedElements": [],
+        "documentation": "",
+        "reference": {
+         "$ref": "#5"
+        },
+        "stereotype": "",
+        "visibility": "public",
+        "navigable": "navigable",
+        "aggregation": "none",
+        "multiplicity": "1",
+        "defaultValue": "",
+        "isReadOnly": false,
+        "isID": false
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "Proxy stands in for RealSubject.",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#13",
+       "_type": "UMLOperation",
+       "name": "request",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLClassDiagram",
+     "name": "Proxy",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#15",
+       "_type": "UMLInterfaceView",
+       "model": {
+        "$ref": "#3"
+       }
+      },
+      {
+       "_id": "#16",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#5"
+       }
+      },
+      {
+       "_id": "#17",
+       "_type": "UMLInterfaceRealizationView",
+       "model": {
+        "$ref": "#6"
+       }
+      },
+      {
+       "_id": "#18",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#8"
+       }
+      },
+      {
+       "_id": "#19",
+       "_type": "UMLInterfaceRealizationView",
+       "model": {
+        "$ref": "#9"
+       }
+      },
+      {
+       "_id": "#20",
+       "_type": "UMLAssociationView",
+       "model": {
+        "$ref": "#10"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#21",
+     "_type": "UMLSequenceDiagram",
+     "name": "Proxy sequence",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#22",
+       "_type": "UMLFrameView",
+       "model": {
+        "$ref": "#21"
+       }
+      },
+      {
+       "_id": "#23",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#24"
+       }
+      },
+      {
+       "_id": "#25",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#26"
+       }
+      },
+      {
+       "_id": "#27",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#28"
+       }
+      },
+      {
+       "_id": "#29",
+       "_type": "UMLSeqMessageView",
+       "model": {
+        "$ref": "#30"
+       }
+      },
+      {
+       "_id": "#31",
+       "_type": "UMLSeqMessageView",
+       "model": {
+        "$ref": "#32"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#24",
+     "_type": "UMLLifeline",
+     "name": "Client",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#26",
+     "_type": "UMLLifeline",
+     "name": "Proxy",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#28",
+     "_type": "UMLLifeline",
+     "name": "RealSubject",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#30",
+     "_type": "UMLMessage",
+     "name": "request()",
+     "ownedElements": [],
+     "documentation": "",
+     "source": {
+      "$ref": "#24"
+     },
+     "target": {
+      "$ref": "#26"
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "messageSort": "synchCall"
+    },
+    {
+     "_id": "#32",
+     "_type": "UMLMessage",
+     "name": "request()",
+     "ownedElements": [],
+     "documentation": "",
+     "source": {
+      "$ref": "#26"
+     },
+     "target": {
+      "$ref": "#28"
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "messageSort": "synchCall"
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

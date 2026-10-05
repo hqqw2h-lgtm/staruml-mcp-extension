@@ -1,0 +1,79 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Bridge",
+  "category": "structural",
+  "intent": "Decouple an abstraction from its implementation so the two can vary independently.",
+  "roles": [
+    {
+      "name": "Abstraction",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Defines the abstraction's interface and holds an implementor.",
+      "properties": {
+        "isAbstract": true
+      },
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    },
+    {
+      "name": "RefinedAbstraction",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Extends the abstraction.",
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    },
+    {
+      "name": "Implementor",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of the implementation classes.",
+      "operations": [
+        {
+          "name": "operationImpl",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "ConcreteImplementor",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Implements the implementor interface.",
+      "operations": [
+        {
+          "name": "operationImpl"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "RefinedAbstraction",
+      "to": "Abstraction"
+    },
+    {
+      "type": "aggregation",
+      "from": "Abstraction",
+      "to": "Implementor",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "impl",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteImplementor",
+      "to": "Implementor"
+    }
+  ],
+  "alsoKnownAs": ["Handle/Body"]
+}

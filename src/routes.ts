@@ -46,6 +46,14 @@ import {
 } from "./handlers/diff.js";
 import { umlLint } from "./handlers/uml-lint.js";
 import {
+  applyPatternEndpoint,
+  applyPresetEndpoint,
+  describePattern,
+  describeType,
+  detectPatterns,
+  listPatterns,
+} from "./handlers/patterns.js";
+import {
   buildModelEndpoint,
   checkMessages,
   syncOperationsEndpoint,
@@ -204,6 +212,13 @@ export const endpoints: readonly Endpoint[] = [
   buildModelEndpoint(() => endpoints),
   syncOperationsEndpoint(() => endpoints),
   checkMessages,
+
+  listPatterns,
+  describePattern,
+  applyPatternEndpoint(() => endpoints),
+  detectPatterns,
+  applyPresetEndpoint(() => endpoints),
+  describeType,
 
   introspectEndpoint(() => endpoints),
   debug,

@@ -1,0 +1,96 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Template Method",
+  "category": "behavioral",
+  "intent": "Define the skeleton of an algorithm in an operation, deferring some steps to subclasses.",
+  "roles": [
+    {
+      "name": "AbstractClass",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Defines the template method and the steps it calls.",
+      "properties": {
+        "isAbstract": true
+      },
+      "documentation": "{AbstractClass}.templateMethod() fixes the order of the steps its subclasses fill in.",
+      "operations": [
+        {
+          "name": "templateMethod",
+          "isLeaf": true,
+          "visibility": "public"
+        },
+        {
+          "name": "primitiveOperation1",
+          "isAbstract": true,
+          "visibility": "protected"
+        },
+        {
+          "name": "primitiveOperation2",
+          "isAbstract": true,
+          "visibility": "protected"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteClass",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Implements the steps.",
+      "operations": [
+        {
+          "name": "primitiveOperation1",
+          "visibility": "protected"
+        },
+        {
+          "name": "primitiveOperation2",
+          "visibility": "protected"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "ConcreteClass",
+      "to": "AbstractClass"
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "ConcreteClass",
+        "text": "templateMethod()"
+      },
+      {
+        "from": "ConcreteClass",
+        "to": "ConcreteClass",
+        "text": "primitiveOperation1()"
+      },
+      {
+        "from": "ConcreteClass",
+        "to": "ConcreteClass",
+        "text": "primitiveOperation2()"
+      }
+    ],
+    "participants": ["Client", "ConcreteClass"]
+  },
+  "checks": [
+    {
+      "id": "template-method-final",
+      "role": "AbstractClass",
+      "property": "isLeaf",
+      "equals": true,
+      "message": "A template method is final (isLeaf), so subclasses change the steps, not their order.",
+      "member": "templateMethod"
+    },
+    {
+      "id": "template-steps-abstract",
+      "role": "AbstractClass",
+      "property": "isAbstract",
+      "equals": true,
+      "message": "The steps of a template method are abstract in the abstract class.",
+      "member": "primitiveOperation1"
+    }
+  ]
+}

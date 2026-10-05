@@ -1,0 +1,41 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Service",
+  "category": "domain",
+  "intent": "Model a domain operation that belongs to no entity or value as a stateless service.",
+  "roles": [
+    {
+      "name": "Service",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares the domain operations.",
+      "stereotype": "service",
+      "documentation": "{Service} is stateless; its operations work on the domain objects passed to them.",
+      "operations": [
+        {
+          "name": "execute",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "ServiceImpl",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Implements the operations without keeping state.",
+      "stereotype": "service",
+      "operations": [
+        {
+          "name": "execute"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ServiceImpl",
+      "to": "Service"
+    }
+  ]
+}

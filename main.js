@@ -28,14 +28,14 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
-  for (var name3 in all)
-    __defProp(target, name3, { get: all[name3], enumerable: true });
+  for (var name4 in all)
+    __defProp(target, name4, { get: all[name4], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    for (let key2 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key2) && key2 !== except)
+        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
   }
   return to;
 };
@@ -440,6 +440,53 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
+function rawShape(def) {
+  const desc = Object.getOwnPropertyDescriptor(def, "shape");
+  return desc?.get ? desc.get.raw : desc?.value;
+}
+function sourceShape(schema) {
+  return rawShape(schema._zod.def) ?? schema._zod.def.shape;
+}
+function deferProp(target, key2, getter) {
+  Object.defineProperty(target, key2, {
+    get() {
+      const value = getter();
+      assignProp(this, key2, value);
+      return value;
+    },
+    enumerable: true,
+    configurable: true
+  });
+}
+function putProp(target, key2, value) {
+  if (key2 in target)
+    assignProp(target, key2, value);
+  else
+    target[key2] = value;
+}
+function mirrorShape(target, source, keys, wrap) {
+  const raw = sourceShape(source);
+  for (const key2 of keys) {
+    const desc = Object.getOwnPropertyDescriptor(raw, key2);
+    if (!desc.enumerable)
+      continue;
+    if (desc.get) {
+      deferProp(target, key2, () => {
+        const value = source._zod.def.shape[key2];
+        return wrap ? wrap(value, key2) : value;
+      });
+    } else
+      putProp(target, key2, wrap ? wrap(desc.value, key2) : desc.value);
+  }
+}
+function mergeDefs(...defs) {
+  const mergedDescriptors = {};
+  for (const def of defs) {
+    const descriptors = Object.getOwnPropertyDescriptors(def);
+    Object.assign(mergedDescriptors, descriptors);
+  }
+  return Object.defineProperties({}, mergedDescriptors);
+}
 var captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {
 };
 function isObject(data) {
@@ -510,6 +557,30 @@ var BIGINT_FORMAT_RANGES = {
   int64: [/* @__PURE__ */ BigInt("-9223372036854775808"), /* @__PURE__ */ BigInt("9223372036854775807")],
   uint64: [/* @__PURE__ */ BigInt(0), /* @__PURE__ */ BigInt("18446744073709551615")]
 };
+function maskedKeys(schema, mask) {
+  const raw = sourceShape(schema);
+  const keys = [];
+  for (const key2 of Reflect.ownKeys(mask)) {
+    if (!Object.getOwnPropertyDescriptor(raw, key2)?.enumerable) {
+      throw new Error(`Unrecognized key: "${String(key2)}"`);
+    }
+    if (mask[key2])
+      keys.push(key2);
+  }
+  return keys;
+}
+function partial(Class, schema, mask, name4 = "partial") {
+  const currDef = schema._zod.def;
+  const checks = currDef.checks;
+  const hasChecks = checks && checks.length > 0;
+  if (hasChecks) {
+    throw new Error(`.${name4}() cannot be used on object schemas containing refinements`);
+  }
+  const selected = mask ? new Set(maskedKeys(schema, mask)) : void 0;
+  const newShape = {};
+  mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)), Class && ((value, key2) => selected && !selected.has(key2) ? value : new Class({ type: "optional", innerType: value })));
+  return clone(schema, mergeDefs(schema._zod.def, { shape: newShape, checks: [] }));
+}
 function aborted(x, startIndex = 0) {
   if (x.aborted === true)
     return true;
@@ -626,29 +697,29 @@ function issue(...args) {
   return { ...iss };
 }
 function members(proto, table) {
-  for (const key in table) {
-    const desc = Object.getOwnPropertyDescriptor(table, key);
+  for (const key2 in table) {
+    const desc = Object.getOwnPropertyDescriptor(table, key2);
     if (desc.get)
-      Object.defineProperty(proto, key, { ...desc, enumerable: false });
+      Object.defineProperty(proto, key2, { ...desc, enumerable: false });
     else
-      defineBound(proto, key, desc.value);
+      defineBound(proto, key2, desc.value);
   }
 }
-function own(inst, key, value, enumerable = true) {
-  Object.defineProperty(inst, key, { configurable: true, writable: true, enumerable, value });
+function own(inst, key2, value, enumerable = true) {
+  Object.defineProperty(inst, key2, { configurable: true, writable: true, enumerable, value });
   return value;
 }
-function hide(inst, key, value) {
-  return own(inst, key, value, false);
+function hide(inst, key2, value) {
+  return own(inst, key2, value, false);
 }
-function defineBound(proto, key, fn) {
-  Object.defineProperty(proto, key, {
+function defineBound(proto, key2, fn) {
+  Object.defineProperty(proto, key2, {
     configurable: true,
     get() {
-      return this == null ? fn : own(this, key, fn.bind(this));
+      return this == null ? fn : own(this, key2, fn.bind(this));
     },
     set(value) {
-      own(this, key, value);
+      own(this, key2, value);
     }
   });
 }
@@ -665,53 +736,53 @@ var breaker = {
     return void 0;
   }
 };
-function defineLazyInternal(inst, key, compute) {
+function defineLazyInternal(inst, key2, compute) {
   const proto = Object.getPrototypeOf(inst._zod);
-  if (key in proto && installing !== inst._zod) {
+  if (key2 in proto && installing !== inst._zod) {
     installing = void 0;
     return;
   }
   installing = inst._zod;
-  Object.defineProperty(proto, key, {
+  Object.defineProperty(proto, key2, {
     configurable: true,
     get() {
-      Object.defineProperty(this, key, breaker);
+      Object.defineProperty(this, key2, breaker);
       const outer = broke;
       broke = false;
       try {
         const value = compute(this);
         if (broke)
-          delete this[key];
+          delete this[key2];
         else
-          Object.defineProperty(this, key, { configurable: true, writable: true, value });
+          Object.defineProperty(this, key2, { configurable: true, writable: true, value });
         broke = broke || outer;
         return value;
       } catch (err) {
-        delete this[key];
+        delete this[key2];
         broke = broke || outer;
         throw err;
       }
     },
     set(value) {
-      Object.defineProperty(this, key, { configurable: true, writable: true, value });
+      Object.defineProperty(this, key2, { configurable: true, writable: true, value });
     }
   });
 }
-function installLazyProp(inst, key, make, enumerable) {
-  const proto = claim(inst, key);
+function installLazyProp(inst, key2, make, enumerable) {
+  const proto = claim(inst, key2);
   if (!proto)
     return;
-  Object.defineProperty(proto, key, {
+  Object.defineProperty(proto, key2, {
     configurable: true,
     get() {
       const desc = { configurable: true, writable: true, enumerable, value: void 0 };
-      Object.defineProperty(this, key, desc);
+      Object.defineProperty(this, key2, desc);
       desc.value = make(this);
-      Object.defineProperty(this, key, desc);
+      Object.defineProperty(this, key2, desc);
       return desc.value;
     },
     set(value) {
-      Object.defineProperty(this, key, { configurable: true, writable: true, enumerable, value });
+      Object.defineProperty(this, key2, { configurable: true, writable: true, enumerable, value });
     }
   });
 }
@@ -741,7 +812,7 @@ function newError(Definition) {
   return new Definition();
 }
 // @__NO_SIDE_EFFECTS__
-function $constructor(name3, initializer2, proto, params) {
+function $constructor(name4, initializer2, proto, params) {
   const zodProto = {};
   function Internals(def) {
     this.def = def;
@@ -759,10 +830,10 @@ function $constructor(name3, initializer2, proto, params) {
       } finally {
         _zodDesc.value = void 0;
       }
-    } else if (inst._zod.traits.has(name3)) {
+    } else if (inst._zod.traits.has(name4)) {
       return;
     }
-    inst._zod.traits.add(name3);
+    inst._zod.traits.add(name4);
     initializer2(inst, def);
     if (initialized) {
       const own2 = Object.getPrototypeOf(inst);
@@ -788,7 +859,7 @@ function $constructor(name3, initializer2, proto, params) {
   const Parent = params?.Parent ?? Object;
   class Definition extends Parent {
   }
-  Object.defineProperty(Definition, "name", { value: name3 });
+  Object.defineProperty(Definition, "name", { value: name4 });
   function _(def) {
     const inst = params?.Parent ? newError(Definition) : this;
     init2(inst, def);
@@ -809,10 +880,10 @@ function $constructor(name3, initializer2, proto, params) {
     value: (inst) => {
       if (params?.Parent && inst instanceof params.Parent)
         return true;
-      return inst?._zod?.traits?.has(name3);
+      return inst?._zod?.traits?.has(name4);
     }
   });
-  Object.defineProperty(_, "name", { value: name3 });
+  Object.defineProperty(_, "name", { value: name4 });
   return _;
 }
 var $ZodAsyncError = class extends Error {
@@ -1380,8 +1451,8 @@ function handleArrayResult(result, final, index) {
 }
 var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
   $ZodType.init(inst, def);
-  const memo = globalConfig.memoizer;
-  memo?.attach(inst);
+  const memo2 = globalConfig.memoizer;
+  memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
     const input = payload.value;
     if (!Array.isArray(input)) {
@@ -1393,7 +1464,7 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
       });
       return payload;
     }
-    payload.value = memo ? memo.alloc(inst, payload, Array(input.length), ctx) : Array(input.length);
+    payload.value = memo2 ? memo2.alloc(inst, payload, Array(input.length), ctx) : Array(input.length);
     const proms = [];
     const abortEarly = ctx?.abortEarly;
     for (let i = 0; i < input.length; i++) {
@@ -1416,8 +1487,8 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     return payload;
   };
 });
-function handlePropertyResult(result, final, key, input, optin, optout) {
-  const isPresent = key in input;
+function handlePropertyResult(result, final, key2, input, optin, optout) {
+  const isPresent = key2 in input;
   const isOptionalOut = optout === "optional";
   if (!isPresent && isOptionalOut && optin === "optional") {
     return;
@@ -1426,7 +1497,7 @@ function handlePropertyResult(result, final, key, input, optin, optout) {
     if (optin !== void 0 && isOptionalOut && !isPresent) {
       return;
     }
-    final.issues.push(...prefixIssues(key, result.issues));
+    final.issues.push(...prefixIssues(key2, result.issues));
   }
   if (!isPresent && optin === void 0) {
     if (!result.issues.length) {
@@ -1434,17 +1505,17 @@ function handlePropertyResult(result, final, key, input, optin, optout) {
         code: "invalid_type",
         expected: "nonoptional",
         input: void 0,
-        path: [key]
+        path: [key2]
       });
     }
     return;
   }
   if (result.value === void 0) {
     if (isPresent || optin === "defaulted" && !isOptionalOut) {
-      final.value[key] = void 0;
+      final.value[key2] = void 0;
     }
   } else {
-    final.value[key] = result.value;
+    final.value[key2] = result.value;
   }
 }
 var NO_SYMBOL_KEYS = [];
@@ -1477,28 +1548,28 @@ function handleCatchall(proms, input, payload, ctx, def, inst, abortEarly) {
   const optin = _catchall.optin;
   const optout = _catchall.optout;
   let seen = 0;
-  for (const key in input) {
+  for (const key2 in input) {
     if (abortEarly && payload.issues.length !== seen) {
       if (aborted(payload, seen))
         break;
       seen = payload.issues.length;
     }
-    if (keySet.has(key))
+    if (keySet.has(key2))
       continue;
-    if (key === "__proto__") {
+    if (key2 === "__proto__") {
       if (t === "never")
-        unrecognized.push(key);
+        unrecognized.push(key2);
       continue;
     }
     if (t === "never") {
-      unrecognized.push(key);
+      unrecognized.push(key2);
       continue;
     }
-    const r = _catchall.run({ value: input[key], issues: [] }, ctx);
+    const r = _catchall.run({ value: input[key2], issues: [] }, ctx);
     if (r instanceof Promise) {
-      proms.push(r.then((r2) => handlePropertyResult(r2, payload, key, input, optin, optout)));
+      proms.push(r.then((r2) => handlePropertyResult(r2, payload, key2, input, optin, optout)));
     } else {
-      handlePropertyResult(r, payload, key, input, optin, optout);
+      handlePropertyResult(r, payload, key2, input, optin, optout);
     }
   }
   if (unrecognized.length) {
@@ -1535,16 +1606,16 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   defineLazyInternal(inst, "propValues", (zod) => {
     const shape = zod.def.shape;
     const propValues = {};
-    for (const key in shape) {
-      const field = shape[key]._zod;
+    for (const key2 in shape) {
+      const field = shape[key2]._zod;
       if (field.values) {
-        if (!Object.prototype.hasOwnProperty.call(propValues, key)) {
-          assignProp(propValues, key, /* @__PURE__ */ new Set());
+        if (!Object.prototype.hasOwnProperty.call(propValues, key2)) {
+          assignProp(propValues, key2, /* @__PURE__ */ new Set());
         }
         for (const v of field.values)
-          propValues[key].add(v);
+          propValues[key2].add(v);
         if (field.optin !== void 0)
-          propValues[key].add(void 0);
+          propValues[key2].add(void 0);
       }
     }
     return propValues;
@@ -1552,8 +1623,8 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   const isObject3 = isObject;
   const catchall = def.catchall;
   let value;
-  const memo = globalConfig.memoizer;
-  memo?.attach(inst);
+  const memo2 = globalConfig.memoizer;
+  memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
     const input = payload.value;
@@ -1566,27 +1637,27 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
       });
       return payload;
     }
-    payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+    payload.value = memo2 ? memo2.alloc(inst, payload, {}, ctx) : {};
     const proms = [];
     const shape = value.shape;
     const abortEarly = ctx?.abortEarly;
     let seen = payload.issues.length;
-    for (const key of value.allKeys) {
+    for (const key2 of value.allKeys) {
       if (abortEarly && payload.issues.length !== seen) {
         if (aborted(payload, seen))
           break;
         seen = payload.issues.length;
       }
-      if (key === "__proto__")
+      if (key2 === "__proto__")
         continue;
-      const el = shape[key];
+      const el = shape[key2];
       const optin = el._zod.optin;
       const optout = el._zod.optout;
-      const r = el._zod.run({ value: input[key], issues: [] }, ctx);
+      const r = el._zod.run({ value: input[key2], issues: [] }, ctx);
       if (r instanceof Promise) {
-        proms.push(r.then((r2) => handlePropertyResult(r2, payload, key, input, optin, optout)));
+        proms.push(r.then((r2) => handlePropertyResult(r2, payload, key2, input, optin, optout)));
       } else {
-        handlePropertyResult(r, payload, key, input, optin, optout);
+        handlePropertyResult(r, payload, key2, input, optin, optout);
       }
     }
     if (!catchall) {
@@ -1627,8 +1698,8 @@ var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
   });
   defineLazyInternal(inst, "pattern", (zod) => {
     if (zod.def.options.every((o) => o._zod.pattern)) {
-      const patterns = zod.def.options.map((o) => o._zod.pattern);
-      return new RegExp(`^(${patterns.map((p) => cleanRegex(p.source)).join("|")})$`);
+      const patterns2 = zod.def.options.map((o) => o._zod.pattern);
+      return new RegExp(`^(${patterns2.map((p) => cleanRegex(p.source)).join("|")})$`);
     }
     return void 0;
   });
@@ -1662,8 +1733,8 @@ var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
 });
 var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
   $ZodType.init(inst, def);
-  const memo = globalConfig.memoizer;
-  memo?.attach(inst);
+  const memo2 = globalConfig.memoizer;
+  memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
     const input = payload.value;
     if (!isPlainObject(input)) {
@@ -1678,14 +1749,14 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
     const proms = [];
     const values = def.keyType._zod.values;
     if (values && !def.partial) {
-      payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+      payload.value = memo2 ? memo2.alloc(inst, payload, {}, ctx) : {};
       const recordKeys = /* @__PURE__ */ new Set();
-      for (const key of values) {
-        if (typeof key === "string" || typeof key === "number" || typeof key === "symbol") {
-          recordKeys.add(typeof key === "number" ? key.toString() : key);
-          if (key === "__proto__")
+      for (const key2 of values) {
+        if (typeof key2 === "string" || typeof key2 === "number" || typeof key2 === "symbol") {
+          recordKeys.add(typeof key2 === "number" ? key2.toString() : key2);
+          if (key2 === "__proto__")
             continue;
-          const keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
+          const keyResult = def.keyType._zod.run({ value: key2, issues: [] }, ctx);
           if (keyResult instanceof Promise) {
             throw new Error("Async schemas not supported in object keys currently");
           }
@@ -1694,8 +1765,8 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
               code: "invalid_key",
               origin: "record",
               issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
-              input: key,
-              path: [key],
+              input: key2,
+              path: [key2],
               inst
             });
             continue;
@@ -1703,32 +1774,32 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
           const outKey = keyResult.value;
           if (outKey === "__proto__")
             continue;
-          const result = def.valueType._zod.run({ value: input[key], issues: [] }, ctx);
+          const result = def.valueType._zod.run({ value: input[key2], issues: [] }, ctx);
           if (result instanceof Promise) {
             proms.push(result.then((result2) => {
               if (result2.issues.length) {
-                payload.issues.push(...prefixIssues(key, result2.issues));
+                payload.issues.push(...prefixIssues(key2, result2.issues));
               }
               payload.value[outKey] = result2.value;
             }));
           } else {
             if (result.issues.length) {
-              payload.issues.push(...prefixIssues(key, result.issues));
+              payload.issues.push(...prefixIssues(key2, result.issues));
             }
             payload.value[outKey] = result.value;
           }
         }
       }
       let unrecognized;
-      for (const key in input) {
-        if (!recordKeys.has(key)) {
+      for (const key2 in input) {
+        if (!recordKeys.has(key2)) {
           if (def.mode === "loose") {
-            if (key === "__proto__")
+            if (key2 === "__proto__")
               continue;
-            payload.value[key] = input[key];
+            payload.value[key2] = input[key2];
           } else {
             unrecognized = unrecognized ?? [];
-            unrecognized.push(key);
+            unrecognized.push(key2);
           }
         }
       }
@@ -1742,20 +1813,20 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         });
       }
     } else {
-      payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+      payload.value = memo2 ? memo2.alloc(inst, payload, {}, ctx) : {};
       let unrecognized;
-      for (const key of Reflect.ownKeys(input)) {
-        if (key === "__proto__")
+      for (const key2 of Reflect.ownKeys(input)) {
+        if (key2 === "__proto__")
           continue;
-        if (!Object.prototype.propertyIsEnumerable.call(input, key))
+        if (!Object.prototype.propertyIsEnumerable.call(input, key2))
           continue;
-        let keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
+        let keyResult = def.keyType._zod.run({ value: key2, issues: [] }, ctx);
         if (keyResult instanceof Promise) {
           throw new Error("Async schemas not supported in object keys currently");
         }
-        const checkNumericKey = typeof key === "string" && number.test(key) && keyResult.issues.length;
+        const checkNumericKey = typeof key2 === "string" && number.test(key2) && keyResult.issues.length;
         if (checkNumericKey) {
-          const retryResult = def.keyType._zod.run({ value: Number(key), issues: [] }, ctx);
+          const retryResult = def.keyType._zod.run({ value: Number(key2), issues: [] }, ctx);
           if (retryResult instanceof Promise) {
             throw new Error("Async schemas not supported in object keys currently");
           }
@@ -1765,17 +1836,17 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         }
         if (keyResult.issues.length) {
           if (def.mode === "loose") {
-            payload.value[key] = input[key];
+            payload.value[key2] = input[key2];
           } else if (values) {
             unrecognized = unrecognized ?? [];
-            unrecognized.push(key);
+            unrecognized.push(key2);
           } else {
             payload.issues.push({
               code: "invalid_key",
               origin: "record",
               issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
-              input: key,
-              path: [key],
+              input: key2,
+              path: [key2],
               inst
             });
           }
@@ -1784,17 +1855,17 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         const outKey = keyResult.value;
         if (outKey === "__proto__")
           continue;
-        const result = def.valueType._zod.run({ value: input[key], issues: [] }, ctx);
+        const result = def.valueType._zod.run({ value: input[key2], issues: [] }, ctx);
         if (result instanceof Promise) {
           proms.push(result.then((result2) => {
             if (result2.issues.length) {
-              payload.issues.push(...prefixIssues(key, result2.issues));
+              payload.issues.push(...prefixIssues(key2, result2.issues));
             }
             payload.value[outKey] = result2.value;
           }));
         } else {
           if (result.issues.length) {
-            payload.issues.push(...prefixIssues(key, result.issues));
+            payload.issues.push(...prefixIssues(key2, result.issues));
           }
           payload.value[outKey] = result.value;
         }
@@ -2220,9 +2291,9 @@ function _refine(Class, fn, _params) {
 // node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
   for (const source of sources) {
-    for (const key of Reflect.ownKeys(source)) {
-      if (Object.prototype.propertyIsEnumerable.call(source, key)) {
-        assignProp(target, key, source[key]);
+    for (const key2 of Reflect.ownKeys(source)) {
+      if (Object.prototype.propertyIsEnumerable.call(source, key2)) {
+        assignProp(target, key2, source[key2]);
       }
     }
   }
@@ -2368,8 +2439,8 @@ function extractDefs(ctx, schema) {
     if (defId)
       seen.defId = defId;
     const schema2 = seen.schema;
-    for (const key in schema2) {
-      delete schema2[key];
+    for (const key2 in schema2) {
+      delete schema2[key2];
     }
     schema2.$ref = ref3;
   };
@@ -2450,8 +2521,8 @@ function foldObjects(members2) {
   for (const member of members2) {
     if (typeof member !== "object" || member.type !== "object")
       return null;
-    for (const key in member) {
-      if (!FOLDABLE_KEYS.has(key))
+    for (const key2 in member) {
+      if (!FOLDABLE_KEYS.has(key2))
         return null;
     }
     objects.push(member);
@@ -2459,22 +2530,22 @@ function foldObjects(members2) {
   const properties2 = {};
   const required2 = /* @__PURE__ */ new Set();
   for (const object2 of objects) {
-    for (const key in object2.properties) {
-      if (Object.prototype.hasOwnProperty.call(properties2, key))
+    for (const key2 in object2.properties) {
+      if (Object.prototype.hasOwnProperty.call(properties2, key2))
         continue;
       const parts = [];
       for (const other of objects) {
-        const part = other.properties?.[key] ?? undeclaredConstraint(other);
+        const part = other.properties?.[key2] ?? undeclaredConstraint(other);
         if (part === null || part === void 0)
           continue;
         if (!parts.some((seen) => JSON.stringify(seen) === JSON.stringify(part)))
           parts.push(part);
       }
       const merged = parts.length === 1 ? parts[0] : foldObjects(parts) ?? { allOf: parts };
-      assignProp(properties2, key, merged);
+      assignProp(properties2, key2, merged);
     }
-    for (const key of object2.required ?? [])
-      required2.add(key);
+    for (const key2 of object2.required ?? [])
+      required2.add(key2);
   }
   const folded = { type: "object", properties: properties2 };
   if (required2.size)
@@ -2499,8 +2570,8 @@ function foldIntersection(json) {
   const allOf = json.allOf;
   if (!Array.isArray(allOf) || allOf.length < 2)
     return;
-  for (const key of FOLDABLE_KEYS)
-    if (key in json)
+  for (const key2 of FOLDABLE_KEYS)
+    if (key2 in json)
       return;
   const unions = allOf.filter((m) => UNION_KEYS.some((k) => Array.isArray(m[k])));
   let folded = null;
@@ -2547,20 +2618,20 @@ function finalize(ctx, schema) {
       assignProps(schema2, _cached);
       const isParentRef = zodSchema._zod.parent === ref3;
       if (isParentRef) {
-        for (const key in schema2) {
-          if (key === "$ref" || key === "allOf")
+        for (const key2 in schema2) {
+          if (key2 === "$ref" || key2 === "allOf")
             continue;
-          if (!(key in _cached)) {
-            delete schema2[key];
+          if (!(key2 in _cached)) {
+            delete schema2[key2];
           }
         }
       }
       if (refSchema2.$ref && refSeen.def) {
-        for (const key in schema2) {
-          if (key === "$ref" || key === "allOf")
+        for (const key2 in schema2) {
+          if (key2 === "$ref" || key2 === "allOf")
             continue;
-          if (key in refSeen.def && JSON.stringify(schema2[key]) === JSON.stringify(refSeen.def[key])) {
-            delete schema2[key];
+          if (key2 in refSeen.def && JSON.stringify(schema2[key2]) === JSON.stringify(refSeen.def[key2])) {
+            delete schema2[key2];
           }
         }
       }
@@ -2572,11 +2643,11 @@ function finalize(ctx, schema) {
       if (parentSeen?.schema.$ref) {
         schema2.$ref = parentSeen.schema.$ref;
         if (parentSeen.def) {
-          for (const key in schema2) {
-            if (key === "$ref" || key === "allOf")
+          for (const key2 in schema2) {
+            if (key2 === "$ref" || key2 === "allOf")
               continue;
-            if (key in parentSeen.def && JSON.stringify(schema2[key]) === JSON.stringify(parentSeen.def[key])) {
-              delete schema2[key];
+            if (key2 in parentSeen.def && JSON.stringify(schema2[key2]) === JSON.stringify(parentSeen.def[key2])) {
+              delete schema2[key2];
             }
           }
         }
@@ -2709,8 +2780,8 @@ function isTransforming(_schema, _ctx) {
     return isTransforming(def.in, ctx) || isTransforming(def.out, ctx);
   }
   if (def.type === "object") {
-    for (const key in def.shape) {
-      if (isTransforming(def.shape[key], ctx))
+    for (const key2 in def.shape) {
+      if (isTransforming(def.shape[key2], ctx))
         return true;
     }
     return false;
@@ -2742,13 +2813,13 @@ var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) =
 };
 
 // node_modules/zod/v4/core/json-schema-processors.js
-var narrowMin = (agg, key, value) => {
-  if (agg[key] === void 0 || value > agg[key])
-    agg[key] = value;
+var narrowMin = (agg, key2, value) => {
+  if (agg[key2] === void 0 || value > agg[key2])
+    agg[key2] = value;
 };
-var narrowMax = (agg, key, value) => {
-  if (agg[key] === void 0 || value < agg[key])
-    agg[key] = value;
+var narrowMax = (agg, key2, value) => {
+  if (agg[key2] === void 0 || value < agg[key2])
+    agg[key2] = value;
 };
 var narrowBoth = (agg, value) => {
   narrowMin(agg, "minimum", value);
@@ -2805,8 +2876,8 @@ var contributors = {
 function aggregateChecks(schema) {
   const agg = {};
   const def = schema._zod.def;
-  const list4 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
-  for (const ch of list4)
+  const list5 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  for (const ch of list5)
     contributors[ch._zod.def.check]?.(agg, ch._zod.def);
   const bag = schema._zod.bag;
   if (bag.minimum !== void 0)
@@ -2846,7 +2917,7 @@ var exactPattern = (p) => exactPatterns.get(p) ?? p;
 var stringProcessor = (schema, ctx, _json, _params) => {
   const json = _json;
   json.type = "string";
-  const { minimum, maximum, format, patterns, contentEncoding, laxFormat } = aggregateChecks(schema);
+  const { minimum, maximum, format, patterns: patterns2, contentEncoding, laxFormat } = aggregateChecks(schema);
   if (typeof minimum === "number")
     json.minLength = minimum;
   if (typeof maximum === "number")
@@ -2861,8 +2932,8 @@ var stringProcessor = (schema, ctx, _json, _params) => {
   }
   if (contentEncoding)
     json.contentEncoding = contentEncoding;
-  if (patterns && patterns.size > 0) {
-    const patternList = [...patterns].map(exactPattern);
+  if (patterns2 && patterns2.size > 0) {
+    const patternList = [...patterns2].map(exactPattern);
     if (patternList.length === 1)
       json.pattern = patternList[0].source;
     else if (patternList.length > 1) {
@@ -3086,17 +3157,17 @@ var objectProcessor = (schema, ctx, _json, params) => {
   }
   json.type = "object";
   json.properties = {};
-  for (const key in shape) {
-    assignProp(json.properties, key, processSchema(shape[key], ctx, {
+  for (const key2 in shape) {
+    assignProp(json.properties, key2, processSchema(shape[key2], ctx, {
       ...params,
-      path: [...params.path, "properties", key]
+      path: [...params.path, "properties", key2]
     }));
   }
   const requiredKeys = [];
-  for (const key of Object.keys(shape)) {
-    const field = def.shape[key];
+  for (const key2 of Object.keys(shape)) {
+    const field = def.shape[key2];
     if (ctx.io === "input" ? inputOptin(field) === void 0 : field._zod.optout === void 0) {
-      requiredKeys.push(key);
+      requiredKeys.push(key2);
     }
   }
   if (requiredKeys.length > 0) {
@@ -3277,14 +3348,14 @@ var recordProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
   json.type = "object";
   const keyType = def.keyType;
-  const patterns = aggregateChecks(keyType).patterns;
-  if (def.mode === "loose" && patterns && patterns.size > 0) {
+  const patterns2 = aggregateChecks(keyType).patterns;
+  if (def.mode === "loose" && patterns2 && patterns2.size > 0) {
     const valueSchema = processSchema(def.valueType, ctx, {
       ...params,
       path: [...params.path, "patternProperties", "*"]
     });
     json.patternProperties = {};
-    for (const pattern2 of patterns) {
+    for (const pattern2 of patterns2) {
       assignProp(json.patternProperties, exactPattern(pattern2).source, valueSchema);
     }
   } else {
@@ -3471,9 +3542,9 @@ function toJSONSchema(input, params) {
     };
     ctx2.external = external;
     for (const entry of registry2._idmap.entries()) {
-      const [key, schema] = entry;
+      const [key2, schema] = entry;
       extractDefs(ctx2, schema);
-      assignProp(schemas, key, finalize(ctx2, schema));
+      assignProp(schemas, key2, finalize(ctx2, schema));
     }
     if (Object.keys(defs).length > 0) {
       const defsSegment = ctx2.target === "draft-2020-12" ? "$defs" : "definitions";
@@ -3612,6 +3683,18 @@ function looseObject(shape, params) {
     shape,
     catchall: /* @__PURE__ */ unknown(),
     ...normalizeParams(params)
+  });
+}
+// @__NO_SIDE_EFFECTS__
+function partial2(schema, mask) {
+  const def = schema._zod.def;
+  if (def.type !== "tuple")
+    return partial(ZodMiniOptional, schema, mask);
+  if (def.checks?.length)
+    throw new Error(".partial() cannot be used on tuple schemas containing refinements");
+  return clone(schema, {
+    ...def,
+    items: def.items.map((item) => new ZodMiniOptional({ type: "optional", innerType: item }))
   });
 }
 var ZodMiniUnion = /* @__PURE__ */ $constructor("ZodMiniUnion", (inst, def) => {
@@ -3793,12 +3876,12 @@ var THROTTLED = [
   "/generate_code",
   "/reverse_code"
 ];
-function positiveInt(key, fallback) {
-  const value = app.preferences.get(key, fallback);
+function positiveInt(key2, fallback) {
+  const value = app.preferences.get(key2, fallback);
   return Number.isInteger(value) && value > 0 ? value : fallback;
 }
-function text(key) {
-  const value = app.preferences.get(key, "");
+function text(key2) {
+  const value = app.preferences.get(key2, "");
   return typeof value === "string" ? value.trim() : "";
 }
 function maxBodyBytes() {
@@ -3901,21 +3984,21 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text4, name3, path, results) {
-  const result = results.get(name3);
+function lookup(text4, name4, path, results) {
+  const result = results.get(name4);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text4}: no earlier op is named ${name3}`
+      `${text4}: no earlier op is named ${name4}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text4}: op ${name3} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text4}: op ${name4} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
-    const key = segment === "id" ? "_id" : segment;
-    value = value !== null && typeof value === "object" ? value[key] : void 0;
+    const key2 = segment === "id" ? "_id" : segment;
+    value = value !== null && typeof value === "object" ? value[key2] : void 0;
   }
   if (value !== null && typeof value === "object") {
     const { _id, $ref } = value;
@@ -4013,7 +4096,7 @@ async function runOp(op, endpoint, results) {
 }
 async function recording(run) {
   const operations = [];
-  const listener = (operation) => operations.push(operation);
+  const listener = (operation2) => operations.push(operation2);
   app.repository.on("operationExecuted", listener);
   try {
     return { value: await run(), operations };
@@ -4094,6 +4177,7 @@ async function runBatch(endpoints2, ops, atomic = true, max = maxBatchOps()) {
     results
   };
 }
+var batchRunner = { run: runBatch };
 function batchEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/batch",
@@ -4140,8 +4224,8 @@ function batchEndpoint(endpoints2) {
 }
 
 // src/build/members.ts
-function multiline(name3) {
-  return name3.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
+function multiline(name4) {
+  return name4.replace(/<br\s*\/?>/gi, "\n").replace(/\\n/g, "\n").trim();
 }
 var VISIBILITY = {
   "+": "public",
@@ -4201,11 +4285,11 @@ function parseOperation(source) {
   const vis = visibility(mod.text);
   const open = vis.text.indexOf("(");
   const close = vis.text.lastIndexOf(")");
-  const name3 = vis.text.slice(0, open).trim();
+  const name4 = vis.text.slice(0, open).trim();
   const params = vis.text.slice(open + 1, close).trim();
   const returnType = vis.text.slice(close + 1).replace(/^\s*:/, "").trim();
   return {
-    name: name3,
+    name: name4,
     ...params && {
       parameters: params.split(",").map((p) => typedName(p.trim()))
     },
@@ -4293,12 +4377,12 @@ function parseJsonSchema(source, as) {
     named3.set(rootName, root);
     pointers.set(root, "#");
   }
-  for (const [name3, schema] of Object.entries(defs)) {
+  for (const [name4, schema] of Object.entries(defs)) {
     if (!isObject2(schema)) {
-      return fail(`#/${defsKey}/${name3}`, "is not a schema");
+      return fail(`#/${defsKey}/${name4}`, "is not a schema");
     }
-    named3.set(name3, schema);
-    pointers.set(schema, `#/${defsKey}/${name3}`);
+    named3.set(name4, schema);
+    pointers.set(schema, `#/${defsKey}/${name4}`);
   }
   if (named3.size === 0)
     fail("", "no object schema: give the root properties, or $defs");
@@ -4312,11 +4396,11 @@ function parseJsonSchema(source, as) {
         "UNSUPPORTED_SYNTAX"
       );
     }
-    const name3 = decodeURIComponent(
+    const name4 = decodeURIComponent(
       m[2].replace(/~1/g, "/").replace(/~0/g, "~")
     );
-    if (!named3.has(name3)) fail(pointer, `$ref ${ref3} names no definition`);
-    return name3;
+    if (!named3.has(name4)) fail(pointer, `$ref ${ref3} names no definition`);
+    return name4;
   };
   const shape = (s, pointer) => {
     for (const keyword of ["oneOf", "not", "$dynamicRef", "$recursiveRef"]) {
@@ -4360,9 +4444,9 @@ function parseJsonSchema(source, as) {
   const entities2 = [];
   const relationships = [];
   const done = /* @__PURE__ */ new Set();
-  const visit = (name3, s, pointer) => {
-    if (done.has(name3)) return;
-    done.add(name3);
+  const visit = (name4, s, pointer) => {
+    if (done.has(name4)) return;
+    done.add(name4);
     let own2 = s;
     if (Array.isArray(s.allOf)) {
       const parts = s.allOf;
@@ -4390,11 +4474,11 @@ function parseJsonSchema(source, as) {
       for (const base of bases) {
         const parent = target(base.$ref, `${pointer}/allOf`);
         if (kind2 === "class")
-          relations.push({ from: name3, to: parent, type: "generalization" });
+          relations.push({ from: name4, to: parent, type: "generalization" });
         else
           relationships.push({
             from: parent,
-            to: name3,
+            to: name4,
             fromCardinality: "1",
             toCardinality: "0..1",
             identifying: true
@@ -4404,30 +4488,30 @@ function parseJsonSchema(source, as) {
     if (Array.isArray(own2.enum) && !isObject2(own2.properties)) {
       if (kind2 === "class") {
         classes.push({
-          name: name3,
+          name: name4,
           kind: "enum",
           literals: own2.enum.map(String)
         });
       } else {
         entities2.push({
-          name: name3,
+          name: name4,
           columns: [{ name: "value", type: "varchar", primaryKey: true }]
         });
       }
       return;
     }
     const required2 = new Set(own2.required ?? []);
-    const props = isObject2(own2.properties) ? own2.properties : {};
+    const props2 = isObject2(own2.properties) ? own2.properties : {};
     const attributes2 = [];
     const columns = [];
-    for (const [prop, raw] of Object.entries(props)) {
+    for (const [prop, raw] of Object.entries(props2)) {
       const at = `${pointer}/properties/${prop}`;
       if (!isObject2(raw)) fail(at, "is not a schema");
       const sh = shape(raw, at);
       const optional2 = !required2.has(prop) || sh.nullable;
       let other = sh.ref;
       if (sh.inline) {
-        other = typeof sh.inline.title === "string" ? sh.inline.title : `${name3}${pascal(prop)}`;
+        other = typeof sh.inline.title === "string" ? sh.inline.title : `${name4}${pascal(prop)}`;
         named3.set(other, sh.inline);
         visit(other, sh.inline, at);
       }
@@ -4440,14 +4524,14 @@ function parseJsonSchema(source, as) {
           });
         } else if (sh.inline) {
           relations.push({
-            from: name3,
+            from: name4,
             to: other,
             type: "composition",
             toMultiplicity: sh.many ? "*" : optional2 ? "0..1" : "1"
           });
         } else {
           relations.push({
-            from: name3,
+            from: name4,
             to: other,
             type: "directed",
             name: prop,
@@ -4462,23 +4546,23 @@ function parseJsonSchema(source, as) {
         });
       } else if (sh.many) {
         relationships.push({
-          from: name3,
+          from: name4,
           to: other,
           fromCardinality: "1",
           toCardinality: "0..*",
           identifying: false
         });
       } else {
-        const key = {
+        const key2 = {
           name: `${prop}_id`,
           foreignKey: true,
           ...optional2 && { nullable: true }
         };
-        columns.push(key);
-        keys.push([key, other]);
+        columns.push(key2);
+        keys.push([key2, other]);
         relationships.push({
           from: other,
-          to: name3,
+          to: name4,
           fromCardinality: optional2 ? "0..1" : "1",
           toCardinality: "0..*",
           identifying: false
@@ -4486,14 +4570,14 @@ function parseJsonSchema(source, as) {
       }
     }
     if (kind2 === "class") {
-      classes.push({ name: name3, ...attributes2.length > 0 && { attributes: attributes2 } });
+      classes.push({ name: name4, ...attributes2.length > 0 && { attributes: attributes2 } });
     } else {
-      entities2.push({ name: name3, columns });
+      entities2.push({ name: name4, columns });
     }
   };
   const keys = [];
-  for (const [name3, schema] of [...named3])
-    visit(name3, schema, pointers.get(schema));
+  for (const [name4, schema] of [...named3])
+    visit(name4, schema, pointers.get(schema));
   for (const [column, other] of keys) {
     const type2 = entities2.find((e) => e.name === other).columns.find((c) => c.primaryKey)?.type;
     if (type2 !== void 0) column.type = type2;
@@ -4677,8 +4761,8 @@ var CSS = {
 function cssColors(css) {
   const style = {};
   for (const part of css.split(/[,;]/)) {
-    const [key, value] = part.split(":").map((p) => p.trim());
-    const field = CSS[key];
+    const [key2, value] = part.split(":").map((p) => p.trim());
+    const field = CSS[key2];
     if (field && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value ?? "")) {
       style[field] = value;
     }
@@ -4693,8 +4777,8 @@ var Styles = class {
   line(text4) {
     let m;
     if (m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text4)) {
-      for (const name3 of m[1].split(","))
-        this.defs.set(name3, cssColors(m[2]));
+      for (const name4 of m[1].split(","))
+        this.defs.set(name4, cssColors(m[2]));
     } else if (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text4)) {
       for (const id2 of m[1].split(",")) this.use(id2.trim(), m[2]);
     } else if (m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text4)) {
@@ -4774,13 +4858,13 @@ function classDiagram(lines) {
   const notes = [];
   const styles = new Styles();
   let namespace;
-  const entry = (name3) => {
-    const key = name3.replace(/~.*~$/, "");
-    let e = classes.get(key);
+  const entry = (name4) => {
+    const key2 = name4.replace(/~.*~$/, "");
+    let e = classes.get(key2);
     if (!e) {
-      e = { name: key, attributes: [], operations: [], literals: [] };
+      e = { name: key2, attributes: [], operations: [], literals: [] };
       if (namespace !== void 0) e.package = namespace;
-      classes.set(key, e);
+      classes.set(key2, e);
     }
     return e;
   };
@@ -4842,7 +4926,7 @@ function classDiagram(lines) {
       fail2(no, `cannot read "${text4}"`);
     }
   }
-  const nameOf2 = (key) => classes.get(key).name;
+  const nameOf2 = (key2) => classes.get(key2).name;
   const colors = styles.resolve([...classes.keys()], nameOf2);
   return {
     ...packages.length > 0 && { packages },
@@ -4890,13 +4974,13 @@ function sequenceDiagram(lines) {
   for (const { no, text: text4 } of lines) {
     let m;
     if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
-      const name3 = multiline(m[3] ?? m[2]);
-      aliases2.set(m[2], name3);
-      participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
+      const name4 = multiline(m[3] ?? m[2]);
+      aliases2.set(m[2], name4);
+      participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
-      const name3 = multiline(m[3] ?? m[2]);
-      aliases2.set(m[2], name3);
-      participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
+      const name4 = multiline(m[3] ?? m[2]);
+      aliases2.set(m[2], name4);
+      participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text4)) {
       open.push({
         operator: m[1],
@@ -5162,10 +5246,10 @@ var RIGHT_CARD = {
 function erDiagram(lines) {
   const entities2 = /* @__PURE__ */ new Map();
   const relationships = [];
-  const entity2 = (name3) => {
-    const key = unquote(name3);
-    if (!entities2.has(key)) entities2.set(key, []);
-    return entities2.get(key);
+  const entity2 = (name4) => {
+    const key2 = unquote(name4);
+    if (!entities2.has(key2)) entities2.set(key2, []);
+    return entities2.get(key2);
   };
   let open = null;
   for (const { no, text: text4 } of lines) {
@@ -5206,8 +5290,8 @@ function erDiagram(lines) {
     }
   }
   return {
-    entities: [...entities2].map(([name3, columns]) => ({
-      name: name3,
+    entities: [...entities2].map(([name4, columns]) => ({
+      name: name4,
       ...columns.length > 0 && { columns }
     })),
     relationships
@@ -5220,7 +5304,7 @@ function stateDiagram(lines) {
   const styles = new Styles();
   const blocks = [];
   let starts = 0;
-  let ends2 = 0;
+  let ends3 = 0;
   const declare = (id2, fields) => {
     const known = states.get(id2);
     if (known) {
@@ -5236,9 +5320,9 @@ function stateDiagram(lines) {
   const state2 = (ref3, side) => {
     const id2 = styles.suffix(ref3);
     if (id2 === "[*]") {
-      const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends2}`;
-      declare(key, { type: side === "from" ? "initial" : "final" });
-      return key;
+      const key2 = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends3}`;
+      declare(key2, { type: side === "from" ? "initial" : "final" });
+      return key2;
     }
     if (!states.has(id2)) declare(id2, { name: id2 });
     return id2;
@@ -5369,14 +5453,14 @@ function requirementDiagram(lines) {
         continue;
       }
       m = /^(\w+)\s*:\s*(.*?)\s*$/.exec(text4) ?? fail2(no, `cannot read "${text4}"`);
-      const key = m[1].toLowerCase();
+      const key2 = m[1].toLowerCase();
       const value = unquote(m[2]);
-      const field = isElement2 ? { type: "type", docref: "docRef" }[key] : {
+      const field = isElement2 ? { type: "type", docref: "docRef" }[key2] : {
         id: "id",
         text: "text",
         risk: "risk",
         verifymethod: "verifyMethod"
-      }[key];
+      }[key2];
       if (!field) fail2(no, `unknown field ${m[1]}`);
       open[field] = field === "risk" || field === "verifyMethod" ? value.toLowerCase() : multiline(value);
       continue;
@@ -5388,11 +5472,11 @@ function requirementDiagram(lines) {
       const type2 = REQUIREMENT_KEYWORDS[keyword];
       if (keyword !== "element" && !type2)
         fail2(no, `unknown requirement type ${m[1]}`);
-      const name3 = multiline(unquote(m[2]));
-      if (m[3]) styles.use(name3, m[3]);
-      names4.push(name3);
+      const name4 = multiline(unquote(m[2]));
+      if (m[3]) styles.use(name4, m[3]);
+      names4.push(name4);
       isElement2 = keyword === "element";
-      open = isElement2 ? { name: name3 } : { name: name3, ...type2 !== "requirement" && { type: type2 } };
+      open = isElement2 ? { name: name4 } : { name: name4, ...type2 !== "requirement" && { type: type2 } };
     } else if (m = forward.exec(text4)) {
       relation(m[1], m[2], m[3], no);
     } else if (m = backward.exec(text4)) {
@@ -5618,12 +5702,12 @@ function classDiagram2(lines) {
   const warnings = [];
   const open = [];
   let last;
-  const entry = (key, name3 = key) => {
-    let e = classes.get(key);
+  const entry = (key2, name4 = key2) => {
+    let e = classes.get(key2);
     if (!e) {
-      e = { name: name3, attributes: [], operations: [], literals: [] };
+      e = { name: name4, attributes: [], operations: [], literals: [] };
       if (open.length > 0) e.package = open.at(-1);
-      classes.set(key, e);
+      classes.set(key2, e);
     }
     return e;
   };
@@ -5659,26 +5743,26 @@ function classDiagram2(lines) {
     } else if (m = /^(abstract\s+class|abstract|class|interface|enum|entity|struct|exception)\s+(.+?)\s*(\{)?$/.exec(
       text4
     )) {
-      const { rest, stereotype, fill } = adornments(m[2]);
+      const { rest, stereotype, fill: fill2 } = adornments(m[2]);
       const parents = {
         generalization: /\s+extends\s+(.+?)(?=\s+implements\s|$)/.exec(rest),
         realization: /\s+implements\s+(.+?)(?=\s+extends\s|$)/.exec(rest)
       };
       const decl = rest.replace(/\s+(extends|implements)\s.*$/, "").replace(/<[^<>]*>$/, "").trim();
-      const { key, name: name3 } = named(decl);
-      const e = entry(key, name3);
-      e.name = name3;
+      const { key: key2, name: name4 } = named(decl);
+      const e = entry(key2, name4);
+      e.name = name4;
       const kind2 = CLASS_KINDS[m[1].replace(/\s+/g, " ")];
       if (kind2) e.kind = kind2;
       if (stereotype !== void 0) e.stereotype = stereotype;
-      if (fill) styles[key] = { fillColor: fill };
+      if (fill2) styles[key2] = { fillColor: fill2 };
       for (const [type2, found] of Object.entries(parents)) {
         for (const parent of found?.[1].split(/\s*,\s*/) ?? []) {
           entry(parent);
-          relations.push({ from: key, to: parent, type: type2 });
+          relations.push({ from: key2, to: parent, type: type2 });
         }
       }
-      last = key;
+      last = key2;
       if (m[3]) body = e;
     } else if (m = /^(annotation|protocol|metaclass|stereotype|circle|diamond|object|map|json|component|node|artifact|usecase)\s/.exec(
       text4
@@ -5686,14 +5770,14 @@ function classDiagram2(lines) {
       refuse(no, `${m[1]} is not part of a class diagram build_diagram reads`);
     } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text4)) {
       const { rest } = adornments(m[2]);
-      const { name: name3 } = named(rest);
+      const { name: name4 } = named(rest);
       if (open.length > 0) {
         warnings.push(
-          `package ${name3} is nested in ${open.at(-1)}; StarUML gets it at the top level`
+          `package ${name4} is nested in ${open.at(-1)}; StarUML gets it at the top level`
         );
       }
-      if (!packages.includes(name3)) packages.push(name3);
-      open.push(name3);
+      if (!packages.includes(name4)) packages.push(name4);
+      open.push(name4);
     } else if (text4 === "}" && open.length > 0) {
       open.pop();
     } else if (m = RELATION3.exec(text4)) {
@@ -5711,12 +5795,12 @@ function classDiagram2(lines) {
       entry(ka);
       entry(kb);
       const [from, to, fromMul, toMul] = reversed ? [kb, ka, bCard, aCard] : [ka, kb, aCard, bCard];
-      const name3 = label(text22);
+      const name4 = label(text22);
       relations.push({
         from,
         to,
         type: type2,
-        ...name3 && { name: name3 },
+        ...name4 && { name: name4 },
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
@@ -5726,7 +5810,7 @@ function classDiagram2(lines) {
       fail3(no, `cannot read "${text4}"`);
     }
   }
-  const nameOf2 = (key) => classes.get(key)?.name ?? key;
+  const nameOf2 = (key2) => classes.get(key2)?.name ?? key2;
   const colors = Object.fromEntries(
     Object.entries(styles).map(([k, v]) => [nameOf2(k), v])
   );
@@ -5785,9 +5869,9 @@ function sequenceDiagram2(lines) {
   const open = [];
   const creating = /* @__PURE__ */ new Set();
   const who = (ref3) => {
-    const key = named(ref3).key;
-    if (!keys.has(key)) keys.set(key, named(ref3).name);
-    return keys.get(key);
+    const key2 = named(ref3).key;
+    if (!keys.has(key2)) keys.set(key2, named(ref3).name);
+    return keys.get(key2);
   };
   for (let i = 0; i < lines.length; i++) {
     const { no, text: text4 } = lines[i];
@@ -5806,17 +5890,17 @@ function sequenceDiagram2(lines) {
     } else if (m = /^create\s+(?:(participant|actor|boundary|control|entity|database|collections|queue)\s+)?(.+)$/.exec(
       text4
     )) {
-      const { key, name: name3 } = named(adornments(m[2]).rest);
-      if (!keys.has(key)) {
-        keys.set(key, name3);
-        participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
+      const { key: key2, name: name4 } = named(adornments(m[2]).rest);
+      if (!keys.has(key2)) {
+        keys.set(key2, name4);
+        participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
       }
-      creating.add(keys.get(key));
+      creating.add(keys.get(key2));
     } else if (m = PARTICIPANT.exec(text4)) {
       const rest = adornments(m[2]).rest.replace(/\s+order\s+-?\d+$/, "");
-      const { key, name: name3 } = named(rest);
-      keys.set(key, name3);
-      participants.push({ name: name3, ...m[1] === "actor" && { kind: "actor" } });
+      const { key: key2, name: name4 } = named(rest);
+      keys.set(key2, name4);
+      participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
     } else if (m = /^destroy\s+(.+)$/.exec(text4)) {
       const target = who(m[1]);
       const last = [...messages2].reverse().find((x) => x.to === target);
@@ -5920,18 +6004,18 @@ function usecaseDiagram(lines) {
   const warnings = [];
   let system;
   let depth = 0;
-  const declare = (list4, key, name3) => {
-    names4.set(key, name3);
-    if (!actors.includes(name3) && !useCases2.includes(name3)) list4.push(name3);
-    return name3;
+  const declare = (list5, key2, name4) => {
+    names4.set(key2, name4);
+    if (!actors.includes(name4) && !useCases2.includes(name4)) list5.push(name4);
+    return name4;
   };
   const end = (ref3) => {
     let m = /^\((.+)\)(?:\s+as\s+([\w.]+))?$/.exec(ref3);
     if (m) return declare(useCases2, m[2] ?? m[1], multiline(m[1]));
     m = /^:(.+):$/.exec(ref3);
     if (m) return declare(actors, m[1], multiline(m[1]));
-    const key = unquote(ref3);
-    return names4.get(key) ?? declare(actors, key, multiline(key));
+    const key2 = unquote(ref3);
+    return names4.get(key2) ?? declare(actors, key2, multiline(key2));
   };
   for (let i = 0; i < lines.length; i++) {
     const { no, text: text4 } = lines[i];
@@ -5948,17 +6032,17 @@ function usecaseDiagram(lines) {
     } else if ((m = /^actor\/?\s+(.+)$/.exec(text4)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text4))) {
       const rest = adornments(m[1]).rest;
       const colon = /^:(.+):(?:\s+as\s+(\S+))?$/.exec(rest);
-      const { key, name: name3 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
-      declare(actors, key, name3);
+      const { key: key2, name: name4 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
+      declare(actors, key2, name4);
     } else if ((m = /^usecase\/?\s+(.+)$/.exec(text4)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text4))) {
       const rest = adornments(m[1]).rest;
       const paren = /^\((.+)\)(?:\s+as\s+(\S+))?$/.exec(rest);
-      const { key, name: name3 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
-      declare(useCases2, key, name3);
+      const { key: key2, name: name4 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
+      declare(useCases2, key2, name4);
     } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text4)) {
-      const name3 = named(adornments(m[2]).rest).name;
-      if (system === void 0) system = name3;
-      else warnings.push(`only one system boundary is drawn; ${name3} is not`);
+      const name4 = named(adornments(m[2]).rest).name;
+      if (system === void 0) system = name4;
+      else warnings.push(`only one system boundary is drawn; ${name4} is not`);
       depth++;
     } else if (text4 === "}" && depth > 0) {
       depth--;
@@ -5975,12 +6059,12 @@ function usecaseDiagram(lines) {
       const reversed = core.startsWith("<");
       const [from, to] = reversed ? [end(b), end(a)] : [end(a), end(b)];
       const type2 = general ? "generalization" : tag === "include" || tag === "extend" ? tag : "association";
-      const name3 = label(text22);
+      const name4 = label(text22);
       relations.push({
         from,
         to,
         type: type2,
-        ...type2 === "association" && name3 && { name: name3 }
+        ...type2 === "association" && name4 && { name: name4 }
       });
     } else {
       fail3(no, `cannot read "${text4}"`);
@@ -6007,11 +6091,11 @@ function activityDiagram(lines) {
   let pending;
   let lastNode;
   const stack = [];
-  const node = (type2, name3) => {
+  const node = (type2, name4) => {
     const id2 = `${type2}${nodes.length}`;
     nodes.push({
       id: id2,
-      ...name3 !== void 0 && { name: multiline(name3) },
+      ...name4 !== void 0 && { name: multiline(name4) },
       type: type2,
       ...lane !== void 0 && { lane }
     });
@@ -6072,13 +6156,13 @@ ${lines[++i].text}`;
     } else if (/^end\s*if$/.test(text4)) {
       const f = top(no, "if");
       stack.pop();
-      const ends2 = [
+      const ends3 = [
         ...f.ends,
         ...tails,
         ...f.otherwise ? [] : [{ key: f.node }]
       ];
-      tails = ends2;
-      if (ends2.length > 0) node("merge");
+      tails = ends3;
+      if (ends3.length > 0) node("merge");
     } else if (m = /^while\s*\((.*?)\)\s*(?:is\s*\((.*)\))?$/.exec(text4)) {
       const d = node("decision", m[1]);
       stack.push({ kind: "while", node: d, ends: [], otherwise: false, no });
@@ -6151,10 +6235,10 @@ function legacyActivity(lines) {
   const flows = [];
   let last;
   let starts = 0;
-  let ends2 = 0;
+  let ends3 = 0;
   const ref3 = (text4, side) => {
     if (/^\(\*/.test(text4)) {
-      const id3 = side === "from" ? `start${++starts}` : `end${++ends2}`;
+      const id3 = side === "from" ? `start${++starts}` : `end${++ends3}`;
       nodes.set(id3, { id: id3, type: side === "from" ? "initial" : "final" });
       return id3;
     }
@@ -6196,7 +6280,7 @@ function stateDiagram2(lines) {
   const blocks = [];
   const warnings = [];
   let starts = 0;
-  let ends2 = 0;
+  let ends3 = 0;
   const declare = (id2, fields) => {
     const known = states.get(id2);
     if (known) Object.assign(known, fields);
@@ -6210,9 +6294,9 @@ function stateDiagram2(lines) {
   };
   const state2 = (id2, side) => {
     if (id2 === "[*]") {
-      const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends2}`;
-      declare(key, { type: side === "from" ? "initial" : "final" });
-      return key;
+      const key2 = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends3}`;
+      declare(key2, { type: side === "from" ? "initial" : "final" });
+      return key2;
     }
     if (!states.has(id2)) declare(id2, { name: multiline(id2) });
     return id2;
@@ -6306,9 +6390,9 @@ function erDiagram2(lines) {
   const relationships = [];
   let open = null;
   const entity2 = (ref3) => {
-    const { key, name: name3 } = named(ref3);
-    if (!entities2.has(key)) entities2.set(key, { name: name3, columns: [] });
-    return entities2.get(key);
+    const { key: key2, name: name4 } = named(ref3);
+    if (!entities2.has(key2)) entities2.set(key2, { name: name4, columns: [] });
+    return entities2.get(key2);
   };
   for (const { no, text: text4 } of lines) {
     let m;
@@ -6369,16 +6453,16 @@ function mindmap2(lines) {
     const { no, text: text4 } = lines[i];
     const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
     const depth = m[1].length;
-    let name3 = m[3];
-    if (name3.startsWith(":")) {
-      name3 = name3.slice(1);
-      while (!name3.endsWith(";") && i + 1 < lines.length) {
-        name3 += `
+    let name4 = m[3];
+    if (name4.startsWith(":")) {
+      name4 = name4.slice(1);
+      while (!name4.endsWith(";") && i + 1 < lines.length) {
+        name4 += `
 ${lines[++i].text}`;
       }
-      name3 = name3.replace(/;$/, "");
+      name4 = name4.replace(/;$/, "");
     }
-    const node = { name: multiline(name3), children: [] };
+    const node = { name: multiline(name4), children: [] };
     if (depth === 1) {
       if (root) refuse(no, "a mind map has one root in StarUML");
       root = node;
@@ -6547,11 +6631,11 @@ function items(text4) {
   return out;
 }
 var NAME3 = String.raw`(?:"[^"]+"|\`[^\`]+\`|\[[^\]]+\]|[\w$]+)(?:\s*\.\s*(?:"[^"]+"|\`[^\`]+\`|\[[^\]]+\]|[\w$]+))*`;
-function bare(name3) {
-  const last = name3.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
+function bare(name4) {
+  const last = name4.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
   return last.replace(/^["`[]|["`\]]$/g, "");
 }
-var names = (list4) => items(list4).map(bare);
+var names = (list5) => items(list5).map(bare);
 var CONSTRAINT = /\s+(?=(?:not\s+null|null|primary\s+key|unique|references|default|check|constraint|generated|auto_increment|autoincrement|identity|collate|comment|on\s+update)\b)/i;
 var SKIPPED = /^(create\s+(unique\s+)?index|create\s+sequence|create\s+extension|create\s+schema|create\s+database|alter\s+sequence|alter\s+(database|schema|default)|set\s|select\s|comment\s+on|grant\s|revoke\s|insert\s|update\s|delete\s|drop\s|begin|commit|start\s+transaction|use\s|lock\s|unlock\s|analyze|vacuum|pragma|copy\s|\\)/i;
 var REFUSED = /^create\s+(or\s+replace\s+)?(view|materialized\s+view|type|function|procedure|trigger|domain|rule|policy|event|aggregate|operator|cast)\b/i;
@@ -6559,15 +6643,15 @@ function parseSql(source) {
   const tables = /* @__PURE__ */ new Map();
   const keys = [];
   const skipped = /* @__PURE__ */ new Map();
-  const table = (name3) => tables.get(name3.toLowerCase());
+  const table = (name4) => tables.get(name4.toLowerCase());
   const column = (t, def, line) => {
     const m = new RegExp(String.raw`^(${NAME3})\s+([\s\S]+)$`).exec(def) ?? fail4(line, `cannot read column "${def}"`);
-    const [typeText2, ...rest] = m[2].split(CONSTRAINT);
+    const [typeText3, ...rest] = m[2].split(CONSTRAINT);
     const constraints = rest.join(" ");
-    const sized2 = /^([^(]+?)\s*\(([^)]*)\)\s*(.*)$/.exec(typeText2.trim());
+    const sized2 = /^([^(]+?)\s*\(([^)]*)\)\s*(.*)$/.exec(typeText3.trim());
     const c = {
       name: bare(m[1]),
-      type: sized2 ? `${sized2[1]}${sized2[3] ? ` ${sized2[3]}` : ""}` : typeText2.trim(),
+      type: sized2 ? `${sized2[1]}${sized2[3] ? ` ${sized2[3]}` : ""}` : typeText3.trim(),
       ...sized2 && { length: sized2[2].replace(/\s+/g, "") }
     };
     if (/primary\s+key/i.test(constraints)) t.primaryKey.push(c.name);
@@ -6622,10 +6706,10 @@ function parseSql(source) {
       String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp)\s+|unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME3})\s*\(([\s\S]*)\)[^)]*$`,
       "i"
     ).exec(text4)) {
-      const name3 = bare(m[1]);
-      const t = { name: name3, columns: [], primaryKey: [], unique: [] };
-      if (table(name3)) fail4(line, `table ${name3} is created twice`);
-      tables.set(name3.toLowerCase(), t);
+      const name4 = bare(m[1]);
+      const t = { name: name4, columns: [], primaryKey: [], unique: [] };
+      if (table(name4)) fail4(line, `table ${name4} is created twice`);
+      tables.set(name4.toLowerCase(), t);
       for (const def of items(m[2])) {
         if (/^(constraint|primary\s+key|foreign\s+key|unique|check|exclude|key|index|fulltext|spatial)\b/i.test(
           def
@@ -6685,9 +6769,9 @@ function parseSql(source) {
       tables.set(k.references.toLowerCase(), parent);
     }
     const cols = k.columns.map(
-      (name3) => child.columns.find(
-        (c) => c.name.toLowerCase() === name3.toLowerCase()
-      ) ?? fail4(k.line, `${k.table} has no column ${name3}`)
+      (name4) => child.columns.find(
+        (c) => c.name.toLowerCase() === name4.toLowerCase()
+      ) ?? fail4(k.line, `${k.table} has no column ${name4}`)
     );
     for (const c of cols) c.foreignKey = true;
     const same2 = (a, b) => a.length === b.length && a.every((x) => b.some((y) => y.toLowerCase() === x.toLowerCase()));
@@ -6830,11 +6914,11 @@ var Builder = class {
     this.byKey.set(full.key, full);
     return full;
   }
-  has(key) {
-    return this.byKey.has(key);
+  has(key2) {
+    return this.byKey.has(key2);
   }
-  get(key) {
-    return this.byKey.get(key);
+  get(key2) {
+    return this.byKey.get(key2);
   }
   /** Ends are names as nodes are, so "a<br/>b" finds the node named "a\nb". */
   edge(spec, where2) {
@@ -7267,14 +7351,14 @@ function ranks(keys, edges) {
   for (const e of edges) out.get(e.from).push(e);
   const state2 = /* @__PURE__ */ new Map();
   const back = /* @__PURE__ */ new Set();
-  const walk = (key) => {
-    state2.set(key, "open");
-    for (const e of out.get(key)) {
+  const walk = (key2) => {
+    state2.set(key2, "open");
+    for (const e of out.get(key2)) {
       const s = state2.get(e.to);
       if (s === "open") back.add(e);
       else if (s === void 0) walk(e.to);
     }
-    state2.set(key, "done");
+    state2.set(key2, "done");
   };
   for (const k of keys) if (!state2.has(k)) walk(k);
   const forward = edges.filter((e) => !back.has(e));
@@ -7423,8 +7507,8 @@ function nestedBoxes(plan, direction2) {
     );
     let width = 0;
     let height = 0;
-    for (const [key, box2] of local) {
-      relative2.set(key, box2);
+    for (const [key2, box2] of local) {
+      relative2.set(key2, box2);
       width = Math.max(width, box2.x + box2.width);
       height = Math.max(height, box2.y + box2.height);
     }
@@ -7433,17 +7517,17 @@ function nestedBoxes(plan, direction2) {
   level();
   const byKey = new Map(plan.nodes.map((n) => [n.key, n]));
   const boxes = /* @__PURE__ */ new Map();
-  const absolute = (key) => {
-    const known = boxes.get(key);
+  const absolute = (key2) => {
+    const known = boxes.get(key2);
     if (known) return known;
-    const box2 = relative2.get(key);
-    const container = byKey.get(key).container;
+    const box2 = relative2.get(key2);
+    const container = byKey.get(key2).container;
     const origin = container === void 0 ? { x: MARGIN, y: MARGIN } : {
       x: absolute(container).x + INSET,
       y: absolute(container).y + HEADER
     };
     const placed = { ...box2, x: box2.x + origin.x, y: box2.y + origin.y };
-    boxes.set(key, placed);
+    boxes.set(key2, placed);
     return placed;
   };
   for (const n of plan.nodes) absolute(n.key);
@@ -8085,11 +8169,11 @@ function classPlan(spec) {
   const nested2 = b.nodes.some((n) => n.container !== void 0);
   (spec.relations ?? []).forEach((r, i) => {
     const type2 = r.type ?? "association";
-    const ends2 = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
+    const ends3 = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
     const aggregation2 = AGGREGATIONS[type2];
     const tailEnd = {
       ...aggregation2 && { aggregation: aggregation2 },
-      ...ends2 && r.fromMultiplicity !== void 0 && {
+      ...ends3 && r.fromMultiplicity !== void 0 && {
         multiplicity: r.fromMultiplicity
       }
     };
@@ -8100,7 +8184,7 @@ function classPlan(spec) {
         to: r.to,
         ...r.name !== void 0 && { name: r.name },
         ...Object.keys(tailEnd).length > 0 && { tailEnd },
-        ...ends2 && r.toMultiplicity !== void 0 && {
+        ...ends3 && r.toMultiplicity !== void 0 && {
           headEnd: { multiplicity: r.toMultiplicity }
         }
       },
@@ -8220,7 +8304,7 @@ function sequencePlan(spec) {
     at += SEQUENCE.step + SEQUENCE.footer * fragments.filter((f) => f.to === i).length;
   }
   const height = at + SEQUENCE.step - SEQUENCE.top;
-  const center2 = (key) => SEQUENCE.left + participants.indexOf(key) * SEQUENCE.spacing + SEQUENCE.width / 2;
+  const center2 = (key2) => SEQUENCE.left + participants.indexOf(key2) * SEQUENCE.spacing + SEQUENCE.width / 2;
   participants.forEach(
     (p, i) => b.node({
       key: p,
@@ -8339,10 +8423,10 @@ function sequencePlan(spec) {
 }
 function uniqueNames(names4) {
   const seen = /* @__PURE__ */ new Map();
-  return names4.map((name3) => {
-    const n = (seen.get(name3) ?? 0) + 1;
-    seen.set(name3, n);
-    return n === 1 ? name3 : `${name3} ${n}`;
+  return names4.map((name4) => {
+    const n = (seen.get(name4) ?? 0) + 1;
+    seen.set(name4, n);
+    return n === 1 ? name4 : `${name4} ${n}`;
   });
 }
 function withOperandStarts(f) {
@@ -8412,9 +8496,9 @@ var ACTIVITY_TYPES = {
   join: ["UMLJoinNode", 120, 10],
   object: ["UMLObjectNode", 120, 50]
 };
-function nodeName(name3, key, named3) {
-  if (name3 !== void 0) return multiline(name3);
-  return named3 ? key : "";
+function nodeName(name4, key2, named3) {
+  if (name4 !== void 0) return multiline(name4);
+  return named3 ? key2 : "";
 }
 function activityPlan(spec) {
   const b = new Builder("activity");
@@ -8438,17 +8522,17 @@ function activityPlan(spec) {
         `spec.nodes.${i}.lane: no lane named ${o.lane}`
       );
     }
-    const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
-    if (key === void 0) {
+    const key2 = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+    if (key2 === void 0) {
       throw new ApiError(
         "INVALID_ARGUMENT",
         `spec.nodes.${i}: needs a name or an id`
       );
     }
     b.node({
-      key,
+      key: key2,
       type: create,
-      name: nodeName(o.name, key, type2 === "action" || type2 === "object"),
+      name: nodeName(o.name, key2, type2 === "action" || type2 === "object"),
       ...o.lane !== void 0 && { lane: o.lane },
       width,
       height
@@ -8482,26 +8566,26 @@ function statemachinePlan(spec) {
   (spec.states ?? []).forEach((s, i) => {
     const o = typeof s === "string" ? { name: s } : s;
     const type2 = o.type ?? "state";
-    const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
-    if (key === void 0) {
+    const key2 = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+    if (key2 === void 0) {
       throw new ApiError(
         "INVALID_ARGUMENT",
         `spec.states.${i}: needs a name or an id`
       );
     }
     const [create, width, height] = STATE_CREATE[type2];
-    const name3 = nodeName(o.name, key, type2 === "state");
-    const lines = name3.split("\n");
+    const name4 = nodeName(o.name, key2, type2 === "state");
+    const lines = name4.split("\n");
     b.node({
-      key,
+      key: key2,
       type: create,
-      name: name3,
-      width: type2 === "state" ? Math.max(width, textWidth(name3) + 2 * LABEL_PADDING) : width,
+      name: name4,
+      width: type2 === "state" ? Math.max(width, textWidth(name4) + 2 * LABEL_PADDING) : width,
       height: type2 === "state" ? Math.max(height, 30 + LINE_HEIGHT * lines.length) : height
     });
-    if (o.parent !== void 0) nested2.push([key, multiline(o.parent), i]);
+    if (o.parent !== void 0) nested2.push([key2, multiline(o.parent), i]);
   });
-  for (const [key, parent, i] of nested2) {
+  for (const [key2, parent, i] of nested2) {
     const outer = b.get(parent);
     if (outer?.type !== "UMLState" && outer?.type !== "UMLCompositeState") {
       throw new ApiError(
@@ -8510,15 +8594,15 @@ function statemachinePlan(spec) {
       );
     }
     outer.type = "UMLCompositeState";
-    b.get(key).container = parent;
+    b.get(key2).container = parent;
   }
-  for (const [key, , i] of nested2) {
+  for (const [key2, , i] of nested2) {
     const seen = /* @__PURE__ */ new Set();
-    for (let k = key; k; k = b.get(k).container) {
+    for (let k = key2; k; k = b.get(k).container) {
       if (seen.has(k)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          `spec.states.${i}.parent: ${key} would be nested in itself`
+          `spec.states.${i}.parent: ${key2} would be nested in itself`
         );
       }
       seen.add(k);
@@ -8615,8 +8699,8 @@ function flowchartPlan(spec) {
   const b = new Builder("flowchart");
   (spec.nodes ?? []).forEach((n, i) => {
     const o = typeof n === "string" ? { name: n } : n;
-    const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
-    if (key === void 0) {
+    const key2 = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+    if (key2 === void 0) {
       throw new ApiError(
         "INVALID_ARGUMENT",
         `spec.nodes.${i}: needs a name or an id`
@@ -8624,9 +8708,9 @@ function flowchartPlan(spec) {
     }
     const shape = o.shape ?? "process";
     b.node({
-      key,
+      key: key2,
       type: FLOWCHART_SHAPES[shape],
-      name: o.name !== void 0 ? multiline(o.name) : key,
+      name: o.name !== void 0 ? multiline(o.name) : key2,
       width: shape === "connector" ? 40 : 140,
       height: shape === "decision" ? 70 : shape === "connector" ? 40 : 50
     });
@@ -8647,16 +8731,16 @@ function flowchartPlan(spec) {
 function mindmapPlan(spec) {
   const b = new Builder("mindmap");
   const visit = (node, parent) => {
-    const key = parent === null ? multiline(node.name) : `${parent}/${multiline(node.name)}`;
+    const key2 = parent === null ? multiline(node.name) : `${parent}/${multiline(node.name)}`;
     b.node({
-      key,
+      key: key2,
       type: "MMNode",
       name: multiline(node.name),
       width: 120,
       height: 40
     });
-    if (parent !== null) b.edge({ type: "MMEdge", from: parent, to: key }, key);
-    for (const child of node.children ?? []) visit(child, key);
+    if (parent !== null) b.edge({ type: "MMEdge", from: parent, to: key2 }, key2);
+    for (const child of node.children ?? []) visit(child, key2);
   };
   visit(spec.root, null);
   return b.plan();
@@ -8768,24 +8852,24 @@ var PLANNERS = {
 var longHex = (color2) => color2.length === 4 ? `#${[...color2.slice(1)].map((c) => c + c).join("")}`.toLowerCase() : color2.toLowerCase();
 function decorate(plan, spec) {
   const byKey = new Map(plan.nodes.map((n) => [n.key, n]));
-  const fail5 = (where2, key) => {
+  const fail5 = (where2, key2) => {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `spec.${where2}: no node named ${key}`
+      `spec.${where2}: no node named ${key2}`
     );
   };
   if (plan.kind !== "sequence") {
     (spec.notes ?? []).forEach((n, i) => {
-      const key = `note ${i}`;
-      if (byKey.has(key)) {
+      const key2 = `note ${i}`;
+      if (byKey.has(key2)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          `spec: ${key} is defined twice; give the node another name or id`
+          `spec: ${key2} is defined twice; give the node another name or id`
         );
       }
       const text4 = multiline(n.text);
       const node = {
-        key,
+        key: key2,
         type: "Note",
         name: "",
         text: text4,
@@ -8793,16 +8877,16 @@ function decorate(plan, spec) {
         height: noteHeight(text4)
       };
       plan.nodes.push(node);
-      byKey.set(key, node);
+      byKey.set(key2, node);
       const on = n.on === void 0 ? [] : typeof n.on === "string" ? [n.on] : n.on;
       for (const target of on.map(multiline)) {
         if (!byKey.has(target)) fail5(`notes.${i}.on`, target);
-        plan.edges.push({ type: "NoteLink", from: key, to: target });
+        plan.edges.push({ type: "NoteLink", from: key2, to: target });
       }
     });
   }
-  for (const [key, style] of Object.entries(spec.styles ?? {})) {
-    const node = byKey.get(multiline(key)) ?? fail5(`styles.${key}`, key);
+  for (const [key2, style] of Object.entries(spec.styles ?? {})) {
+    const node = byKey.get(multiline(key2)) ?? fail5(`styles.${key2}`, key2);
     const colors = Object.fromEntries(
       Object.entries(style).map(([k, v]) => [k, longHex(v)])
     );
@@ -8825,8 +8909,8 @@ var MEMBER_FIELDS = [
 ];
 var OPERATION_FIELDS = ["operations", "receptions"];
 var SPECIAL = /[\\/.#@(),]/g;
-function escapeName(name3) {
-  return name3.replace(SPECIAL, (c) => `\\${c}`);
+function escapeName(name4) {
+  return name4.replace(SPECIAL, (c) => `\\${c}`);
 }
 function parsePath(text4, dots = true) {
   const steps = [];
@@ -8882,8 +8966,8 @@ function readParams(text4, from) {
 function fieldOf(elem) {
   const owner = elem._parent;
   for (const field of [...MEMBER_FIELDS, ...OPERATION_FIELDS]) {
-    const list4 = owner[field];
-    if (Array.isArray(list4) && list4.includes(elem)) return field;
+    const list5 = owner[field];
+    if (Array.isArray(list5) && list5.includes(elem)) return field;
   }
   return null;
 }
@@ -8910,15 +8994,15 @@ function pathOf(elem) {
   const parts = [];
   for (let e = elem; e && e._parent; e = e._parent) {
     const field = fieldOf(e);
-    const name3 = escapeName(typeof e.name === "string" ? e.name : "");
+    const name4 = escapeName(typeof e.name === "string" ? e.name : "");
     if (field && OPERATION_FIELDS.includes(field)) {
       parts.unshift(
-        `#${name3}(${parameterTypes(e).map(escapeName).join(", ")})`
+        `#${name4}(${parameterTypes(e).map(escapeName).join(", ")})`
       );
     } else if (field) {
-      parts.unshift(`.${name3}`);
+      parts.unshift(`.${name4}`);
     } else {
-      parts.unshift(`/${name3}`);
+      parts.unshift(`/${name4}`);
     }
   }
   if (parts.length === 0) return null;
@@ -8973,18 +9057,18 @@ function matchPath(parsed, candidates) {
 }
 function nameIndex() {
   let index = null;
-  return (name3) => {
+  return (name4) => {
     if (!index) {
       index = /* @__PURE__ */ new Map();
       for (const elem of Object.values(app.repository.getIdMap())) {
         if (isView(elem)) continue;
-        const key = typeof elem.name === "string" ? elem.name : "";
-        const list4 = index.get(key);
-        if (list4) list4.push(elem);
-        else index.set(key, [elem]);
+        const key2 = typeof elem.name === "string" ? elem.name : "";
+        const list5 = index.get(key2);
+        if (list5) list5.push(elem);
+        else index.set(key2, [elem]);
       }
     }
-    return index.get(name3) ?? [];
+    return index.get(name4) ?? [];
   };
 }
 function byId(id2) {
@@ -9058,7 +9142,7 @@ function tryResolve(ref3, options = {}) {
     throw err;
   }
 }
-var unique = (list4) => [...new Set(list4)];
+var unique = (list5) => [...new Set(list5)];
 function candidate(elem) {
   return {
     _id: elem._id,
@@ -9081,9 +9165,9 @@ function requireView(ref3, role = "View", diagram) {
     ...diagram && { diagram }
   });
 }
-function requireTypeName(name3) {
-  if (!Object.hasOwn(type, name3)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name3}`);
+function requireTypeName(name4) {
+  if (!Object.hasOwn(type, name4)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name4}`);
   }
 }
 function requireProject() {
@@ -9257,16 +9341,16 @@ function typeValue(description) {
 var ATTRIBUTE_VALUES_HELP = "Initial attribute values by name, as /introspect lists them: plain values for prim/enum attributes, an id or {$ref: id} for references, arrays of those for reference lists.";
 
 // src/metamodel.ts
-function isMetaClass(name3) {
-  return Object.hasOwn(meta, name3) && meta[name3].kind === "class";
+function isMetaClass(name4) {
+  return Object.hasOwn(meta, name4) && meta[name4].kind === "class";
 }
-function lineage(name3) {
+function lineage(name4) {
   const out = [];
-  for (let t = name3; t; t = meta[t]?.super) out.push(t);
+  for (let t = name4; t; t = meta[t]?.super) out.push(t);
   return out;
 }
-function attributeOf(typeName3, name3) {
-  return app.metamodels.getMetaAttributes(typeName3).find((attr) => attr.name === name3);
+function attributeOf(typeName4, name4) {
+  return app.metamodels.getMetaAttributes(typeName4).find((attr) => attr.name === name4);
 }
 function ownerField(owner, childType) {
   let best = null;
@@ -9305,10 +9389,10 @@ function resolveOwnerField(owner, childType, field) {
   }
   return field;
 }
-function relationshipKind(typeName3) {
-  if (app.metamodels.isKindOf(typeName3, "DirectedRelationship"))
+function relationshipKind(typeName4) {
+  if (app.metamodels.isKindOf(typeName4, "DirectedRelationship"))
     return "directed";
-  if (app.metamodels.isKindOf(typeName3, "UndirectedRelationship"))
+  if (app.metamodels.isKindOf(typeName4, "UndirectedRelationship"))
     return "undirected";
   return null;
 }
@@ -9375,22 +9459,22 @@ function toModelValue(owner, attr, value) {
       );
   }
 }
-function settableAttribute(typeName3, name3) {
-  const attr = name3 === "_id" || name3 === "_parent" ? void 0 : attributeOf(typeName3, name3);
+function settableAttribute(typeName4, name4) {
+  const attr = name4 === "_id" || name4 === "_parent" ? void 0 : attributeOf(typeName4, name4);
   if (!attr) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${typeName3} has no field '${name3}'`
+      `${typeName4} has no field '${name4}'`
     );
   }
   return attr;
 }
-function toModelValues(typeName3, properties2) {
+function toModelValues(typeName4, properties2) {
   const out = {};
-  for (const [name3, value] of Object.entries(properties2)) {
-    out[name3] = toModelValue(
-      typeName3,
-      settableAttribute(typeName3, name3),
+  for (const [name4, value] of Object.entries(properties2)) {
+    out[name4] = toModelValue(
+      typeName4,
+      settableAttribute(typeName4, name4),
       value
     );
   }
@@ -9398,10 +9482,10 @@ function toModelValues(typeName3, properties2) {
 }
 
 // src/create.ts
-function initialValues(typeName3, name3, properties2) {
-  return toModelValues(typeName3, {
+function initialValues(typeName4, name4, properties2) {
+  return toModelValues(typeName4, {
     ...properties2,
-    ...name3 !== void 0 && { name: name3 }
+    ...name4 !== void 0 && { name: name4 }
   });
 }
 function requireModelId(id2) {
@@ -9416,29 +9500,29 @@ function requireModelId(id2) {
     );
   }
 }
-function addable(typeName3) {
-  return isMetaClass(typeName3) && Object.hasOwn(type, typeName3) && app.metamodels.isKindOf(typeName3, "Model") && !app.metamodels.isKindOf(typeName3, "Diagram") && !app.metamodels.isKindOf(typeName3, "DirectedRelationship") && !app.metamodels.isKindOf(typeName3, "UndirectedRelationship");
+function addable(typeName4) {
+  return isMetaClass(typeName4) && Object.hasOwn(type, typeName4) && app.metamodels.isKindOf(typeName4, "Model") && !app.metamodels.isKindOf(typeName4, "Diagram") && !app.metamodels.isKindOf(typeName4, "DirectedRelationship") && !app.metamodels.isKindOf(typeName4, "UndirectedRelationship");
 }
-function createOwned(owner, typeName3, field, values, initialize = () => {
+function createOwned(owner, typeName4, field, values, initialize = () => {
 }) {
-  requireModelId(typeName3);
-  const into = resolveOwnerField(owner, typeName3, field);
-  if (!app.factory.getModelIds().includes(typeName3)) {
-    const model = instantiate(typeName3);
+  requireModelId(typeName4);
+  const into = resolveOwnerField(owner, typeName4, field);
+  if (!app.factory.getModelIds().includes(typeName4)) {
+    const model = instantiate(typeName4);
     Object.assign(model, values);
     initialize(model);
     const stored = inStarUML(() => app.engine.addModel(owner, into, model));
     if (!stored) {
       throw new ApiError(
         "STARUML_ERROR",
-        `StarUML did not add ${typeName3} to ${owner.constructor.name}.${into}`
+        `StarUML did not add ${typeName4} to ${owner.constructor.name}.${into}`
       );
     }
     return stored;
   }
   const elem = inStarUML(
     () => app.factory.createModel({
-      id: typeName3,
+      id: typeName4,
       parent: owner,
       field: into,
       modelInitializer: (m) => {
@@ -9450,7 +9534,7 @@ function createOwned(owner, typeName3, field, values, initialize = () => {
   if (!elem) {
     throw new ApiError(
       "STARUML_ERROR",
-      `StarUML did not create ${typeName3} in ${owner.constructor.name}.${into}`
+      `StarUML did not create ${typeName4} in ${owner.constructor.name}.${into}`
     );
   }
   return elem;
@@ -9464,37 +9548,37 @@ var NAMED_KINDS = [
   "ERDColumn",
   "Diagram"
 ];
-function namedKind(typeName3) {
-  return NAMED_KINDS.find((k) => app.metamodels.isKindOf(typeName3, k));
+function namedKind(typeName4) {
+  return NAMED_KINDS.find((k) => app.metamodels.isKindOf(typeName4, k));
 }
-function nameSpace(typeName3) {
-  if (app.metamodels.isKindOf(typeName3, "Diagram")) return "diagram";
+function nameSpace(typeName4) {
+  if (app.metamodels.isKindOf(typeName4, "Diagram")) return "diagram";
   return ["UMLAttribute", "UMLEnumerationLiteral", "ERDColumn"].some(
-    (k) => app.metamodels.isKindOf(typeName3, k)
+    (k) => app.metamodels.isKindOf(typeName4, k)
   ) ? "member" : "element";
 }
 function ownedBy(owner) {
   return app.metamodels.getMetaAttributes(owner.constructor.name).filter((a) => a.kind === "objs").flatMap((a) => owner[a.name]);
 }
-function assertUniqueName(owner, typeName3, name3, allow) {
-  if (allow || !name3 || !namedKind(typeName3)) return;
-  const space = nameSpace(typeName3);
+function assertUniqueName(owner, typeName4, name4, allow) {
+  if (allow || !name4 || !namedKind(typeName4)) return;
+  const space = nameSpace(typeName4);
   const clash = ownedBy(owner).find(
-    (e) => e.name === name3 && namedKind(e.constructor.name) !== void 0 && nameSpace(e.constructor.name) === space
+    (e) => e.name === name4 && namedKind(e.constructor.name) !== void 0 && nameSpace(e.constructor.name) === space
   );
   if (clash) {
     throw new ApiError(
       "DUPLICATE_NAME",
-      `${pathOf(owner) ?? "The project"} already has a ${clash.constructor.name} named ${name3} (${pathOf(clash)}); pass allowDuplicateNames: true to add another`,
+      `${pathOf(owner) ?? "The project"} already has a ${clash.constructor.name} named ${name4} (${pathOf(clash)}); pass allowDuplicateNames: true to add another`,
       { existing: candidate(clash) }
     );
   }
 }
-function instantiate(typeName3) {
-  if (!isMetaClass(typeName3) || !Object.hasOwn(type, typeName3)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName3}`);
+function instantiate(typeName4) {
+  if (!isMetaClass(typeName4) || !Object.hasOwn(type, typeName4)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName4}`);
   }
-  const Ctor = type[typeName3];
+  const Ctor = type[typeName4];
   return new Ctor();
 }
 function diagramOf2(view) {
@@ -9555,25 +9639,25 @@ function createModelAndView(options) {
 // src/toolbox.ts
 var CURSOR_OPTIONS = /* @__PURE__ */ new Set(["id", "connectable-views", "self-connection"]);
 var DEFAULT_COMMAND = "factory:create-model-and-view";
-function resolveCreateType(typeName3) {
+function resolveCreateType(typeName4) {
   const { items: items2 } = app.toolbox;
-  const item = Object.hasOwn(items2, typeName3) ? items2[typeName3] : void 0;
+  const item = Object.hasOwn(items2, typeName4) ? items2[typeName4] : void 0;
   const custom = item?.command && item.command !== DEFAULT_COMMAND;
   if (!item || custom) {
-    if (app.factory.getModelAndViewIds().includes(typeName3)) {
-      return { id: typeName3, preset: {} };
+    if (app.factory.getModelAndViewIds().includes(typeName4)) {
+      return { id: typeName4, preset: {} };
     }
     throw new ApiError(
       "UNKNOWN_TYPE",
-      custom ? `${typeName3} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName3}`
+      custom ? `${typeName4} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName4}`
     );
   }
   const arg = item.commandArg ?? {};
   const preset = {};
-  for (const [key, value] of Object.entries(arg)) {
-    if (!CURSOR_OPTIONS.has(key)) preset[key] = value;
+  for (const [key2, value] of Object.entries(arg)) {
+    if (!CURSOR_OPTIONS.has(key2)) preset[key2] = value;
   }
-  return { id: typeof arg.id === "string" ? arg.id : typeName3, preset };
+  return { id: typeof arg.id === "string" ? arg.id : typeName4, preset };
 }
 
 // src/handlers/elements.ts
@@ -9619,7 +9703,7 @@ var findElements = defineEndpoint({
     )
   }),
   handle: (input) => {
-    const { name: name3, cursor } = input;
+    const { name: name4, cursor } = input;
     let pool;
     if (input.type !== void 0) {
       requireTypeName(input.type);
@@ -9627,7 +9711,7 @@ var findElements = defineEndpoint({
     } else {
       pool = app.repository.findAll(() => true);
     }
-    const matches = (name3 === void 0 ? pool : pool.filter((e) => e.name === name3)).sort((a, b) => compare(a._id, b._id));
+    const matches = (name4 === void 0 ? pool : pool.filter((e) => e.name === name4)).sort((a, b) => compare(a._id, b._id));
     const rest = cursor === void 0 ? matches : matches.filter((e) => compare(e._id, cursor) > 0);
     const limit = input.limit ?? DEFAULT_PAGE_SIZE;
     const page = rest.slice(0, limit);
@@ -9728,10 +9812,10 @@ var updateElement = defineEndpoint({
     if (input.value === void 0) {
       throw new ApiError("INVALID_ARGUMENT", `${op} needs value`);
     }
-    const typeName3 = elem.constructor.name;
-    const attr = settableAttribute(typeName3, input.field);
+    const typeName4 = elem.constructor.name;
+    const attr = settableAttribute(typeName4, input.field);
     if (op === "set") {
-      const value = toModelValue(typeName3, attr, input.value);
+      const value = toModelValue(typeName4, attr, input.value);
       inStarUML(() => app.engine.setProperty(elem, attr.name, value));
     } else if (op === "reorder") {
       reorder(elem, attr, input.value, input.index);
@@ -9742,52 +9826,52 @@ var updateElement = defineEndpoint({
   }
 });
 function changeReferences(elem, attr, op, value) {
-  const typeName3 = elem.constructor.name;
+  const typeName4 = elem.constructor.name;
   if (attr.kind !== "refs") {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${op} needs a reference list; ${typeName3}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
+      `${op} needs a reference list; ${typeName4}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
     );
   }
   const items2 = toModelValue(
-    typeName3,
+    typeName4,
     attr,
     Array.isArray(value) ? value : [value]
   );
-  const list4 = elem[attr.name];
+  const list5 = elem[attr.name];
   for (const item of items2) {
-    if (op === "add" && !list4.includes(item)) {
+    if (op === "add" && !list5.includes(item)) {
       inStarUML(() => app.engine.addItem(elem, attr.name, item));
-    } else if (op === "remove" && list4.includes(item)) {
+    } else if (op === "remove" && list5.includes(item)) {
       inStarUML(() => app.engine.removeItem(elem, attr.name, item));
     }
   }
 }
 function reorder(elem, attr, value, index) {
-  const typeName3 = elem.constructor.name;
+  const typeName4 = elem.constructor.name;
   if (attr.kind !== "refs" && attr.kind !== "objs") {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `reorder needs a list; ${typeName3}.${attr.name} is ${attr.kind}`
+      `reorder needs a list; ${typeName4}.${attr.name} is ${attr.kind}`
     );
   }
   if (index === void 0) {
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
-  const list4 = elem[attr.name];
+  const list5 = elem[attr.name];
   const itemRef = refId(value);
   const itemId = itemRef === null || byId(itemRef) ? itemRef : tryResolve(itemRef)?._id ?? itemRef;
-  const item = list4.find((e) => e._id === itemId);
+  const item = list5.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
       "NOT_FOUND",
-      `${String(itemId)} is not in ${typeName3}.${attr.name}`
+      `${String(itemId)} is not in ${typeName4}.${attr.name}`
     );
   }
-  if (index >= list4.length) {
+  if (index >= list5.length) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName3}.${attr.name} (${list4.length} items)`
+      `index ${index} is past the end of ${typeName4}.${attr.name} (${list5.length} items)`
     );
   }
   const builder = app.repository.getOperationBuilder();
@@ -9977,10 +10061,10 @@ var createElementWithView = defineEndpoint({
     return created(view, input);
   }
 });
-function valuesFor(id2, name3, props) {
+function valuesFor(id2, name4, props2) {
   const modelType = modelTypeOf(id2);
-  if (modelType) return initialValues(modelType, name3, props);
-  if (name3 !== void 0 || props !== void 0) {
+  if (modelType) return initialValues(modelType, name4, props2);
+  if (name4 !== void 0 || props2 !== void 0) {
     throw new ApiError(
       "INVALID_ARGUMENT",
       `${id2} creates only a view; name and properties do not apply`
@@ -10429,16 +10513,16 @@ var setViewStyle = defineEndpoint({
       ],
       ["autoResize", () => e.setAutoResize(editor, views, input.autoResize)]
     ];
-    const given = changes.filter(([key]) => input[key] !== void 0);
+    const given = changes.filter(([key2]) => input[key2] !== void 0);
     if (given.length === 0) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `Pass at least one of ${changes.map(([key]) => key).join(", ")}`
+        `Pass at least one of ${changes.map(([key2]) => key2).join(", ")}`
       );
     }
     for (const [, apply] of given) inStarUML(apply);
     const fields = given.map(
-      ([key]) => key === "fontFace" || key === "fontSize" ? "font" : key
+      ([key2]) => key2 === "fontFace" || key2 === "fontSize" ? "font" : key2
     );
     return viewsResponse(
       diagram,
@@ -10566,18 +10650,18 @@ function signatureOf(type2) {
   return `${modelTypeOf(createId)}:${typeof kind2 === "string" ? kind2 : ""}`;
 }
 function modelSignature(model) {
-  const name3 = model.constructor.name;
-  return `${name3}:${name3 === "UMLPseudostate" ? String(model.kind) : ""}`;
+  const name4 = model.constructor.name;
+  return `${name4}:${name4 === "UMLPseudostate" ? String(model.kind) : ""}`;
 }
 var Pool = class {
   bySignature = /* @__PURE__ */ new Map();
-  add(signature, item) {
-    const list4 = this.bySignature.get(signature) ?? [];
-    list4.push(item);
-    this.bySignature.set(signature, list4);
+  add(signature2, item) {
+    const list5 = this.bySignature.get(signature2) ?? [];
+    list5.push(item);
+    this.bySignature.set(signature2, list5);
   }
-  take(signature) {
-    return this.bySignature.get(signature)?.shift();
+  take(signature2) {
+    return this.bySignature.get(signature2)?.shift();
   }
 };
 var isEdge = (v) => "tail" in v && "head" in v;
@@ -10597,9 +10681,9 @@ function existing(diagram) {
       if (view instanceof type.UMLNoteView) {
         nodes.add(`Note|${String(view.text)}`, view);
       } else if (VIEW_ONLY_EDGES[view.constructor.name]) {
-        const ends2 = [view.tail, view.head];
+        const ends3 = [view.tail, view.head];
         edges.add(
-          `${VIEW_ONLY_EDGES[view.constructor.name]}|${ends2[0]._id}|${ends2[1]._id}`,
+          `${VIEW_ONLY_EDGES[view.constructor.name]}|${ends3[0]._id}|${ends3[1]._id}`,
           view
         );
       } else {
@@ -10619,7 +10703,7 @@ function existing(diagram) {
   }
   return { nodes, edges, all };
 }
-var names2 = (list4) => new Set((Array.isArray(list4) ? list4 : []).map((e) => e.name));
+var names2 = (list5) => new Set((Array.isArray(list5) ? list5 : []).map((e) => e.name));
 function memberOps(node, owner, model) {
   const ops = [];
   const add = (field, members2, op) => {
@@ -10640,17 +10724,17 @@ function memberOps(node, owner, model) {
   }));
   add(
     "literals",
-    node.literals?.map((name3) => ({ name: name3 })),
-    ({ name: name3 }) => ({
+    node.literals?.map((name4) => ({ name: name4 })),
+    ({ name: name4 }) => ({
       path: "/add_enumeration_literal",
-      body: { ref: owner, name: name3 }
+      body: { ref: owner, name: name4 }
     })
   );
   add("columns", node.columns, (c) => {
-    const { name: name3, ...properties2 } = c;
+    const { name: name4, ...properties2 } = c;
     return {
       path: "/create_element",
-      body: { type: "ERDColumn", parent: owner, name: name3, properties: properties2 }
+      body: { type: "ERDColumn", parent: owner, name: name4, properties: properties2 }
     };
   });
   return ops;
@@ -10703,16 +10787,16 @@ function atPath(model, path) {
 function findModel(node, owner, claimed, warnings) {
   if (node.type === "Note") return null;
   const modelType = modelTypeOf(resolveCreateType(node.type).id);
-  const signature = signatureOf(node.type);
+  const signature2 = signatureOf(node.type);
   if (node.name.includes("/")) {
     const byPath = tryResolve(node.name);
-    if (byPath && modelSignature(byPath) === signature && !claimed.has(byPath)) {
+    if (byPath && modelSignature(byPath) === signature2 && !claimed.has(byPath)) {
       return byPath;
     }
   }
   const path = node.name.split("::").map((p) => p.trim());
   const candidates = app.repository.getInstancesOf(modelType).filter(
-    (m) => modelSignature(m) === signature && !claimed.has(m) && atPath(m, path)
+    (m) => modelSignature(m) === signature2 && !claimed.has(m) && atPath(m, path)
   );
   const near = candidates.filter((m) => within(m, owner));
   const found = candidates.length === 1 ? candidates[0] : near.length === 1 ? near[0] : null;
@@ -10730,10 +10814,10 @@ function findModel(node, owner, claimed, warnings) {
   return null;
 }
 function findRelationship(edge, tail, head) {
-  const signature = signatureOf(edge.type);
+  const signature2 = signatureOf(edge.type);
   return app.repository.getRelationshipsOf(tail).find((r) => {
     const [from, to] = "source" in r ? [r.source, r.target] : [r.end1.reference, r.end2.reference];
-    return modelSignature(r) === signature && r.name === (edge.name ?? "") && from === tail && to === head;
+    return modelSignature(r) === signature2 && r.name === (edge.name ?? "") && from === tail && to === head;
   });
 }
 function pruneTarget(view, diagram, keep) {
@@ -10954,14 +11038,14 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     const found = pools?.edges.take(
       noteLink ? `${edge.type}|${tail.view}|${head.view}` : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`
     );
-    const key = `${edge.from} -> ${edge.to}`;
+    const key2 = `${edge.from} -> ${edge.to}`;
     if (found) {
       kept.add(found);
       unchanged++;
       return;
     }
     const as = `e${i}`;
-    edgeOps.push({ key, as });
+    edgeOps.push({ key: key2, as });
     if (noteLink) {
       ops.push({
         path: "/create_edge_with_view",
@@ -10976,16 +11060,16 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       return;
     }
     const existingEnds = reuse && !tail.model.startsWith("$") && !head.model.startsWith("$");
-    const relationship = existingEnds ? findRelationship(
+    const relationship2 = existingEnds ? findRelationship(
       edge,
       app.repository.get(tail.model),
       app.repository.get(head.model)
     ) : void 0;
-    if (relationship) {
+    if (relationship2) {
       ops.push({
         path: "/create_view_of",
         as,
-        body: { ref: relationship._id, diagram: diagramRef }
+        body: { ref: relationship2._id, diagram: diagramRef }
       });
       return;
     }
@@ -11083,9 +11167,9 @@ function defaultPreset(kind2, direction2) {
   return `${family}-${SIDES[direction2]}`;
 }
 var defaultDirection = (kind2) => kind2 === "mindmap" ? "LR" : "TB";
-function findDiagram(kind2, name3, parent) {
-  if (name3 === void 0) return null;
-  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name3 && within(d, parent)) ?? null;
+function findDiagram(kind2, name4, parent) {
+  if (name4 === void 0) return null;
+  return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name4 && within(d, parent)) ?? null;
 }
 var refSchema = () => object({
   model: nullable(string2()),
@@ -11361,14 +11445,14 @@ function buildDiagramEndpoint(endpoints2) {
       const plan = planFor(kind2, spec);
       const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
       const raw = input.name ?? title;
-      const name3 = raw === void 0 ? void 0 : multiline(raw);
+      const name4 = raw === void 0 ? void 0 : multiline(raw);
       if (input.prune && !input.upsert) {
         throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
       }
-      const diagram = input.upsert ? findDiagram(kind2, name3, parent) : null;
+      const diagram = input.upsert ? findDiagram(kind2, name4, parent) : null;
       const built = opsFor(
         plan,
-        { diagram, parent, name: name3 },
+        { diagram, parent, name: name4 },
         direction2 ?? defaultDirection(kind2),
         input.autoLayout ?? true,
         input.layout,
@@ -11394,24 +11478,24 @@ function buildDiagramEndpoint(endpoints2) {
       };
       if (input.dryRun) {
         const ids3 = Object.fromEntries(built.reused);
-        for (const [as, key] of built.created) {
-          ids3[key] = { model: `$${as}.model`, view: `$${as}.view` };
+        for (const [as, key2] of built.created) {
+          ids3[key2] = { model: `$${as}.model`, view: `$${as}.view` };
         }
         return {
-          diagram: diagram ? (({ _id: _id2, _type: _type2, name: name4 }) => ({ _id: _id2, _type: _type2, name: name4 }))(
+          diagram: diagram ? (({ _id: _id2, _type: _type2, name: name5 }) => ({ _id: _id2, _type: _type2, name: name5 }))(
             summarize(diagram)
           ) : {
             _id: "$diagram",
             _type: DIAGRAM_TYPES[kind2],
-            name: name3 ?? null
+            name: name4 ?? null
           },
           ...summary,
           created: built.created.size + built.edgeOps.length,
           ...shaped(
             input.result,
             ids3,
-            built.edgeOps.map(({ key, as }) => ({
-              key,
+            built.edgeOps.map(({ key: key2, as }) => ({
+              key: key2,
               model: `$${as}.model`,
               view: `$${as}.view`
             }))
@@ -11437,14 +11521,14 @@ function buildDiagramEndpoint(endpoints2) {
         data.results.flatMap((r) => r.as ? [[r.as, r.data]] : [])
       );
       const ids2 = {};
-      for (const [key, ref3] of built.reused) ids2[key] = ref3;
-      for (const [as, key] of built.created) {
+      for (const [key2, ref3] of built.reused) ids2[key2] = ref3;
+      for (const [as, key2] of built.created) {
         const r = byName.get(as);
-        ids2[key] = { model: r.model?._id ?? null, view: r.view._id };
+        ids2[key2] = { model: r.model?._id ?? null, view: r.view._id };
       }
-      const edges = built.edgeOps.map(({ key, as }) => {
+      const edges = built.edgeOps.map(({ key: key2, as }) => {
         const r = byName.get(as);
-        return { key, model: r.model?._id ?? null, view: r.view._id };
+        return { key: key2, model: r.model?._id ?? null, view: r.view._id };
       });
       const target = diagram ?? requireElement(byName.get("diagram")._id);
       const { _id, _type, name: diagramName } = summarize(target);
@@ -15304,36 +15388,36 @@ var DialogRefused = class extends Error {
 function dialogMethods() {
   const found = [];
   const dialogs = app.dialogs;
-  for (const name3 of methodNames(dialogs)) {
-    if (name3.startsWith("show")) found.push([dialogs, name3, `dialogs.${name3}`]);
+  for (const name4 of methodNames(dialogs)) {
+    if (name4.startsWith("show")) found.push([dialogs, name4, `dialogs.${name4}`]);
   }
-  for (const [key, value] of Object.entries(app)) {
+  for (const [key2, value] of Object.entries(app)) {
     const host = value;
-    if (key !== "dialogs" && host !== null && typeof host === "object" && typeof host.showDialog === "function") {
-      found.push([host, "showDialog", `${key}.showDialog`]);
+    if (key2 !== "dialogs" && host !== null && typeof host === "object" && typeof host.showDialog === "function") {
+      found.push([host, "showDialog", `${key2}.showDialog`]);
     }
   }
   return found;
 }
 function methodNames(host) {
   const names4 = new Set(Object.keys(host));
-  for (const name3 of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
-    names4.add(name3);
+  for (const name4 of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
+    names4.add(name4);
   }
   return [...names4].filter((n) => typeof host[n] === "function");
 }
 async function withoutDialogs(what, run) {
   const attempted = [];
   const restore = [];
-  for (const [host, name3, label4] of dialogMethods()) {
-    const own2 = Object.getOwnPropertyDescriptor(host, name3);
-    host[name3] = () => {
+  for (const [host, name4, label4] of dialogMethods()) {
+    const own2 = Object.getOwnPropertyDescriptor(host, name4);
+    host[name4] = () => {
       attempted.push(label4);
       throw new DialogRefused(label4);
     };
     restore.push(() => {
-      if (own2) Object.defineProperty(host, name3, own2);
-      else delete host[name3];
+      if (own2) Object.defineProperty(host, name4, own2);
+      else delete host[name4];
     });
   }
   let outcome;
@@ -15518,7 +15602,7 @@ function preferenceOptions(dir, section) {
   );
   const start = `${prefix}.${section}.`;
   return Object.fromEntries(
-    Object.entries(schema).filter(([key, item]) => key.startsWith(start) && item.type !== "section").map(([key]) => [key.slice(start.length), app.preferences.get(key)])
+    Object.entries(schema).filter(([key2, item]) => key2.startsWith(start) && item.type !== "section").map(([key2]) => [key2.slice(start.length), app.preferences.get(key2)])
   );
 }
 function requireGenerator(language) {
@@ -15703,7 +15787,7 @@ var reverseCode = defineEndpoint({
       `${input.language} reverse engineering`,
       () => module2.analyze(input.path, options)
     );
-    const added = Object.entries(app.repository.getIdMap()).filter(([key]) => !before.has(key)).map(([, elem]) => elem);
+    const added = Object.entries(app.repository.getIdMap()).filter(([key2]) => !before.has(key2)).map(([, elem]) => elem);
     const fresh = new Set(added);
     return {
       language: input.language,
@@ -15745,7 +15829,7 @@ var surfaceSchema = () => object({
 var debugResponse = object({
   app_keys: array(string2()),
   ...Object.fromEntries(
-    INTROSPECTED_MANAGERS.map((name3) => [name3, surfaceSchema()])
+    INTROSPECTED_MANAGERS.map((name4) => [name4, surfaceSchema()])
   )
 });
 var debug = defineEndpoint({
@@ -15757,8 +15841,8 @@ var debug = defineEndpoint({
   response: debugResponse,
   handle: () => {
     const data = { app_keys: Object.keys(app).sort() };
-    for (const name3 of INTROSPECTED_MANAGERS) {
-      data[name3] = describeSurface(app[name3]);
+    for (const name4 of INTROSPECTED_MANAGERS) {
+      data[name4] = describeSurface(app[name4]);
     }
     return data;
   }
@@ -15784,7 +15868,7 @@ function appRoot() {
 }
 function extensionRules(dir) {
   if (!(0, import_node_fs2.existsSync)(dir)) return [];
-  return (0, import_node_fs2.readdirSync)(dir).sort().map((name3) => (0, import_node_path2.join)(dir, name3, "rules.js")).filter((file) => (0, import_node_fs2.existsSync)(file));
+  return (0, import_node_fs2.readdirSync)(dir).sort().map((name4) => (0, import_node_path2.join)(dir, name4, "rules.js")).filter((file) => (0, import_node_fs2.existsSync)(file));
 }
 function loadValidationRules(userExtensions) {
   const root = appRoot();
@@ -15834,8 +15918,8 @@ function membersOf(model) {
   ];
 }
 var quoted = (elem) => {
-  const name3 = label2(elem);
-  return name3 ? `"${name3}"` : "(unnamed)";
+  const name4 = label2(elem);
+  return name4 ? `"${name4}"` : "(unnamed)";
 };
 function nodeLine(view) {
   const model = view.model;
@@ -15854,8 +15938,8 @@ function endText(end) {
 }
 function edgeLine(view) {
   const model = view.model;
-  const name3 = label2(model);
-  return `- ${quoted(view.tail.model)}${endText(model.end1)} -[${model.constructor.name}` + (name3 ? ` "${name3}"` : "") + `]->${endText(model.end2)} ${quoted(view.head.model)}`;
+  const name4 = label2(model);
+  return `- ${quoted(view.tail.model)}${endText(model.end1)} -[${model.constructor.name}` + (name4 ? ` "${name4}"` : "") + `]->${endText(model.end2)} ${quoted(view.head.model)}`;
 }
 var describeDiagram = defineEndpoint({
   path: "/describe_diagram",
@@ -15905,9 +15989,9 @@ ${line}`;
     const truncated = shown < lines.length;
     if (truncated) text4 += `
 ... ${lines.length - shown} more lines`;
-    const { _id, _type, name: name3 } = summarize(diagram);
+    const { _id, _type, name: name4 } = summarize(diagram);
     return {
-      diagram: { _id, _type, name: name3 },
+      diagram: { _id, _type, name: name4 },
       nodes: nodes.length,
       edges: edges.length,
       text: text4,
@@ -15990,8 +16074,8 @@ var typeOf = (elem) => elem.constructor.name;
 var nameOf = (elem) => elem.name;
 var str2 = (value) => typeof value === "string" ? value : "";
 function kindOf(diagram) {
-  const name3 = typeOf(diagram);
-  const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name3);
+  const name4 = typeOf(diagram);
+  const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name4);
   return found ? found[0] : null;
 }
 var box = (view) => view;
@@ -16445,7 +16529,7 @@ function requirementSpec2(v, owned) {
     const t = typeOf(m);
     if (t === "SysMLRequirement") {
       const doc2 = str2(m.documentation);
-      const line = (key) => new RegExp(`^${key}: (.+)$`, "m").exec(doc2)?.[1];
+      const line = (key2) => new RegExp(`^${key2}: (.+)$`, "m").exec(doc2)?.[1];
       const risk = line("Risk");
       const verifyMethod = line("VerifyMethod");
       requirements.push({
@@ -16734,19 +16818,19 @@ var MACROS = {
   container: "Container",
   component: "Component"
 };
-function call(name3, alias, args) {
+function call(name4, alias, args) {
   while (args.length > 0 && args.at(-1) === "") args.pop();
   const quoted3 = args.map(
     (a) => `"${a.replace(/"/g, "'").replace(/\r?\n/g, " ")}"`
   );
-  return `${name3}(${[...alias, ...quoted3].join(", ")})`;
+  return `${name4}(${[...alias, ...quoted3].join(", ")})`;
 }
 function c4Macros(spec) {
   const lines = spec.elements.map((e) => {
     const db = e.kind === "database" && e.type !== "person" ? "Db" : "";
-    const name3 = `${MACROS[e.type]}${db}${e.external ? "_Ext" : ""}`;
+    const name4 = `${MACROS[e.type]}${db}${e.external ? "_Ext" : ""}`;
     const technology = e.type === "container" || e.type === "component" ? [e.technology] : [];
-    return call(name3, [e.id], [e.name, ...technology, e.description]);
+    return call(name4, [e.id], [e.name, ...technology, e.description]);
   });
   for (const r of spec.relations) {
     lines.push(
@@ -16757,20 +16841,20 @@ function c4Macros(spec) {
 }
 
 // src/text/mermaid-writer.ts
-var text3 = (name3) => name3.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
-var isWord = (name3) => /^[A-Za-z_][\w.]*$/.test(name3);
+var text3 = (name4) => name4.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
+var isWord = (name4) => /^[A-Za-z_][\w.]*$/.test(name4);
 var Ids = class {
   constructor(prefix) {
     this.prefix = prefix;
   }
   prefix;
   ids = /* @__PURE__ */ new Map();
-  get(name3) {
-    if (isWord(name3)) return name3;
-    let id2 = this.ids.get(name3);
+  get(name4) {
+    if (isWord(name4)) return name4;
+    let id2 = this.ids.get(name4);
     if (!id2) {
       id2 = `${this.prefix}${this.ids.size}`;
-      this.ids.set(name3, id2);
+      this.ids.set(name4, id2);
     }
     return id2;
   }
@@ -17031,7 +17115,7 @@ var RIGHT = {
   "0..*": "o{",
   "1..*": "|{"
 };
-var entity = (name3) => /^[\w-]+$/.test(name3) ? name3 : `"${text3(name3)}"`;
+var entity = (name4) => /^[\w-]+$/.test(name4) ? name4 : `"${text3(name4)}"`;
 function erDiagram3(spec) {
   const lines = ["erDiagram"];
   for (const e of spec.entities) {
@@ -17090,8 +17174,8 @@ function mindmap3(roots) {
   const lines = ["mindmap"];
   const warnings = [];
   const write = (node, depth) => {
-    const name3 = text3(node.name);
-    const label4 = /[()[\]{}]/.test(name3) ? `n["${name3}"]` : name3 || '[" "]';
+    const name4 = text3(node.name);
+    const label4 = /[()[\]{}]/.test(name4) ? `n["${name4}"]` : name4 || '[" "]';
     lines.push(`${"  ".repeat(depth)}${label4}`);
     for (const child of node.children) write(child, depth + 1);
   };
@@ -17109,7 +17193,7 @@ var REQUIREMENT_KEYWORDS2 = {
   physical: "physicalRequirement",
   design: "designConstraint"
 };
-var reqName = (name3) => /^\w+$/.test(name3) ? name3 : `"${text3(name3)}"`;
+var reqName = (name4) => /^\w+$/.test(name4) ? name4 : `"${text3(name4)}"`;
 function requirementDiagram2(spec) {
   const lines = ["requirementDiagram"];
   for (const r of spec.requirements) {
@@ -17175,12 +17259,12 @@ function toMermaid(x, title = "") {
 }
 
 // src/text/plantuml-writer.ts
-var q = (name3) => `"${name3.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
-var one = (name3) => name3.replace(/\r?\n/g, " ");
+var q = (name4) => `"${name4.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
+var one = (name4) => name4.replace(/\r?\n/g, " ");
 function aliases(names4, prefix) {
   const ids2 = /* @__PURE__ */ new Map();
   for (const n of names4) if (!ids2.has(n)) ids2.set(n, `${prefix}${ids2.size}`);
-  return (name3) => ids2.get(name3);
+  return (name4) => ids2.get(name4);
 }
 var noteLines = (head, body, indent = "") => [
   `${indent}${head}`,
@@ -17312,7 +17396,7 @@ function usecase2(spec, direction2) {
   for (const u of spec.useCases) {
     if (!u.inSystem) lines.push(`usecase ${q(u.name)} as ${uc(u.name)}`);
   }
-  const ref3 = (name3) => spec.actors.includes(name3) ? actor(name3) : uc(name3);
+  const ref3 = (name4) => spec.actors.includes(name4) ? actor(name4) : uc(name4);
   for (const r of spec.relations) {
     const [from, to] = [ref3(r.from), ref3(r.to)];
     lines.push(
@@ -17705,10 +17789,10 @@ var exportText = defineEndpoint({
       );
     }
     const { extracted, warnings } = extract(diagram, kind2);
-    const { _id, _type, name: name3 } = summarize(diagram);
+    const { _id, _type, name: name4 } = summarize(diagram);
     const out = input.format === "mermaid" ? toMermaid(extracted, diagram.name) : toPlantUml(extracted, diagram.name);
     return {
-      diagram: { _id, _type, name: name3 },
+      diagram: { _id, _type, name: name4 },
       kind: kind2,
       format: input.format,
       text: out.text,
@@ -17803,8 +17887,8 @@ function crosses(p, q2, box2) {
   }
   return true;
 }
-function labelWidth(name3) {
-  const widest = Math.max(...name3.split("\n").map((l) => l.length));
+function labelWidth(name4) {
+  const widest = Math.max(...name4.split("\n").map((l) => l.length));
   return widest * CHAR_WIDTH + LABEL_PADDING2;
 }
 function attached(edge, box2) {
@@ -17847,14 +17931,14 @@ var Findings = class {
   }
 };
 var label3 = (v) => {
-  const name3 = v.model?.name;
-  return typeof name3 === "string" && name3 ? `"${name3.replace(/\n/g, " ")}"` : kind(v);
+  const name4 = v.model?.name;
+  return typeof name4 === "string" && name4 ? `"${name4.replace(/\n/g, " ")}"` : kind(v);
 };
 function stacked(f, boxes) {
   const byOrigin = /* @__PURE__ */ new Map();
   for (const b of boxes) {
-    const key = `${Math.round(b.left)},${Math.round(b.top)}`;
-    byOrigin.set(key, [...byOrigin.get(key) ?? [], b]);
+    const key2 = `${Math.round(b.left)},${Math.round(b.top)}`;
+    byOrigin.set(key2, [...byOrigin.get(key2) ?? [], b]);
   }
   const seen = /* @__PURE__ */ new Set();
   for (const [origin, group] of byOrigin) {
@@ -17917,8 +18001,8 @@ function crossings(f, boxes, edges) {
     const points = edgePoints(edge);
     for (const b of obstacles) {
       if (attached(edge, b)) continue;
-      const ends2 = [edge.tail, edge.head].map((e) => boxOf(e));
-      if (ends2.some((e) => heldBy(e, b))) continue;
+      const ends3 = [edge.tail, edge.head].map((e) => boxOf(e));
+      if (ends3.some((e) => heldBy(e, b))) continue;
       if (!points.some((p, i) => i > 0 && crosses(points[i - 1], p, b))) {
         continue;
       }
@@ -17935,11 +18019,11 @@ function crossings(f, boxes, edges) {
 }
 function overflows(f, boxes) {
   for (const b of boxes) {
-    const name3 = b.view.model?.name;
-    if (typeof name3 !== "string" || !name3 || NAME_OUTSIDE.test(kind(b.view))) {
+    const name4 = b.view.model?.name;
+    if (typeof name4 !== "string" || !name4 || NAME_OUTSIDE.test(kind(b.view))) {
       continue;
     }
-    const width = labelWidth(name3);
+    const width = labelWidth(name4);
     if (width <= b.right - b.left) continue;
     f.add(
       "L005",
@@ -17980,8 +18064,8 @@ function dense(f, boxes) {
     if (area(b)) continue;
     const cx = Math.floor((b.left + b.right) / 2 / CELL);
     const cy = Math.floor((b.top + b.bottom) / 2 / CELL);
-    const key = `${cx},${cy}`;
-    cells.set(key, [...cells.get(key) ?? [], b]);
+    const key2 = `${cx},${cy}`;
+    cells.set(key2, [...cells.get(key2) ?? [], b]);
   }
   for (const [cell, group] of cells) {
     if (group.length < CROWDED) continue;
@@ -18407,379 +18491,4470 @@ var restoreSnapshot = defineEndpoint({
   }
 });
 
-// src/handlers/uml-lint.ts
-var UML_RULES = {
-  U001: "association-end-multiplicity",
-  U002: "association-navigability",
-  U003: "attribute-type",
-  U004: "dangling-relationship",
-  U005: "abstract-without-subclass",
-  U006: "interface-not-realized",
-  U007: "message-without-operation",
-  U008: "use-case-without-actor",
-  U009: "state-machine-without-initial",
-  U010: "state-machine-without-final",
-  U011: "entity-without-primary-key",
-  U012: "naming"
+// src/patterns/detect.ts
+var list2 = (v) => v;
+function fits(role, elem) {
+  const t = elem.constructor.name;
+  if (t === role.type) return true;
+  return role.type === "UMLInterface" && t === "UMLClass" && elem.isAbstract === true;
+}
+var ends2 = (r) => "source" in r ? [r.source, r.target] : [
+  r.end1?.reference,
+  r.end2?.reference
+];
+var memo = null;
+function relationshipsOf(elem) {
+  const known = memo?.get(elem);
+  if (known) return known;
+  const found = app.repository.getRelationshipsOf(elem);
+  memo?.set(elem, found);
+  return found;
+}
+function sharingRelationships(detection) {
+  memo = /* @__PURE__ */ new Map();
+  try {
+    return detection();
+  } finally {
+    memo = null;
+  }
+}
+var RELATION_TYPES2 = {
+  association: "UMLAssociation",
+  aggregation: "UMLAssociation",
+  composition: "UMLAssociation",
+  generalization: "UMLGeneralization",
+  realization: "UMLInterfaceRealization",
+  dependency: "UMLDependency"
 };
-var DEFAULT_SEVERITY = {
-  U001: "warning",
-  U002: "info",
-  U003: "warning",
-  U004: "error",
-  U005: "warning",
-  U006: "warning",
-  U007: "warning",
-  U008: "warning",
-  U009: "warning",
-  U010: "info",
-  U011: "warning",
-  U012: "info"
+function relationsFor(r, from, to) {
+  const type2 = RELATION_TYPES2[r.type];
+  return relationshipsOf(from).filter((m) => {
+    if (m.constructor.name !== type2) return false;
+    const [a, b] = ends2(m);
+    return a === from && b === to || type2 === "UMLAssociation" && a === to && b === from;
+  });
+}
+function neighbours(r, elem, fromSide) {
+  const type2 = RELATION_TYPES2[r.type];
+  const out = [];
+  for (const m of relationshipsOf(elem)) {
+    if (m.constructor.name !== type2) continue;
+    const [a, b] = ends2(m);
+    if (fromSide && a === elem && b) out.push(b);
+    else if (!fromSide && b === elem && a) out.push(a);
+    else if (type2 === "UMLAssociation") {
+      if (a === elem && b) out.push(b);
+      else if (b === elem && a) out.push(a);
+    }
+  }
+  return [...new Set(out)];
+}
+var roleName = (name4, self) => /^\{[^{}]+\}$/.test(name4) ? self.name : name4;
+var Score = class {
+  met = 0;
+  total = 0;
+  missing = [];
+  add(weight, ok, what) {
+    this.total += weight;
+    if (ok) this.met += weight;
+    else if (this.missing.length < 10) this.missing.push(what());
+  }
 };
-var PRESETS = {
-  PascalCase: /^[A-Z][A-Za-z0-9]*$/,
-  camelCase: /^[a-z][A-Za-z0-9]*$/,
-  UPPER_CASE: /^[A-Z][A-Z0-9_]*$/,
-  snake_case: /^[a-z][a-z0-9_]*$/,
-  lowercase: /^[a-z][a-z0-9.]*$/
+var typeName3 = (value) => value && typeof value === "object" ? value : value;
+function sameType(written, actual, binding) {
+  const role = /^\{([^{}]+)\}$/.exec(written)?.[1];
+  const elem = typeName3(actual);
+  if (role !== void 0)
+    return (binding.get(role) ?? []).includes(elem);
+  return (typeof elem === "object" && elem !== null ? elem.name : elem) === written;
+}
+function scoreRole(s, role, elem, binding, share) {
+  const at = pathOf(elem);
+  s.add(
+    share,
+    fits(role, elem),
+    () => `${at} is a ${elem.constructor.name}, not a ${role.type}`
+  );
+  for (const [k, v] of Object.entries(role.properties ?? {})) {
+    s.add(share, elem[k] === v, () => `${at}.${k} is not ${String(v)}`);
+  }
+  if (role.stereotype !== void 0) {
+    const st = typeName3(elem.stereotype);
+    const name4 = typeof st === "object" && st !== null ? st.name : st;
+    s.add(
+      share,
+      name4 === role.stereotype,
+      () => `${at} is not \xAB${role.stereotype}\xBB`
+    );
+  }
+  for (const a of role.attributes ?? []) {
+    const found = list2(elem.attributes).find((x) => x.name === a.name);
+    s.add(share, found !== void 0, () => `${at} has no attribute ${a.name}`);
+    for (const [k, v] of Object.entries(a)) {
+      if (k === "name" || k === "documentation" || k === "defaultValue")
+        continue;
+      const ok = found !== void 0 && (k === "type" ? sameType(v, found.type, binding) : found[k] === v);
+      s.add(share / 2, ok, () => `${at}.${a.name} ${k} is not ${String(v)}`);
+    }
+  }
+  for (const o of role.operations ?? []) {
+    const name4 = roleName(o.name, elem);
+    const found = list2(elem.operations).find((x) => x.name === name4);
+    s.add(share, found !== void 0, () => `${at} has no operation ${name4}()`);
+    for (const [k, v] of Object.entries(o)) {
+      if (k === "name" || k === "documentation" || k === "parameters") continue;
+      let ok = false;
+      if (found && k === "returnType") {
+        const ret = list2(found.parameters).find(
+          (x) => x.direction === "return"
+        );
+        ok = ret !== void 0 && sameType(v, ret.type, binding);
+      } else if (found && k === "stereotype") {
+        const st = typeName3(found.stereotype);
+        ok = (typeof st === "object" && st !== null ? st.name : st) === v;
+      } else if (found) ok = found[k] === v;
+      s.add(share / 2, ok, () => `${at}#${name4}() ${k} is not ${String(v)}`);
+    }
+  }
+}
+function scoreRelationship(s, r, binding) {
+  const froms = binding.get(r.from) ?? [];
+  const tos = binding.get(r.to) ?? [];
+  if (froms.length === 0 || tos.length === 0) {
+    s.add(2, false, () => `no ${r.type} from ${r.from} to ${r.to}`);
+    return;
+  }
+  const pairs = froms.length * tos.length;
+  for (const from of froms) {
+    for (const to of tos) {
+      const found = relationsFor(r, from, to)[0];
+      s.add(
+        2 / pairs,
+        found !== void 0,
+        () => `no ${r.type} from ${from.name} to ${to.name}`
+      );
+      if (found === void 0 || found.constructor.name !== "UMLAssociation")
+        continue;
+      const flipped = found.end1.reference !== from;
+      const fromEnd = flipped ? found.end2 : found.end1;
+      const toEnd = flipped ? found.end1 : found.end2;
+      const aggregation2 = { aggregation: "shared", composition: "composite" }[r.type];
+      const want = [
+        [fromEnd, { ...r.fromEnd, ...aggregation2 && { aggregation: aggregation2 } }],
+        [toEnd, { ...r.toEnd }]
+      ];
+      for (const [end, props2] of want) {
+        for (const [k, v] of Object.entries(props2)) {
+          s.add(
+            1 / (2 * pairs),
+            end[k] === v,
+            () => `${r.from} -> ${r.to} end ${k} is not ${String(v)}`
+          );
+        }
+      }
+    }
+  }
+}
+function score(pattern2, binding) {
+  const s = new Score();
+  for (const role of pattern2.roles) {
+    const elems = binding.get(role.name) ?? [];
+    if (elems.length === 0) {
+      if (role.optional) continue;
+      s.add(1, false, () => `nothing plays ${role.name}`);
+      continue;
+    }
+    for (const elem of elems)
+      scoreRole(s, role, elem, binding, 1 / elems.length);
+  }
+  for (const r of pattern2.relationships) {
+    const optional2 = [r.from, r.to].some(
+      (x) => pattern2.roles.find((role) => role.name === x)?.optional && !binding.get(x)?.length
+    );
+    if (!optional2) scoreRelationship(s, r, binding);
+  }
+  return s;
+}
+var MAX_BRANCH = 6;
+var ROLE_TYPE = /^\{([^{}]+)\}$/;
+var typeElement = (value) => value instanceof type.Model ? [value] : [];
+function edgesOf(pattern2) {
+  const edges = pattern2.relationships.map((r) => ({
+    from: r.from,
+    to: r.to,
+    next: (elem, toSide) => neighbours(r, elem, toSide)
+  }));
+  for (const role of pattern2.roles) {
+    const typed = (text4, read) => {
+      const target = text4 === void 0 ? void 0 : ROLE_TYPE.exec(text4)?.[1];
+      if (target === void 0 || target === role.name) return;
+      edges.push({
+        from: role.name,
+        to: target,
+        next: (elem) => read(elem).flatMap(typeElement),
+        forwardOnly: true
+      });
+    };
+    for (const a of role.attributes ?? []) {
+      typed(
+        a.type,
+        (e) => list2(e.attributes).filter((x) => x.name === a.name).map((x) => x.type)
+      );
+    }
+    for (const o of role.operations ?? []) {
+      const ops = (e) => list2(e.operations).filter((x) => x.name === roleName(o.name, e));
+      typed(
+        o.returnType,
+        (e) => ops(e).flatMap(
+          (x) => list2(x.parameters).filter((y) => y.direction === "return").map((y) => y.type)
+        )
+      );
+      for (const param of o.parameters ?? []) {
+        typed(
+          param.type,
+          (e) => ops(e).flatMap(
+            (x) => list2(x.parameters).filter((y) => y.name === param.name).map((y) => y.type)
+          )
+        );
+      }
+    }
+  }
+  return edges;
+}
+function extend2(pattern2, edges, binding, inScope, out) {
+  const used = new Set([...binding.values()].flat());
+  let best = null;
+  const empty = [];
+  for (const role2 of pattern2.roles) {
+    if (binding.has(role2.name)) continue;
+    const sets = [];
+    for (const e of edges) {
+      if (e.to === role2.name && binding.has(e.from)) {
+        sets.push(binding.get(e.from).flatMap((x) => e.next(x, true)));
+      } else if (e.from === role2.name && binding.has(e.to) && !e.forwardOnly) {
+        sets.push(binding.get(e.to).flatMap((x) => e.next(x, false)));
+      }
+    }
+    if (sets.length === 0) continue;
+    const ok = (x) => !used.has(x) && inScope(x) && fits(role2, x);
+    const nonEmpty = sets.map((set) => [...new Set(set)].filter(ok)).filter((set) => set.length > 0);
+    if (nonEmpty.length === 0) {
+      empty.push(role2);
+      continue;
+    }
+    const common2 = nonEmpty.reduce((a, b) => a.filter((x) => b.includes(x)));
+    const candidates2 = common2.length > 0 ? common2 : nonEmpty.sort((a, b) => a.length - b.length)[0];
+    if (!best || candidates2.length < best.candidates.length || candidates2.length === best.candidates.length && role2.cardinality === "1" && best.role.cardinality === "many") {
+      best = { role: role2, candidates: candidates2 };
+    }
+  }
+  if (!best) {
+    if (empty.length === 0) {
+      out.push(binding);
+      return;
+    }
+    const tried = new Map(binding);
+    for (const role2 of empty) tried.set(role2.name, []);
+    extend2(pattern2, edges, tried, inScope, out);
+    return;
+  }
+  const { role, candidates } = best;
+  if (role.cardinality === "many") {
+    extend2(
+      pattern2,
+      edges,
+      new Map([...binding, [role.name, candidates]]),
+      inScope,
+      out
+    );
+    return;
+  }
+  for (const c of candidates.slice(0, MAX_BRANCH)) {
+    extend2(
+      pattern2,
+      edges,
+      new Map([...binding, [role.name, [c]]]),
+      inScope,
+      out
+    );
+  }
+}
+function anchorOf(pattern2) {
+  const degree = (role) => pattern2.relationships.filter(
+    (r) => r.from === role.name || r.to === role.name
+  ).length + (role.cardinality === "1" ? 0.5 : 0);
+  return [...pattern2.roles].sort((a, b) => degree(b) - degree(a))[0];
+}
+var signature = (binding) => [...binding].map(
+  ([role, elems]) => `${role}=${elems.map((e) => e._id).sort().join(",")}`
+).sort().join(";");
+function detect2(pattern2, classifiers, min, variant) {
+  const scope = new Set(classifiers);
+  const anchor = anchorOf(pattern2);
+  const edges = edgesOf(pattern2);
+  const found = /* @__PURE__ */ new Map();
+  const optional2 = new Set(
+    pattern2.roles.filter((r) => r.optional).map((r) => r.name)
+  );
+  const needed = new Set(
+    pattern2.relationships.filter(
+      (r) => r.from === anchor.name && !optional2.has(r.to) || r.to === anchor.name && !optional2.has(r.from)
+    ).map((r) => RELATION_TYPES2[r.type])
+  );
+  for (const elem of classifiers) {
+    if (!fits(anchor, elem)) continue;
+    if (needed.size > 0 && !relationshipsOf(elem).some((r) => needed.has(r.constructor.name))) {
+      continue;
+    }
+    const bindings = [];
+    extend2(
+      pattern2,
+      edges,
+      /* @__PURE__ */ new Map([[anchor.name, [elem]]]),
+      (e) => scope.has(e),
+      bindings
+    );
+    for (const binding of bindings) {
+      const s = score(pattern2, binding);
+      const confidence = Math.round(s.met / s.total * 100) / 100;
+      if (confidence < min) continue;
+      const key2 = signature(binding);
+      found.set(key2, {
+        pattern: pattern2.name,
+        ...variant !== void 0 && { variant },
+        confidence,
+        roles: Object.fromEntries(
+          [...binding].map(([role, elems]) => [
+            role,
+            elems.map((e) => ({ _id: e._id, path: pathOf(e) }))
+          ])
+        ),
+        missing: s.missing,
+        binding
+      });
+    }
+  }
+  return [...found.values()].sort((a, b) => b.confidence - a.confidence);
+}
+function violations(pattern2, binding) {
+  const out = [];
+  for (const check2 of pattern2.checks ?? []) {
+    for (const elem of binding.get(check2.role) ?? []) {
+      let targets;
+      if (check2.relationship !== void 0) {
+        const r = pattern2.relationships[check2.relationship];
+        targets = (binding.get(r.to) ?? []).flatMap(
+          (to) => relationsFor(r, elem, to).map((m) => {
+            if (!check2.end) return m;
+            const flipped = m.end1?.reference !== elem;
+            const fromEnd = flipped ? m.end2 : m.end1;
+            const toEnd = flipped ? m.end1 : m.end2;
+            return check2.end === "from" ? fromEnd : toEnd;
+          })
+        );
+      } else if (check2.member !== void 0) {
+        const name4 = roleName(check2.member, elem);
+        targets = [...list2(elem.attributes), ...list2(elem.operations)].filter(
+          (m) => m.name === name4
+        );
+      } else if (check2.members !== void 0) {
+        targets = list2(elem[check2.members]);
+      } else {
+        targets = [elem];
+      }
+      for (const t of targets) {
+        if (t[check2.property] !== check2.equals) out.push({ check: check2, element: t });
+      }
+    }
+  }
+  return out;
+}
+
+// src/patterns/library/abstract-factory.json
+var abstract_factory_default = {
+  $schema: "../pattern.schema.json",
+  name: "Abstract Factory",
+  category: "creational",
+  intent: "Provide an interface for creating families of related objects without naming their concrete classes.",
+  roles: [
+    {
+      name: "AbstractFactory",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares a creation operation per product kind.",
+      documentation: "{AbstractFactory} creates the products of one family.",
+      operations: [
+        {
+          name: "createProductA",
+          isAbstract: true,
+          returnType: "{AbstractProductA}"
+        },
+        {
+          name: "createProductB",
+          isAbstract: true,
+          returnType: "{AbstractProductB}"
+        }
+      ]
+    },
+    {
+      name: "ConcreteFactory",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Creates the products of one family.",
+      operations: [
+        {
+          name: "createProductA",
+          returnType: "{AbstractProductA}"
+        },
+        {
+          name: "createProductB",
+          returnType: "{AbstractProductB}"
+        }
+      ]
+    },
+    {
+      name: "AbstractProductA",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of the first product kind."
+    },
+    {
+      name: "AbstractProductB",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of the second product kind."
+    },
+    {
+      name: "ProductA",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "A family's first product."
+    },
+    {
+      name: "ProductB",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "A family's second product."
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcreteFactory",
+      to: "AbstractFactory"
+    },
+    {
+      type: "realization",
+      from: "ProductA",
+      to: "AbstractProductA"
+    },
+    {
+      type: "realization",
+      from: "ProductB",
+      to: "AbstractProductB"
+    },
+    {
+      type: "dependency",
+      from: "ConcreteFactory",
+      to: "ProductA",
+      stereotype: "create"
+    },
+    {
+      type: "dependency",
+      from: "ConcreteFactory",
+      to: "ProductB",
+      stereotype: "create"
+    }
+  ],
+  alsoKnownAs: ["Kit"]
 };
-var NAMING_KINDS = {
-  classifier: ["UMLClass", "UMLInterface", "UMLEnumeration", "UMLSignal"],
-  attribute: ["UMLAttribute"],
-  operation: ["UMLOperation"],
-  literal: ["UMLEnumerationLiteral"],
-  package: ["UMLPackage"]
+
+// src/patterns/library/adapter.json
+var adapter_default = {
+  $schema: "../pattern.schema.json",
+  name: "Adapter",
+  category: "structural",
+  intent: "Convert the interface of a class into another interface clients expect.",
+  roles: [
+    {
+      name: "Target",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "The interface clients use.",
+      operations: [
+        {
+          name: "request",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "Adapter",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Implements the target interface by calling the adaptee.",
+      documentation: "{Adapter} adapts {Adaptee} to {Target}.",
+      operations: [
+        {
+          name: "request"
+        }
+      ]
+    },
+    {
+      name: "Adaptee",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "The class with the interface to adapt.",
+      operations: [
+        {
+          name: "specificRequest"
+        }
+      ]
+    },
+    {
+      name: "Client",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Uses the target interface.",
+      optional: true
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "Adapter",
+      to: "Target"
+    },
+    {
+      type: "association",
+      from: "Adapter",
+      to: "Adaptee",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "adaptee",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "association",
+      from: "Client",
+      to: "Target",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "target"
+      }
+    }
+  ],
+  alsoKnownAs: ["Wrapper"],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Adapter",
+        text: "request()"
+      },
+      {
+        from: "Adapter",
+        to: "Adaptee",
+        text: "specificRequest()"
+      }
+    ],
+    participants: ["Client", "Adapter", "Adaptee"]
+  },
+  variants: {
+    class: {
+      description: "The adapter inherits from the adaptee instead of holding it.",
+      relationships: [
+        {
+          type: "realization",
+          from: "Adapter",
+          to: "Target"
+        },
+        {
+          type: "generalization",
+          from: "Adapter",
+          to: "Adaptee"
+        },
+        {
+          type: "association",
+          from: "Client",
+          to: "Target",
+          fromEnd: {
+            navigable: "notNavigable"
+          },
+          toEnd: {
+            navigable: "navigable",
+            name: "target"
+          }
+        }
+      ]
+    }
+  }
 };
-var DEFAULT_NAMING = {
-  classifier: "PascalCase",
-  attribute: "camelCase",
-  operation: "camelCase",
-  literal: "UPPER_CASE",
-  package: false
+
+// src/patterns/library/bridge.json
+var bridge_default = {
+  $schema: "../pattern.schema.json",
+  name: "Bridge",
+  category: "structural",
+  intent: "Decouple an abstraction from its implementation so the two can vary independently.",
+  roles: [
+    {
+      name: "Abstraction",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Defines the abstraction's interface and holds an implementor.",
+      properties: {
+        isAbstract: true
+      },
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    },
+    {
+      name: "RefinedAbstraction",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Extends the abstraction.",
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    },
+    {
+      name: "Implementor",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of the implementation classes.",
+      operations: [
+        {
+          name: "operationImpl",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "ConcreteImplementor",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Implements the implementor interface.",
+      operations: [
+        {
+          name: "operationImpl"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "RefinedAbstraction",
+      to: "Abstraction"
+    },
+    {
+      type: "aggregation",
+      from: "Abstraction",
+      to: "Implementor",
+      toEnd: {
+        navigable: "navigable",
+        name: "impl",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "realization",
+      from: "ConcreteImplementor",
+      to: "Implementor"
+    }
+  ],
+  alsoKnownAs: ["Handle/Body"]
 };
-function compileNaming(given) {
-  const naming2 = { ...DEFAULT_NAMING, ...given };
-  return Object.keys(NAMING_KINDS).flatMap((k) => {
-    const pattern2 = naming2[k];
-    if (pattern2 === false) return [];
-    try {
-      const re = Object.hasOwn(PRESETS, pattern2) ? PRESETS[pattern2] : new RegExp(pattern2, "u");
-      return [[k, pattern2, re]];
-    } catch (err) {
+
+// src/patterns/library/builder.json
+var builder_default = {
+  $schema: "../pattern.schema.json",
+  name: "Builder",
+  category: "creational",
+  intent: "Separate the construction of a complex object from its representation, so one construction process can make different representations.",
+  roles: [
+    {
+      name: "Director",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Runs the construction steps in order.",
+      operations: [
+        {
+          name: "construct",
+          visibility: "public"
+        }
+      ]
+    },
+    {
+      name: "Builder",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares a step per part of the product.",
+      operations: [
+        {
+          name: "buildPart",
+          isAbstract: true
+        },
+        {
+          name: "getResult",
+          isAbstract: true,
+          isQuery: true,
+          returnType: "{Product}"
+        }
+      ]
+    },
+    {
+      name: "ConcreteBuilder",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Builds and assembles the parts of one representation.",
+      operations: [
+        {
+          name: "buildPart"
+        },
+        {
+          name: "getResult",
+          isQuery: true,
+          returnType: "{Product}"
+        }
+      ]
+    },
+    {
+      name: "Product",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "The complex object built."
+    }
+  ],
+  relationships: [
+    {
+      type: "aggregation",
+      from: "Director",
+      to: "Builder",
+      toEnd: {
+        navigable: "navigable",
+        name: "builder",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "realization",
+      from: "ConcreteBuilder",
+      to: "Builder"
+    },
+    {
+      type: "dependency",
+      from: "ConcreteBuilder",
+      to: "Product",
+      stereotype: "create"
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Director",
+        text: "construct()"
+      },
+      {
+        from: "Director",
+        to: "ConcreteBuilder",
+        text: "buildPart()"
+      },
+      {
+        from: "Client",
+        to: "ConcreteBuilder",
+        text: "getResult()"
+      }
+    ],
+    participants: ["Client", "Director", "ConcreteBuilder"]
+  }
+};
+
+// src/patterns/library/chain-of-responsibility.json
+var chain_of_responsibility_default = {
+  $schema: "../pattern.schema.json",
+  name: "Chain of Responsibility",
+  category: "behavioral",
+  intent: "Pass a request along a chain of handlers until one handles it.",
+  roles: [
+    {
+      name: "Handler",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Handles a request or passes it to its successor.",
+      properties: {
+        isAbstract: true
+      },
+      operations: [
+        {
+          name: "handleRequest"
+        },
+        {
+          name: "setNext",
+          parameters: [
+            {
+              name: "next",
+              type: "{Handler}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteHandler",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Handles the requests it is responsible for.",
+      operations: [
+        {
+          name: "handleRequest"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "ConcreteHandler",
+      to: "Handler"
+    },
+    {
+      type: "association",
+      from: "Handler",
+      to: "Handler",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "successor",
+        multiplicity: "0..1"
+      }
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "ConcreteHandler",
+        text: "handleRequest()"
+      }
+    ],
+    participants: ["Client", "ConcreteHandler"]
+  }
+};
+
+// src/patterns/library/command.json
+var command_default = {
+  $schema: "../pattern.schema.json",
+  name: "Command",
+  category: "behavioral",
+  intent: "Encapsulate a request as an object, to parameterize, queue, log or undo requests.",
+  roles: [
+    {
+      name: "Command",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares the operation that executes.",
+      operations: [
+        {
+          name: "execute",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "ConcreteCommand",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Binds a receiver to an action.",
+      operations: [
+        {
+          name: "execute"
+        }
+      ]
+    },
+    {
+      name: "Invoker",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Asks the command to carry out the request.",
+      operations: [
+        {
+          name: "setCommand",
+          parameters: [
+            {
+              name: "command",
+              type: "{Command}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "executeCommand"
+        }
+      ]
+    },
+    {
+      name: "Receiver",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Knows how to perform the request.",
+      operations: [
+        {
+          name: "action"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcreteCommand",
+      to: "Command"
+    },
+    {
+      type: "aggregation",
+      from: "Invoker",
+      to: "Command",
+      toEnd: {
+        navigable: "navigable",
+        name: "command",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "association",
+      from: "ConcreteCommand",
+      to: "Receiver",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "receiver",
+        multiplicity: "1"
+      }
+    }
+  ],
+  alsoKnownAs: ["Action", "Transaction"],
+  sequence: {
+    messages: [
+      {
+        from: "Invoker",
+        to: "ConcreteCommand",
+        text: "execute()"
+      },
+      {
+        from: "ConcreteCommand",
+        to: "Receiver",
+        text: "action()"
+      }
+    ],
+    participants: ["Invoker", "ConcreteCommand", "Receiver"]
+  }
+};
+
+// src/patterns/library/composite.json
+var composite_default = {
+  $schema: "../pattern.schema.json",
+  name: "Composite",
+  category: "structural",
+  intent: "Compose objects into tree structures and let clients treat individual objects and compositions uniformly.",
+  roles: [
+    {
+      name: "Component",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Declares the interface of objects in the tree.",
+      properties: {
+        isAbstract: true
+      },
+      documentation: "{Component} is what {Leaf} and {Composite} have in common.",
+      operations: [
+        {
+          name: "operation",
+          isAbstract: true
+        },
+        {
+          name: "add",
+          parameters: [
+            {
+              name: "child",
+              type: "{Component}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "remove",
+          parameters: [
+            {
+              name: "child",
+              type: "{Component}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "getChild",
+          isQuery: true,
+          parameters: [
+            {
+              name: "index",
+              type: "int",
+              direction: "in"
+            }
+          ],
+          returnType: "{Component}"
+        }
+      ]
+    },
+    {
+      name: "Leaf",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "A tree element without children.",
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    },
+    {
+      name: "Composite",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "A tree element with children.",
+      operations: [
+        {
+          name: "operation"
+        },
+        {
+          name: "add",
+          parameters: [
+            {
+              name: "child",
+              type: "{Component}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "remove",
+          parameters: [
+            {
+              name: "child",
+              type: "{Component}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "getChild",
+          isQuery: true,
+          parameters: [
+            {
+              name: "index",
+              type: "int",
+              direction: "in"
+            }
+          ],
+          returnType: "{Component}"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "Leaf",
+      to: "Component"
+    },
+    {
+      type: "generalization",
+      from: "Composite",
+      to: "Component"
+    },
+    {
+      type: "composition",
+      from: "Composite",
+      to: "Component",
+      toEnd: {
+        navigable: "navigable",
+        name: "children",
+        multiplicity: "0..*"
+      }
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Composite",
+        text: "operation()"
+      },
+      {
+        from: "Composite",
+        to: "Leaf",
+        text: "operation()"
+      }
+    ],
+    participants: ["Client", "Composite", "Leaf"]
+  },
+  checks: [
+    {
+      id: "composite-owns-children",
+      role: "Composite",
+      property: "aggregation",
+      equals: "composite",
+      message: "A composite owns its children: the association from it to its components is a composition.",
+      relationship: 2,
+      end: "from"
+    },
+    {
+      id: "composite-component-abstract",
+      role: "Component",
+      property: "isAbstract",
+      equals: true,
+      message: "The component of a composite is abstract; leaves and composites are its concrete kinds."
+    }
+  ]
+};
+
+// src/patterns/library/decorator.json
+var decorator_default = {
+  $schema: "../pattern.schema.json",
+  name: "Decorator",
+  category: "structural",
+  intent: "Attach responsibilities to an object dynamically, as a flexible alternative to subclassing.",
+  roles: [
+    {
+      name: "Component",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of objects that can be decorated.",
+      operations: [
+        {
+          name: "operation",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "ConcreteComponent",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "The object decorated.",
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    },
+    {
+      name: "Decorator",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Holds a component and forwards to it.",
+      properties: {
+        isAbstract: true
+      },
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    },
+    {
+      name: "ConcreteDecorator",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Adds a responsibility.",
+      operations: [
+        {
+          name: "operation"
+        },
+        {
+          name: "addedBehavior",
+          visibility: "private"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcreteComponent",
+      to: "Component"
+    },
+    {
+      type: "realization",
+      from: "Decorator",
+      to: "Component"
+    },
+    {
+      type: "generalization",
+      from: "ConcreteDecorator",
+      to: "Decorator"
+    },
+    {
+      type: "aggregation",
+      from: "Decorator",
+      to: "Component",
+      toEnd: {
+        navigable: "navigable",
+        name: "component",
+        multiplicity: "1"
+      }
+    }
+  ],
+  alsoKnownAs: ["Wrapper"],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "ConcreteDecorator",
+        text: "operation()"
+      },
+      {
+        from: "ConcreteDecorator",
+        to: "ConcreteComponent",
+        text: "operation()"
+      }
+    ],
+    participants: ["Client", "ConcreteDecorator", "ConcreteComponent"]
+  }
+};
+
+// src/patterns/library/dto.json
+var dto_default = {
+  $schema: "../pattern.schema.json",
+  name: "DTO",
+  category: "domain",
+  intent: "Carry data between processes in one object with no behaviour.",
+  roles: [
+    {
+      name: "DataTransferObject",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "A bag of serializable fields.",
+      stereotype: "DTO",
+      documentation: "{DataTransferObject} carries data across a boundary and has no behaviour."
+    },
+    {
+      name: "Assembler",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Builds DTOs from domain objects and back.",
+      optional: true,
+      operations: [
+        {
+          name: "toDto",
+          parameters: [
+            {
+              name: "source",
+              type: "Object",
+              direction: "in"
+            }
+          ],
+          returnType: "{DataTransferObject}"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "dependency",
+      from: "Assembler",
+      to: "DataTransferObject",
+      stereotype: "create"
+    }
+  ],
+  alsoKnownAs: ["Data Transfer Object"]
+};
+
+// src/patterns/library/entity.json
+var entity_default = {
+  $schema: "../pattern.schema.json",
+  name: "Entity",
+  category: "domain",
+  intent: "Model a domain object by a continuous identity rather than its attributes.",
+  roles: [
+    {
+      name: "Entity",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "An object with an identity that lasts through its changes.",
+      stereotype: "entity",
+      documentation: "{Entity} is identified by its id, whatever its other attributes.",
+      attributes: [
+        {
+          name: "id",
+          type: "Object",
+          visibility: "private",
+          isID: true,
+          isReadOnly: true
+        }
+      ],
+      operations: [
+        {
+          name: "equals",
+          isQuery: true,
+          parameters: [
+            {
+              name: "other",
+              type: "Object",
+              direction: "in"
+            }
+          ],
+          returnType: "boolean"
+        },
+        {
+          name: "hashCode",
+          isQuery: true,
+          returnType: "int"
+        }
+      ]
+    }
+  ],
+  relationships: [],
+  checks: [
+    {
+      id: "entity-identity",
+      role: "Entity",
+      property: "isID",
+      equals: true,
+      message: "An entity's id attribute is its identity (isID).",
+      member: "id"
+    }
+  ]
+};
+
+// src/patterns/library/facade.json
+var facade_default = {
+  $schema: "../pattern.schema.json",
+  name: "Facade",
+  category: "structural",
+  intent: "Provide a unified interface to a set of interfaces in a subsystem.",
+  roles: [
+    {
+      name: "Facade",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Knows which subsystem classes serve a request and delegates to them.",
+      documentation: "{Facade} is the one entry point to its subsystem.",
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    },
+    {
+      name: "SubsystemClass",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Does the work the facade delegates.",
+      operations: [
+        {
+          name: "work"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "association",
+      from: "Facade",
+      to: "SubsystemClass",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable"
+      }
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Facade",
+        text: "operation()"
+      },
+      {
+        from: "Facade",
+        to: "SubsystemClass",
+        text: "work()"
+      }
+    ],
+    participants: ["Client", "Facade", "SubsystemClass"]
+  }
+};
+
+// src/patterns/library/factory-method.json
+var factory_method_default = {
+  $schema: "../pattern.schema.json",
+  name: "Factory Method",
+  category: "creational",
+  intent: "Define an operation for creating an object and let subclasses decide which class to instantiate.",
+  roles: [
+    {
+      name: "Creator",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Declares the factory method and uses what it returns.",
+      properties: {
+        isAbstract: true
+      },
+      documentation: "{Creator} leaves the choice of {Product} to its subclasses.",
+      operations: [
+        {
+          name: "factoryMethod",
+          isAbstract: true,
+          visibility: "protected",
+          returnType: "{Product}"
+        },
+        {
+          name: "anOperation",
+          visibility: "public"
+        }
+      ]
+    },
+    {
+      name: "ConcreteCreator",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Overrides the factory method to make a concrete product.",
+      operations: [
+        {
+          name: "factoryMethod",
+          visibility: "protected",
+          returnType: "{Product}"
+        }
+      ]
+    },
+    {
+      name: "Product",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of the objects the factory method makes."
+    },
+    {
+      name: "ConcreteProduct",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "What a concrete creator makes."
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "ConcreteCreator",
+      to: "Creator"
+    },
+    {
+      type: "realization",
+      from: "ConcreteProduct",
+      to: "Product"
+    },
+    {
+      type: "dependency",
+      from: "ConcreteCreator",
+      to: "ConcreteProduct",
+      stereotype: "create"
+    }
+  ],
+  alsoKnownAs: ["Virtual Constructor"],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "ConcreteCreator",
+        text: "anOperation()"
+      },
+      {
+        from: "ConcreteCreator",
+        to: "ConcreteCreator",
+        text: "factoryMethod()"
+      }
+    ],
+    participants: ["Client", "ConcreteCreator"]
+  },
+  checks: [
+    {
+      id: "factory-method-abstract",
+      role: "Creator",
+      property: "isAbstract",
+      equals: true,
+      message: "A factory method is left abstract in the creator, for subclasses to decide the product.",
+      member: "factoryMethod"
+    }
+  ]
+};
+
+// src/patterns/library/flyweight.json
+var flyweight_default = {
+  $schema: "../pattern.schema.json",
+  name: "Flyweight",
+  category: "structural",
+  intent: "Use sharing to support large numbers of fine-grained objects efficiently.",
+  roles: [
+    {
+      name: "FlyweightFactory",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Makes and shares flyweights.",
+      operations: [
+        {
+          name: "getFlyweight",
+          parameters: [
+            {
+              name: "key",
+              type: "String",
+              direction: "in"
+            }
+          ],
+          returnType: "{Flyweight}"
+        }
+      ]
+    },
+    {
+      name: "Flyweight",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface through which flyweights receive extrinsic state.",
+      operations: [
+        {
+          name: "operation",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "extrinsicState",
+              type: "Object",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteFlyweight",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Shared object holding intrinsic state.",
+      attributes: [
+        {
+          name: "intrinsicState",
+          type: "Object",
+          visibility: "private",
+          isReadOnly: true
+        }
+      ],
+      operations: [
+        {
+          name: "operation",
+          parameters: [
+            {
+              name: "extrinsicState",
+              type: "Object",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "aggregation",
+      from: "FlyweightFactory",
+      to: "Flyweight",
+      toEnd: {
+        navigable: "navigable",
+        name: "flyweights",
+        multiplicity: "0..*"
+      }
+    },
+    {
+      type: "realization",
+      from: "ConcreteFlyweight",
+      to: "Flyweight"
+    }
+  ],
+  checks: [
+    {
+      id: "flyweight-intrinsic-read-only",
+      role: "ConcreteFlyweight",
+      property: "isReadOnly",
+      equals: true,
+      message: "A flyweight is shared, so its intrinsic state does not change.",
+      member: "intrinsicState"
+    }
+  ]
+};
+
+// src/patterns/library/interpreter.json
+var interpreter_default = {
+  $schema: "../pattern.schema.json",
+  name: "Interpreter",
+  category: "behavioral",
+  intent: "Represent a grammar as classes and interpret sentences of the language with them.",
+  roles: [
+    {
+      name: "AbstractExpression",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Declares the interpret operation.",
+      properties: {
+        isAbstract: true
+      },
+      operations: [
+        {
+          name: "interpret",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "context",
+              type: "{Context}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "TerminalExpression",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Interprets a terminal symbol.",
+      operations: [
+        {
+          name: "interpret",
+          parameters: [
+            {
+              name: "context",
+              type: "{Context}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "NonterminalExpression",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Interprets a rule of the grammar.",
+      operations: [
+        {
+          name: "interpret",
+          parameters: [
+            {
+              name: "context",
+              type: "{Context}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "Context",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Information global to the interpreter."
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "TerminalExpression",
+      to: "AbstractExpression"
+    },
+    {
+      type: "generalization",
+      from: "NonterminalExpression",
+      to: "AbstractExpression"
+    },
+    {
+      type: "composition",
+      from: "NonterminalExpression",
+      to: "AbstractExpression",
+      toEnd: {
+        navigable: "navigable",
+        name: "expressions",
+        multiplicity: "1..*"
+      }
+    },
+    {
+      type: "dependency",
+      from: "AbstractExpression",
+      to: "Context"
+    }
+  ]
+};
+
+// src/patterns/library/iterator.json
+var iterator_default = {
+  $schema: "../pattern.schema.json",
+  name: "Iterator",
+  category: "behavioral",
+  intent: "Access the elements of an aggregate sequentially without exposing its representation.",
+  roles: [
+    {
+      name: "Aggregate",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares the operation that makes an iterator.",
+      operations: [
+        {
+          name: "createIterator",
+          isAbstract: true,
+          returnType: "{Iterator}"
+        }
+      ]
+    },
+    {
+      name: "ConcreteAggregate",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Makes iterators over its elements.",
+      operations: [
+        {
+          name: "createIterator",
+          returnType: "{Iterator}"
+        }
+      ]
+    },
+    {
+      name: "Iterator",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface for traversing elements.",
+      operations: [
+        {
+          name: "first",
+          isAbstract: true
+        },
+        {
+          name: "next",
+          isAbstract: true
+        },
+        {
+          name: "isDone",
+          isAbstract: true,
+          isQuery: true,
+          returnType: "boolean"
+        },
+        {
+          name: "currentItem",
+          isAbstract: true,
+          isQuery: true,
+          returnType: "Object"
+        }
+      ]
+    },
+    {
+      name: "ConcreteIterator",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Keeps the position of a traversal.",
+      operations: [
+        {
+          name: "first"
+        },
+        {
+          name: "next"
+        },
+        {
+          name: "isDone",
+          isQuery: true,
+          returnType: "boolean"
+        },
+        {
+          name: "currentItem",
+          isQuery: true,
+          returnType: "Object"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcreteAggregate",
+      to: "Aggregate"
+    },
+    {
+      type: "realization",
+      from: "ConcreteIterator",
+      to: "Iterator"
+    },
+    {
+      type: "association",
+      from: "ConcreteIterator",
+      to: "ConcreteAggregate",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "aggregate",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "dependency",
+      from: "ConcreteAggregate",
+      to: "ConcreteIterator",
+      stereotype: "create"
+    }
+  ],
+  alsoKnownAs: ["Cursor"]
+};
+
+// src/patterns/library/mediator.json
+var mediator_default = {
+  $schema: "../pattern.schema.json",
+  name: "Mediator",
+  category: "behavioral",
+  intent: "Define an object that encapsulates how a set of objects interact, so they do not refer to each other.",
+  roles: [
+    {
+      name: "Mediator",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface colleagues use to talk to each other.",
+      operations: [
+        {
+          name: "notify",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "sender",
+              type: "{Colleague}",
+              direction: "in"
+            },
+            {
+              name: "event",
+              type: "String",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteMediator",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Coordinates the colleagues.",
+      operations: [
+        {
+          name: "notify",
+          parameters: [
+            {
+              name: "sender",
+              type: "{Colleague}",
+              direction: "in"
+            },
+            {
+              name: "event",
+              type: "String",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "Colleague",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Talks to its mediator instead of other colleagues.",
+      properties: {
+        isAbstract: true
+      }
+    },
+    {
+      name: "ConcreteColleague",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "A participant in the interaction.",
+      operations: [
+        {
+          name: "changed"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcreteMediator",
+      to: "Mediator"
+    },
+    {
+      type: "generalization",
+      from: "ConcreteColleague",
+      to: "Colleague"
+    },
+    {
+      type: "association",
+      from: "Colleague",
+      to: "Mediator",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "mediator",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "association",
+      from: "ConcreteMediator",
+      to: "ConcreteColleague",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "colleagues"
+      }
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "ConcreteColleague",
+        to: "ConcreteMediator",
+        text: "notify(sender, event)"
+      }
+    ],
+    participants: ["ConcreteColleague", "ConcreteMediator"]
+  }
+};
+
+// src/patterns/library/memento.json
+var memento_default = {
+  $schema: "../pattern.schema.json",
+  name: "Memento",
+  category: "behavioral",
+  intent: "Capture an object's internal state without violating encapsulation so it can be restored later.",
+  roles: [
+    {
+      name: "Originator",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Makes a memento of its state and restores from one.",
+      attributes: [
+        {
+          name: "state",
+          type: "Object",
+          visibility: "private"
+        }
+      ],
+      operations: [
+        {
+          name: "save",
+          returnType: "{Memento}"
+        },
+        {
+          name: "restore",
+          parameters: [
+            {
+              name: "memento",
+              type: "{Memento}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "Memento",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Holds a snapshot of the originator's state.",
+      properties: {
+        isLeaf: true
+      },
+      attributes: [
+        {
+          name: "state",
+          type: "Object",
+          visibility: "private",
+          isReadOnly: true
+        }
+      ],
+      operations: [
+        {
+          name: "getState",
+          isQuery: true,
+          returnType: "Object"
+        }
+      ]
+    },
+    {
+      name: "Caretaker",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Keeps mementos without looking inside."
+    }
+  ],
+  relationships: [
+    {
+      type: "aggregation",
+      from: "Caretaker",
+      to: "Memento",
+      toEnd: {
+        navigable: "navigable",
+        name: "history",
+        multiplicity: "0..*"
+      }
+    },
+    {
+      type: "dependency",
+      from: "Originator",
+      to: "Memento",
+      stereotype: "create"
+    }
+  ],
+  alsoKnownAs: ["Token"],
+  checks: [
+    {
+      id: "memento-state-read-only",
+      role: "Memento",
+      property: "isReadOnly",
+      equals: true,
+      message: "A memento's state is a snapshot and does not change.",
+      member: "state"
+    }
+  ]
+};
+
+// src/patterns/library/observer.json
+var observer_default = {
+  $schema: "../pattern.schema.json",
+  name: "Observer",
+  category: "behavioral",
+  intent: "Define a one-to-many dependency so that when one object changes state its dependents are notified.",
+  roles: [
+    {
+      name: "Subject",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Knows its observers and notifies them.",
+      properties: {
+        isAbstract: true
+      },
+      documentation: "{Subject} notifies its {Observer}s of every change.",
+      operations: [
+        {
+          name: "attach",
+          parameters: [
+            {
+              name: "observer",
+              type: "{Observer}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "detach",
+          parameters: [
+            {
+              name: "observer",
+              type: "{Observer}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "notify",
+          visibility: "protected"
+        }
+      ]
+    },
+    {
+      name: "Observer",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of objects told about changes.",
+      operations: [
+        {
+          name: "update",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "ConcreteSubject",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Holds the state observers depend on.",
+      attributes: [
+        {
+          name: "state",
+          type: "Object",
+          visibility: "private"
+        }
+      ],
+      operations: [
+        {
+          name: "getState",
+          isQuery: true,
+          returnType: "Object"
+        },
+        {
+          name: "setState",
+          parameters: [
+            {
+              name: "state",
+              type: "Object",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteObserver",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Keeps its state consistent with the subject's.",
+      operations: [
+        {
+          name: "update"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "ConcreteSubject",
+      to: "Subject"
+    },
+    {
+      type: "realization",
+      from: "ConcreteObserver",
+      to: "Observer"
+    },
+    {
+      type: "aggregation",
+      from: "Subject",
+      to: "Observer",
+      toEnd: {
+        navigable: "navigable",
+        name: "observers",
+        multiplicity: "0..*"
+      }
+    },
+    {
+      type: "association",
+      from: "ConcreteObserver",
+      to: "ConcreteSubject",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "subject",
+        multiplicity: "1"
+      }
+    }
+  ],
+  alsoKnownAs: ["Publish-Subscribe", "Dependents"],
+  sequence: {
+    messages: [
+      {
+        from: "ConcreteSubject",
+        to: "ConcreteSubject",
+        text: "notify()"
+      },
+      {
+        from: "ConcreteSubject",
+        to: "ConcreteObserver",
+        text: "update()"
+      },
+      {
+        from: "ConcreteObserver",
+        to: "ConcreteSubject",
+        text: "getState()"
+      }
+    ],
+    participants: ["ConcreteSubject", "ConcreteObserver"]
+  },
+  variants: {
+    "interface-subject": {
+      description: "The subject is an interface its concrete subjects realize.",
+      roles: {
+        Subject: {
+          type: "UMLInterface",
+          properties: {},
+          operations: [
+            {
+              name: "attach",
+              isAbstract: true,
+              parameters: [
+                {
+                  name: "observer",
+                  type: "{Observer}",
+                  direction: "in"
+                }
+              ]
+            },
+            {
+              name: "detach",
+              isAbstract: true,
+              parameters: [
+                {
+                  name: "observer",
+                  type: "{Observer}",
+                  direction: "in"
+                }
+              ]
+            },
+            {
+              name: "notify",
+              isAbstract: true
+            }
+          ]
+        }
+      },
+      relationships: [
+        {
+          type: "realization",
+          from: "ConcreteSubject",
+          to: "Subject"
+        },
+        {
+          type: "realization",
+          from: "ConcreteObserver",
+          to: "Observer"
+        },
+        {
+          type: "aggregation",
+          from: "Subject",
+          to: "Observer",
+          toEnd: {
+            navigable: "navigable",
+            name: "observers",
+            multiplicity: "0..*"
+          }
+        },
+        {
+          type: "association",
+          from: "ConcreteObserver",
+          to: "ConcreteSubject",
+          fromEnd: {
+            navigable: "notNavigable"
+          },
+          toEnd: {
+            navigable: "navigable",
+            name: "subject",
+            multiplicity: "1"
+          }
+        }
+      ]
+    }
+  },
+  checks: [
+    {
+      id: "observer-update-abstract",
+      role: "Observer",
+      property: "isAbstract",
+      equals: true,
+      message: "An observer's update is abstract; each concrete observer reacts its own way.",
+      member: "update"
+    }
+  ]
+};
+
+// src/patterns/library/prototype.json
+var prototype_default = {
+  $schema: "../pattern.schema.json",
+  name: "Prototype",
+  category: "creational",
+  intent: "Create objects by copying a prototypical instance.",
+  roles: [
+    {
+      name: "Prototype",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares the operation that clones.",
+      operations: [
+        {
+          name: "clone",
+          isAbstract: true,
+          isQuery: true,
+          returnType: "{Prototype}"
+        }
+      ]
+    },
+    {
+      name: "ConcretePrototype",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Copies itself.",
+      operations: [
+        {
+          name: "clone",
+          isQuery: true,
+          returnType: "{Prototype}"
+        }
+      ]
+    },
+    {
+      name: "Client",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Makes new objects by asking a prototype to clone itself.",
+      operations: [
+        {
+          name: "operation"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcretePrototype",
+      to: "Prototype"
+    },
+    {
+      type: "association",
+      from: "Client",
+      to: "Prototype",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "prototype",
+        multiplicity: "1"
+      }
+    }
+  ]
+};
+
+// src/patterns/library/proxy.json
+var proxy_default = {
+  $schema: "../pattern.schema.json",
+  name: "Proxy",
+  category: "structural",
+  intent: "Provide a surrogate for another object to control access to it.",
+  roles: [
+    {
+      name: "Subject",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface the real subject and its proxy share.",
+      operations: [
+        {
+          name: "request",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "RealSubject",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "The object the proxy stands for.",
+      operations: [
+        {
+          name: "request"
+        }
+      ]
+    },
+    {
+      name: "Proxy",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Controls access to the real subject.",
+      documentation: "{Proxy} stands in for {RealSubject}.",
+      operations: [
+        {
+          name: "request"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "RealSubject",
+      to: "Subject"
+    },
+    {
+      type: "realization",
+      from: "Proxy",
+      to: "Subject"
+    },
+    {
+      type: "association",
+      from: "Proxy",
+      to: "RealSubject",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "realSubject",
+        multiplicity: "1"
+      }
+    }
+  ],
+  alsoKnownAs: ["Surrogate"],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Proxy",
+        text: "request()"
+      },
+      {
+        from: "Proxy",
+        to: "RealSubject",
+        text: "request()"
+      }
+    ],
+    participants: ["Client", "Proxy", "RealSubject"]
+  }
+};
+
+// src/patterns/library/repository.json
+var repository_default = {
+  $schema: "../pattern.schema.json",
+  name: "Repository",
+  category: "domain",
+  intent: "Mediate between the domain and data mapping with a collection-like interface for domain objects.",
+  roles: [
+    {
+      name: "Repository",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Collection-like access to the aggregate's entities.",
+      documentation: "{Repository} stores and finds {Entity} objects as if they were in memory.",
+      operations: [
+        {
+          name: "findById",
+          isAbstract: true,
+          isQuery: true,
+          parameters: [
+            {
+              name: "id",
+              type: "Object",
+              direction: "in"
+            }
+          ],
+          returnType: "{Entity}"
+        },
+        {
+          name: "findAll",
+          isAbstract: true,
+          isQuery: true,
+          returnType: "{Entity}"
+        },
+        {
+          name: "save",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "remove",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "RepositoryImpl",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Maps the collection operations to storage.",
+      operations: [
+        {
+          name: "findById",
+          isQuery: true,
+          parameters: [
+            {
+              name: "id",
+              type: "Object",
+              direction: "in"
+            }
+          ],
+          returnType: "{Entity}"
+        },
+        {
+          name: "findAll",
+          isQuery: true,
+          returnType: "{Entity}"
+        },
+        {
+          name: "save",
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "remove",
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "Entity",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "The aggregate root stored.",
+      stereotype: "entity",
+      attributes: [
+        {
+          name: "id",
+          type: "Object",
+          visibility: "private",
+          isID: true,
+          isReadOnly: true
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "RepositoryImpl",
+      to: "Repository"
+    },
+    {
+      type: "dependency",
+      from: "Repository",
+      to: "Entity"
+    }
+  ],
+  checks: [
+    {
+      id: "repository-queries",
+      role: "Repository",
+      property: "isQuery",
+      equals: true,
+      message: "Finding does not change the repository: its finders are queries.",
+      member: "findById"
+    }
+  ]
+};
+
+// src/patterns/library/service.json
+var service_default = {
+  $schema: "../pattern.schema.json",
+  name: "Service",
+  category: "domain",
+  intent: "Model a domain operation that belongs to no entity or value as a stateless service.",
+  roles: [
+    {
+      name: "Service",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares the domain operations.",
+      stereotype: "service",
+      documentation: "{Service} is stateless; its operations work on the domain objects passed to them.",
+      operations: [
+        {
+          name: "execute",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "ServiceImpl",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Implements the operations without keeping state.",
+      stereotype: "service",
+      operations: [
+        {
+          name: "execute"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ServiceImpl",
+      to: "Service"
+    }
+  ]
+};
+
+// src/patterns/library/singleton.json
+var singleton_default = {
+  $schema: "../pattern.schema.json",
+  name: "Singleton",
+  category: "creational",
+  intent: "Ensure a class has only one instance and provide a global point of access to it.",
+  roles: [
+    {
+      name: "Singleton",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "The class with one instance.",
+      properties: {
+        isLeaf: true
+      },
+      documentation: "{Singleton} has exactly one instance, reached through getInstance().",
+      attributes: [
+        {
+          name: "instance",
+          type: "{Singleton}",
+          visibility: "private",
+          isStatic: true
+        }
+      ],
+      operations: [
+        {
+          name: "{Singleton}",
+          visibility: "private",
+          stereotype: "create"
+        },
+        {
+          name: "getInstance",
+          visibility: "public",
+          isStatic: true,
+          returnType: "{Singleton}"
+        }
+      ]
+    }
+  ],
+  relationships: [],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Singleton",
+        text: "getInstance()"
+      }
+    ],
+    participants: ["Client", "Singleton"]
+  },
+  variants: {
+    eager: {
+      description: "The instance is made when the class loads.",
+      roles: {
+        Singleton: {
+          attributes: [
+            {
+              name: "instance",
+              type: "{Singleton}",
+              visibility: "private",
+              isStatic: true,
+              isReadOnly: true,
+              defaultValue: "new {Singleton}()"
+            }
+          ]
+        }
+      }
+    }
+  },
+  checks: [
+    {
+      id: "singleton-private-constructor",
+      role: "Singleton",
+      property: "visibility",
+      equals: "private",
+      message: "A singleton's constructor is private, so no other class can make a second instance.",
+      member: "{Singleton}"
+    },
+    {
+      id: "singleton-static-instance",
+      role: "Singleton",
+      property: "isStatic",
+      equals: true,
+      message: "A singleton keeps its one instance in a static attribute.",
+      member: "instance"
+    }
+  ]
+};
+
+// src/patterns/library/specification.json
+var specification_default = {
+  $schema: "../pattern.schema.json",
+  name: "Specification",
+  category: "domain",
+  intent: "Express a business rule as a combinable object that tells whether a candidate satisfies it.",
+  roles: [
+    {
+      name: "Specification",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Decides whether a candidate satisfies the rule.",
+      operations: [
+        {
+          name: "isSatisfiedBy",
+          isAbstract: true,
+          isQuery: true,
+          parameters: [
+            {
+              name: "candidate",
+              type: "{Candidate}",
+              direction: "in"
+            }
+          ],
+          returnType: "boolean"
+        },
+        {
+          name: "and",
+          isAbstract: true,
+          isQuery: true,
+          parameters: [
+            {
+              name: "other",
+              type: "{Specification}",
+              direction: "in"
+            }
+          ],
+          returnType: "{Specification}"
+        },
+        {
+          name: "or",
+          isAbstract: true,
+          isQuery: true,
+          parameters: [
+            {
+              name: "other",
+              type: "{Specification}",
+              direction: "in"
+            }
+          ],
+          returnType: "{Specification}"
+        },
+        {
+          name: "not",
+          isAbstract: true,
+          isQuery: true,
+          returnType: "{Specification}"
+        }
+      ]
+    },
+    {
+      name: "CompositeSpecification",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Implements and, or and not over isSatisfiedBy.",
+      properties: {
+        isAbstract: true
+      },
+      operations: [
+        {
+          name: "and",
+          isQuery: true,
+          parameters: [
+            {
+              name: "other",
+              type: "{Specification}",
+              direction: "in"
+            }
+          ],
+          returnType: "{Specification}"
+        },
+        {
+          name: "or",
+          isQuery: true,
+          parameters: [
+            {
+              name: "other",
+              type: "{Specification}",
+              direction: "in"
+            }
+          ],
+          returnType: "{Specification}"
+        },
+        {
+          name: "not",
+          isQuery: true,
+          returnType: "{Specification}"
+        }
+      ]
+    },
+    {
+      name: "ConcreteSpecification",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "One business rule.",
+      operations: [
+        {
+          name: "isSatisfiedBy",
+          isQuery: true,
+          parameters: [
+            {
+              name: "candidate",
+              type: "{Candidate}",
+              direction: "in"
+            }
+          ],
+          returnType: "boolean"
+        }
+      ]
+    },
+    {
+      name: "Candidate",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "What the rule is about."
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "CompositeSpecification",
+      to: "Specification"
+    },
+    {
+      type: "generalization",
+      from: "ConcreteSpecification",
+      to: "CompositeSpecification"
+    },
+    {
+      type: "dependency",
+      from: "Specification",
+      to: "Candidate"
+    }
+  ],
+  checks: [
+    {
+      id: "specification-query",
+      role: "Specification",
+      property: "isQuery",
+      equals: true,
+      message: "Checking a rule changes nothing: isSatisfiedBy is a query.",
+      member: "isSatisfiedBy"
+    }
+  ]
+};
+
+// src/patterns/library/state.json
+var state_default = {
+  $schema: "../pattern.schema.json",
+  name: "State",
+  category: "behavioral",
+  intent: "Let an object alter its behaviour when its internal state changes.",
+  roles: [
+    {
+      name: "Context",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Holds the current state and delegates to it.",
+      operations: [
+        {
+          name: "request"
+        },
+        {
+          name: "setState",
+          parameters: [
+            {
+              name: "state",
+              type: "{State}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "State",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface of the behaviour of one state.",
+      operations: [
+        {
+          name: "handle",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "context",
+              type: "{Context}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteState",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Behaviour of one state.",
+      operations: [
+        {
+          name: "handle",
+          parameters: [
+            {
+              name: "context",
+              type: "{Context}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "aggregation",
+      from: "Context",
+      to: "State",
+      toEnd: {
+        navigable: "navigable",
+        name: "state",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "realization",
+      from: "ConcreteState",
+      to: "State"
+    }
+  ],
+  alsoKnownAs: ["Objects for States"],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Context",
+        text: "request()"
+      },
+      {
+        from: "Context",
+        to: "ConcreteState",
+        text: "handle(context)"
+      }
+    ],
+    participants: ["Client", "Context", "ConcreteState"]
+  }
+};
+
+// src/patterns/library/strategy.json
+var strategy_default = {
+  $schema: "../pattern.schema.json",
+  name: "Strategy",
+  category: "behavioral",
+  intent: "Define a family of algorithms, encapsulate each one and make them interchangeable.",
+  roles: [
+    {
+      name: "Context",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Is configured with a strategy and delegates to it.",
+      documentation: "{Context} delegates the varying algorithm to a {Strategy}.",
+      operations: [
+        {
+          name: "setStrategy",
+          parameters: [
+            {
+              name: "strategy",
+              type: "{Strategy}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "contextInterface"
+        }
+      ]
+    },
+    {
+      name: "Strategy",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Interface common to all algorithms.",
+      operations: [
+        {
+          name: "execute",
+          isAbstract: true
+        }
+      ]
+    },
+    {
+      name: "ConcreteStrategy",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Implements one algorithm.",
+      operations: [
+        {
+          name: "execute"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "aggregation",
+      from: "Context",
+      to: "Strategy",
+      fromEnd: {
+        navigable: "notNavigable"
+      },
+      toEnd: {
+        navigable: "navigable",
+        name: "strategy",
+        multiplicity: "1"
+      }
+    },
+    {
+      type: "realization",
+      from: "ConcreteStrategy",
+      to: "Strategy"
+    }
+  ],
+  alsoKnownAs: ["Policy"],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "Context",
+        text: "contextInterface()"
+      },
+      {
+        from: "Context",
+        to: "ConcreteStrategy",
+        text: "execute()"
+      }
+    ],
+    participants: ["Client", "Context", "ConcreteStrategy"]
+  },
+  variants: {
+    "abstract-class": {
+      description: "The strategy is an abstract class its concrete strategies extend.",
+      roles: {
+        Strategy: {
+          type: "UMLClass",
+          properties: {
+            isAbstract: true
+          }
+        }
+      },
+      relationships: [
+        {
+          type: "aggregation",
+          from: "Context",
+          to: "Strategy",
+          fromEnd: {
+            navigable: "notNavigable"
+          },
+          toEnd: {
+            navigable: "navigable",
+            name: "strategy",
+            multiplicity: "1"
+          }
+        },
+        {
+          type: "generalization",
+          from: "ConcreteStrategy",
+          to: "Strategy"
+        }
+      ]
+    }
+  },
+  checks: [
+    {
+      id: "strategy-context-navigates",
+      role: "Context",
+      property: "navigable",
+      equals: "navigable",
+      message: "A context reaches its strategy: the association end at the strategy is navigable.",
+      relationship: 0,
+      end: "to"
+    }
+  ]
+};
+
+// src/patterns/library/template-method.json
+var template_method_default = {
+  $schema: "../pattern.schema.json",
+  name: "Template Method",
+  category: "behavioral",
+  intent: "Define the skeleton of an algorithm in an operation, deferring some steps to subclasses.",
+  roles: [
+    {
+      name: "AbstractClass",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Defines the template method and the steps it calls.",
+      properties: {
+        isAbstract: true
+      },
+      documentation: "{AbstractClass}.templateMethod() fixes the order of the steps its subclasses fill in.",
+      operations: [
+        {
+          name: "templateMethod",
+          isLeaf: true,
+          visibility: "public"
+        },
+        {
+          name: "primitiveOperation1",
+          isAbstract: true,
+          visibility: "protected"
+        },
+        {
+          name: "primitiveOperation2",
+          isAbstract: true,
+          visibility: "protected"
+        }
+      ]
+    },
+    {
+      name: "ConcreteClass",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Implements the steps.",
+      operations: [
+        {
+          name: "primitiveOperation1",
+          visibility: "protected"
+        },
+        {
+          name: "primitiveOperation2",
+          visibility: "protected"
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "generalization",
+      from: "ConcreteClass",
+      to: "AbstractClass"
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "Client",
+        to: "ConcreteClass",
+        text: "templateMethod()"
+      },
+      {
+        from: "ConcreteClass",
+        to: "ConcreteClass",
+        text: "primitiveOperation1()"
+      },
+      {
+        from: "ConcreteClass",
+        to: "ConcreteClass",
+        text: "primitiveOperation2()"
+      }
+    ],
+    participants: ["Client", "ConcreteClass"]
+  },
+  checks: [
+    {
+      id: "template-method-final",
+      role: "AbstractClass",
+      property: "isLeaf",
+      equals: true,
+      message: "A template method is final (isLeaf), so subclasses change the steps, not their order.",
+      member: "templateMethod"
+    },
+    {
+      id: "template-steps-abstract",
+      role: "AbstractClass",
+      property: "isAbstract",
+      equals: true,
+      message: "The steps of a template method are abstract in the abstract class.",
+      member: "primitiveOperation1"
+    }
+  ]
+};
+
+// src/patterns/library/unit-of-work.json
+var unit_of_work_default = {
+  $schema: "../pattern.schema.json",
+  name: "Unit of Work",
+  category: "domain",
+  intent: "Track the objects a business transaction changes and write the changes out together.",
+  roles: [
+    {
+      name: "UnitOfWork",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Records new, changed and removed objects and commits them as one.",
+      attributes: [
+        {
+          name: "newObjects",
+          type: "{Entity}",
+          visibility: "private",
+          multiplicity: "0..*"
+        },
+        {
+          name: "dirtyObjects",
+          type: "{Entity}",
+          visibility: "private",
+          multiplicity: "0..*"
+        },
+        {
+          name: "removedObjects",
+          type: "{Entity}",
+          visibility: "private",
+          multiplicity: "0..*"
+        }
+      ],
+      operations: [
+        {
+          name: "registerNew",
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "registerDirty",
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "registerRemoved",
+          parameters: [
+            {
+              name: "entity",
+              type: "{Entity}",
+              direction: "in"
+            }
+          ]
+        },
+        {
+          name: "commit"
+        },
+        {
+          name: "rollback"
+        }
+      ]
+    },
+    {
+      name: "Entity",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "A domain object whose changes are tracked.",
+      stereotype: "entity",
+      attributes: [
+        {
+          name: "id",
+          type: "Object",
+          visibility: "private",
+          isID: true,
+          isReadOnly: true
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "dependency",
+      from: "UnitOfWork",
+      to: "Entity"
+    }
+  ]
+};
+
+// src/patterns/library/value-object.json
+var value_object_default = {
+  $schema: "../pattern.schema.json",
+  name: "Value Object",
+  category: "domain",
+  intent: "Model a descriptive value by its attributes alone: immutable, compared by value, without identity.",
+  roles: [
+    {
+      name: "ValueObject",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "A value defined by its attributes.",
+      properties: {
+        isLeaf: true
+      },
+      stereotype: "valueObject",
+      documentation: "{ValueObject} is immutable and equal to any value with the same attributes.",
+      operations: [
+        {
+          name: "equals",
+          isQuery: true,
+          parameters: [
+            {
+              name: "other",
+              type: "Object",
+              direction: "in"
+            }
+          ],
+          returnType: "boolean"
+        },
+        {
+          name: "hashCode",
+          isQuery: true,
+          returnType: "int"
+        }
+      ]
+    }
+  ],
+  relationships: [],
+  checks: [
+    {
+      id: "value-object-immutable",
+      role: "ValueObject",
+      property: "isReadOnly",
+      equals: true,
+      message: "A value object is immutable: every attribute is read only and it has no setters.",
+      members: "attributes"
+    }
+  ]
+};
+
+// src/patterns/library/visitor.json
+var visitor_default = {
+  $schema: "../pattern.schema.json",
+  name: "Visitor",
+  category: "behavioral",
+  intent: "Represent an operation on the elements of an object structure without changing their classes.",
+  roles: [
+    {
+      name: "Visitor",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares a visit operation per element class.",
+      operations: [
+        {
+          name: "visit",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "element",
+              type: "{Element}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteVisitor",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Implements one operation over the structure.",
+      operations: [
+        {
+          name: "visit",
+          parameters: [
+            {
+              name: "element",
+              type: "{Element}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "Element",
+      type: "UMLInterface",
+      cardinality: "1",
+      description: "Declares accept.",
+      operations: [
+        {
+          name: "accept",
+          isAbstract: true,
+          parameters: [
+            {
+              name: "visitor",
+              type: "{Visitor}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ConcreteElement",
+      type: "UMLClass",
+      cardinality: "many",
+      description: "Accepts a visitor by calling its visit.",
+      operations: [
+        {
+          name: "accept",
+          parameters: [
+            {
+              name: "visitor",
+              type: "{Visitor}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "ObjectStructure",
+      type: "UMLClass",
+      cardinality: "1",
+      description: "Holds the elements and lets a visitor visit them.",
+      operations: [
+        {
+          name: "accept",
+          parameters: [
+            {
+              name: "visitor",
+              type: "{Visitor}",
+              direction: "in"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  relationships: [
+    {
+      type: "realization",
+      from: "ConcreteVisitor",
+      to: "Visitor"
+    },
+    {
+      type: "realization",
+      from: "ConcreteElement",
+      to: "Element"
+    },
+    {
+      type: "aggregation",
+      from: "ObjectStructure",
+      to: "Element",
+      toEnd: {
+        navigable: "navigable",
+        name: "elements",
+        multiplicity: "0..*"
+      }
+    }
+  ],
+  sequence: {
+    messages: [
+      {
+        from: "ObjectStructure",
+        to: "ConcreteElement",
+        text: "accept(visitor)"
+      },
+      {
+        from: "ConcreteElement",
+        to: "ConcreteVisitor",
+        text: "visit(element)"
+      }
+    ],
+    participants: ["ObjectStructure", "ConcreteElement", "ConcreteVisitor"]
+  }
+};
+
+// src/patterns/schema.ts
+var name2 = () => string2().check(_minLength(1));
+var typeText2 = (what) => doc(
+  string2().check(_minLength(1)),
+  `${what}: a type name, or {Role} for the element bound to that role.`
+);
+var visibility2 = () => optional(_enum(["public", "protected", "private", "package"]));
+var attributeSchema = () => object({
+  name: name2(),
+  type: optional(typeText2("Type")),
+  visibility: visibility2(),
+  isStatic: optional(boolean2()),
+  isReadOnly: optional(boolean2()),
+  isDerived: optional(boolean2()),
+  isID: optional(boolean2()),
+  multiplicity: optional(string2()),
+  defaultValue: optional(string2()),
+  documentation: optional(string2())
+});
+var parameterSchema = () => object({
+  name: name2(),
+  type: optional(typeText2("Type")),
+  direction: optional(_enum(["in", "inout", "out"]))
+});
+var operationSchema = () => object({
+  name: doc(
+    name2(),
+    "Operation name; {Role} names a constructor after the class."
+  ),
+  visibility: visibility2(),
+  isStatic: optional(boolean2()),
+  isAbstract: optional(boolean2()),
+  isLeaf: optional(
+    doc(boolean2(), "Final: subclasses do not override it.")
+  ),
+  isQuery: optional(doc(boolean2(), "Changes no state.")),
+  stereotype: optional(doc(string2(), "E.g. create for a constructor.")),
+  parameters: optional(array(parameterSchema())),
+  returnType: optional(typeText2("Return type")),
+  documentation: optional(string2())
+});
+var ELEMENT_TYPES = [
+  "UMLClass",
+  "UMLInterface",
+  "UMLEnumeration"
+];
+var roleSchema = () => object({
+  name: name2(),
+  type: _enum(ELEMENT_TYPES),
+  cardinality: doc(
+    _enum(["1", "many"]),
+    "many: the role binds a list of elements, e.g. every concrete strategy."
+  ),
+  optional: optional(
+    doc(boolean2(), "Made only when bound; its relationships likewise.")
+  ),
+  description: string2(),
+  properties: optional(
+    doc(
+      object({
+        isAbstract: optional(boolean2()),
+        isLeaf: optional(boolean2()),
+        isActive: optional(boolean2())
+      }),
+      "Properties of the bound element."
+    )
+  ),
+  stereotype: optional(string2()),
+  documentation: optional(
+    doc(
+      string2(),
+      "Documentation template, {Role} replaced by bound names; set on elements without documentation."
+    )
+  ),
+  attributes: optional(array(attributeSchema())),
+  operations: optional(array(operationSchema()))
+});
+var endSchema = () => object({
+  name: optional(string2()),
+  navigable: optional(_enum(["unspecified", "navigable", "notNavigable"])),
+  multiplicity: optional(string2())
+});
+var RELATIONSHIP_TYPES = [
+  "association",
+  "aggregation",
+  "composition",
+  "generalization",
+  "realization",
+  "dependency"
+];
+var relationshipSchema = () => object({
+  type: doc(
+    _enum(RELATIONSHIP_TYPES),
+    "aggregation and composition: from is the whole, whose end (end1) gets the diamond; generalization: from is the specific; realization: from implements to; dependency: from uses to."
+  ),
+  from: name2(),
+  to: name2(),
+  stereotype: optional(string2()),
+  fromEnd: optional(endSchema()),
+  toEnd: optional(endSchema())
+});
+var checkSchema = () => object({
+  id: name2(),
+  role: name2(),
+  member: optional(
+    doc(
+      name2(),
+      "An attribute or operation of the role's element, by name or {Role}."
+    )
+  ),
+  members: optional(
+    doc(
+      _enum(["attributes", "operations"]),
+      "Every attribute or operation."
+    )
+  ),
+  relationship: optional(
+    doc(
+      int().check(_gte(0)),
+      "Index in relationships; with end, an end of it."
+    )
+  ),
+  end: optional(_enum(["from", "to"])),
+  property: name2(),
+  equals: union([string2(), boolean2()]),
+  message: name2()
+});
+var variantSchema = () => object({
+  description: string2(),
+  roles: optional(
+    doc(
+      record(string2(), partial2(roleSchema())),
+      "Role fields that replace the pattern's, by role name."
+    )
+  ),
+  relationships: optional(
+    doc(
+      array(relationshipSchema()),
+      "Replaces the pattern's relationships."
+    )
+  )
+});
+var patternSchema = () => object({
+  $schema: optional(string2()),
+  name: name2(),
+  category: _enum(["creational", "structural", "behavioral", "domain"]),
+  intent: name2(),
+  alsoKnownAs: optional(array(string2())),
+  roles: array(roleSchema()).check(_minLength(1)),
+  relationships: array(relationshipSchema()),
+  sequence: optional(
+    doc(
+      object({
+        participants: array(name2()),
+        messages: array(
+          object({ from: name2(), to: name2(), text: string2() })
+        )
+      }),
+      "Messages of a sequence diagram of the pattern; participants are role names or other lifelines such as Client."
+    )
+  ),
+  variants: optional(record(string2(), variantSchema())),
+  checks: optional(array(checkSchema()))
+});
+
+// src/patterns/index.ts
+var PATTERN_FILES = [
+  abstract_factory_default,
+  builder_default,
+  factory_method_default,
+  prototype_default,
+  singleton_default,
+  adapter_default,
+  bridge_default,
+  composite_default,
+  decorator_default,
+  facade_default,
+  flyweight_default,
+  proxy_default,
+  chain_of_responsibility_default,
+  command_default,
+  interpreter_default,
+  iterator_default,
+  mediator_default,
+  memento_default,
+  observer_default,
+  state_default,
+  strategy_default,
+  template_method_default,
+  visitor_default,
+  repository_default,
+  unit_of_work_default,
+  specification_default,
+  value_object_default,
+  entity_default,
+  service_default,
+  dto_default
+];
+var library = null;
+function patterns() {
+  library ??= PATTERN_FILES.map((data) => parse(patternSchema(), data));
+  return library;
+}
+var key = (text4) => text4.toLowerCase().replace(/[\s_-]+/g, "");
+function findPattern(name4) {
+  const found = patterns().find((p) => key(p.name) === key(name4));
+  if (!found) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `No pattern ${name4}; /list_patterns lists ${patterns().length}`
+    );
+  }
+  return found;
+}
+function withVariant(pattern2, variant) {
+  if (variant === void 0) return pattern2;
+  const v = pattern2.variants?.[variant];
+  if (!v) {
+    const known = Object.keys(pattern2.variants ?? {});
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `variant: ${pattern2.name} has ${known.length > 0 ? `the variants ${known.join(", ")}` : "no variants"}, not ${variant}`
+    );
+  }
+  return {
+    ...pattern2,
+    roles: pattern2.roles.map((r) => ({ ...r, ...v.roles?.[r.name] })),
+    relationships: v.relationships ?? pattern2.relationships
+  };
+}
+
+// src/model/planner.ts
+var OPERATION_FIELDS2 = /* @__PURE__ */ new Set([
+  "visibility",
+  "isStatic",
+  "isAbstract",
+  "isQuery",
+  "specification",
+  "documentation"
+]);
+var list3 = (value) => Array.isArray(value) ? value : [];
+var isRef = (v) => typeof v === "object" && v !== null && "$ref" in v;
+function same(current, wanted) {
+  if (isRef(wanted)) {
+    return current?._id === wanted.$ref;
+  }
+  if (typeof wanted === "string" && current && typeof current === "object") {
+    return current.name === wanted;
+  }
+  return current === wanted;
+}
+var childPath = (owner, name4, sep2 = "/") => owner ? `${owner}${sep2}${escapeName(name4)}` : escapeName(name4);
+function findRelationship2(type2, tail, head, name4, claimed) {
+  return app.repository.getRelationshipsOf(tail).find((r) => {
+    if (claimed.has(r) || r.constructor.name !== type2) return false;
+    const [from, to] = "source" in r ? [r.source, r.target] : [r.end1.reference, r.end2.reference];
+    return r.name === name4 && from === tail && to === head;
+  });
+}
+var Planner = class {
+  /**
+   * `upsert` false refuses an owned element that exists (DUPLICATE_NAME);
+   * members and relationships of existing elements are always matched.
+   */
+  constructor(upsert) {
+    this.upsert = upsert;
+  }
+  upsert;
+  ops = [];
+  created = [];
+  updated = [];
+  properties = [];
+  refs = /* @__PURE__ */ new Map();
+  unchanged = 0;
+  n = 0;
+  /** Existing elements already matched, so two specs never take one. */
+  claimed = /* @__PURE__ */ new Set();
+  alias() {
+    return `m${this.n++}`;
+  }
+  claim(elem) {
+    if (elem) this.claimed.add(elem);
+    return elem;
+  }
+  record(path, props2) {
+    for (const [field, value] of Object.entries(props2)) {
+      this.properties.push({ path, field, value });
+    }
+  }
+  /** Sets what differs on an existing element. */
+  update(elem, props2, path) {
+    const fields = Object.keys(props2).filter((k) => !same(elem[k], props2[k]));
+    if (fields.length === 0) {
+      this.unchanged++;
+      return;
+    }
+    for (const field of fields) {
+      this.ops.push({
+        path: "/update_element",
+        body: { ref: elem._id, field, value: props2[field] }
+      });
+      this.properties.push({ path, field, value: props2[field] });
+    }
+    this.updated.push({ path, type: elem.constructor.name, fields });
+  }
+  existing(owner, field, test) {
+    return list3(owner.elem?.[field]).find(
+      (e) => !this.claimed.has(e) && test(e)
+    );
+  }
+  /** An element owned by `owner`, matched by type and name, made when missing. */
+  element(owner, type2, name4, props2, field = "ownedElements", extra = () => true, fields) {
+    const path = childPath(owner.path, name4);
+    const found = this.claim(
+      this.existing(
+        owner,
+        field,
+        (e) => e.constructor.name === type2 && e.name === name4 && extra(e)
+      )
+    );
+    if (found) {
+      if (!this.upsert) {
+        throw new ApiError(
+          "DUPLICATE_NAME",
+          `${path} exists; pass upsert: true to update it`,
+          { existing: candidate(found) }
+        );
+      }
+      this.update(found, props2, path);
+      return { ref: found._id, elem: found, path };
+    }
+    return this.make(owner, type2, name4, props2, field, path, fields);
+  }
+  /** A new owned element, whatever its owner holds already. */
+  make(owner, type2, name4, props2, field = "ownedElements", path = childPath(owner.path, name4), fields) {
+    const as = this.alias();
+    this.ops.push({
+      path: "/create_element",
+      as,
+      body: {
+        type: type2,
+        parent: owner.ref,
+        name: name4,
+        field,
+        ...Object.keys(props2).length > 0 && { properties: props2 },
+        ...fields && { fields: ["_parent", ...fields] }
+      }
+    });
+    this.created.push({ path, type: type2 });
+    this.record(path, props2);
+    return { ref: `$${as}`, elem: null, path };
+  }
+  /** An attribute of `owner` by name, with `props` set. */
+  attribute(owner, name4, props2, field = "attributes") {
+    const path = childPath(owner.path, name4, ".");
+    const found = this.claim(
+      this.existing(owner, field, (e) => e.name === name4)
+    );
+    if (found) {
+      this.update(found, props2, path);
+      return { ref: found._id, elem: found, path };
+    }
+    const as = this.alias();
+    this.ops.push({
+      path: "/add_attribute",
+      as,
+      body: { ref: owner.ref, name: name4, ...props2 }
+    });
+    this.created.push({ path, type: "UMLAttribute" });
+    this.record(path, props2);
+    return { ref: `$${as}`, elem: null, path };
+  }
+  /**
+   * An operation of `owner` by name with `props` set. A new one is made
+   * with its parameters and return type; an existing one gains the
+   * parameters it lacks and has theirs set when `syncParameters`.
+   */
+  operation(owner, name4, props2, parameters = [], returnType, syncParameters = false) {
+    const types = parameters.map(
+      (p) => typeof p.type === "string" ? p.type : ""
+    );
+    const path = `${owner.path}#${escapeName(name4)}(${types.map(escapeName).join(", ")})`;
+    const found = this.claim(
+      this.existing(owner, "operations", (e) => e.name === name4)
+    );
+    if (found) {
+      this.update(found, props2, path);
+      if (syncParameters) {
+        const node = { ref: found._id, elem: found, path };
+        for (const p of parameters) {
+          const { name: param, ...rest2 } = p;
+          this.member(node, "parameters", param, rest2, "/add_parameter");
+        }
+        if (returnType !== void 0) {
+          const ret = list3(found.parameters).find(
+            (x) => x.direction === "return"
+          );
+          if (ret) this.update(ret, { type: returnType }, `${path}.return`);
+          else {
+            this.ops.push({
+              path: "/add_parameter",
+              body: {
+                ref: found._id,
+                name: "",
+                type: returnType,
+                direction: "return"
+              }
+            });
+            this.created.push({ path: `${path}.return`, type: "UMLParameter" });
+            this.record(`${path}.return`, { type: returnType });
+          }
+        }
+      }
+      return { ref: found._id, elem: found, path };
+    }
+    const typed = Object.fromEntries(
+      Object.entries(props2).filter(([k]) => OPERATION_FIELDS2.has(k))
+    );
+    const rest = Object.fromEntries(
+      Object.entries(props2).filter(([k]) => !OPERATION_FIELDS2.has(k))
+    );
+    const as = this.alias();
+    this.ops.push({
+      path: "/add_operation",
+      as,
+      body: {
+        ref: owner.ref,
+        name: name4,
+        ...typed,
+        ...Object.keys(rest).length > 0 && { properties: rest },
+        ...parameters.length > 0 && { parameters },
+        ...returnType !== void 0 && { returnType }
+      }
+    });
+    this.created.push({ path, type: "UMLOperation" });
+    this.record(path, {
+      ...props2,
+      ...returnType !== void 0 && { returnType }
+    });
+    for (const p of parameters) {
+      const { name: param, ...rest2 } = p;
+      this.record(childPath(path, param, "."), rest2);
+    }
+    return { ref: `$${as}`, elem: null, path };
+  }
+  /** A named part of an existing element made with `endpoint` when missing. */
+  member(owner, field, name4, props2, endpoint) {
+    const path = childPath(owner.path, name4, ".");
+    const found = this.claim(
+      this.existing(owner, field, (e) => e.name === name4)
+    );
+    if (found) {
+      this.update(found, props2, path);
+      return;
+    }
+    this.ops.push({ path: endpoint, body: { ref: owner.ref, name: name4, ...props2 } });
+    this.created.push({ path, type: "UMLParameter" });
+    this.record(path, props2);
+  }
+  literal(owner, name4) {
+    const found = this.claim(
+      this.existing(owner, "literals", (e) => e.name === name4)
+    );
+    if (found) {
+      this.unchanged++;
+      return;
+    }
+    this.ops.push({
+      path: "/add_enumeration_literal",
+      body: { ref: owner.ref, name: name4 }
+    });
+    this.created.push({
+      path: childPath(owner.path, name4, "."),
+      type: "UMLEnumerationLiteral"
+    });
+  }
+  /**
+   * A model-only relationship, unless the same one already joins the ends;
+   * an existing one has its ends and properties set where they differ.
+   */
+  relationship(type2, tail, head, more = {}) {
+    const path = `${tail.path} -> ${head.path}`;
+    const found = tail.elem && head.elem ? this.claim(
+      findRelationship2(
+        type2,
+        tail.elem,
+        head.elem,
+        more.name ?? "",
+        this.claimed
+      )
+    ) : void 0;
+    if (found) {
+      const before = this.updated.length;
+      const unchanged = this.unchanged;
+      this.update(found, more.properties ?? {}, path);
+      if (more.tailEnd)
+        this.update(found.end1, more.tailEnd, `${path}.end1`);
+      if (more.headEnd)
+        this.update(found.end2, more.headEnd, `${path}.end2`);
+      this.unchanged = unchanged + (this.updated.length === before ? 1 : 0);
+      return { ref: found._id, elem: found, path };
+    }
+    const as = this.alias();
+    this.ops.push({
+      path: "/create_relationship",
+      as,
+      body: {
+        type: type2,
+        tail: tail.ref,
+        head: head.ref,
+        ...more.name !== void 0 && { name: more.name },
+        ...more.properties && { properties: more.properties },
+        ...more.tailEnd && { tailEnd: more.tailEnd },
+        ...more.headEnd && { headEnd: more.headEnd }
+      }
+    });
+    this.created.push({ path, type: type2 });
+    this.record(path, more.properties ?? {});
+    this.record(`${path}.end1`, more.tailEnd ?? {});
+    this.record(`${path}.end2`, more.headEnd ?? {});
+    return { ref: `$${as}.model`, elem: null, path };
+  }
+};
+
+// src/patterns/apply.ts
+function fill(text4, names4) {
+  return text4.replace(
+    /\{([^{}]+)\}/g,
+    (all, role) => names4.get(role) ?? all
+  );
+}
+var ROLE_REF = /^\{([^{}]+)\}$/;
+var ASSOCIATIONS = {
+  association: void 0,
+  aggregation: "shared",
+  composition: "composite"
+};
+function resolveBinding(role, binding) {
+  if (binding === void 0) {
+    return role.optional ? [] : [{ name: role.name }];
+  }
+  const list5 = Array.isArray(binding) ? binding : [binding];
+  if (role.cardinality === "1" && list5.length !== 1) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `bindings.${role.name}: the role takes one element, got ${list5.length}`
+    );
+  }
+  return list5.map((b) => {
+    if (typeof b !== "string") return { name: b.new.name };
+    const elem = tryResolve(b);
+    if (!elem) {
+      if (b.includes("/")) {
+        throw new ApiError(
+          "NOT_FOUND",
+          `bindings.${role.name}: nothing at ${b}; pass a name or {new: {name}} for a new element`
+        );
+      }
+      return { name: b };
+    }
+    if (!(elem instanceof type.UMLClassifier)) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `naming.${k}: ${pattern2} is neither ${Object.keys(PRESETS).join(", ")} nor a regular expression (${err.message})`
+        `bindings.${role.name}: ${b} is a ${elem.constructor.name}, not a classifier`
+      );
+    }
+    return { elem };
+  });
+}
+function planPattern(pattern2, options) {
+  for (const key2 of Object.keys(options.bindings)) {
+    if (!pattern2.roles.some((r) => r.name === key2)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `bindings.${key2}: ${pattern2.name} has the roles ${pattern2.roles.map((r) => r.name).join(", ")}`
+      );
+    }
+  }
+  const p = new Planner(options.upsert);
+  const warnings = [];
+  const parent = {
+    ref: options.parent._id,
+    elem: options.parent,
+    path: pathOf(options.parent)
+  };
+  const bound = /* @__PURE__ */ new Map();
+  for (const role of pattern2.roles) {
+    bound.set(
+      role.name,
+      resolveBinding(role, options.bindings[role.name]).map((b) => {
+        if ("elem" in b) {
+          if (b.elem.constructor.name !== role.type) {
+            warnings.push(
+              `${role.name} is a ${role.type} in ${pattern2.name}; ${pathOf(b.elem)} is a ${b.elem.constructor.name}`
+            );
+          }
+          return {
+            node: { ref: b.elem._id, elem: b.elem, path: pathOf(b.elem) },
+            created: false,
+            name: b.elem.name
+          };
+        }
+        const node = p.element(parent, role.type, b.name, {});
+        return { node, created: node.elem === null, name: b.name };
+      })
+    );
+  }
+  const names4 = new Map(
+    [...bound].flatMap(
+      ([role, list5]) => list5.length > 0 ? [[role, list5[0].name]] : []
+    )
+  );
+  const typeOf2 = (text4) => {
+    if (text4 === void 0) return void 0;
+    const role = ROLE_REF.exec(text4)?.[1];
+    if (role !== void 0) {
+      const first = bound.get(role)?.[0];
+      if (first) return { $ref: first.node.ref };
+    }
+    return fill(text4, names4);
+  };
+  for (const role of pattern2.roles) {
+    for (const { node, name: name4 } of bound.get(role.name)) {
+      const doc2 = role.documentation !== void 0 && (node.elem === null || !node.elem.documentation) ? fill(role.documentation, names4) : void 0;
+      const props2 = {
+        ...role.properties,
+        ...role.stereotype !== void 0 && { stereotype: role.stereotype },
+        ...doc2 !== void 0 && { documentation: doc2 }
+      };
+      if (Object.keys(props2).length > 0) {
+        if (node.elem) p.update(node.elem, props2, node.path);
+        else setOnNew(p, node, props2);
+      }
+      for (const a of role.attributes ?? [])
+        attribute(p, node, a, typeOf2, names4);
+      for (const o of role.operations ?? [])
+        operation(p, node, o, typeOf2, name4, names4);
+    }
+  }
+  const edges = [];
+  for (const r of pattern2.relationships) {
+    const froms = bound.get(r.from);
+    const tos = bound.get(r.to);
+    for (const from of froms) {
+      for (const to of tos) edges.push(relationship(p, r, from.node, to.node));
+    }
+  }
+  const roles = Object.fromEntries(
+    [...bound].map(([role, list5]) => [
+      role,
+      list5.map((b) => ({
+        ref: b.node.ref,
+        path: b.node.path,
+        created: b.created
+      }))
+    ])
+  );
+  const ops = [...p.ops];
+  let diagram;
+  if (options.diagram) {
+    const shown = pattern2.roles.flatMap(
+      (role) => bound.get(role.name).map((b) => ({ node: b.node, type: role.type }))
+    );
+    diagram = classDiagram5(
+      ops,
+      options.parent,
+      options.diagram,
+      shown,
+      edges,
+      p.created.length > 0
+    );
+  }
+  let sequenceDiagram5;
+  if (options.sequence) {
+    if (!pattern2.sequence) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `sequence: ${pattern2.name} has no sequence`
+      );
+    }
+    const who = (x) => names4.get(x) ?? x;
+    const spec = {
+      participants: pattern2.sequence.participants.map(who),
+      messages: pattern2.sequence.messages.map((m) => ({
+        from: who(m.from),
+        to: who(m.to),
+        text: m.text
+      }))
+    };
+    const built = opsFor(
+      planFor("sequence", spec),
+      {
+        diagram: null,
+        parent: options.parent,
+        name: `${pattern2.name} sequence`
+      },
+      "TB",
+      false
+    );
+    ops.push(...built.ops);
+    sequenceDiagram5 = "$diagram";
+  }
+  return {
+    ops,
+    planner: p,
+    roles,
+    warnings,
+    ...diagram && { diagram },
+    ...sequenceDiagram5 && { sequenceDiagram: sequenceDiagram5 }
+  };
+}
+function setOnNew(p, node, props2) {
+  for (const [field, value] of Object.entries(props2)) {
+    p.ops.push({
+      path: "/update_element",
+      body: { ref: node.ref, field, value }
+    });
+    p.properties.push({ path: node.path, field, value });
+  }
+}
+function attribute(p, owner, a, typeOf2, names4) {
+  const { name: name4, type: type2, defaultValue, ...rest } = a;
+  const props2 = {
+    ...rest,
+    ...type2 !== void 0 && { type: typeOf2(type2) },
+    ...defaultValue !== void 0 && {
+      defaultValue: fill(defaultValue, names4)
+    }
+  };
+  p.attribute(owner, name4, props2);
+}
+function operation(p, owner, o, typeOf2, self, names4) {
+  const { name: name4, parameters, returnType, ...props2 } = o;
+  const opName = ROLE_REF.test(name4) ? self : fill(name4, names4);
+  p.operation(
+    owner,
+    opName,
+    props2,
+    (parameters ?? []).map((x) => ({
+      name: x.name,
+      ...x.type !== void 0 && { type: typeOf2(x.type) },
+      ...x.direction !== void 0 && { direction: x.direction }
+    })),
+    typeOf2(returnType),
+    true
+  );
+}
+function relationship(p, r, from, to) {
+  const properties2 = r.stereotype !== void 0 ? { properties: { stereotype: r.stereotype } } : {};
+  if (r.type in ASSOCIATIONS) {
+    const aggregation2 = ASSOCIATIONS[r.type];
+    return p.relationship("UMLAssociation", from, to, {
+      ...properties2,
+      tailEnd: {
+        ...r.fromEnd,
+        ...aggregation2 !== void 0 && { aggregation: aggregation2 }
+      },
+      headEnd: { ...r.toEnd }
+    });
+  }
+  const type2 = {
+    generalization: "UMLGeneralization",
+    realization: "UMLInterfaceRealization",
+    dependency: "UMLDependency"
+  }[r.type];
+  return p.relationship(type2, from, to, properties2);
+}
+function classDiagram5(ops, parent, target, nodes, edges, changed) {
+  const diagram = target.existing?._id ?? "$pdiagram";
+  if (!target.existing) {
+    ops.push({
+      path: "/create_diagram",
+      as: "pdiagram",
+      body: { type: "UMLClassDiagram", parent: parent._id, name: target.name }
+    });
+  }
+  const shown = new Set(
+    (target.existing?.ownedViews ?? []).map((v) => v.model)
+  );
+  let added = 0;
+  nodes.forEach(({ node, type: type2 }, i) => {
+    if (node.elem && shown.has(node.elem)) return;
+    added++;
+    const as = `pv${i}`;
+    ops.push({
+      path: "/create_view_of",
+      as,
+      body: {
+        ref: node.ref,
+        diagram,
+        x: 40 + i % 4 * 240,
+        y: 40 + Math.floor(i / 4) * 200
+      }
+    });
+    ops.push({
+      path: "/update_element",
+      body: { ref: `$${as}.view`, field: "showNamespace", value: false }
+    });
+    if (type2 === "UMLInterface") {
+      ops.push(
+        {
+          path: "/update_element",
+          body: {
+            ref: `$${as}.view`,
+            field: "suppressOperations",
+            value: false
+          }
+        },
+        {
+          path: "/set_view_style",
+          body: { refs: [`$${as}.view`], stereotypeDisplay: "label" }
+        }
       );
     }
   });
-}
-var list2 = (value) => Array.isArray(value) ? value : [];
-var quoted2 = (e) => typeof e.name === "string" && e.name ? `"${e.name}"` : e.constructor.name;
-function within3(elem, scope) {
-  for (let e = elem; e; e = e._parent) {
-    if (e === scope) return true;
+  for (const edge of edges) {
+    if (edge.elem && shown.has(edge.elem)) continue;
+    ops.push({ path: "/create_view_of", body: { ref: edge.ref, diagram } });
   }
-  return false;
-}
-var Lint = class {
-  constructor(scope, severity) {
-    this.scope = scope;
-    this.severity = severity;
-  }
-  scope;
-  severity;
-  findings = [];
-  all(typeName3) {
-    return app.repository.getInstancesOf(typeName3).filter((e) => within3(e, this.scope));
-  }
-  on(rule) {
-    return this.severity.has(rule);
-  }
-  add(rule, elem, message, fix) {
-    this.findings.push({
-      rule,
-      name: UML_RULES[rule],
-      severity: this.severity.get(rule),
-      message,
-      id: elem._id,
-      path: pathOf(elem),
-      fix
+  if (added > 0 || changed) {
+    ops.push({
+      path: "/layout_diagram",
+      body: { diagram, preset: "hierarchy-down" }
     });
   }
+  return diagram;
+}
+
+// src/patterns/glossary.json
+var glossary_default = {
+  name: "The element's name; how paths and diagrams refer to it.",
+  documentation: "Free text describing the element; shown in documentation exports.",
+  stereotype: "A \xABkeyword\xBB classifying the element beyond its metaclass, e.g. entity, service, create.",
+  visibility: "Who can see the element: public (+), protected (#), private (-), package (~).",
+  isAbstract: "Classifier: has no instances of its own, only through subclasses. Operation: has no body here; subclasses or realizations provide it.",
+  isLeaf: "Final: a classifier with no subclasses, an operation no subclass overrides.",
+  isActive: "A class whose instances run their own thread of control.",
+  isFinalSpecialization: "No further specialization of the classifier is allowed.",
+  isStatic: "Belongs to the classifier rather than to each instance (class-level).",
+  isReadOnly: "Cannot change after initialization (a constant or immutable attribute, an in-only parameter).",
+  isDerived: "Computed from other information rather than stored (/name in diagrams).",
+  isID: "Part of the identity of the owning classifier's instances.",
+  isQuery: "The operation changes no state (a side-effect-free query).",
+  isOrdered: "The values of a multi-valued element are ordered.",
+  isUnique: "The values of a multi-valued element are distinct.",
+  concurrency: "How an operation behaves under concurrent calls: sequential, guarded or concurrent.",
+  multiplicity: "How many values: '1', '0..1', '0..*' (or '*'), '1..*', 'n..m'.",
+  defaultValue: "The value an attribute or parameter has when none is given.",
+  type: "The type of the typed element: a classifier of the model, or a type name such as String.",
+  direction: "A parameter's direction: in (default), out, inout, or return for the result.",
+  aggregation: "On an association end: none, shared (hollow diamond, the whole holds the parts) or composite (filled diamond, the whole owns the parts' lifetime).",
+  navigable: "On an association end: whether the other end's instances reach this end's (navigable, arrowhead) or not (notNavigable, cross); unspecified leaves it open.",
+  reference: "The classifier an association end attaches to.",
+  qualifiers: "Attributes partitioning the instances reached through an association end.",
+  source: "The client, specific or implementing end of a directed relationship.",
+  target: "The supplier, general or implemented end of a directed relationship.",
+  end1: "The first end of an undirected relationship; build_diagram and build_model put the whole of an aggregation here.",
+  end2: "The second end of an undirected relationship.",
+  messageSort: "A message's kind: synchCall, asynchCall, asynchSignal, createMessage, deleteMessage or reply.",
+  signature: "The operation or signal a message invokes.",
+  guard: "A condition that must hold: on a transition, an operand, a control flow.",
+  interactionOperator: "A combined fragment's operator: alt, opt, loop, par, break, critical, neg, strict, seq, ignore, consider, assert.",
+  kind: "A pseudostate's kind (initial, choice, fork, join, ...) or another enumerated kind of the element.",
+  represent: "The role (attribute or parameter) a lifeline stands for; its type is the lifeline's classifier.",
+  specification: "An operation's body or constraint text.",
+  raisedExceptions: "The exceptions an operation may raise.",
+  literals: "The values of an enumeration.",
+  attributes: "Structural features owned by the classifier.",
+  operations: "Behavioural features owned by the classifier.",
+  ownedElements: "Elements the element owns: packages hold classifiers and diagrams, classifiers hold behaviours.",
+  templateParameters: "Parameters of a template classifier or operation.",
+  parameters: "An operation's parameters, the return value as a parameter with direction return."
 };
-function targetsOf(elem, ...typeNames) {
-  return app.repository.getRelationshipsOf(elem).filter((r) => typeNames.includes(r.constructor.name) && r.target === elem);
-}
-function associations(l) {
-  for (const a of l.all("UMLAssociation")) {
-    const ends2 = [a.end1, a.end2];
-    if (l.on("U001")) {
-      const missing = ends2.filter((e) => !e.multiplicity);
-      if (missing.length > 0) {
-        l.add(
-          "U001",
-          a,
-          `The association ${quoted2(a)} between ${ends2.map((e) => quoted2(e.reference)).join(" and ")} has ${missing.length === 2 ? "no multiplicity on either end" : "an end without multiplicity"}`,
-          "Set each end's multiplicity, e.g. /update_element {ref: <end id>, field: 'multiplicity', value: '1'}."
-        );
+
+// src/patterns/presets.json
+var presets_default = {
+  interface: {
+    description: "A pure interface: public abstract operations, attributes only as constants (static, read only).",
+    appliesTo: ["UMLInterface"],
+    attributes: {
+      isStatic: true,
+      isReadOnly: true,
+      visibility: "public"
+    },
+    operations: { isAbstract: true, visibility: "public" }
+  },
+  abstract: {
+    description: "An abstract class: no instances of its own; subclasses complete it.",
+    appliesTo: ["UMLClass"],
+    element: { isAbstract: true, isLeaf: false }
+  },
+  "value-object": {
+    description: "A value: final, private read-only attributes, query operations only; setters are reported.",
+    appliesTo: ["UMLClass"],
+    element: { isLeaf: true, stereotype: "valueObject" },
+    attributes: { isReadOnly: true, visibility: "private" },
+    operations: { isQuery: true },
+    reportSetters: true
+  },
+  entity: {
+    description: "An entity: stereotyped entity, identified by a read-only id attribute.",
+    appliesTo: ["UMLClass"],
+    element: { stereotype: "entity" },
+    ensureAttributes: [
+      {
+        name: "id",
+        type: "Object",
+        visibility: "private",
+        isID: true,
+        isReadOnly: true
       }
-    }
-    if (l.on("U002") && ends2.every((e) => e.navigable === "unspecified")) {
-      l.add(
-        "U002",
-        a,
-        `The association ${quoted2(a)} does not say which way it is navigable`,
-        "Set navigable on the end that can be reached, or build it as a directed association."
-      );
-    }
+    ]
+  },
+  enum: {
+    description: "An enumeration: final, attributes read only.",
+    appliesTo: ["UMLEnumeration"],
+    element: { isLeaf: true },
+    attributes: { isReadOnly: true }
+  },
+  "static-utility": {
+    description: "A utility class: final, static members only, a private constructor so it is never instantiated.",
+    appliesTo: ["UMLClass"],
+    element: { isLeaf: true, stereotype: "utility" },
+    attributes: { isStatic: true },
+    operations: { isStatic: true },
+    ensureConstructor: { visibility: "private" }
+  },
+  immutable: {
+    description: "An immutable class: final, read-only attributes, query operations only; setters are reported.",
+    appliesTo: ["UMLClass"],
+    element: { isLeaf: true },
+    attributes: { isReadOnly: true },
+    operations: { isQuery: true },
+    reportSetters: true
   }
-}
-function attributes(l) {
-  for (const attr of l.all("UMLAttribute")) {
-    if (!list2(attr._parent?.attributes).includes(attr)) continue;
-    if (attr.type) continue;
-    l.add(
-      "U003",
-      attr,
-      `The attribute ${quoted2(attr)} of ${quoted2(attr._parent)} has no type`,
-      "Give it a type, e.g. /update_element {ref: <path>, field: 'type', value: 'String'}."
-    );
-  }
-}
-var present = (value) => !!value && byId(value._id) === value;
-function dangling(l) {
-  for (const r of l.all("DirectedRelationship")) {
-    if (present(r.source) && present(r.target)) continue;
-    l.add(
-      "U004",
-      r,
-      `The ${r.constructor.name} ${quoted2(r)} is missing its ${present(r.source) ? "target" : "source"}`,
-      "Delete it or reconnect it with /update_element (source/target)."
-    );
-  }
-  for (const r of l.all("UndirectedRelationship")) {
-    const ends2 = [r.end1, r.end2];
-    if (ends2.every((e) => present(e.reference))) continue;
-    l.add(
-      "U004",
-      r,
-      `The ${r.constructor.name} ${quoted2(r)} has an end that refers to nothing`,
-      "Delete it or set the end's reference with /update_element."
-    );
-  }
-}
-function hierarchy2(l) {
-  if (l.on("U005")) {
-    for (const cls of l.all("UMLClass")) {
-      if (!cls.isAbstract || targetsOf(cls, "UMLGeneralization").length > 0) {
-        continue;
-      }
-      l.add(
-        "U005",
-        cls,
-        `The abstract class ${quoted2(cls)} has no subclass`,
-        "Add a subclass (generalization to it), or make it concrete."
-      );
-    }
-  }
-  if (l.on("U006")) {
-    for (const i of l.all("UMLInterface")) {
-      const users = targetsOf(
-        i,
-        "UMLInterfaceRealization",
-        "UMLRealization",
-        "UMLGeneralization"
-      );
-      if (users.length > 0) continue;
-      l.add(
-        "U006",
-        i,
-        `The interface ${quoted2(i)} is realized by no class`,
-        "Add an interface realization from the class that implements it, or remove the interface."
-      );
-    }
-  }
-}
-function operationsOf(cls, seen = /* @__PURE__ */ new Set()) {
-  if (seen.has(cls)) return [];
-  seen.add(cls);
-  const parents = app.repository.getRelationshipsOf(cls).filter((r) => r instanceof type.UMLGeneralization && r.source === cls).map((r) => r.target);
-  return [
-    ...list2(cls.operations),
-    ...parents.flatMap((p) => operationsOf(p, seen))
-  ];
-}
-var CALLS = /* @__PURE__ */ new Set(["synchCall", "asynchCall"]);
-function messages(l) {
-  for (const m of l.all("UMLMessage")) {
-    const name3 = m.name.trim();
-    if (!name3 || m.signature || !CALLS.has(String(m.messageSort))) continue;
-    const role = m.target?.represent;
-    const receiver = role?.type;
-    if (!receiver || typeof receiver !== "object") continue;
-    const called = name3.replace(/\(.*$/s, "").trim();
-    if (operationsOf(receiver).some((o) => o.name === called)) {
-      continue;
-    }
-    l.add(
-      "U007",
-      m,
-      `The message ${quoted2(m)} names no operation of ${quoted2(receiver)}`,
-      `Add the operation (/add_operation {ref: '${pathOf(receiver)}', name: '${called}'}) or rename the message.`
-    );
-  }
-}
-function useCases(l) {
-  for (const uc of l.all("UMLUseCase")) {
-    const related = app.repository.getRelationshipsOf(uc);
-    const actor = related.some(
-      (r) => r instanceof type.UMLAssociation && [r.end1, r.end2].some(
-        (e) => e.reference instanceof type.UMLActor
-      )
-    );
-    const reached = related.some(
-      (r) => r instanceof type.UMLInclude && r.target === uc || r instanceof type.UMLExtend && r.source === uc
-    );
-    if (actor || reached) continue;
-    l.add(
-      "U008",
-      uc,
-      `The use case ${quoted2(uc)} has no actor`,
-      "Associate an actor with it, or include it from a use case that has one."
-    );
-  }
-}
-function stateMachines(l) {
-  for (const sm of l.all("UMLStateMachine")) {
-    const inner = (typeName3) => app.repository.getInstancesOf(typeName3).filter((e) => within3(e, sm));
-    if (l.on("U009") && !inner("UMLPseudostate").some((p) => p.kind === "initial")) {
-      l.add(
-        "U009",
-        sm,
-        `The state machine ${quoted2(sm)} has no initial state`,
-        "Add an initial pseudostate with a transition to the first state."
-      );
-    }
-    if (l.on("U010") && inner("UMLFinalState").length === 0) {
-      l.add(
-        "U010",
-        sm,
-        `The state machine ${quoted2(sm)} has no final state`,
-        "Add a final state, unless the machine runs forever."
-      );
-    }
-  }
-}
-function entities(l) {
-  for (const e of l.all("ERDEntity")) {
-    if (list2(e.columns).some((c) => c.primaryKey)) continue;
-    l.add(
-      "U011",
-      e,
-      `The entity ${quoted2(e)} has no primary key`,
-      "Mark a column primaryKey, e.g. /update_element {ref: '<entity>.id', field: 'primaryKey', value: true}."
-    );
-  }
-}
-function naming(l, patterns) {
-  for (const [k, pattern2, re] of patterns) {
-    for (const typeName3 of NAMING_KINDS[k]) {
-      for (const e of l.all(typeName3)) {
-        if (e.constructor.name !== typeName3) continue;
-        const name3 = e.name;
-        if (!name3 || re.test(name3)) continue;
-        l.add(
-          "U012",
-          e,
-          `The ${k} name ${quoted2(e)} is not ${pattern2}`,
-          `Rename it to fit ${pattern2}, or pass naming.${k} to change the convention.`
-        );
-      }
-    }
-  }
-}
-var RANK2 = { error: 0, warning: 1, info: 2 };
-function lintModel(scope, severity, patterns) {
-  const l = new Lint(scope, severity);
-  if (l.on("U001") || l.on("U002")) associations(l);
-  if (l.on("U003")) attributes(l);
-  if (l.on("U004")) dangling(l);
-  hierarchy2(l);
-  if (l.on("U007")) messages(l);
-  if (l.on("U008")) useCases(l);
-  stateMachines(l);
-  if (l.on("U011")) entities(l);
-  if (l.on("U012")) naming(l, patterns);
-  return l.findings.sort(
-    (a, b) => RANK2[a.severity] - RANK2[b.severity] || a.rule.localeCompare(b.rule)
-  );
-}
-var ruleSetting = () => _enum(["off", ...SEVERITIES]);
-var pattern = () => optional(union([string2(), literal(false)]));
-var umlLint = defineEndpoint({
-  path: "/uml_lint",
-  description: "Check the model for modelling mistakes StarUML's own validation does not look for: association ends without multiplicity (U001) or navigability (U002), attributes without a type (U003), relationships missing an end (U004), abstract classes without a subclass (U005), interfaces nobody realizes (U006), sequence messages that name no operation of the receiver (U007), use cases without an actor (U008), state machines without an initial (U009) or final state (U010), ERD entities without a primary key (U011) and names off the naming convention (U012). Each finding has a rule id, the element's id and path, and a one-line fix. Read-only.",
-  readOnly: true,
-  destructive: false,
-  request: object({
-    scope: optional(
-      ref2("Only this element and what it owns; default the project.")
-    ),
-    rules: optional(
-      doc(
-        record(string2(), ruleSetting()),
-        "Per rule id or name: off, or the severity to report it with, e.g. {U002: 'off', naming: 'warning'}."
-      )
-    ),
-    naming: optional(
-      doc(
-        object({
-          classifier: pattern(),
-          attribute: pattern(),
-          operation: pattern(),
-          literal: pattern(),
-          package: pattern()
-        }),
-        "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, a regular expression, or false to skip. Defaults: classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, package skipped."
-      )
-    ),
-    limit: limitField()
-  }),
-  response: object({
-    count: doc(int(), "Findings in all."),
-    counts: countsSchema(),
-    truncated: boolean2(),
-    findings: array(
-      object({
-        rule: string2(),
-        name: string2(),
-        severity: _enum(SEVERITIES),
-        message: string2(),
-        id: string2(),
-        path: nullable(string2()),
-        fix: string2()
-      })
-    )
-  }),
-  handle: (input) => {
-    const given = input.rules ?? {};
-    pickRules(UML_RULES, Object.keys(given), "rules");
-    const severity = /* @__PURE__ */ new Map();
-    for (const id2 of Object.keys(UML_RULES)) {
-      const setting = Object.entries(given).find(
-        ([k]) => k === id2 || k === UML_RULES[id2]
-      )?.[1];
-      if (setting === "off") continue;
-      severity.set(
-        id2,
-        setting ?? DEFAULT_SEVERITY[id2]
-      );
-    }
-    const patterns = compileNaming(input.naming);
-    const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
-    return counted(lintModel(scope, severity, patterns), input.limit);
-  }
+};
+
+// src/patterns/presets.ts
+var props = () => optional(record(string2(), union([string2(), boolean2()])));
+var presetSchema = () => object({
+  description: string2(),
+  appliesTo: array(_enum(["UMLClass", "UMLInterface", "UMLEnumeration"])),
+  element: props(),
+  attributes: props(),
+  operations: props(),
+  ensureAttributes: optional(array(attributeSchema())),
+  ensureConstructor: optional(
+    object({
+      visibility: _enum(["public", "protected", "private", "package"])
+    })
+  ),
+  reportSetters: optional(boolean2())
 });
+var presets = null;
+function allPresets() {
+  presets ??= parse(record(string2(), presetSchema()), presets_default);
+  return presets;
+}
+var PRESET_NAMES2 = Object.keys(presets_default);
 
 // src/model/plan.ts
 var CLASS_TYPES2 = {
@@ -18803,229 +22978,25 @@ var STATE_TYPES2 = {
   fork: ["UMLPseudostate", "fork"],
   join: ["UMLPseudostate", "join"]
 };
-var list3 = (value) => Array.isArray(value) ? value : [];
-var isRef = (v) => typeof v === "object" && v !== null && "$ref" in v;
-function same(current, wanted) {
-  if (isRef(wanted)) {
-    return current?._id === wanted.$ref;
-  }
-  if (typeof wanted === "string" && current && typeof current === "object") {
-    return current.name === wanted;
-  }
-  return current === wanted;
-}
-var childPath = (owner, name3, sep2 = "/") => owner ? `${owner}${sep2}${escapeName(name3)}` : escapeName(name3);
 function calledName(text4) {
-  const name3 = text4.replace(/\(.*$/s, "").trim();
-  return /^[A-Za-z_$][\w$]*$/.test(name3) ? name3 : null;
+  const name4 = text4.replace(/\(.*$/s, "").trim();
+  return /^[A-Za-z_$][\w$]*$/.test(name4) ? name4 : null;
 }
-var Planner = class {
-  constructor(upsert) {
-    this.upsert = upsert;
-  }
-  upsert;
-  ops = [];
-  created = [];
-  updated = [];
-  refs = /* @__PURE__ */ new Map();
-  warnings = [];
-  unchanged = 0;
-  n = 0;
-  /** Existing elements already matched, so two specs never take one. */
-  claimed = /* @__PURE__ */ new Set();
-  alias() {
-    return `m${this.n++}`;
-  }
-  claim(elem) {
-    if (elem) this.claimed.add(elem);
-    return elem;
-  }
-  /** Sets what differs on an existing element. */
-  update(elem, props, path) {
-    const fields = Object.keys(props).filter((k) => !same(elem[k], props[k]));
-    if (fields.length === 0) {
-      this.unchanged++;
-      return;
-    }
-    for (const field of fields) {
-      this.ops.push({
-        path: "/update_element",
-        body: { ref: elem._id, field, value: props[field] }
-      });
-    }
-    this.updated.push({ path, type: elem.constructor.name, fields });
-  }
-  existing(owner, field, test) {
-    return list3(owner.elem?.[field]).find(
-      (e) => !this.claimed.has(e) && test(e)
-    );
-  }
-  /** An element owned by `owner`, matched by type and name, made when missing. */
-  element(owner, type2, name3, props, field = "ownedElements", extra = () => true, fields) {
-    const path = childPath(owner.path, name3);
-    const found = this.claim(
-      this.existing(
-        owner,
-        field,
-        (e) => e.constructor.name === type2 && e.name === name3 && extra(e)
-      )
-    );
-    if (found) {
-      if (!this.upsert) {
-        throw new ApiError(
-          "DUPLICATE_NAME",
-          `${path} exists; pass upsert: true to update it`,
-          { existing: candidate(found) }
-        );
-      }
-      this.update(found, props, path);
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    this.ops.push({
-      path: "/create_element",
-      as,
-      body: {
-        type: type2,
-        parent: owner.ref,
-        name: name3,
-        field,
-        ...Object.keys(props).length > 0 && { properties: props },
-        ...fields && { fields: ["_parent", ...fields] }
-      }
-    });
-    this.created.push({ path, type: type2 });
-    return { ref: `$${as}`, elem: null, path };
-  }
-  attribute(owner, a, type2, field = "attributes") {
-    const path = childPath(owner.path, a.name, ".");
-    const props = {
-      ...type2 !== void 0 && { type: type2 },
-      ...a.visibility !== void 0 && { visibility: a.visibility },
-      ...a.isStatic !== void 0 && { isStatic: a.isStatic },
-      ...a.multiplicity !== void 0 && { multiplicity: a.multiplicity },
-      ...a.defaultValue !== void 0 && { defaultValue: a.defaultValue }
-    };
-    const found = this.claim(
-      this.existing(owner, field, (e) => e.name === a.name)
-    );
-    if (found) {
-      this.update(found, props, path);
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    this.ops.push({
-      path: "/add_attribute",
-      as,
-      body: { ref: owner.ref, name: a.name, ...props }
-    });
-    this.created.push({ path, type: "UMLAttribute" });
-    return { ref: `$${as}`, elem: null, path };
-  }
-  operation(owner, o, typeOf2) {
-    const types = (o.parameters ?? []).map((p) => p.type ?? "");
-    const path = `${owner.path}#${escapeName(o.name)}(${types.map(escapeName).join(", ")})`;
-    const props = {
-      ...o.visibility !== void 0 && { visibility: o.visibility },
-      ...o.isStatic !== void 0 && { isStatic: o.isStatic },
-      ...o.isAbstract !== void 0 && { isAbstract: o.isAbstract }
-    };
-    const found = this.claim(
-      this.existing(owner, "operations", (e) => e.name === o.name)
-    );
-    if (found) {
-      this.update(found, props, path);
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    const returnType = typeOf2(o.returnType);
-    this.ops.push({
-      path: "/add_operation",
-      as,
-      body: {
-        ref: owner.ref,
-        name: o.name,
-        ...props,
-        ...o.parameters && {
-          parameters: o.parameters.map((p) => ({
-            name: p.name,
-            ...p.type !== void 0 && { type: typeOf2(p.type) }
-          }))
-        },
-        ...returnType !== void 0 && { returnType }
-      }
-    });
-    this.created.push({ path, type: "UMLOperation" });
-    return { ref: `$${as}`, elem: null, path };
-  }
-  literal(owner, name3) {
-    const found = this.claim(
-      this.existing(owner, "literals", (e) => e.name === name3)
-    );
-    if (found) {
-      this.unchanged++;
-      return;
-    }
-    this.ops.push({
-      path: "/add_enumeration_literal",
-      body: { ref: owner.ref, name: name3 }
-    });
-    this.created.push({
-      path: childPath(owner.path, name3, "."),
-      type: "UMLEnumerationLiteral"
-    });
-  }
-  /** A model-only relationship, unless the same one already joins the ends. */
-  relationship(type2, tail, head, more = {}) {
-    const path = `${tail.path} -> ${head.path}`;
-    const found = tail.elem && head.elem ? this.claim(
-      findRelationship2(
-        type2,
-        tail.elem,
-        head.elem,
-        more.name ?? "",
-        this.claimed
-      )
-    ) : void 0;
-    if (found) {
-      this.unchanged++;
-      return { ref: found._id, elem: found, path };
-    }
-    const as = this.alias();
-    this.ops.push({
-      path: "/create_relationship",
-      as,
-      body: {
-        type: type2,
-        tail: tail.ref,
-        head: head.ref,
-        ...more.name !== void 0 && { name: more.name },
-        ...more.properties && { properties: more.properties },
-        ...more.tailEnd && { tailEnd: more.tailEnd },
-        ...more.headEnd && { headEnd: more.headEnd }
-      }
-    });
-    this.created.push({ path, type: type2 });
-    return { ref: `$${as}.model`, elem: null, path };
-  }
-  plan(root) {
-    return {
-      ops: this.ops,
-      created: this.created,
-      updated: this.updated,
-      unchanged: this.unchanged,
-      refs: this.refs,
-      root: { ref: root.ref, path: root.path },
-      warnings: this.warnings
-    };
-  }
-};
-function findRelationship2(type2, tail, head, name3, claimed) {
-  return app.repository.getRelationshipsOf(tail).find((r) => {
-    if (claimed.has(r) || r.constructor.name !== type2) return false;
-    const [from, to] = "source" in r ? [r.source, r.target] : [r.end1.reference, r.end2.reference];
-    return r.name === name3 && from === tail && to === head;
-  });
+function attributeProps(a, type2) {
+  return {
+    ...type2 !== void 0 && { type: type2 },
+    ...a.visibility !== void 0 && { visibility: a.visibility },
+    ...a.isStatic !== void 0 && { isStatic: a.isStatic },
+    ...a.multiplicity !== void 0 && { multiplicity: a.multiplicity },
+    ...a.defaultValue !== void 0 && { defaultValue: a.defaultValue }
+  };
+}
+function operationProps(o) {
+  return {
+    ...o.visibility !== void 0 && { visibility: o.visibility },
+    ...o.isStatic !== void 0 && { isStatic: o.isStatic },
+    ...o.isAbstract !== void 0 && { isAbstract: o.isAbstract }
+  };
 }
 function associationEnds(r) {
   const end = (multiplicity, role) => ({
@@ -19122,13 +23093,13 @@ function planModel(spec, options) {
     packages.set(pkg.key, node);
     p.refs.set(node.path, node.ref);
   }
-  const packageOf = (key, where2) => {
-    if (key === void 0) return root;
-    const pkg = byKey.get(key);
+  const packageOf = (key2, where2) => {
+    if (key2 === void 0) return root;
+    const pkg = byKey.get(key2);
     if (!pkg) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${where2}: no package or context ${key}; declare it in spec.contexts or spec.packages`
+        `${where2}: no package or context ${key2}; declare it in spec.contexts or spec.packages`
       );
     }
     return packages.get(pkg.key);
@@ -19180,19 +23151,19 @@ function planModel(spec, options) {
     useCases2.set(u.name, node);
     p.refs.set(node.path, node.ref);
   }
-  const lookup2 = (name3, order = "class") => {
-    const inSpec = order === "class" ? [classes.get(name3)?.node, actors.get(name3)] : [actors.get(name3), classes.get(name3)?.node];
-    const found = [...inSpec, useCases2.get(name3)].find((n) => n !== void 0);
+  const lookup2 = (name4, order = "class") => {
+    const inSpec = order === "class" ? [classes.get(name4)?.node, actors.get(name4)] : [actors.get(name4), classes.get(name4)?.node];
+    const found = [...inSpec, useCases2.get(name4)].find((n) => n !== void 0);
     if (found) return found;
-    const elem = tryResolve(name3);
+    const elem = tryResolve(name4);
     return elem && elem instanceof type.UMLClassifier ? { ref: elem._id, elem, path: pathOf(elem) } : void 0;
   };
-  const classifier = (name3, where2, order = "class") => {
-    const found = lookup2(name3, order);
+  const classifier = (name4, where2, order = "class") => {
+    const found = lookup2(name4, order);
     if (!found) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${where2}: no class, interface, actor or use case ${name3} in the spec or the model`
+        `${where2}: no class, interface, actor or use case ${name4} in the spec or the model`
       );
     }
     return found;
@@ -19204,14 +23175,28 @@ function planModel(spec, options) {
   };
   const operations = /* @__PURE__ */ new Map();
   for (const { node, spec: c } of classes.values()) {
-    for (const a of c.attributes) p.attribute(node, a, typeOf2(a.type));
+    for (const a of c.attributes) {
+      p.attribute(node, a.name, attributeProps(a, typeOf2(a.type)));
+    }
     for (const o of c.operations) {
-      operations.set(`${c.name}#${o.name}`, p.operation(node, o, typeOf2));
+      operations.set(
+        `${c.name}#${o.name}`,
+        p.operation(
+          node,
+          o.name,
+          operationProps(o),
+          (o.parameters ?? []).map((x) => ({
+            name: x.name,
+            ...x.type !== void 0 && { type: typeOf2(x.type) }
+          })),
+          typeOf2(o.returnType)
+        )
+      );
     }
     for (const l of c.literals) p.literal(node, l);
   }
-  for (const [key, pkg] of byKey) {
-    if (key !== pkg.key) continue;
+  for (const [key2, pkg] of byKey) {
+    if (key2 !== pkg.key) continue;
     pkg.dependsOn.forEach((d, k) => {
       const target = byKey.get(d);
       if (!target) {
@@ -19266,12 +23251,12 @@ function planModel(spec, options) {
       )
     );
   });
-  function useCase(name3, where2) {
-    const node = useCases2.get(name3);
+  function useCase(name4, where2) {
+    const node = useCases2.get(name4);
     if (!node) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${where2}: no use case ${name3} in the spec`
+        `${where2}: no use case ${name4} in the spec`
       );
     }
     return node;
@@ -19279,9 +23264,9 @@ function planModel(spec, options) {
   spec.collaborations.forEach(
     (c, i) => collaboration(p, c, `spec.collaborations.${i}`, {
       owner: packageOf(c.package, `spec.collaborations.${i}.context`),
-      classifier: (name3, actor) => {
+      classifier: (name4, actor) => {
         try {
-          return lookup2(name3, actor ? "actor" : "class");
+          return lookup2(name4, actor ? "actor" : "class");
         } catch {
           return void 0;
         }
@@ -19297,7 +23282,14 @@ function planModel(spec, options) {
       l.subject === void 0 ? root : classifier(l.subject, `spec.lifecycles.${i}.subject`)
     )
   );
-  return p.plan(root);
+  return {
+    ops: p.ops,
+    created: p.created,
+    updated: p.updated,
+    unchanged: p.unchanged,
+    refs: p.refs,
+    root: { ref: root.ref, path: root.path }
+  };
 }
 function collaboration(p, c, where2, find) {
   const collab = p.element(find.owner, "UMLCollaboration", c.name, {});
@@ -19323,8 +23315,8 @@ function collaboration(p, c, where2, find) {
     if (typeNode) typeNames.set(part.name, part.type ?? part.name);
     const role = p.attribute(
       collab,
-      { name: part.name },
-      typeNode ? { $ref: typeNode.ref } : void 0
+      part.name,
+      typeNode ? { type: { $ref: typeNode.ref } } : {}
     );
     lifelines.set(
       part.name,
@@ -19340,12 +23332,12 @@ function collaboration(p, c, where2, find) {
   for (const m of c.messages) {
     const called = calledName(m.text);
     const receiver = typeNames.get(m.to);
-    const signature = called !== null && receiver !== void 0 && m.kind !== "reply" ? find.operation(receiver, called) : void 0;
+    const signature2 = called !== null && receiver !== void 0 && m.kind !== "reply" ? find.operation(receiver, called) : void 0;
     p.relationship("UMLMessage", lifelines.get(m.from), lifelines.get(m.to), {
       name: m.text,
       properties: {
         messageSort: MESSAGE_SORTS[m.kind],
-        ...signature && { signature: { $ref: signature.ref } }
+        ...signature2 && { signature: { $ref: signature2.ref } }
       }
     });
   }
@@ -19362,10 +23354,10 @@ function collaboration(p, c, where2, find) {
     );
     const guards = [f.guard ?? "", ...f.operands];
     uniqueNames(guards.map((g) => g || f.operator)).forEach(
-      (name3, k) => p.element(
+      (name4, k) => p.element(
         fragment,
         "UMLInteractionOperand",
-        name3,
+        name4,
         { guard: guards[k] },
         "operands"
       )
@@ -19392,26 +23384,26 @@ function lifecycle(p, l, where2, owner) {
       path: `${machine.path}/`
     });
   }
-  const regionOf = (key, holder) => {
-    const known = regions.get(key ?? "");
+  const regionOf = (key2, holder) => {
+    const known = regions.get(key2 ?? "");
     if (known) return known;
     const region = p.element(holder, "UMLRegion", "", {}, "regions");
-    regions.set(key ?? "", region);
+    regions.set(key2 ?? "", region);
     return region;
   };
   const states = /* @__PURE__ */ new Map();
   const byKey = new Map(l.states.map((s) => [s.key, s]));
-  const visit = (key, i, seen) => {
-    const known = states.get(key);
+  const visit = (key2, i, seen) => {
+    const known = states.get(key2);
     if (known) return known;
-    const s = byKey.get(key);
-    if (seen.has(key)) {
+    const s = byKey.get(key2);
+    if (seen.has(key2)) {
       throw new ApiError(
         "INVALID_ARGUMENT",
-        `${where2}.states.${i}.parent: ${key} would be nested in itself`
+        `${where2}.states.${i}.parent: ${key2} would be nested in itself`
       );
     }
-    seen.add(key);
+    seen.add(key2);
     let holder = machine;
     if (s.parent !== void 0) {
       const parent = byKey.get(s.parent);
@@ -19432,17 +23424,17 @@ function lifecycle(p, l, where2, owner) {
       "vertices",
       (e) => kind2 === void 0 || e.kind === kind2
     );
-    states.set(key, node);
+    states.set(key2, node);
     return node;
   };
   l.states.forEach((s, i) => visit(s.key, i, /* @__PURE__ */ new Set()));
   l.transitions.forEach((t, i) => {
-    const end = (key, side) => {
-      const node = states.get(key);
+    const end = (key2, side) => {
+      const node = states.get(key2);
       if (!node) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          `${where2}.transitions.${i}.${side}: no state ${key}`
+          `${where2}.transitions.${i}.${side}: no state ${key2}`
         );
       }
       return node;
@@ -19459,8 +23451,8 @@ function lifecycle(p, l, where2, owner) {
 }
 
 // src/model/spec.ts
-var name2 = () => string2().check(_minLength(1));
-var names3 = () => array(name2());
+var name3 = () => string2().check(_minLength(1));
+var names3 = () => array(name3());
 var RELATIONS = {
   owns: "composition: from is the whole (end1, composite), to the part",
   has: "aggregation: from is the whole (end1, shared), to the part",
@@ -19478,16 +23470,16 @@ var RELATION_ALIASES = {
   realization: "implements",
   directed: "knows"
 };
-var memberList = () => optional(array(union([string2(), object({ name: name2() })])));
+var memberList = () => optional(array(union([string2(), object({ name: name3() })])));
 var packageSchema = () => union([
-  name2(),
+  name3(),
   object({
     id: optional(
-      doc(name2(), "Key classes use in context; default the name.")
+      doc(name3(), "Key classes use in context; default the name.")
     ),
-    name: name2(),
+    name: name3(),
     parent: optional(
-      doc(name2(), "Package this one is nested in, by id or name.")
+      doc(name3(), "Package this one is nested in, by id or name.")
     ),
     responsibility: optional(string2()),
     documentation: optional(string2()),
@@ -19498,11 +23490,11 @@ var packageSchema = () => union([
   })
 ]);
 var classSchema = () => object({
-  name: name2(),
+  name: name3(),
   context: optional(
-    doc(name2(), "Owning package by id or name; package is a synonym.")
+    doc(name3(), "Owning package by id or name; package is a synonym.")
   ),
-  package: optional(name2()),
+  package: optional(name3()),
   kind: optional(_enum(["class", "abstract", "interface", "enum"])),
   stereotype: optional(string2()),
   responsibility: optional(string2()),
@@ -19517,8 +23509,8 @@ var classSchema = () => object({
   isActive: optional(boolean2())
 });
 var relationSchema = () => object({
-  from: name2(),
-  to: name2(),
+  from: name3(),
+  to: name3(),
   type: doc(
     _enum([
       ...Object.keys(RELATIONS),
@@ -19538,8 +23530,8 @@ var MESSAGE_KINDS3 = ["sync", "async", "reply", "create", "delete"];
 var messageSchema = () => union([
   array(string2()).check(_minLength(2), _maxLength(4)),
   object({
-    from: name2(),
-    to: name2(),
+    from: name3(),
+    to: name3(),
     text: optional(string2()),
     kind: optional(_enum(MESSAGE_KINDS3))
   })
@@ -19553,8 +23545,8 @@ var STATE_TYPES3 = [
   "join"
 ];
 var modelSpecSchema = () => object({
-  system: optional(doc(name2(), "Name of the model; default 'Model'.")),
-  name: optional(doc(name2(), "Synonym of system.")),
+  system: optional(doc(name3(), "Name of the model; default 'Model'.")),
+  name: optional(doc(name3(), "Synonym of system.")),
   summary: optional(doc(string2(), "The model's documentation.")),
   contexts: optional(
     doc(array(packageSchema()), "Packages (bounded contexts).")
@@ -19570,9 +23562,9 @@ var modelSpecSchema = () => object({
   actors: optional(
     array(
       union([
-        name2(),
+        name3(),
         object({
-          name: name2(),
+          name: name3(),
           kind: optional(string2()),
           goals: optional(array(string2())),
           documentation: optional(string2())
@@ -19583,9 +23575,9 @@ var modelSpecSchema = () => object({
   useCases: optional(
     array(
       union([
-        name2(),
+        name3(),
         object({
-          name: name2(),
+          name: name3(),
           system: optional(
             nullable(doc(string2(), "The subject it belongs to."))
           ),
@@ -19601,19 +23593,19 @@ var modelSpecSchema = () => object({
     doc(
       array(
         object({
-          name: name2(),
-          context: optional(name2()),
-          package: optional(name2()),
+          name: name3(),
+          context: optional(name3()),
+          package: optional(name3()),
           participants: optional(
             array(
               union([
-                name2(),
+                name3(),
                 object({
-                  name: name2(),
+                  name: name3(),
                   kind: optional(string2()),
                   type: optional(
                     doc(
-                      name2(),
+                      name3(),
                       "Classifier the lifeline is; default the class or actor of its name."
                     )
                   )
@@ -19660,19 +23652,19 @@ var modelSpecSchema = () => object({
     doc(
       array(
         object({
-          name: name2(),
+          name: name3(),
           subject: optional(
-            doc(name2(), "Classifier whose behavior it is.")
+            doc(name3(), "Classifier whose behavior it is.")
           ),
           states: optional(
             array(
               union([
-                name2(),
+                name3(),
                 object({
-                  id: optional(name2()),
+                  id: optional(name3()),
                   name: optional(string2()),
                   type: optional(_enum(STATE_TYPES3)),
-                  parent: optional(name2())
+                  parent: optional(name3())
                 })
               ])
             )
@@ -19680,8 +23672,8 @@ var modelSpecSchema = () => object({
           transitions: optional(
             array(
               object({
-                from: name2(),
-                to: name2(),
+                from: name3(),
+                to: name3(),
                 trigger: optional(string2()),
                 guard: optional(string2()),
                 effect: optional(string2())
@@ -19882,8 +23874,8 @@ function parseModelSpec(input) {
   const lifecycles = (raw.lifecycles ?? []).map((l, i) => {
     const states = (l.states ?? []).map((s, k) => {
       const o = typeof s === "string" ? { name: s } : s;
-      const key = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
-      if (key === void 0) {
+      const key2 = o.id ?? (o.name !== void 0 ? multiline(o.name) : void 0);
+      if (key2 === void 0) {
         throw new ApiError(
           "INVALID_ARGUMENT",
           `spec.lifecycles.${i}.states.${k}: needs a name or an id`
@@ -19891,8 +23883,8 @@ function parseModelSpec(input) {
       }
       const type2 = o.type ?? "state";
       return {
-        key,
-        name: o.name !== void 0 ? multiline(o.name) : type2 === "state" ? key : "",
+        key: key2,
+        name: o.name !== void 0 ? multiline(o.name) : type2 === "state" ? key2 : "",
         type: type2,
         ...o.parent !== void 0 && { parent: o.parent }
       };
@@ -20033,7 +24025,7 @@ function buildModelEndpoint(endpoints2) {
           plan: planOf(plan.ops)
         };
       }
-      const run = plan.ops.length > 0 ? await runBatch(endpoints2(), plan.ops, true, MODEL_MAX_OPS) : { results: [] };
+      const run = plan.ops.length > 0 ? await batchRunner.run(endpoints2(), plan.ops, true, MODEL_MAX_OPS) : { results: [] };
       const byAlias = new Map(
         run.results.flatMap((r) => r.as ? [[r.as, r]] : [])
       );
@@ -20059,7 +24051,7 @@ function receiverOf(lifeline) {
   );
   return named3.length === 1 ? named3[0] : null;
 }
-var operationsOf2 = (c) => c.operations;
+var operationsOf = (c) => c.operations;
 function messagesOn(diagram) {
   if (!(diagram instanceof type.UMLSequenceDiagram)) {
     throw new ApiError(
@@ -20082,7 +24074,7 @@ function check(messages2) {
   return messages2.filter((m) => m.messageSort !== "reply").map((m) => {
     const called = calledName(String(m.name ?? ""));
     const receiver = receiverOf(m.target);
-    const problem = called === null ? "not-a-call" : !receiver ? "no-receiver" : operationsOf2(receiver).some((o) => o.name === called) ? null : "no-operation";
+    const problem = called === null ? "not-a-call" : !receiver ? "no-receiver" : operationsOf(receiver).some((o) => o.name === called) ? null : "no-operation";
     return { message: m, receiver, called, problem };
   });
 }
@@ -20196,12 +24188,12 @@ function syncOperationsEndpoint(endpoints2) {
           continue;
         }
         const receiver = c.receiver;
-        const key = `${receiver._id}#${c.called}`;
-        let opRef = operationsOf2(receiver).find(
+        const key2 = `${receiver._id}#${c.called}`;
+        let opRef = operationsOf(receiver).find(
           (o) => o.name === c.called
         )?._id;
         if (!opRef) {
-          const known = added.get(key);
+          const known = added.get(key2);
           if (known) {
             known.messages++;
             opRef = known.ref;
@@ -20218,7 +24210,7 @@ function syncOperationsEndpoint(endpoints2) {
               }
             });
             opRef = `$${as}`;
-            added.set(key, {
+            added.set(key2, {
               receiver: pathOf(receiver),
               operation: c.called,
               parameters: parameters.map((p) => p.name),
@@ -20241,11 +24233,885 @@ function syncOperationsEndpoint(endpoints2) {
         skipped
       };
       if (input.dryRun) return { ...answer, dryRun: true, plan: planOf(ops) };
-      if (ops.length > 0) await runBatch(endpoints2(), ops, true, MODEL_MAX_OPS);
+      if (ops.length > 0)
+        await batchRunner.run(endpoints2(), ops, true, MODEL_MAX_OPS);
       return answer;
     }
   });
 }
+
+// src/handlers/patterns.ts
+var changeSchema2 = () => object({
+  path: string2(),
+  type: string2(),
+  fields: optional(array(string2()))
+});
+var propertySchema = () => object({ path: string2(), field: string2(), value: unknown() });
+var listPatterns = defineEndpoint({
+  path: "/list_patterns",
+  description: "The design patterns /apply_pattern applies and /detect_patterns finds: the 23 GoF patterns and Repository, Unit of Work, Specification, Value Object, Entity, Service and DTO, each with its intent, roles and variants. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    category: optional(
+      _enum(["creational", "structural", "behavioral", "domain"])
+    )
+  }),
+  response: object({
+    count: int(),
+    patterns: array(
+      object({
+        name: string2(),
+        category: string2(),
+        intent: string2(),
+        roles: doc(
+          array(string2()),
+          "Role names; '*' marks a role binding several elements, '?' an optional one."
+        ),
+        variants: array(string2()),
+        sequence: doc(boolean2(), "Has messages for a sequence diagram.")
+      })
+    )
+  }),
+  handle: (input) => {
+    const list5 = patterns().filter(
+      (p) => input.category === void 0 || p.category === input.category
+    ).map((p) => ({
+      name: p.name,
+      category: p.category,
+      intent: p.intent,
+      roles: p.roles.map(
+        (r) => `${r.name}${r.cardinality === "many" ? "*" : ""}${r.optional ? "?" : ""}`
+      ),
+      variants: Object.keys(p.variants ?? {}),
+      sequence: p.sequence !== void 0
+    }));
+    return { count: list5.length, patterns: list5 };
+  }
+});
+var describePattern = defineEndpoint({
+  path: "/describe_pattern",
+  description: "A pattern's roles with the element type, properties, stereotype, documentation and members each gets, its relationships with the properties of their ends, its sequence messages and the checks uml_lint holds an instance to: what /apply_pattern sets. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    name: doc(
+      string2().check(_minLength(1)),
+      "Pattern name, e.g. 'Strategy', 'factory-method'."
+    ),
+    variant: optional(string2())
+  }),
+  response: looseObject({
+    name: string2(),
+    category: string2(),
+    intent: string2(),
+    roles: array(unknown()),
+    relationships: array(unknown())
+  }),
+  handle: (input) => {
+    const { $schema: _schema, ...pattern2 } = withVariant(
+      findPattern(input.name),
+      input.variant
+    );
+    return pattern2;
+  }
+});
+var bindingSchema = () => union([
+  string2().check(_minLength(1)),
+  object({ new: object({ name: string2().check(_minLength(1)) }) })
+]);
+function defaultParent() {
+  const project = requireProject();
+  const model = project.ownedElements.find(
+    (e) => e instanceof type.UMLModel
+  );
+  if (!model) {
+    throw new ApiError("NOT_FOUND", "The project has no model; pass parent");
+  }
+  return model;
+}
+function resolver(results) {
+  const byAlias = new Map(
+    results.flatMap((r) => r.as ? [[r.as, r.data]] : [])
+  );
+  return (ref3) => ref3.startsWith("$") ? byAlias.get(ref3.slice(1))._id : ref3;
+}
+var resolveValue = (value, id2) => value && typeof value === "object" && "$ref" in value ? { $ref: id2(value.$ref) } : value;
+function applyPatternEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/apply_pattern",
+    description: "Apply a design pattern: bind each role to existing elements by path or name, or to new ones, and set every property the pattern prescribes on them, their attributes, operations and parameters, and the ends of the relationships between them; optionally show it on a class diagram (laid out) and a sequence diagram of its messages. One undo step. Answers each role's elements by id and path and every property set; dryRun lists the same and the ops without changing anything.",
+    readOnly: false,
+    destructive: false,
+    request: object({
+      pattern: doc(
+        string2().check(_minLength(1)),
+        "Pattern name, see /list_patterns."
+      ),
+      bindings: optional(
+        doc(
+          record(
+            string2(),
+            union([bindingSchema(), array(bindingSchema())])
+          ),
+          "By role: a path or name of an existing element, a name for a new one, {new: {name}}, or a list of those for a role marked many. Unbound roles get a new element named after the role; optional roles are left out."
+        )
+      ),
+      variant: optional(
+        doc(string2(), "A variant of the pattern, see /describe_pattern.")
+      ),
+      parent: optional(
+        ref2(
+          "Owner of new elements and diagrams; default the diagram's owner, else the project's first model."
+        )
+      ),
+      diagram: optional(
+        doc(
+          string2().check(_minLength(1)),
+          "A class diagram to show the pattern on: a reference to one, or the name of a new one."
+        )
+      ),
+      sequence: optional(
+        doc(
+          boolean2(),
+          "Also make a sequence diagram of the pattern's messages."
+        )
+      ),
+      upsert: optional(
+        doc(
+          boolean2(),
+          "Reuse an element of the parent named like a new one instead of refusing it (DUPLICATE_NAME)."
+        )
+      ),
+      dryRun: optional(
+        doc(
+          boolean2(),
+          "Answer what would be made and set, and change nothing."
+        )
+      )
+    }),
+    response: object({
+      pattern: string2(),
+      variant: optional(string2()),
+      roles: doc(
+        record(
+          string2(),
+          array(
+            object({
+              _id: string2(),
+              path: string2(),
+              created: boolean2()
+            })
+          )
+        ),
+        "Each role's elements; _id is a '$name' placeholder on a dry run for what is new."
+      ),
+      created: int(),
+      updated: int(),
+      unchanged: int(),
+      changes: object({
+        created: array(changeSchema2()),
+        updated: array(changeSchema2())
+      }),
+      properties: doc(
+        array(propertySchema()),
+        "Every attribute value set, by element path."
+      ),
+      diagram: optional(doc(string2(), "The class diagram's id.")),
+      sequenceDiagram: optional(
+        doc(string2(), "The sequence diagram's id.")
+      ),
+      warnings: optional(array(string2())),
+      dryRun: optional(boolean2()),
+      plan: optional(planSchema())
+    }),
+    handle: async (input) => {
+      const pattern2 = withVariant(findPattern(input.pattern), input.variant);
+      let existing2 = null;
+      if (input.diagram !== void 0) {
+        existing2 = tryResolve(input.diagram, { kind: "diagram" });
+        if (existing2 && !(existing2 instanceof type.UMLClassDiagram)) {
+          throw new ApiError(
+            "INVALID_ARGUMENT",
+            `diagram: ${input.diagram} is a ${existing2.constructor.name}, not a class diagram`
+          );
+        }
+      }
+      const parent = input.parent !== void 0 ? requireElement(input.parent, "Parent") : existing2?._parent ?? defaultParent();
+      if (!(parent instanceof type.UMLPackage)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `parent: new elements go in a model or package; ${pathOf(parent) ?? parent._id} is a ${parent.constructor.name}`
+        );
+      }
+      const plan = planPattern(pattern2, {
+        bindings: input.bindings ?? {},
+        parent,
+        upsert: input.upsert ?? false,
+        ...input.diagram !== void 0 && {
+          diagram: { existing: existing2, name: input.diagram }
+        },
+        ...input.sequence && { sequence: true }
+      });
+      const p = plan.planner;
+      const answer = (id3, properties2) => ({
+        pattern: pattern2.name,
+        ...input.variant !== void 0 && { variant: input.variant },
+        roles: Object.fromEntries(
+          Object.entries(plan.roles).map(([role, list5]) => [
+            role,
+            list5.map((b) => ({
+              _id: id3(b.ref),
+              path: b.path,
+              created: b.created
+            }))
+          ])
+        ),
+        created: p.created.length,
+        updated: p.updated.length,
+        unchanged: p.unchanged,
+        changes: { created: p.created, updated: p.updated },
+        properties: properties2,
+        ...plan.diagram && { diagram: id3(plan.diagram) },
+        ...plan.sequenceDiagram && {
+          sequenceDiagram: id3(plan.sequenceDiagram)
+        },
+        ...plan.warnings.length > 0 && { warnings: plan.warnings }
+      });
+      if (input.dryRun) {
+        return {
+          ...answer((r) => r, p.properties),
+          dryRun: true,
+          plan: planOf(plan.ops)
+        };
+      }
+      const run = await batchRunner.run(
+        endpoints2(),
+        plan.ops,
+        true,
+        MODEL_MAX_OPS
+      );
+      const id2 = resolver(run.results);
+      return answer(
+        id2,
+        p.properties.map((c) => ({ ...c, value: resolveValue(c.value, id2) }))
+      );
+    }
+  });
+}
+var detectPatterns = defineEndpoint({
+  path: "/detect_patterns",
+  description: "Find instances of the library's patterns in the model by structure: roles bound along the relationships the pattern prescribes, scored by the share of its element types, properties, members and relationship ends the model has. Answers candidates with their confidence (1: everything the pattern prescribes), the elements in each role and what is missing. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    scope: optional(
+      ref2("Only classifiers within this element; default the project.")
+    ),
+    patterns: optional(
+      doc(array(string2().check(_minLength(1))), "Only these patterns.")
+    ),
+    minConfidence: optional(
+      doc(number2().check(_gte(0), _lte(1)), "Default 0.6.")
+    ),
+    limit: optional(
+      doc(int().check(_gte(1), _lte(500)), "Default 50.")
+    )
+  }),
+  response: object({
+    count: doc(int(), "Candidates found, before limit."),
+    detections: array(
+      object({
+        pattern: string2(),
+        variant: optional(string2()),
+        confidence: number2(),
+        roles: record(
+          string2(),
+          array(object({ _id: string2(), path: nullable(string2()) }))
+        ),
+        missing: array(string2())
+      })
+    )
+  }),
+  handle: (input) => {
+    const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
+    const found = detectIn(
+      scope,
+      input.patterns === void 0 ? patterns() : input.patterns.map(findPattern),
+      input.minConfidence ?? 0.6
+    );
+    return {
+      count: found.length,
+      detections: found.slice(0, input.limit ?? 50).map(({ binding: _b, ...d }) => d)
+    };
+  }
+});
+function classifiersIn(scope) {
+  return ["UMLClass", "UMLInterface", "UMLEnumeration"].flatMap(
+    (t) => app.repository.getInstancesOf(t).filter((e) => {
+      for (let x = e; x; x = x._parent) {
+        if (x === scope) return true;
+      }
+      return false;
+    })
+  );
+}
+function detectIn(scope, library2, min) {
+  return sharingRelationships(() => {
+    const classifiers = classifiersIn(scope);
+    const best = /* @__PURE__ */ new Map();
+    for (const pattern2 of library2) {
+      for (const variant of [
+        void 0,
+        ...Object.keys(pattern2.variants ?? {})
+      ]) {
+        for (const d of detect2(
+          withVariant(pattern2, variant),
+          classifiers,
+          min,
+          variant
+        )) {
+          const key2 = `${d.pattern}|${JSON.stringify(Object.entries(d.roles).sort())}`;
+          const known = best.get(key2);
+          if (!known || known.confidence < d.confidence || known.confidence === d.confidence && d.variant !== void 0) {
+            best.set(key2, d);
+          }
+        }
+      }
+    }
+    return [...best.values()].sort(
+      (a, b) => b.confidence - a.confidence || a.pattern.localeCompare(b.pattern)
+    );
+  });
+}
+var isConstructor = (op, owner) => op.name === owner.name || (op.stereotype && typeof op.stereotype === "object" ? op.stereotype.name : op.stereotype) === "create";
+function applyPresetEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/apply_preset",
+    description: "Give an existing class, interface or enumeration and its members the properties of a kind of element, as one undo step: interface, abstract, value-object, entity, enum, static-utility, immutable. Answers every property set; dryRun answers it without changing anything.",
+    readOnly: false,
+    destructive: false,
+    request: object({
+      ref: ref2("Class, interface or enumeration."),
+      preset: doc(
+        _enum(PRESET_NAMES2),
+        "The kind; /describe_type lists what each property means."
+      ),
+      dryRun: optional(boolean2())
+    }),
+    response: object({
+      element: object({ _id: string2(), path: nullable(string2()) }),
+      preset: string2(),
+      description: string2(),
+      changes: object({
+        created: array(changeSchema2()),
+        updated: array(changeSchema2())
+      }),
+      properties: array(propertySchema()),
+      warnings: optional(array(string2())),
+      dryRun: optional(boolean2()),
+      plan: optional(planSchema())
+    }),
+    handle: async (input) => {
+      const elem = requireElement(input.ref);
+      const preset = allPresets()[input.preset];
+      if (!preset.appliesTo.includes(elem.constructor.name)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${input.preset} applies to ${preset.appliesTo.join(", ")}; ${input.ref} is a ${elem.constructor.name}`
+        );
+      }
+      const p = new Planner(true);
+      const node = { ref: elem._id, elem, path: pathOf(elem) };
+      if (preset.element) p.update(elem, preset.element, node.path);
+      for (const a of elem.attributes) {
+        if (preset.attributes)
+          p.update(a, preset.attributes, `${node.path}.${a.name}`);
+      }
+      const warnings = [];
+      for (const o of elem.operations) {
+        if (isConstructor(o, elem)) continue;
+        if (preset.operations)
+          p.update(o, preset.operations, `${node.path}#${o.name}()`);
+        if (preset.reportSetters && /^set[A-Z_]/.test(o.name)) {
+          warnings.push(
+            `${node.path}#${o.name}() looks like a setter, which a ${input.preset} has none of`
+          );
+        }
+      }
+      for (const a of preset.ensureAttributes ?? []) {
+        const { name: name4, ...props2 } = a;
+        p.attribute(node, name4, props2);
+      }
+      if (preset.ensureConstructor) {
+        p.operation(node, elem.name, {
+          ...preset.ensureConstructor,
+          stereotype: "create"
+        });
+      }
+      const answer = {
+        element: { _id: elem._id, path: node.path },
+        preset: input.preset,
+        description: preset.description,
+        changes: { created: p.created, updated: p.updated },
+        properties: p.properties,
+        ...warnings.length > 0 && { warnings }
+      };
+      if (input.dryRun) return { ...answer, dryRun: true, plan: planOf(p.ops) };
+      if (p.ops.length > 0)
+        await batchRunner.run(endpoints2(), p.ops, true, MODEL_MAX_OPS);
+      return answer;
+    }
+  });
+}
+var GLOSSARY = glossary_default;
+var describeType = defineEndpoint({
+  path: "/describe_type",
+  description: "The properties of a metamodel type, inherited ones included: kind, value type, default, the allowed values of an enumeration, the type that declares it and, for the properties that carry UML meaning, what it means. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    type: doc(
+      string2().check(_minLength(1)),
+      "Metamodel class, e.g. 'UMLOperation', 'UMLAssociationEnd'."
+    )
+  }),
+  response: object({
+    type: string2(),
+    supers: doc(array(string2()), "Ancestors, nearest first."),
+    properties: array(
+      object({
+        name: string2(),
+        kind: string2(),
+        type: string2(),
+        default: optional(unknown()),
+        allowed: optional(
+          doc(
+            array(string2()),
+            "Enumeration literals, or suggested values."
+          )
+        ),
+        declaredBy: string2(),
+        meaning: optional(string2())
+      })
+    )
+  }),
+  handle: (input) => {
+    if (!isMetaClass(input.type)) {
+      throw new ApiError(
+        "UNKNOWN_TYPE",
+        `${input.type} is not a metamodel class; /search_types finds one`
+      );
+    }
+    const supers = lineage(input.type).slice(1);
+    const declaredBy = (name4) => [...lineage(input.type)].reverse().find((t) => (meta[t].attributes ?? []).some((a) => a.name === name4));
+    const properties2 = app.metamodels.getMetaAttributes(input.type).filter((a) => !a.transient && a.name !== "_id" && a.name !== "_parent").map((a) => {
+      const allowed = a.kind === "enum" ? meta[a.type]?.literals : a.options;
+      return {
+        name: a.name,
+        kind: a.kind,
+        type: a.type,
+        ...a.default !== void 0 && { default: a.default },
+        ...allowed && allowed.length > 0 && { allowed },
+        declaredBy: declaredBy(a.name),
+        ...GLOSSARY[a.name] !== void 0 && { meaning: GLOSSARY[a.name] }
+      };
+    });
+    return { type: input.type, supers, properties: properties2 };
+  }
+});
+
+// src/handlers/uml-lint.ts
+var UML_RULES = {
+  U001: "association-end-multiplicity",
+  U002: "association-navigability",
+  U003: "attribute-type",
+  U004: "dangling-relationship",
+  U005: "abstract-without-subclass",
+  U006: "interface-not-realized",
+  U007: "message-without-operation",
+  U008: "use-case-without-actor",
+  U009: "state-machine-without-initial",
+  U010: "state-machine-without-final",
+  U011: "entity-without-primary-key",
+  U012: "naming",
+  U013: "pattern-consistency"
+};
+var DEFAULT_SEVERITY = {
+  U001: "warning",
+  U002: "info",
+  U003: "warning",
+  U004: "error",
+  U005: "warning",
+  U006: "warning",
+  U007: "warning",
+  U008: "warning",
+  U009: "warning",
+  U010: "info",
+  U011: "warning",
+  U012: "info",
+  U013: "warning"
+};
+var PRESETS = {
+  PascalCase: /^[A-Z][A-Za-z0-9]*$/,
+  camelCase: /^[a-z][A-Za-z0-9]*$/,
+  UPPER_CASE: /^[A-Z][A-Z0-9_]*$/,
+  snake_case: /^[a-z][a-z0-9_]*$/,
+  lowercase: /^[a-z][a-z0-9.]*$/
+};
+var NAMING_KINDS = {
+  classifier: ["UMLClass", "UMLInterface", "UMLEnumeration", "UMLSignal"],
+  attribute: ["UMLAttribute"],
+  operation: ["UMLOperation"],
+  literal: ["UMLEnumerationLiteral"],
+  package: ["UMLPackage"]
+};
+var DEFAULT_NAMING = {
+  classifier: "PascalCase",
+  attribute: "camelCase",
+  operation: "camelCase",
+  literal: "UPPER_CASE",
+  package: false
+};
+function compileNaming(given) {
+  const naming2 = { ...DEFAULT_NAMING, ...given };
+  return Object.keys(NAMING_KINDS).flatMap((k) => {
+    const pattern2 = naming2[k];
+    if (pattern2 === false) return [];
+    try {
+      const re = Object.hasOwn(PRESETS, pattern2) ? PRESETS[pattern2] : new RegExp(pattern2, "u");
+      return [[k, pattern2, re]];
+    } catch (err) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `naming.${k}: ${pattern2} is neither ${Object.keys(PRESETS).join(", ")} nor a regular expression (${err.message})`
+      );
+    }
+  });
+}
+var list4 = (value) => Array.isArray(value) ? value : [];
+var quoted2 = (e) => typeof e.name === "string" && e.name ? `"${e.name}"` : e.constructor.name;
+function within3(elem, scope) {
+  for (let e = elem; e; e = e._parent) {
+    if (e === scope) return true;
+  }
+  return false;
+}
+var Lint = class {
+  constructor(scope, severity) {
+    this.scope = scope;
+    this.severity = severity;
+  }
+  scope;
+  severity;
+  findings = [];
+  all(typeName4) {
+    return app.repository.getInstancesOf(typeName4).filter((e) => within3(e, this.scope));
+  }
+  on(rule) {
+    return this.severity.has(rule);
+  }
+  add(rule, elem, message, fix) {
+    this.findings.push({
+      rule,
+      name: UML_RULES[rule],
+      severity: this.severity.get(rule),
+      message,
+      id: elem._id,
+      path: pathOf(elem),
+      fix
+    });
+  }
+};
+function targetsOf(elem, ...typeNames) {
+  return app.repository.getRelationshipsOf(elem).filter((r) => typeNames.includes(r.constructor.name) && r.target === elem);
+}
+function associations(l) {
+  for (const a of l.all("UMLAssociation")) {
+    const ends3 = [a.end1, a.end2];
+    if (l.on("U001")) {
+      const missing = ends3.filter((e) => !e.multiplicity);
+      if (missing.length > 0) {
+        l.add(
+          "U001",
+          a,
+          `The association ${quoted2(a)} between ${ends3.map((e) => quoted2(e.reference)).join(" and ")} has ${missing.length === 2 ? "no multiplicity on either end" : "an end without multiplicity"}`,
+          "Set each end's multiplicity, e.g. /update_element {ref: <end id>, field: 'multiplicity', value: '1'}."
+        );
+      }
+    }
+    if (l.on("U002") && ends3.every((e) => e.navigable === "unspecified")) {
+      l.add(
+        "U002",
+        a,
+        `The association ${quoted2(a)} does not say which way it is navigable`,
+        "Set navigable on the end that can be reached, or build it as a directed association."
+      );
+    }
+  }
+}
+function attributes(l) {
+  for (const attr of l.all("UMLAttribute")) {
+    if (!list4(attr._parent?.attributes).includes(attr)) continue;
+    if (attr.type) continue;
+    l.add(
+      "U003",
+      attr,
+      `The attribute ${quoted2(attr)} of ${quoted2(attr._parent)} has no type`,
+      "Give it a type, e.g. /update_element {ref: <path>, field: 'type', value: 'String'}."
+    );
+  }
+}
+var present = (value) => !!value && byId(value._id) === value;
+function dangling(l) {
+  for (const r of l.all("DirectedRelationship")) {
+    if (present(r.source) && present(r.target)) continue;
+    l.add(
+      "U004",
+      r,
+      `The ${r.constructor.name} ${quoted2(r)} is missing its ${present(r.source) ? "target" : "source"}`,
+      "Delete it or reconnect it with /update_element (source/target)."
+    );
+  }
+  for (const r of l.all("UndirectedRelationship")) {
+    const ends3 = [r.end1, r.end2];
+    if (ends3.every((e) => present(e.reference))) continue;
+    l.add(
+      "U004",
+      r,
+      `The ${r.constructor.name} ${quoted2(r)} has an end that refers to nothing`,
+      "Delete it or set the end's reference with /update_element."
+    );
+  }
+}
+function hierarchy2(l) {
+  if (l.on("U005")) {
+    for (const cls of l.all("UMLClass")) {
+      if (!cls.isAbstract || targetsOf(cls, "UMLGeneralization").length > 0) {
+        continue;
+      }
+      l.add(
+        "U005",
+        cls,
+        `The abstract class ${quoted2(cls)} has no subclass`,
+        "Add a subclass (generalization to it), or make it concrete."
+      );
+    }
+  }
+  if (l.on("U006")) {
+    for (const i of l.all("UMLInterface")) {
+      const users = targetsOf(
+        i,
+        "UMLInterfaceRealization",
+        "UMLRealization",
+        "UMLGeneralization"
+      );
+      if (users.length > 0) continue;
+      l.add(
+        "U006",
+        i,
+        `The interface ${quoted2(i)} is realized by no class`,
+        "Add an interface realization from the class that implements it, or remove the interface."
+      );
+    }
+  }
+}
+function operationsOf2(cls, seen = /* @__PURE__ */ new Set()) {
+  if (seen.has(cls)) return [];
+  seen.add(cls);
+  const parents = app.repository.getRelationshipsOf(cls).filter((r) => r instanceof type.UMLGeneralization && r.source === cls).map((r) => r.target);
+  return [
+    ...list4(cls.operations),
+    ...parents.flatMap((p) => operationsOf2(p, seen))
+  ];
+}
+var CALLS = /* @__PURE__ */ new Set(["synchCall", "asynchCall"]);
+function messages(l) {
+  for (const m of l.all("UMLMessage")) {
+    const name4 = m.name.trim();
+    if (!name4 || m.signature || !CALLS.has(String(m.messageSort))) continue;
+    const role = m.target?.represent;
+    const receiver = role?.type;
+    if (!receiver || typeof receiver !== "object") continue;
+    const called = name4.replace(/\(.*$/s, "").trim();
+    if (operationsOf2(receiver).some((o) => o.name === called)) {
+      continue;
+    }
+    l.add(
+      "U007",
+      m,
+      `The message ${quoted2(m)} names no operation of ${quoted2(receiver)}`,
+      `Add the operation (/add_operation {ref: '${pathOf(receiver)}', name: '${called}'}) or rename the message.`
+    );
+  }
+}
+function useCases(l) {
+  for (const uc of l.all("UMLUseCase")) {
+    const related = app.repository.getRelationshipsOf(uc);
+    const actor = related.some(
+      (r) => r instanceof type.UMLAssociation && [r.end1, r.end2].some(
+        (e) => e.reference instanceof type.UMLActor
+      )
+    );
+    const reached = related.some(
+      (r) => r instanceof type.UMLInclude && r.target === uc || r instanceof type.UMLExtend && r.source === uc
+    );
+    if (actor || reached) continue;
+    l.add(
+      "U008",
+      uc,
+      `The use case ${quoted2(uc)} has no actor`,
+      "Associate an actor with it, or include it from a use case that has one."
+    );
+  }
+}
+function stateMachines(l) {
+  for (const sm of l.all("UMLStateMachine")) {
+    const inner = (typeName4) => app.repository.getInstancesOf(typeName4).filter((e) => within3(e, sm));
+    if (l.on("U009") && !inner("UMLPseudostate").some((p) => p.kind === "initial")) {
+      l.add(
+        "U009",
+        sm,
+        `The state machine ${quoted2(sm)} has no initial state`,
+        "Add an initial pseudostate with a transition to the first state."
+      );
+    }
+    if (l.on("U010") && inner("UMLFinalState").length === 0) {
+      l.add(
+        "U010",
+        sm,
+        `The state machine ${quoted2(sm)} has no final state`,
+        "Add a final state, unless the machine runs forever."
+      );
+    }
+  }
+}
+function entities(l) {
+  for (const e of l.all("ERDEntity")) {
+    if (list4(e.columns).some((c) => c.primaryKey)) continue;
+    l.add(
+      "U011",
+      e,
+      `The entity ${quoted2(e)} has no primary key`,
+      "Mark a column primaryKey, e.g. /update_element {ref: '<entity>.id', field: 'primaryKey', value: true}."
+    );
+  }
+}
+function naming(l, patterns2) {
+  for (const [k, pattern2, re] of patterns2) {
+    for (const typeName4 of NAMING_KINDS[k]) {
+      for (const e of l.all(typeName4)) {
+        if (e.constructor.name !== typeName4) continue;
+        const name4 = e.name;
+        if (!name4 || re.test(name4)) continue;
+        l.add(
+          "U012",
+          e,
+          `The ${k} name ${quoted2(e)} is not ${pattern2}`,
+          `Rename it to fit ${pattern2}, or pass naming.${k} to change the convention.`
+        );
+      }
+    }
+  }
+}
+var PATTERN_CONFIDENCE = 0.75;
+function patternConsistency(l) {
+  for (const d of detectIn(l.scope, patterns(), PATTERN_CONFIDENCE)) {
+    const pattern2 = withVariant(findPattern(d.pattern), d.variant);
+    for (const { check: check2, element } of violations(pattern2, d.binding)) {
+      const shown = JSON.stringify(check2.equals);
+      l.add(
+        "U013",
+        element,
+        `${pattern2.name} (${check2.role}): ${check2.message}`,
+        `Set ${check2.property} to ${shown}: /update_element {ref: '${pathOf(element)}', field: '${check2.property}', value: ${shown}}, or /apply_pattern {pattern: '${pattern2.name}'} with the roles bound.`
+      );
+    }
+  }
+}
+var RANK2 = { error: 0, warning: 1, info: 2 };
+function lintModel(scope, severity, namingPatterns) {
+  const l = new Lint(scope, severity);
+  if (l.on("U001") || l.on("U002")) associations(l);
+  if (l.on("U003")) attributes(l);
+  if (l.on("U004")) dangling(l);
+  hierarchy2(l);
+  if (l.on("U007")) messages(l);
+  if (l.on("U008")) useCases(l);
+  stateMachines(l);
+  if (l.on("U011")) entities(l);
+  if (l.on("U012")) naming(l, namingPatterns);
+  if (l.on("U013")) patternConsistency(l);
+  return l.findings.sort(
+    (a, b) => RANK2[a.severity] - RANK2[b.severity] || a.rule.localeCompare(b.rule)
+  );
+}
+var ruleSetting = () => _enum(["off", ...SEVERITIES]);
+var pattern = () => optional(union([string2(), literal(false)]));
+var umlLint = defineEndpoint({
+  path: "/uml_lint",
+  description: "Check the model for modelling mistakes StarUML's own validation does not look for: association ends without multiplicity (U001) or navigability (U002), attributes without a type (U003), relationships missing an end (U004), abstract classes without a subclass (U005), interfaces nobody realizes (U006), sequence messages that name no operation of the receiver (U007), use cases without an actor (U008), state machines without an initial (U009) or final state (U010), ERD entities without a primary key (U011), names off the naming convention (U012) and detected design patterns that break a rule of their pattern, e.g. a singleton with a public constructor (U013, see /detect_patterns). Each finding has a rule id, the element's id and path, and a one-line fix. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    scope: optional(
+      ref2("Only this element and what it owns; default the project.")
+    ),
+    rules: optional(
+      doc(
+        record(string2(), ruleSetting()),
+        "Per rule id or name: off, or the severity to report it with, e.g. {U002: 'off', naming: 'warning'}."
+      )
+    ),
+    naming: optional(
+      doc(
+        object({
+          classifier: pattern(),
+          attribute: pattern(),
+          operation: pattern(),
+          literal: pattern(),
+          package: pattern()
+        }),
+        "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, a regular expression, or false to skip. Defaults: classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, package skipped."
+      )
+    ),
+    limit: limitField()
+  }),
+  response: object({
+    count: doc(int(), "Findings in all."),
+    counts: countsSchema(),
+    truncated: boolean2(),
+    findings: array(
+      object({
+        rule: string2(),
+        name: string2(),
+        severity: _enum(SEVERITIES),
+        message: string2(),
+        id: string2(),
+        path: nullable(string2()),
+        fix: string2()
+      })
+    )
+  }),
+  handle: (input) => {
+    const given = input.rules ?? {};
+    pickRules(UML_RULES, Object.keys(given), "rules");
+    const severity = /* @__PURE__ */ new Map();
+    for (const id2 of Object.keys(UML_RULES)) {
+      const setting = Object.entries(given).find(
+        ([k]) => k === id2 || k === UML_RULES[id2]
+      )?.[1];
+      if (setting === "off") continue;
+      severity.set(
+        id2,
+        setting ?? DEFAULT_SEVERITY[id2]
+      );
+    }
+    const patterns2 = compileNaming(input.naming);
+    const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
+    return counted(lintModel(scope, severity, patterns2), input.limit);
+  }
+});
 
 // src/handlers/search.ts
 var CATEGORIES = [
@@ -20269,12 +25135,12 @@ var edgeExample = (type2) => ({
     diagram: "<diagram>"
   }
 });
-function ancestry(name3) {
-  const supers = lineage(name3).slice(1, 4);
+function ancestry(name4) {
+  const supers = lineage(name4).slice(1, 4);
   return supers.length > 0 ? `kind of ${supers.join(" < ")}` : "root type";
 }
-function ownAttributes(name3) {
-  const attrs = (meta[name3].attributes ?? []).filter((a) => !a.transient).map((a) => a.name);
+function ownAttributes(name4) {
+  const attrs = (meta[name4].attributes ?? []).filter((a) => !a.transient).map((a) => a.name);
   if (attrs.length === 0) return "";
   const shown = attrs.slice(0, 6).join(", ");
   return `; own attributes: ${shown}${attrs.length > 6 ? ", ..." : ""}`;
@@ -20329,42 +25195,42 @@ function corpus() {
       example: edgeExample(id2)
     });
   }
-  for (const name3 of Object.keys(meta).sort()) {
-    const metaType = meta[name3];
+  for (const name4 of Object.keys(meta).sort()) {
+    const metaType = meta[name4];
     if (metaType.kind === "enum") {
       entries.push({
-        id: name3,
+        id: name4,
         category: "enum",
         description: `Enumeration: ${(metaType.literals ?? []).join(" | ")}`
       });
       continue;
     }
-    if (app.metamodels.isKindOf(name3, "View")) continue;
-    if (diagramIds.has(name3)) {
+    if (app.metamodels.isKindOf(name4, "View")) continue;
+    if (diagramIds.has(name4)) {
       entries.push({
-        id: name3,
+        id: name4,
         category: "diagram",
-        description: `Diagram, ${ancestry(name3)}; holds ${app.metamodels.getAvailableViewTypes(name3).length} view types`,
+        description: `Diagram, ${ancestry(name4)}; holds ${app.metamodels.getAvailableViewTypes(name4).length} view types`,
         example: {
           path: "/create_diagram",
-          body: { type: name3, parent: "<owner>", name: "<name>" }
+          body: { type: name4, parent: "<owner>", name: "<name>" }
         }
       });
       continue;
     }
-    if (app.metamodels.isKindOf(name3, "Diagram")) continue;
+    if (app.metamodels.isKindOf(name4, "Diagram")) continue;
     const ways = [
-      modelAndView.includes(name3) && "with a view",
-      modelIds.has(name3) && "as a model"
+      modelAndView.includes(name4) && "with a view",
+      modelIds.has(name4) && "as a model"
     ].filter(Boolean);
     entries.push({
-      id: name3,
+      id: name4,
       category: "model",
-      description: `Model element, ${ancestry(name3)}${ownAttributes(name3)}${ways.length > 0 ? `; creatable ${ways.join(" or ")}` : "; not creatable directly"}`,
-      example: modelAndView.includes(name3) ? relationshipKind(name3) ? edgeExample(name3) : nodeExample(name3) : modelIds.has(name3) ? {
+      description: `Model element, ${ancestry(name4)}${ownAttributes(name4)}${ways.length > 0 ? `; creatable ${ways.join(" or ")}` : "; not creatable directly"}`,
+      example: modelAndView.includes(name4) ? relationshipKind(name4) ? edgeExample(name4) : nodeExample(name4) : modelIds.has(name4) ? {
         path: "/create_element",
-        body: { type: name3, parent: "<owner>", name: "<name>" }
-      } : { path: "/find_elements", body: { type: name3 } }
+        body: { type: name4, parent: "<owner>", name: "<name>" }
+      } : { path: "/find_elements", body: { type: name4 } }
     });
   }
   for (const [id2, info] of Object.entries(COMMANDS)) {
@@ -20387,9 +25253,9 @@ function corpus() {
 }
 var cache = null;
 function typeCorpus() {
-  const key = [meta, app.toolbox.items, app.factory];
-  if (!cache || cache.key.some((k, i) => k !== key[i])) {
-    cache = { key, entries: corpus() };
+  const key2 = [meta, app.toolbox.items, app.factory];
+  if (!cache || cache.key.some((k, i) => k !== key2[i])) {
+    cache = { key: key2, entries: corpus() };
   }
   return cache.entries;
 }
@@ -20481,7 +25347,7 @@ var searchTypes = defineEndpoint({
 
 // src/handlers/introspect.ts
 var SECTIONS = ["factory", "metamodel", "toolbox", "endpoints"];
-var attributeSchema = () => object({
+var attributeSchema2 = () => object({
   name: string2(),
   kind: doc(
     _enum(["prim", "enum", "var", "ref", "refs", "obj", "objs", "custom"]),
@@ -20504,7 +25370,7 @@ var metaTypeSchema = () => object({
   super: nullable(string2()),
   supers: doc(array(string2()), "Ancestors, nearest first."),
   attributes: doc(
-    array(attributeSchema()),
+    array(attributeSchema2()),
     "Own attributes; with inherited: true, inherited ones first."
   ),
   literals: optional(array(string2())),
@@ -20636,8 +25502,8 @@ function describeAttribute(attr) {
     ...attr.options && { options: [...attr.options] }
   };
 }
-function describeType(name3, ids2, inherited) {
-  const metaType = meta[name3];
+function describeType2(name4, ids2, inherited) {
+  const metaType = meta[name4];
   if (metaType.kind === "enum") {
     return {
       kind: "enum",
@@ -20652,24 +25518,24 @@ function describeType(name3, ids2, inherited) {
       creatable: { model: false, modelAndView: false, diagram: false }
     };
   }
-  const isDiagram = app.metamodels.isKindOf(name3, "Diagram");
-  const attributes2 = inherited ? app.metamodels.getMetaAttributes(name3) : metaType.attributes ?? [];
+  const isDiagram = app.metamodels.isKindOf(name4, "Diagram");
+  const attributes2 = inherited ? app.metamodels.getMetaAttributes(name4) : metaType.attributes ?? [];
   return {
     kind: "class",
     super: metaType.super ?? null,
-    supers: lineage(name3).slice(1),
+    supers: lineage(name4).slice(1),
     attributes: attributes2.map(describeAttribute),
-    viewType: app.metamodels.getViewTypeOf(name3),
+    viewType: app.metamodels.getViewTypeOf(name4),
     ...isDiagram && {
-      viewTypes: app.metamodels.getAvailableViewTypes(name3)
+      viewTypes: app.metamodels.getAvailableViewTypes(name4)
     },
-    relationship: relationshipKind(name3),
-    isView: app.metamodels.isKindOf(name3, "View"),
+    relationship: relationshipKind(name4),
+    isView: app.metamodels.isKindOf(name4, "View"),
     isDiagram,
     creatable: {
-      model: ids2.model.has(name3),
-      modelAndView: ids2.modelAndView.has(name3),
-      diagram: ids2.diagram.has(name3)
+      model: ids2.model.has(name4),
+      modelAndView: ids2.modelAndView.has(name4),
+      diagram: ids2.diagram.has(name4)
     }
   };
 }
@@ -20795,12 +25661,12 @@ function introspectEndpoint(endpoints2) {
           diagram: new Set(ids2.diagram)
         };
         const names4 = (input.types ?? Object.keys(meta)).filter(
-          (name3) => Object.hasOwn(meta, name3)
+          (name4) => Object.hasOwn(meta, name4)
         );
         out.metamodel = Object.fromEntries(
-          names4.sort().map((name3) => [
-            name3,
-            describeType(name3, sets, input.inherited === true)
+          names4.sort().map((name4) => [
+            name4,
+            describeType2(name4, sets, input.inherited === true)
           ])
         );
       }
@@ -20836,17 +25702,17 @@ var createDiagram = defineEndpoint({
   response: elementSchema(),
   handle: (input) => {
     const parent = requireElement(input.parent, "Parent element");
-    const { name: name3 } = input;
+    const { name: name4 } = input;
     if (app.factory.getDiagramIds().includes(input.type)) {
-      assertUniqueName(parent, input.type, name3, input.allowDuplicateNames);
+      assertUniqueName(parent, input.type, name4, input.allowDuplicateNames);
     }
     const diagram = inStarUML(
       () => app.factory.createDiagram({
         id: input.type,
         parent,
-        ...name3 !== void 0 && {
+        ...name4 !== void 0 && {
           diagramInitializer: (d) => {
-            d.name = name3;
+            d.name = name4;
           }
         }
       })
@@ -20981,7 +25847,7 @@ var openProject = defineEndpoint({
 });
 
 // src/handlers/features.ts
-var visibility2 = () => optional(
+var visibility3 = () => optional(
   doc(
     _enum(["public", "protected", "private", "package"]),
     "Default public."
@@ -20993,8 +25859,8 @@ var flag = (description) => optional(doc(boolean2(), description));
 var str3 = (description) => optional(text2(description));
 function pick2(input, names4) {
   const out = {};
-  for (const name3 of names4) {
-    if (input[name3] !== void 0) out[name3] = input[name3];
+  for (const name4 of names4) {
+    if (input[name4] !== void 0) out[name4] = input[name4];
   }
   return out;
 }
@@ -21016,7 +25882,7 @@ var structuralShape = () => ({
       "A type name such as 'String', or {$ref: id} of a classifier in the model."
     )
   ),
-  visibility: visibility2(),
+  visibility: visibility3(),
   multiplicity: str3("E.g. '0..1', '1', '*', '1..*'."),
   defaultValue: str3("Default value as text."),
   isStatic: flag("Class-level feature."),
@@ -21027,8 +25893,8 @@ var structuralShape = () => ({
   documentation: str3("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
-function featureValues(typeName3, input, names4) {
-  return initialValues(typeName3, input.name, {
+function featureValues(typeName4, input, names4) {
+  return initialValues(typeName4, input.name, {
     ...input.properties,
     ...pick2(input, names4)
   });
@@ -21098,7 +25964,7 @@ var addOperation = defineEndpoint({
   request: object({
     ref: ref2("Classifier."),
     name: text2("Operation name."),
-    visibility: visibility2(),
+    visibility: visibility3(),
     isStatic: flag("Class-level operation."),
     isAbstract: flag("Abstract."),
     isQuery: flag("Does not change state."),
@@ -21131,7 +25997,7 @@ var addOperation = defineEndpoint({
         })
       ]
     ];
-    const operation = createOwned(
+    const operation2 = createOwned(
       owner,
       "UMLOperation",
       "operations",
@@ -21144,7 +26010,7 @@ var addOperation = defineEndpoint({
         }
       }
     );
-    return serialize(operation, input);
+    return serialize(operation2, input);
   }
 });
 var addParameter = defineEndpoint({
@@ -21300,10 +26166,10 @@ var addTag = defineEndpoint({
   }
 });
 function setAttribute(elem, field, value) {
-  const typeName3 = elem.constructor.name;
+  const typeName4 = elem.constructor.name;
   const converted = toModelValue(
-    typeName3,
-    settableAttribute(typeName3, field),
+    typeName4,
+    settableAttribute(typeName4, field),
     value
   );
   inStarUML(() => app.engine.setProperty(elem, field, converted));
@@ -21377,9 +26243,9 @@ function endValues(modelType, kind2, tailEnd, headEnd) {
     head: toModelValues(types.head, headEnd ?? {})
   };
 }
-function assignEnds(model, ends2) {
-  if (model.end1) Object.assign(model.end1, ends2.tail);
-  if (model.end2) Object.assign(model.end2, ends2.head);
+function assignEnds(model, ends3) {
+  if (model.end1) Object.assign(model.end1, ends3.tail);
+  if (model.end2) Object.assign(model.end2, ends3.head);
 }
 function edgeGeometry(tail, head, input) {
   const from = center(tail);
@@ -21423,7 +26289,7 @@ var nameShape = () => ({
   )
 });
 function withRoleNames(input) {
-  const end = (values, name3) => name3 === void 0 ? values : { ...values, name: name3 };
+  const end = (values, name4) => name4 === void 0 ? values : { ...values, name: name4 };
   return {
     tailEnd: end(input.tailEnd, input.tailName),
     headEnd: end(input.headEnd, input.headName)
@@ -21435,7 +26301,7 @@ function createEdge(request) {
   const kind2 = modelType ? relationshipKind(modelType) : null;
   const values = valuesFor(createId, request.name, request.properties);
   const { tailEnd, headEnd } = withRoleNames(request);
-  const ends2 = endValues(modelType, kind2, tailEnd, headEnd);
+  const ends3 = endValues(modelType, kind2, tailEnd, headEnd);
   return createModelAndView({
     ...preset,
     id: createId,
@@ -21448,7 +26314,7 @@ function createEdge(request) {
     ...edgeGeometry(request.tail, request.head, request),
     modelInitializer: (m) => {
       Object.assign(m, values);
-      assignEnds(m, ends2);
+      assignEnds(m, ends3);
     },
     // UMLGeneralEdgeView draws the name as model.getString(view), which puts
     // the visibility mark ("+") before it while showVisibility is on, its
@@ -21508,7 +26374,7 @@ var createEdgeWithView = defineEndpoint({
 function createModelOnly(modelType, kind2, input, tail, head) {
   const values = initialValues(modelType, input.name, input.properties);
   const { tailEnd, headEnd } = withRoleNames(input);
-  const ends2 = endValues(modelType, kind2, tailEnd, headEnd);
+  const ends3 = endValues(modelType, kind2, tailEnd, headEnd);
   const parent = input.parent === void 0 ? defaultOwner(tail, modelType) : requireElement(input.parent, "Parent");
   const field = resolveOwnerField(parent, modelType, input.field);
   const model = instantiate(modelType);
@@ -21520,7 +26386,7 @@ function createModelOnly(modelType, kind2, input, tail, head) {
     model.end2.reference = head;
   }
   Object.assign(model, values);
-  assignEnds(model, ends2);
+  assignEnds(model, ends3);
   const stored = inStarUML(() => app.engine.addModel(parent, field, model));
   if (!stored) {
     throw new ApiError(
@@ -21953,8 +26819,8 @@ function writeFile(path, data) {
   }
 }
 function fileStem(diagram, taken) {
-  const name3 = typeof diagram.name === "string" ? diagram.name : "";
-  const clean = name3.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  const name4 = typeof diagram.name === "string" ? diagram.name : "";
+  const clean = name4.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
   const stem = clean === "" || taken.has(clean.toLowerCase()) ? `${clean || "diagram"}-${diagram._id}` : clean;
   taken.add(stem.toLowerCase());
   return stem;
@@ -22324,6 +27190,12 @@ var endpoints = [
   buildModelEndpoint(() => endpoints),
   syncOperationsEndpoint(() => endpoints),
   checkMessages,
+  listPatterns,
+  describePattern,
+  applyPatternEndpoint(() => endpoints),
+  detectPatterns,
+  applyPresetEndpoint(() => endpoints),
+  describeType,
   introspectEndpoint(() => endpoints),
   debug
 ];

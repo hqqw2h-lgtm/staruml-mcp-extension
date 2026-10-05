@@ -1,0 +1,99 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Interpreter",
+  "category": "behavioral",
+  "intent": "Represent a grammar as classes and interpret sentences of the language with them.",
+  "roles": [
+    {
+      "name": "AbstractExpression",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Declares the interpret operation.",
+      "properties": {
+        "isAbstract": true
+      },
+      "operations": [
+        {
+          "name": "interpret",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "context",
+              "type": "{Context}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TerminalExpression",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Interprets a terminal symbol.",
+      "operations": [
+        {
+          "name": "interpret",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "{Context}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NonterminalExpression",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Interprets a rule of the grammar.",
+      "operations": [
+        {
+          "name": "interpret",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "{Context}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Context",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Information global to the interpreter."
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "TerminalExpression",
+      "to": "AbstractExpression"
+    },
+    {
+      "type": "generalization",
+      "from": "NonterminalExpression",
+      "to": "AbstractExpression"
+    },
+    {
+      "type": "composition",
+      "from": "NonterminalExpression",
+      "to": "AbstractExpression",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "expressions",
+        "multiplicity": "1..*"
+      }
+    },
+    {
+      "type": "dependency",
+      "from": "AbstractExpression",
+      "to": "Context"
+    }
+  ]
+}

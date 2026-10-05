@@ -30,7 +30,7 @@ import { parseModelSpec, RELATIONS } from "../model/spec.js";
 import { pathOf } from "../refs.js";
 import { ref } from "../schemas.js";
 import type { Element, View } from "../types.js";
-import { runBatch, type OpResult } from "./batch.js";
+import { batchRunner, type OpResult } from "./batch.js";
 import { planOf, planSchema, resultField } from "./build.js";
 
 /*
@@ -173,7 +173,7 @@ export function buildModelEndpoint(
       }
       const run =
         plan.ops.length > 0
-          ? await runBatch(endpoints(), plan.ops, true, MODEL_MAX_OPS)
+          ? await batchRunner.run(endpoints(), plan.ops, true, MODEL_MAX_OPS)
           : { results: [] };
       const byAlias = new Map(
         run.results.flatMap((r) => (r.as ? [[r.as, r]] : [])),
@@ -446,7 +446,8 @@ export function syncOperationsEndpoint(
         skipped,
       };
       if (input.dryRun) return { ...answer, dryRun: true, plan: planOf(ops) };
-      if (ops.length > 0) await runBatch(endpoints(), ops, true, MODEL_MAX_OPS);
+      if (ops.length > 0)
+        await batchRunner.run(endpoints(), ops, true, MODEL_MAX_OPS);
       return answer;
     },
   });

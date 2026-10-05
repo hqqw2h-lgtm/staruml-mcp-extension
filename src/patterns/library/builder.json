@@ -1,0 +1,103 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Builder",
+  "category": "creational",
+  "intent": "Separate the construction of a complex object from its representation, so one construction process can make different representations.",
+  "roles": [
+    {
+      "name": "Director",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Runs the construction steps in order.",
+      "operations": [
+        {
+          "name": "construct",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "name": "Builder",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares a step per part of the product.",
+      "operations": [
+        {
+          "name": "buildPart",
+          "isAbstract": true
+        },
+        {
+          "name": "getResult",
+          "isAbstract": true,
+          "isQuery": true,
+          "returnType": "{Product}"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteBuilder",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Builds and assembles the parts of one representation.",
+      "operations": [
+        {
+          "name": "buildPart"
+        },
+        {
+          "name": "getResult",
+          "isQuery": true,
+          "returnType": "{Product}"
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "The complex object built."
+    }
+  ],
+  "relationships": [
+    {
+      "type": "aggregation",
+      "from": "Director",
+      "to": "Builder",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "builder",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteBuilder",
+      "to": "Builder"
+    },
+    {
+      "type": "dependency",
+      "from": "ConcreteBuilder",
+      "to": "Product",
+      "stereotype": "create"
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Director",
+        "text": "construct()"
+      },
+      {
+        "from": "Director",
+        "to": "ConcreteBuilder",
+        "text": "buildPart()"
+      },
+      {
+        "from": "Client",
+        "to": "ConcreteBuilder",
+        "text": "getResult()"
+      }
+    ],
+    "participants": ["Client", "Director", "ConcreteBuilder"]
+  }
+}

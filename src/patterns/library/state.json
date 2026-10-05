@@ -1,0 +1,99 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "State",
+  "category": "behavioral",
+  "intent": "Let an object alter its behaviour when its internal state changes.",
+  "roles": [
+    {
+      "name": "Context",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Holds the current state and delegates to it.",
+      "operations": [
+        {
+          "name": "request"
+        },
+        {
+          "name": "setState",
+          "parameters": [
+            {
+              "name": "state",
+              "type": "{State}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "State",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of the behaviour of one state.",
+      "operations": [
+        {
+          "name": "handle",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "context",
+              "type": "{Context}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteState",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Behaviour of one state.",
+      "operations": [
+        {
+          "name": "handle",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "{Context}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "aggregation",
+      "from": "Context",
+      "to": "State",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "state",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteState",
+      "to": "State"
+    }
+  ],
+  "alsoKnownAs": ["Objects for States"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Context",
+        "text": "request()"
+      },
+      {
+        "from": "Context",
+        "to": "ConcreteState",
+        "text": "handle(context)"
+      }
+    ],
+    "participants": ["Client", "Context", "ConcreteState"]
+  }
+}

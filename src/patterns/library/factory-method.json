@@ -1,0 +1,99 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Factory Method",
+  "category": "creational",
+  "intent": "Define an operation for creating an object and let subclasses decide which class to instantiate.",
+  "roles": [
+    {
+      "name": "Creator",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Declares the factory method and uses what it returns.",
+      "properties": {
+        "isAbstract": true
+      },
+      "documentation": "{Creator} leaves the choice of {Product} to its subclasses.",
+      "operations": [
+        {
+          "name": "factoryMethod",
+          "isAbstract": true,
+          "visibility": "protected",
+          "returnType": "{Product}"
+        },
+        {
+          "name": "anOperation",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteCreator",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Overrides the factory method to make a concrete product.",
+      "operations": [
+        {
+          "name": "factoryMethod",
+          "visibility": "protected",
+          "returnType": "{Product}"
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of the objects the factory method makes."
+    },
+    {
+      "name": "ConcreteProduct",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "What a concrete creator makes."
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "ConcreteCreator",
+      "to": "Creator"
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteProduct",
+      "to": "Product"
+    },
+    {
+      "type": "dependency",
+      "from": "ConcreteCreator",
+      "to": "ConcreteProduct",
+      "stereotype": "create"
+    }
+  ],
+  "alsoKnownAs": ["Virtual Constructor"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "ConcreteCreator",
+        "text": "anOperation()"
+      },
+      {
+        "from": "ConcreteCreator",
+        "to": "ConcreteCreator",
+        "text": "factoryMethod()"
+      }
+    ],
+    "participants": ["Client", "ConcreteCreator"]
+  },
+  "checks": [
+    {
+      "id": "factory-method-abstract",
+      "role": "Creator",
+      "property": "isAbstract",
+      "equals": true,
+      "message": "A factory method is left abstract in the creator, for subclasses to decide the product.",
+      "member": "factoryMethod"
+    }
+  ]
+}

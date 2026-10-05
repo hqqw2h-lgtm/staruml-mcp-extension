@@ -1,0 +1,133 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Strategy",
+  "category": "behavioral",
+  "intent": "Define a family of algorithms, encapsulate each one and make them interchangeable.",
+  "roles": [
+    {
+      "name": "Context",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Is configured with a strategy and delegates to it.",
+      "documentation": "{Context} delegates the varying algorithm to a {Strategy}.",
+      "operations": [
+        {
+          "name": "setStrategy",
+          "parameters": [
+            {
+              "name": "strategy",
+              "type": "{Strategy}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "contextInterface"
+        }
+      ]
+    },
+    {
+      "name": "Strategy",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface common to all algorithms.",
+      "operations": [
+        {
+          "name": "execute",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "ConcreteStrategy",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Implements one algorithm.",
+      "operations": [
+        {
+          "name": "execute"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "aggregation",
+      "from": "Context",
+      "to": "Strategy",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "strategy",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteStrategy",
+      "to": "Strategy"
+    }
+  ],
+  "alsoKnownAs": ["Policy"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Context",
+        "text": "contextInterface()"
+      },
+      {
+        "from": "Context",
+        "to": "ConcreteStrategy",
+        "text": "execute()"
+      }
+    ],
+    "participants": ["Client", "Context", "ConcreteStrategy"]
+  },
+  "variants": {
+    "abstract-class": {
+      "description": "The strategy is an abstract class its concrete strategies extend.",
+      "roles": {
+        "Strategy": {
+          "type": "UMLClass",
+          "properties": {
+            "isAbstract": true
+          }
+        }
+      },
+      "relationships": [
+        {
+          "type": "aggregation",
+          "from": "Context",
+          "to": "Strategy",
+          "fromEnd": {
+            "navigable": "notNavigable"
+          },
+          "toEnd": {
+            "navigable": "navigable",
+            "name": "strategy",
+            "multiplicity": "1"
+          }
+        },
+        {
+          "type": "generalization",
+          "from": "ConcreteStrategy",
+          "to": "Strategy"
+        }
+      ]
+    }
+  },
+  "checks": [
+    {
+      "id": "strategy-context-navigates",
+      "role": "Context",
+      "property": "navigable",
+      "equals": "navigable",
+      "message": "A context reaches its strategy: the association end at the strategy is navigable.",
+      "relationship": 0,
+      "end": "to"
+    }
+  ]
+}
