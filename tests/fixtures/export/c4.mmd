@@ -1,0 +1,11 @@
+---
+title: "Spec C4"
+---
+C4Container
+  Person(E0, "User", "Uses the app")
+  Container(E1, "App", "React", "UI")
+  ContainerDb(E2, "DB", "Postgres")
+  System_Ext(E3, "Mailer")
+  Rel(E0, E1, "Uses", "HTTPS")
+  Rel(E1, E2, "Reads", "", "SQL queries")
+  Rel(E1, E3, "Sends mail")

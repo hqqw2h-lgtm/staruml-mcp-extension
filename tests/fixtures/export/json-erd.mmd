@@ -1,0 +1,36 @@
+---
+title: "Order tables"
+---
+erDiagram
+  OrderShipping {
+    varchar street
+    varchar city
+  }
+  Order {
+    uuid id PK
+    timestamp placedAt
+    varchar status_id FK
+    string customer_id FK
+    string shipping_id FK
+    varchar note
+  }
+  Status {
+    varchar value PK
+  }
+  Party {
+    integer id PK
+    varchar name
+  }
+  Customer {
+    varchar email
+  }
+  Line {
+    integer qty
+    numeric price
+    varchar[] tags
+  }
+  Status |o..o{ Order : ""
+  Customer ||..o{ Order : ""
+  Order ||..o{ Line : ""
+  OrderShipping |o..o{ Order : ""
+  Party ||--o| Customer : ""

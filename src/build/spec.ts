@@ -48,6 +48,8 @@ export const KINDS = [
   "erd",
   "flowchart",
   "mindmap",
+  "requirement",
+  "c4",
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -60,6 +62,8 @@ export const DIAGRAM_TYPES: Record<Kind, string> = {
   erd: "ERDDiagram",
   flowchart: "FCFlowchartDiagram",
   mindmap: "MMMindmapDiagram",
+  requirement: "SysMLRequirementDiagram",
+  c4: "C4Diagram",
 };
 
 export interface ColumnSpec {
@@ -540,6 +544,128 @@ const mindNode: z.ZodMiniType<MindNode> = z.object({
 
 const mindmapSpec = () => z.object({ ...common(), root: mindNode });
 
+/** Mermaid's requirement types, as the stereotypes StarUML's own importer gives them. */
+export const REQUIREMENT_TYPES = {
+  requirement: undefined,
+  functional: "functionalRequirement",
+  interface: "interfaceRequirement",
+  performance: "performanceRequirement",
+  physical: "physicalRequirement",
+  design: "designConstraint",
+} as const;
+
+export const REQUIREMENT_RELATIONS = {
+  contains: "UMLContainment",
+  copies: "SysMLCopy",
+  derives: "SysMLDeriveReqt",
+  satisfies: "SysMLSatisfy",
+  verifies: "SysMLVerify",
+  refines: "SysMLRefine",
+  traces: "UMLDependency",
+} as const;
+
+const requirementSpec = () =>
+  z.object({
+    ...common(),
+    requirements: z.optional(
+      z.array(
+        z.object({
+          name: name(),
+          type: z.optional(
+            z.enum(
+              Object.keys(REQUIREMENT_TYPES) as [
+                keyof typeof REQUIREMENT_TYPES,
+              ],
+            ),
+          ),
+          id: z.optional(z.string()),
+          text: z.optional(z.string()),
+          risk: z.optional(z.enum(["low", "medium", "high"])),
+          verifyMethod: z.optional(
+            z.enum(["analysis", "inspection", "test", "demonstration"]),
+          ),
+        }),
+      ),
+    ),
+    elements: z.optional(
+      z.array(
+        z.object({
+          name: name(),
+          type: z.optional(z.string()),
+          docRef: z.optional(z.string()),
+        }),
+      ),
+    ),
+    relations: z.optional(
+      z.array(
+        z.object({
+          from: name(),
+          to: name(),
+          type: z.enum(
+            Object.keys(REQUIREMENT_RELATIONS) as [
+              keyof typeof REQUIREMENT_RELATIONS,
+            ],
+          ),
+        }),
+      ),
+    ),
+  });
+
+/** C4ContainerKind literals of the 7.1.1 C4 metamodel. */
+export const C4_CONTAINER_KINDS = [
+  "server-webapp",
+  "client-webapp",
+  "desktop-app",
+  "mobile-app",
+  "console-app",
+  "serverless-function",
+  "database",
+  "blob-store",
+  "filesystem",
+  "shell-script",
+  "etc",
+] as const;
+
+export const C4_TYPES = {
+  person: "C4Person",
+  system: "C4SoftwareSystem",
+  container: "C4Container",
+  component: "C4Component",
+} as const;
+
+const c4Spec = () =>
+  z.object({
+    ...common(),
+    elements: z.optional(
+      z.array(
+        z.object({
+          id: z.optional(doc(name(), "Key for relations; default the name.")),
+          name: name(),
+          type: z.enum(Object.keys(C4_TYPES) as [keyof typeof C4_TYPES]),
+          kind: z.optional(
+            doc(z.enum(C4_CONTAINER_KINDS), "Container kind, e.g. database."),
+          ),
+          technology: z.optional(z.string()),
+          description: z.optional(z.string()),
+          external: z.optional(
+            doc(z.boolean(), "Outside the system in scope; drawn grey."),
+          ),
+        }),
+      ),
+    ),
+    relations: z.optional(
+      z.array(
+        z.object({
+          from: name(),
+          to: name(),
+          label: z.optional(z.string()),
+          technology: z.optional(z.string()),
+          description: z.optional(z.string()),
+        }),
+      ),
+    ),
+  });
+
 export const SPEC_SCHEMAS = {
   class: classSpec,
   sequence: sequenceSpec,
@@ -549,6 +675,8 @@ export const SPEC_SCHEMAS = {
   erd: erdSpec,
   flowchart: flowchartSpec,
   mindmap: mindmapSpec,
+  requirement: requirementSpec,
+  c4: c4Spec,
 } as const;
 
 export type Spec<K extends Kind> = z.output<
@@ -1285,6 +1413,107 @@ function mindmapPlan(spec: Spec<"mindmap">): Plan {
   return b.plan();
 }
 
+/**
+ * Requirements as SysMLRequirements with Mermaid's type as stereotype, and
+ * elements as classes stereotyped element with Type and DocRef attributes,
+ * the way StarUML's own Mermaid importer builds them
+ * (extensions/default/mermaid/factory/requirement-factory.js, 7.1.1).
+ */
+function requirementPlan(spec: Spec<"requirement">): Plan {
+  const b = new Builder("requirement");
+  for (const r of spec.requirements ?? []) {
+    const stereotype = REQUIREMENT_TYPES[r.type ?? "requirement"];
+    const notes = [
+      r.risk && `Risk: ${r.risk}`,
+      r.verifyMethod && `VerifyMethod: ${r.verifyMethod}`,
+    ].filter(Boolean);
+    const lines = [r.id, r.text].filter(Boolean).length;
+    b.node({
+      key: multiline(r.name),
+      type: "SysMLRequirement",
+      name: multiline(r.name),
+      properties: {
+        ...(r.id !== undefined && { id: r.id }),
+        ...(r.text !== undefined && { text: r.text }),
+        ...(stereotype && { stereotype }),
+        ...(notes.length > 0 && { documentation: notes.join("\n") }),
+      },
+      width: 180,
+      height: 60 + 20 * lines,
+    });
+  }
+  for (const e of spec.elements ?? []) {
+    const attributes = [
+      e.type !== undefined && { name: "Type", defaultValue: e.type },
+      e.docRef !== undefined && { name: "DocRef", defaultValue: e.docRef },
+    ].filter((a) => a !== false);
+    b.node({
+      key: multiline(e.name),
+      type: "UMLClass",
+      name: multiline(e.name),
+      properties: { stereotype: "element" },
+      ...(attributes.length > 0 && { attributes }),
+      width: 180,
+      height: 50 + 14 * attributes.length,
+    });
+  }
+  (spec.relations ?? []).forEach((r, i) => {
+    // A containment edge runs from the contained element to its container
+    // (containmentFn in uml-factory.js relocates the tail into the head).
+    const contains = r.type === "contains";
+    b.edge(
+      {
+        type: REQUIREMENT_RELATIONS[r.type],
+        from: contains ? r.to : r.from,
+        to: contains ? r.from : r.to,
+        ...(r.type === "traces" && { properties: { stereotype: "trace" } }),
+      },
+      `relations.${i}`,
+    );
+  });
+  return b.plan();
+}
+
+/** External elements are grey, as C4-PlantUML and Mermaid draw them. */
+const C4_EXTERNAL = { fillColor: "#999999", lineColor: "#8a8a8a" };
+
+function c4Plan(spec: Spec<"c4">): Plan {
+  const b = new Builder("c4");
+  for (const e of spec.elements ?? []) {
+    const properties = {
+      ...(e.type === "container" && e.kind !== undefined && { kind: e.kind }),
+      ...(e.technology !== undefined && { technology: e.technology }),
+      ...(e.description !== undefined && { description: e.description }),
+    };
+    b.node({
+      key: e.id ?? multiline(e.name),
+      type: C4_TYPES[e.type],
+      name: multiline(e.name),
+      ...(Object.keys(properties).length > 0 && { properties }),
+      ...(e.external && { style: C4_EXTERNAL }),
+      width: 180,
+      height: e.type === "person" ? 140 : 110,
+    });
+  }
+  (spec.relations ?? []).forEach((r, i) => {
+    const properties = {
+      ...(r.technology !== undefined && { technology: r.technology }),
+      ...(r.description !== undefined && { description: r.description }),
+    };
+    b.edge(
+      {
+        type: "C4Relationship",
+        from: r.from,
+        to: r.to,
+        ...(r.label !== undefined && { name: multiline(r.label) }),
+        ...(Object.keys(properties).length > 0 && { properties }),
+      },
+      `relations.${i}`,
+    );
+  });
+  return b.plan();
+}
+
 const PLANNERS: { [K in Kind]: (spec: Spec<K>) => Plan } = {
   class: classPlan,
   sequence: sequencePlan,
@@ -1294,6 +1523,8 @@ const PLANNERS: { [K in Kind]: (spec: Spec<K>) => Plan } = {
   erd: erdPlan,
   flowchart: flowchartPlan,
   mindmap: mindmapPlan,
+  requirement: requirementPlan,
+  c4: c4Plan,
 };
 
 const longHex = (color: string) =>

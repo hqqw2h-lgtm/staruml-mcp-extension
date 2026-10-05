@@ -469,3 +469,51 @@ describe("/export_text notes and operands as drawn", () => {
     expect(out.warnings).toContain("a note on no lifeline is not written");
   });
 });
+
+// Issue #16: what requirement and C4 diagrams leave out.
+describe("/export_text requirement and C4 extraction", () => {
+  it("skips other views and untraced dependencies, and defaults the requirement type", async () => {
+    const built = await ok<
+      Built & { ids: Record<string, { view: string; model: string }> }
+    >(build, {
+      kind: "requirement",
+      spec: {
+        requirements: [{ name: "R" }, { name: "Q" }],
+        elements: [{ name: "E" }],
+      },
+    });
+    const d = built.diagram._id;
+    model(built.ids.R!.view).stereotype = "oddRequirement";
+    add(d, "UMLInterface", "I", { x: 0, y: 0 });
+    const r = view(built.ids.R!.view);
+    const q = view(built.ids.Q!.view);
+    add(d, "UMLDependency", "", { x: 0, y: 0, tail: r, head: q });
+    const out = await text(d);
+    expect(out.text).toContain("  requirement R {");
+    expect(out.warnings).toEqual([
+      "1 UMLInterface view is not written",
+      "1 UMLDependency view is not written",
+    ]);
+  });
+
+  it("skips views that are not C4 elements, and edges to them", async () => {
+    const built = await ok<Built & { ids: Record<string, { view: string }> }>(
+      build,
+      {
+        kind: "c4",
+        spec: { elements: [{ name: "P", type: "person" }] },
+      },
+    );
+    const d = built.diagram._id;
+    const other = add(d, "C4Element", "X", { x: 0, y: 0 });
+    const p = view(built.ids.P!.view);
+    add(d, "C4Relationship", "r", { x: 0, y: 0, tail: p, head: other });
+    add(d, "UMLDependency", "", { x: 0, y: 0, tail: p, head: p });
+    const out = await text(d);
+    expect(out.warnings).toEqual([
+      "1 C4Element view is not written",
+      "1 C4Relationship view is not written",
+      "1 UMLDependency view is not written",
+    ]);
+  });
+});

@@ -22,6 +22,7 @@
  */
 
 import { ApiError } from "../errors.js";
+import { readC4 } from "./c4.js";
 import { isOperation, multiline } from "./members.js";
 import type { Direction, Kind, ViewStyle } from "./spec.js";
 
@@ -41,10 +42,16 @@ export interface Parsed {
   title?: string;
   direction?: Direction;
   spec: Record<string, unknown>;
+  /** What the text says that the diagram does not show. */
+  warnings?: string[];
 }
 
-const fail = (line: number, message: string): never => {
-  throw new ApiError("INVALID_ARGUMENT", `mermaid line ${line}: ${message}`);
+const fail = (
+  line: number,
+  message: string,
+  code: "INVALID_ARGUMENT" | "UNSUPPORTED_SYNTAX" = "INVALID_ARGUMENT",
+): never => {
+  throw new ApiError(code, `mermaid line ${line}: ${message}`);
 };
 
 interface Line {
@@ -80,7 +87,7 @@ export function preprocess(source: string): { title?: string; lines: Line[] } {
   return { ...(title !== undefined && { title }), lines };
 }
 
-const unquote = (s: string) => s.trim().replace(/^"(.*)"$/, "$1");
+export const unquote = (s: string) => s.trim().replace(/^"(.*)"$/, "$1");
 
 const CSS: Record<string, keyof ViewStyle> = {
   fill: "fillColor",
@@ -192,7 +199,7 @@ function takeTitle(lines: Line[]): string | undefined {
 
 // ---------------------------------------------------------------- class
 
-const CLASS_ARROWS: [RegExp, string, boolean][] = [
+export const CLASS_ARROWS: [RegExp, string, boolean][] = [
   // [arrow, relation type, whether the arrow points from the second name]
   [/^<\|--$/, "generalization", true],
   [/^--\|>$/, "generalization", false],
@@ -692,13 +699,13 @@ function usecaseSpec(lines: Line[]) {
 
 // ---------------------------------------------------------------- erDiagram
 
-const LEFT_CARD: Record<string, string> = {
+export const LEFT_CARD: Record<string, string> = {
   "|o": "0..1",
   "||": "1",
   "}o": "0..*",
   "}|": "1..*",
 };
-const RIGHT_CARD: Record<string, string> = {
+export const RIGHT_CARD: Record<string, string> = {
   "o|": "0..1",
   "||": "1",
   "o{": "0..*",
@@ -914,9 +921,122 @@ function mindmap(lines: Line[]): Record<string, unknown> {
   return { root: strip(root!) };
 }
 
+// ---------------------------------------------------------------- requirement
+
+const REQUIREMENT_KEYWORDS: Record<string, string> = {
+  requirement: "requirement",
+  functionalrequirement: "functional",
+  interfacerequirement: "interface",
+  performancerequirement: "performance",
+  physicalrequirement: "physical",
+  designconstraint: "design",
+};
+
+const NAME = String.raw`"[^"]+"|[\w.-]+`;
+
+/**
+ * A requirementDiagram (mermaid.js.org/syntax/requirementDiagram): typed
+ * requirements and elements in { } blocks of key: value lines, and
+ * relations written a - type -> b or b <- type - a.
+ */
+function requirementDiagram(lines: Line[]): Record<string, unknown> {
+  const requirements: Record<string, unknown>[] = [];
+  const elements: Record<string, unknown>[] = [];
+  const relations: Record<string, unknown>[] = [];
+  const styles = new Styles();
+  const names: string[] = [];
+  let open: Record<string, unknown> | null = null;
+  let isElement = false;
+  const forward = new RegExp(`^(${NAME})\\s*-\\s*(\\w+)\\s*->\\s*(${NAME})$`);
+  const backward = new RegExp(`^(${NAME})\\s*<-\\s*(\\w+)\\s*-\\s*(${NAME})$`);
+  const relation = (from: string, type: string, to: string, no: number) => {
+    if (
+      ![
+        "contains",
+        "copies",
+        "derives",
+        "satisfies",
+        "verifies",
+        "refines",
+        "traces",
+      ].includes(type)
+    ) {
+      fail(no, `unknown relation ${type}`);
+    }
+    relations.push({ from: unquote(from), to: unquote(to), type });
+  };
+  for (const { no, text } of lines) {
+    let m: RegExpExecArray | null;
+    if (open) {
+      if (text === "}") {
+        (isElement ? elements : requirements).push(open);
+        open = null;
+        continue;
+      }
+      m =
+        /^(\w+)\s*:\s*(.*?)\s*$/.exec(text) ??
+        fail(no, `cannot read "${text}"`);
+      const key = m[1]!.toLowerCase();
+      const value = unquote(m[2]!);
+      const field = isElement
+        ? { type: "type", docref: "docRef" }[key]
+        : {
+            id: "id",
+            text: "text",
+            risk: "risk",
+            verifymethod: "verifyMethod",
+          }[key];
+      if (!field) fail(no, `unknown field ${m[1]}`);
+      open[field!] =
+        field === "risk" || field === "verifyMethod"
+          ? value.toLowerCase()
+          : multiline(value);
+      continue;
+    }
+    if (
+      (m = new RegExp(`^(\\w+)\\s+(${NAME})\\s*(?::::([\\w-]+))?\\s*\\{$`).exec(
+        text,
+      ))
+    ) {
+      const keyword = m[1]!.toLowerCase();
+      const type = REQUIREMENT_KEYWORDS[keyword];
+      if (keyword !== "element" && !type)
+        fail(no, `unknown requirement type ${m[1]}`);
+      const name = multiline(unquote(m[2]!));
+      if (m[3]) styles.use(name, m[3]);
+      names.push(name);
+      isElement = keyword === "element";
+      open = isElement
+        ? { name }
+        : { name, ...(type !== "requirement" && { type }) };
+    } else if ((m = forward.exec(text))) {
+      relation(m[1]!, m[2]!, m[3]!, no);
+    } else if ((m = backward.exec(text))) {
+      relation(m[3]!, m[2]!, m[1]!, no);
+    } else if (!styles.line(text) && !/^direction\s/.test(text)) {
+      fail(no, `cannot read "${text}"`);
+    }
+  }
+  if (open)
+    fail(lines.at(-1)!.no, `${String(open.name)} is never closed with }`);
+  const colors = styles.resolve(names, (n) => n);
+  return {
+    requirements,
+    elements,
+    relations: relations.map((r) => ({
+      ...r,
+      from: multiline(String(r.from)),
+      to: multiline(String(r.to)),
+    })),
+    ...(colors && { styles: colors }),
+  };
+}
+
 // ---------------------------------------------------------------- entry
 
 const HEADERS: [RegExp, Kind][] = [
+  [/^requirementDiagram\b/, "requirement"],
+  [/^C4(Context|Container|Component)\b/, "c4"],
   [/^classDiagram(-v2)?\b/, "class"],
   [/^sequenceDiagram\b/, "sequence"],
   [/^(flowchart|graph)\b/, "flowchart"],
@@ -935,10 +1055,17 @@ export function parseMermaid(source: string, as?: Kind): Parsed {
   const title = front ?? takeTitle(lines);
   const header = lines[0]!;
   const found = HEADERS.find(([re]) => re.test(header.text));
+  if (/^C4(Dynamic|Deployment)\b/.test(header.text)) {
+    fail(
+      header.no,
+      `${header.text.split(/\s/)[0]} is not built: StarUML 7.1.1 has no C4 dynamic or deployment elements; C4Context, C4Container and C4Component are`,
+      "UNSUPPORTED_SYNTAX",
+    );
+  }
   if (!found) {
     return fail(
       header.no,
-      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram or mindmap`,
+      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap, requirementDiagram or C4Context/C4Container/C4Component`,
     );
   }
   let kind = found[1];
@@ -960,6 +1087,18 @@ export function parseMermaid(source: string, as?: Kind): Parsed {
       return { kind, ...titled, spec: stateDiagram(body()) };
     case "mindmap":
       return { kind, ...titled, spec: mindmap(body()) };
+    case "requirement":
+      return { kind, ...titled, spec: requirementDiagram(body()) };
+    case "c4": {
+      // C4 diagrams take their title as a title line inside the body too.
+      const { spec, warnings } = readC4(body(), fail, () => false);
+      return {
+        kind,
+        ...titled,
+        spec,
+        ...(warnings.length > 0 && { warnings }),
+      };
+    }
     case "activity":
       return { kind, ...titled, ...activitySpec(lines) };
     case "usecase":

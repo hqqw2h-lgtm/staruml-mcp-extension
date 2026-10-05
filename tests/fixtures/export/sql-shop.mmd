@@ -1,0 +1,28 @@
+---
+title: "Shop"
+---
+erDiagram
+  customer {
+    SERIAL id PK
+    VARCHAR(120) email UK
+    VARCHAR(80) name
+  }
+  order {
+    BIGINT id PK
+    INT customer_id FK
+    TIMESTAMP WITH TIME ZONE placed_at
+    NUMERIC(10,2) total
+  }
+  order_line {
+    BIGINT order_id PK, FK
+    INT line_no PK
+    INT product_id FK
+    INT qty
+  }
+  product {
+    INT id PK
+    VARCHAR(20) sku UK
+  }
+  customer ||..o{ order : ""
+  order ||--o{ order_line : ""
+  product |o..o{ order_line : ""

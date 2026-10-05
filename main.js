@@ -93,6 +93,12 @@ var ERROR_STATUS = {
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**
+   * Well-formed diagram text using a construct /build_diagram does not
+   * translate, e.g. a PlantUML timing diagram or a SQL CREATE VIEW; the
+   * message names it and its line.
+   */
+  UNSUPPORTED_SYNTAX: 422,
+  /**
    * The command would open a modal or native dialog and wait for someone at
    * StarUML; it was refused, or stopped where the dialog would have opened.
    */
@@ -126,9 +132,9 @@ var ApiError = class extends Error {
 function errorMessage(err) {
   return err instanceof Error ? err.message : String(err);
 }
-function inStarUML(call) {
+function inStarUML(call2) {
   try {
-    return call();
+    return call2();
   } catch (err) {
     if (err instanceof ApiError) throw err;
     throw new ApiError("STARUML_ERROR", errorMessage(err));
@@ -1506,7 +1512,7 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     }
     return propValues;
   });
-  const isObject2 = isObject;
+  const isObject3 = isObject;
   const catchall = def.catchall;
   let value;
   const memo = globalConfig.memoizer;
@@ -1514,7 +1520,7 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
     const input = payload.value;
-    if (!isObject2(input)) {
+    if (!isObject3(input)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
@@ -3203,12 +3209,12 @@ function rewriteKeyNames(ctx) {
   const rewrites = /* @__PURE__ */ new Map();
   for (const record2 of pendingRecords.get(ctx) ?? []) {
     const seen = ctx.seen.get(record2);
-    const names2 = (seen?.def ?? seen?.schema)?.propertyNames;
-    if (!names2 || names2 === true || rewrites.has(names2))
+    const names3 = (seen?.def ?? seen?.schema)?.propertyNames;
+    if (!names3 || names3 === true || rewrites.has(names3))
       continue;
-    const rewritten = stringifyKeyNames(bySchema, names2, /* @__PURE__ */ new Set());
-    if (rewritten !== names2)
-      rewrites.set(names2, rewritten);
+    const rewritten = stringifyKeyNames(bySchema, names3, /* @__PURE__ */ new Set());
+    if (rewritten !== names3)
+      rewrites.set(names3, rewritten);
   }
   if (!rewrites.size)
     return;
@@ -3873,7 +3879,7 @@ function checkPlan(ops, endpoints2, atomic) {
       `A batch takes at most ${max} ops (preference mcp-ext.limits.maxBatchOps); got ${ops.length}`
     );
   }
-  const names2 = /* @__PURE__ */ new Set();
+  const names3 = /* @__PURE__ */ new Set();
   ops.forEach((op, i) => {
     if (!endpoints2.has(op.path)) {
       throw new ApiError(
@@ -3888,13 +3894,13 @@ function checkPlan(ops, endpoints2, atomic) {
       );
     }
     if (op.as !== void 0) {
-      if (names2.has(op.as)) {
+      if (names3.has(op.as)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
           `ops.${i}.as: ${op.as} is used twice`
         );
       }
-      names2.add(op.as);
+      names3.add(op.as);
     }
   });
 }
@@ -4113,9 +4119,400 @@ function formatOperation(o) {
   return `${sigil(o)}${String(o.name ?? "")}(${args.join(", ")})` + (returns ? `: ${returns}` : "") + (o.isStatic ? "$" : o.isAbstract ? "*" : "");
 }
 
+// src/build/jsonschema.ts
+var fail = (pointer, message, code = "INVALID_ARGUMENT") => {
+  throw new ApiError(code, `json schema ${pointer || "#"}: ${message}`);
+};
+var isObject2 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+var pascal = (s) => s.replace(
+  /(^|[^A-Za-z0-9]+)([A-Za-z0-9])/g,
+  (_, __, c) => c.toUpperCase()
+);
+var SQL_TYPES = {
+  string: "varchar",
+  integer: "integer",
+  number: "numeric",
+  boolean: "boolean",
+  "date-time": "timestamp",
+  date: "date",
+  time: "time",
+  uuid: "uuid"
+};
+function parseJsonSchema(source, as) {
+  let root;
+  try {
+    root = JSON.parse(source);
+  } catch (err) {
+    return fail("", `not JSON: ${err.message}`);
+  }
+  if (!isObject2(root)) return fail("", "a schema is a JSON object");
+  if (as !== void 0 && as !== "class" && as !== "erd") {
+    fail(
+      "",
+      `JSON Schema is read as a class diagram or an ERD, not ${as}`,
+      "UNSUPPORTED_SYNTAX"
+    );
+  }
+  const kind = as === "erd" ? "erd" : "class";
+  const defs = root.$defs ?? root.definitions ?? {};
+  const defsKey = root.$defs ? "$defs" : "definitions";
+  const named2 = /* @__PURE__ */ new Map();
+  const pointers = /* @__PURE__ */ new Map();
+  const rootName = typeof root.title === "string" && root.title ? root.title : "Root";
+  if (root.properties || root.allOf) {
+    named2.set(rootName, root);
+    pointers.set(root, "#");
+  }
+  for (const [name2, schema] of Object.entries(defs)) {
+    if (!isObject2(schema)) {
+      return fail(`#/${defsKey}/${name2}`, "is not a schema");
+    }
+    named2.set(name2, schema);
+    pointers.set(schema, `#/${defsKey}/${name2}`);
+  }
+  if (named2.size === 0)
+    fail("", "no object schema: give the root properties, or $defs");
+  const target = (ref2, pointer) => {
+    const m = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ref2);
+    if (ref2 === "#") return rootName;
+    if (!m) {
+      return fail(
+        pointer,
+        `$ref ${ref2} points outside this document's definitions`,
+        "UNSUPPORTED_SYNTAX"
+      );
+    }
+    const name2 = decodeURIComponent(
+      m[2].replace(/~1/g, "/").replace(/~0/g, "~")
+    );
+    if (!named2.has(name2)) fail(pointer, `$ref ${ref2} names no definition`);
+    return name2;
+  };
+  const shape = (s, pointer) => {
+    for (const keyword of ["oneOf", "not", "$dynamicRef", "$recursiveRef"]) {
+      if (keyword in s) {
+        fail(
+          pointer,
+          `${keyword} has no class or ERD form`,
+          "UNSUPPORTED_SYNTAX"
+        );
+      }
+    }
+    if (Array.isArray(s.anyOf)) {
+      const options = s.anyOf.filter((o) => o.type !== "null");
+      if (options.length !== 1 || options.length === s.anyOf.length) {
+        fail(
+          pointer,
+          "anyOf is read only as one schema or null",
+          "UNSUPPORTED_SYNTAX"
+        );
+      }
+      return { ...shape(options[0], `${pointer}/anyOf`), nullable: true };
+    }
+    if (typeof s.$ref === "string") {
+      return { ref: target(s.$ref, pointer), many: false, nullable: false };
+    }
+    const types = Array.isArray(s.type) ? s.type : [s.type];
+    const nullable2 = types.includes("null");
+    const t = types.find((x) => x !== "null");
+    if (t === "array") {
+      const items2 = isObject2(s.items) ? s.items : {};
+      return { ...shape(items2, `${pointer}/items`), many: true, nullable: nullable2 };
+    }
+    if (t === "object" || t === void 0 && isObject2(s.properties)) {
+      return { inline: s, many: false, nullable: nullable2 };
+    }
+    const scalar = typeof s.format === "string" && kind === "erd" && SQL_TYPES[s.format] ? s.format : typeof s.format === "string" && kind === "class" ? s.format : t ?? (Array.isArray(s.enum) ? "string" : "any");
+    return { scalar, many: false, nullable: nullable2 };
+  };
+  const classes = [];
+  const relations = [];
+  const entities = [];
+  const relationships = [];
+  const done = /* @__PURE__ */ new Set();
+  const visit = (name2, s, pointer) => {
+    if (done.has(name2)) return;
+    done.add(name2);
+    let own2 = s;
+    if (Array.isArray(s.allOf)) {
+      const parts = s.allOf;
+      const bases = parts.filter((p) => typeof p.$ref === "string");
+      const rest = parts.filter((p) => typeof p.$ref !== "string");
+      if (bases.length > 1 || rest.some((p) => !isObject2(p.properties) && Object.keys(p).length > 0)) {
+        fail(
+          pointer,
+          "allOf is read only as one $ref base and properties",
+          "UNSUPPORTED_SYNTAX"
+        );
+      }
+      own2 = {
+        ...s,
+        properties: Object.assign(
+          {},
+          s.properties,
+          ...rest.map((p) => p.properties)
+        ),
+        required: [
+          ...s.required ?? [],
+          ...rest.flatMap((p) => p.required ?? [])
+        ]
+      };
+      for (const base of bases) {
+        const parent = target(base.$ref, `${pointer}/allOf`);
+        if (kind === "class")
+          relations.push({ from: name2, to: parent, type: "generalization" });
+        else
+          relationships.push({
+            from: parent,
+            to: name2,
+            fromCardinality: "1",
+            toCardinality: "0..1",
+            identifying: true
+          });
+      }
+    }
+    if (Array.isArray(own2.enum) && !isObject2(own2.properties)) {
+      if (kind === "class") {
+        classes.push({
+          name: name2,
+          kind: "enum",
+          literals: own2.enum.map(String)
+        });
+      } else {
+        entities.push({
+          name: name2,
+          columns: [{ name: "value", type: "varchar", primaryKey: true }]
+        });
+      }
+      return;
+    }
+    const required2 = new Set(own2.required ?? []);
+    const props = isObject2(own2.properties) ? own2.properties : {};
+    const attributes = [];
+    const columns = [];
+    for (const [prop, raw] of Object.entries(props)) {
+      const at = `${pointer}/properties/${prop}`;
+      if (!isObject2(raw)) fail(at, "is not a schema");
+      const sh = shape(raw, at);
+      const optional2 = !required2.has(prop) || sh.nullable;
+      let other = sh.ref;
+      if (sh.inline) {
+        other = typeof sh.inline.title === "string" ? sh.inline.title : `${name2}${pascal(prop)}`;
+        named2.set(other, sh.inline);
+        visit(other, sh.inline, at);
+      }
+      if (kind === "class") {
+        if (other === void 0) {
+          attributes.push({
+            name: prop,
+            type: sh.scalar,
+            ...sh.many ? { multiplicity: "*" } : optional2 ? { multiplicity: "0..1" } : {}
+          });
+        } else if (sh.inline) {
+          relations.push({
+            from: other,
+            to: name2,
+            type: "composition",
+            fromMultiplicity: sh.many ? "*" : optional2 ? "0..1" : "1"
+          });
+        } else {
+          relations.push({
+            from: name2,
+            to: other,
+            type: "directed",
+            name: prop,
+            toMultiplicity: sh.many ? "*" : optional2 ? "0..1" : "1"
+          });
+        }
+      } else if (other === void 0) {
+        columns.push({
+          name: prop,
+          type: sh.many ? `${SQL_TYPES[sh.scalar] ?? sh.scalar}[]` : SQL_TYPES[sh.scalar] ?? sh.scalar,
+          ...prop === "id" ? { primaryKey: true } : optional2 ? { nullable: true } : {}
+        });
+      } else if (sh.many) {
+        relationships.push({
+          from: name2,
+          to: other,
+          fromCardinality: "1",
+          toCardinality: "0..*",
+          identifying: false
+        });
+      } else {
+        const key = {
+          name: `${prop}_id`,
+          foreignKey: true,
+          ...optional2 && { nullable: true }
+        };
+        columns.push(key);
+        keys.push([key, other]);
+        relationships.push({
+          from: other,
+          to: name2,
+          fromCardinality: optional2 ? "0..1" : "1",
+          toCardinality: "0..*",
+          identifying: false
+        });
+      }
+    }
+    if (kind === "class") {
+      classes.push({ name: name2, ...attributes.length > 0 && { attributes } });
+    } else {
+      entities.push({ name: name2, columns });
+    }
+  };
+  const keys = [];
+  for (const [name2, schema] of [...named2])
+    visit(name2, schema, pointers.get(schema));
+  for (const [column, other] of keys) {
+    const type2 = entities.find((e) => e.name === other).columns.find((c) => c.primaryKey)?.type;
+    if (type2 !== void 0) column.type = type2;
+  }
+  const title = typeof root.title === "string" ? root.title : void 0;
+  return {
+    kind,
+    ...title && { title },
+    spec: kind === "class" ? { classes, relations } : {
+      entities: entities.map((e) => ({
+        name: e.name,
+        ...e.columns.length > 0 && { columns: e.columns }
+      })),
+      relationships
+    }
+  };
+}
+
+// src/build/c4.ts
+function macroArgs(text4) {
+  const parts = [];
+  let current = "";
+  let quoted2 = false;
+  for (const ch of text4) {
+    if (ch === '"') quoted2 = !quoted2;
+    else if (ch === "," && !quoted2) {
+      parts.push(current);
+      current = "";
+    } else current += ch;
+  }
+  parts.push(current);
+  const positional = [];
+  const named2 = {};
+  for (const raw of parts.map((p) => p.trim())) {
+    const m = /^\$(\w+)\s*=\s*(.*)$/.exec(raw);
+    if (m) named2[m[1]] = m[2];
+    else positional.push(raw);
+  }
+  return { positional, named: named2 };
+}
+var ELEMENT = /^(Person|System|SystemDb|SystemQueue|Container|ContainerDb|ContainerQueue|Component|ComponentDb|ComponentQueue)(_Ext)?\s*\((.*)\)$/;
+var BOUNDARY = /^(Boundary|Enterprise_Boundary|System_Boundary|Container_Boundary)\s*\((.*)\)\s*\{?$/;
+var RELATION = /^(Rel|BiRel|Rel_Back|Rel_Neighbor|Rel_Back_Neighbor|Rel_U|Rel_Up|Rel_D|Rel_Down|Rel_L|Rel_Left|Rel_R|Rel_Right)\s*\((.*)\)$/;
+var IGNORED = /^(UpdateRelStyle|UpdateLayoutConfig|UpdateBoundaryStyle|AddElementTag|AddRelTag|AddBoundaryTag|SHOW_LEGEND|SHOW_FLOATING_LEGEND|LAYOUT_\w+|HIDE_\w+|SHOW_\w+|Lay_\w+)\b/;
+var DEPLOYMENT = /^(Deployment_Node|Node|Node_L|Node_R)(_L|_R)?\s*\(/;
+var TYPES = {
+  Person: "person",
+  System: "system",
+  Container: "container",
+  Component: "component"
+};
+var STYLE_ARGS = {
+  bgColor: "fillColor",
+  borderColor: "lineColor",
+  fontColor: "fontColor"
+};
+function readC4(lines, fail5, other) {
+  const elements = [];
+  const relations = [];
+  const styles = {};
+  const warnings = [];
+  let boundaries = 0;
+  let open = 0;
+  const value = (s) => s ? multiline(s) : void 0;
+  for (const { no, text: text4 } of lines) {
+    let m;
+    if (m = ELEMENT.exec(text4)) {
+      const [, macro, ext, body] = m;
+      const base = macro.replace(/(Db|Queue)$/, "");
+      const type2 = TYPES[base];
+      const { positional: p, named: named2 } = macroArgs(body);
+      if (!p[0] || !p[1]) fail5(no, `${macro} needs an alias and a label`);
+      const technical = type2 === "container" || type2 === "component";
+      const technology = named2.techn ?? (technical ? p[2] : void 0);
+      const description = named2.descr ?? (technical ? p[3] : p[2]);
+      elements.push({
+        id: p[0],
+        name: multiline(p[1]),
+        type: type2,
+        ...type2 === "container" && macro.endsWith("Db") && { kind: "database" },
+        ...value(technology) && { technology: value(technology) },
+        ...value(description) && { description: value(description) },
+        ...ext && { external: true }
+      });
+    } else if (m = RELATION.exec(text4)) {
+      const { positional: p, named: named2 } = macroArgs(m[2]);
+      if (!p[0] || !p[1]) fail5(no, `${m[1]} needs two aliases`);
+      const back = m[1].startsWith("Rel_Back");
+      if (m[1] === "BiRel") {
+        warnings.push(
+          `line ${no}: BiRel is drawn one way, ${p[0]} to ${p[1]}; StarUML's C4 relationship is directed`
+        );
+      }
+      const technology = value(named2.techn ?? p[3]);
+      const description = value(named2.descr ?? p[4]);
+      relations.push({
+        from: back ? p[1] : p[0],
+        to: back ? p[0] : p[1],
+        ...p[2] && { label: p[2] },
+        ...technology && { technology },
+        ...description && { description }
+      });
+    } else if (m = BOUNDARY.exec(text4)) {
+      boundaries++;
+      if (text4.endsWith("{")) open++;
+    } else if (text4 === "}") {
+      if (open === 0) fail5(no, "} without a boundary");
+      open--;
+    } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text4)) {
+      const { positional: p, named: named2 } = macroArgs(m[1]);
+      const style = {};
+      for (const [arg, field] of Object.entries(STYLE_ARGS)) {
+        const color2 = named2[arg];
+        if (color2 && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color2)) {
+          style[field] = color2;
+        }
+      }
+      if (Object.keys(style).length > 0) {
+        styles[p[0]] = { ...styles[p[0]], ...style };
+      }
+    } else if (DEPLOYMENT.test(text4)) {
+      fail5(
+        no,
+        "C4 deployment nodes have no StarUML 7.1.1 element",
+        "UNSUPPORTED_SYNTAX"
+      );
+    } else if (!IGNORED.test(text4) && !other(text4)) {
+      fail5(no, `cannot read "${text4}"`);
+    }
+  }
+  if (open > 0) fail5(lines.at(-1).no, "a boundary is never closed with }");
+  if (boundaries > 0) {
+    warnings.push(
+      `${boundaries} boundar${boundaries === 1 ? "y is" : "ies are"} not drawn; StarUML 7.1.1 has no C4 boundary element`
+    );
+  }
+  return {
+    spec: {
+      elements,
+      relations,
+      ...Object.keys(styles).length > 0 && { styles }
+    },
+    warnings
+  };
+}
+
 // src/build/mermaid.ts
-var fail = (line, message) => {
-  throw new ApiError("INVALID_ARGUMENT", `mermaid line ${line}: ${message}`);
+var fail2 = (line, message, code = "INVALID_ARGUMENT") => {
+  throw new ApiError(code, `mermaid line ${line}: ${message}`);
 };
 function preprocess(source) {
   const raw = source.replace(/\r\n?/g, "\n").split("\n");
@@ -4123,7 +4520,7 @@ function preprocess(source) {
   let start = 0;
   if (raw[0]?.trim() === "---") {
     const end = raw.findIndex((l, i) => i > 0 && l.trim() === "---");
-    if (end < 0) fail(1, "front matter is not closed with ---");
+    if (end < 0) fail2(1, "front matter is not closed with ---");
     for (const l of raw.slice(1, end)) {
       const m = /^\s*title\s*:\s*(.+?)\s*$/.exec(l);
       if (m) title = unquote(m[1]);
@@ -4212,7 +4609,7 @@ function noteBody(lines, from) {
     body.push(lines[i].text);
   }
   if (i === lines.length)
-    fail(lines[from - 1].no, "note is never closed with end note");
+    fail2(lines[from - 1].no, "note is never closed with end note");
   return { text: body.join("\n"), next: i + 1 };
 }
 function takeTitle(lines) {
@@ -4238,7 +4635,7 @@ var CLASS_ARROWS = [
   [/^--$/, "association", false],
   [/^\.\.$/, "dependency", false]
 ];
-var RELATION = /^([\w.]+)\s*(?:"([^"]*)"\s*)?(<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--|\.\.)\s*(?:"([^"]*)"\s*)?([\w.]+)\s*(?::\s*(.*))?$/;
+var RELATION2 = /^([\w.]+)\s*(?:"([^"]*)"\s*)?(<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--|\.\.)\s*(?:"([^"]*)"\s*)?([\w.]+)\s*(?::\s*(.*))?$/;
 function classDiagram(lines) {
   const classes = /* @__PURE__ */ new Map();
   const packages = [];
@@ -4294,8 +4691,8 @@ function classDiagram(lines) {
       namespace = void 0;
     } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text4)) {
       annotate(entry(m[2]), m[1]);
-    } else if (m = RELATION.exec(text4)) {
-      const [, a, aCard, arrow, bCard, b, label2] = m;
+    } else if (m = RELATION2.exec(text4)) {
+      const [, a, aCard, arrow, bCard, b, label3] = m;
       const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
       entry(a);
       entry(b);
@@ -4304,14 +4701,14 @@ function classDiagram(lines) {
         from,
         to,
         type: type2,
-        ...label2 && { name: label2.trim() },
+        ...label3 && { name: label3.trim() },
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
     } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text4)) {
       member(entry(m[1]), m[2].trim());
     } else if (!/^(direction\s|click\b|link\b|callback\b|})/.test(text4)) {
-      fail(no, `cannot read "${text4}"`);
+      fail2(no, `cannot read "${text4}"`);
     }
   }
   const nameOf2 = (key) => classes.get(key).name;
@@ -4388,11 +4785,11 @@ function sequenceDiagram(lines) {
         starts: []
       });
     } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text4)) {
-      const f = open.at(-1) ?? fail(no, `${m[1]} outside a block`);
+      const f = open.at(-1) ?? fail2(no, `${m[1]} outside a block`);
       f.operands.push(m[2] || m[1]);
       f.starts.push(messages.length);
     } else if (text4 === "end") {
-      const f = open.pop() ?? fail(no, "end without a block");
+      const f = open.pop() ?? fail2(no, "end without a block");
       const to = messages.length - 1;
       if (f.operator && to >= f.from) {
         const divided = f.starts.every(
@@ -4424,11 +4821,11 @@ function sequenceDiagram(lines) {
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
     } else if (!/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text4)) {
-      fail(no, `cannot read "${text4}"`);
+      fail2(no, `cannot read "${text4}"`);
     }
   }
   if (open.length > 0)
-    fail(
+    fail2(
       open.at(-1).no,
       `${open.at(-1).block ?? open.at(-1).operator} is never closed with end`
     );
@@ -4465,16 +4862,16 @@ function flowchart(lines) {
   if (dir) direction2 = dir[1].toUpperCase().replace("TD", "TB");
   const node = (rest, no) => {
     const id2 = /^[\w.][\w.-]*?(?=$|[\s[({>&]|--|==|-\.|:::)/.exec(rest)?.[0];
-    if (!id2) return fail(no, `expected a node at "${rest}"`);
+    if (!id2) return fail2(no, `expected a node at "${rest}"`);
     let after = rest.slice(id2.length);
     let shape;
-    let label2;
+    let label3;
     for (const [open, close, s] of SHAPES) {
       if (after.startsWith(open)) {
         const end = after.indexOf(close, open.length);
         if (end < 0) continue;
         shape = s;
-        label2 = unquote(after.slice(open.length, end));
+        label3 = unquote(after.slice(open.length, end));
         after = after.slice(end + close.length);
         break;
       }
@@ -4488,12 +4885,12 @@ function flowchart(lines) {
     if (!existing2) {
       nodes.set(id2, {
         id: id2,
-        name: multiline(label2 ?? id2),
+        name: multiline(label3 ?? id2),
         shape: shape ?? "process",
         ...lanes.length > 0 && { lane: lanes.at(-1) }
       });
     } else if (shape !== void 0) {
-      existing2.name = multiline(label2);
+      existing2.name = multiline(label3);
       existing2.shape = shape;
     }
     return [id2, after.trimStart()];
@@ -4505,7 +4902,7 @@ function flowchart(lines) {
       continue;
     }
     if (text4 === "end") {
-      if (lanes.pop() === void 0) fail(no, "end without a subgraph");
+      if (lanes.pop() === void 0) fail2(no, "end without a subgraph");
       continue;
     }
     if (styles.line(text4) || /^(direction\s|linkStyle\b|click\b)/.test(text4))
@@ -4513,16 +4910,16 @@ function flowchart(lines) {
     let [from, rest] = node(text4, no);
     while (rest) {
       const link = LINK.exec(rest);
-      if (!link) fail(no, `expected a link at "${rest}"`);
-      const label2 = link[2] ?? link[3] ?? link[4] ?? link[5];
+      if (!link) fail2(no, `expected a link at "${rest}"`);
+      const label3 = link[2] ?? link[3] ?? link[4] ?? link[5];
       const [to, after] = node(rest.slice(link[0].length), no);
-      flows.push({ from, to, ...label2 && { label: label2.trim() } });
+      flows.push({ from, to, ...label3 && { label: label3.trim() } });
       from = to;
       rest = after;
     }
   }
   if (lanes.length > 0)
-    fail(lines.at(-1).no, "subgraph is never closed with end");
+    fail2(lines.at(-1).no, "subgraph is never closed with end");
   return {
     ...direction2 && { direction: direction2 },
     nodes: [...nodes.values()],
@@ -4593,10 +4990,10 @@ function activitySpec(lines) {
 function usecaseSpec(lines) {
   const { direction: direction2, nodes, flows, styles } = flowchart(lines);
   const round = /* @__PURE__ */ new Set(["connector", "alternate", "terminator"]);
-  const names2 = new Map(nodes.map((n) => [n.id, n.name]));
+  const names3 = new Map(nodes.map((n) => [n.id, n.name]));
   const colors = styles.resolve(
     nodes.map((n) => n.id),
-    (id2) => names2.get(id2)
+    (id2) => names3.get(id2)
   );
   const system = nodes.find((n) => n.lane)?.lane;
   return {
@@ -4606,11 +5003,11 @@ function usecaseSpec(lines) {
       actors: nodes.filter((n) => !round.has(n.shape)).map((n) => n.name),
       useCases: nodes.filter((n) => round.has(n.shape)).map((n) => n.name),
       relations: flows.map((f) => {
-        const label2 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
-        const type2 = label2 === "include" || label2 === "extend" || label2 === "generalization" ? label2 : "association";
+        const label3 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
+        const type2 = label3 === "include" || label3 === "extend" || label3 === "generalization" ? label3 : "association";
         return {
-          from: names2.get(f.from),
-          to: names2.get(f.to),
+          from: names3.get(f.from),
+          to: names3.get(f.to),
           type: type2,
           ...type2 === "association" && f.label && { name: f.label }
         };
@@ -4644,7 +5041,7 @@ function erDiagram(lines) {
     if (open) {
       if (text4 === "}") open = null;
       else {
-        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text4) ?? fail(no, `cannot read attribute "${text4}"`);
+        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text4) ?? fail2(no, `cannot read attribute "${text4}"`);
         open.push(
           [
             m2[2],
@@ -4674,7 +5071,7 @@ function erDiagram(lines) {
     } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text4)) {
       entity2(m[1]);
     } else if (!/^direction\s/.test(text4)) {
-      fail(no, `cannot read "${text4}"`);
+      fail2(no, `cannot read "${text4}"`);
     }
   }
   return {
@@ -4719,11 +5116,11 @@ function stateDiagram(lines) {
     const { no, text: text4 } = lines[i];
     let m;
     if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text4)) {
-      const named = m[1] !== void 0 || !states.has(m[2]);
-      declare(m[2], named ? { name: multiline(m[1] ?? m[2]) } : {});
+      const named2 = m[1] !== void 0 || !states.has(m[2]);
+      declare(m[2], named2 ? { name: multiline(m[1] ?? m[2]) } : {});
       blocks.push(m[2]);
     } else if (text4 === "}") {
-      if (blocks.pop() === void 0) fail(no, "} without a state block");
+      if (blocks.pop() === void 0) fail2(no, "} without a state block");
     } else if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text4)) {
       declare(m[2], { name: multiline(m[1]) });
     } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text4)) {
@@ -4733,9 +5130,9 @@ function stateDiagram(lines) {
     )) {
       const from = state2(m[1], "from");
       const to = state2(m[2], "to");
-      const label2 = m[3]?.trim();
-      const guard = label2 ? /\[([^\]]*)\]/.exec(label2) : null;
-      const trigger = label2?.replace(/\[[^\]]*\]/, "").trim();
+      const label3 = m[3]?.trim();
+      const guard = label3 ? /\[([^\]]*)\]/.exec(label3) : null;
+      const trigger = label3?.replace(/\[[^\]]*\]/, "").trim();
       transitions.push({
         from,
         to,
@@ -4758,11 +5155,11 @@ function stateDiagram(lines) {
     } else if ((m = /^state\s+([\w-]+)$/.exec(text4)) || (m = /^(\w[\w-]*(?::::[\w-]+)?)$/.exec(text4))) {
       state2(m[1], "to");
     } else if (!/^(direction\s|--$)/.test(text4)) {
-      fail(no, `cannot read "${text4}"`);
+      fail2(no, `cannot read "${text4}"`);
     }
   }
   if (blocks.length > 0) {
-    fail(lines.at(-1).no, `state ${blocks.at(-1)} is never closed with }`);
+    fail2(lines.at(-1).no, `state ${blocks.at(-1)} is never closed with }`);
   }
   const colors = styles.resolve([...states.keys()], (id2) => id2);
   return {
@@ -4778,28 +5175,118 @@ function mindmap(lines) {
   let root;
   for (const { no, text: text4, indent } of lines) {
     if (/^::icon\(/.test(text4)) continue;
-    const bare = text4.replace(/\s*:::.*$/, "");
-    const shaped = MIND_SHAPE.exec(bare);
+    const bare2 = text4.replace(/\s*:::.*$/, "");
+    const shaped = MIND_SHAPE.exec(bare2);
     const node = {
-      name: multiline(unquote(shaped ? shaped[1] : bare)),
+      name: multiline(unquote(shaped ? shaped[1] : bare2)),
       children: []
     };
     while (stack.length > 0 && stack.at(-1).indent >= indent) stack.pop();
     const parent = stack.at(-1);
     if (parent) parent.node.children.push(node);
     else if (root)
-      fail(no, "a mindmap has one root; indent this line under it");
+      fail2(no, "a mindmap has one root; indent this line under it");
     else root = node;
     stack.push({ indent, node });
   }
-  if (!root) fail(1, "mindmap has no root");
+  if (!root) fail2(1, "mindmap has no root");
   const strip = (n) => ({
     name: n.name,
     ...n.children.length > 0 && { children: n.children.map(strip) }
   });
   return { root: strip(root) };
 }
+var REQUIREMENT_KEYWORDS = {
+  requirement: "requirement",
+  functionalrequirement: "functional",
+  interfacerequirement: "interface",
+  performancerequirement: "performance",
+  physicalrequirement: "physical",
+  designconstraint: "design"
+};
+var NAME2 = String.raw`"[^"]+"|[\w.-]+`;
+function requirementDiagram(lines) {
+  const requirements = [];
+  const elements = [];
+  const relations = [];
+  const styles = new Styles();
+  const names3 = [];
+  let open = null;
+  let isElement2 = false;
+  const forward = new RegExp(`^(${NAME2})\\s*-\\s*(\\w+)\\s*->\\s*(${NAME2})$`);
+  const backward = new RegExp(`^(${NAME2})\\s*<-\\s*(\\w+)\\s*-\\s*(${NAME2})$`);
+  const relation = (from, type2, to, no) => {
+    if (![
+      "contains",
+      "copies",
+      "derives",
+      "satisfies",
+      "verifies",
+      "refines",
+      "traces"
+    ].includes(type2)) {
+      fail2(no, `unknown relation ${type2}`);
+    }
+    relations.push({ from: unquote(from), to: unquote(to), type: type2 });
+  };
+  for (const { no, text: text4 } of lines) {
+    let m;
+    if (open) {
+      if (text4 === "}") {
+        (isElement2 ? elements : requirements).push(open);
+        open = null;
+        continue;
+      }
+      m = /^(\w+)\s*:\s*(.*?)\s*$/.exec(text4) ?? fail2(no, `cannot read "${text4}"`);
+      const key = m[1].toLowerCase();
+      const value = unquote(m[2]);
+      const field = isElement2 ? { type: "type", docref: "docRef" }[key] : {
+        id: "id",
+        text: "text",
+        risk: "risk",
+        verifymethod: "verifyMethod"
+      }[key];
+      if (!field) fail2(no, `unknown field ${m[1]}`);
+      open[field] = field === "risk" || field === "verifyMethod" ? value.toLowerCase() : multiline(value);
+      continue;
+    }
+    if (m = new RegExp(`^(\\w+)\\s+(${NAME2})\\s*(?::::([\\w-]+))?\\s*\\{$`).exec(
+      text4
+    )) {
+      const keyword = m[1].toLowerCase();
+      const type2 = REQUIREMENT_KEYWORDS[keyword];
+      if (keyword !== "element" && !type2)
+        fail2(no, `unknown requirement type ${m[1]}`);
+      const name2 = multiline(unquote(m[2]));
+      if (m[3]) styles.use(name2, m[3]);
+      names3.push(name2);
+      isElement2 = keyword === "element";
+      open = isElement2 ? { name: name2 } : { name: name2, ...type2 !== "requirement" && { type: type2 } };
+    } else if (m = forward.exec(text4)) {
+      relation(m[1], m[2], m[3], no);
+    } else if (m = backward.exec(text4)) {
+      relation(m[3], m[2], m[1], no);
+    } else if (!styles.line(text4) && !/^direction\s/.test(text4)) {
+      fail2(no, `cannot read "${text4}"`);
+    }
+  }
+  if (open)
+    fail2(lines.at(-1).no, `${String(open.name)} is never closed with }`);
+  const colors = styles.resolve(names3, (n) => n);
+  return {
+    requirements,
+    elements,
+    relations: relations.map((r) => ({
+      ...r,
+      from: multiline(String(r.from)),
+      to: multiline(String(r.to))
+    })),
+    ...colors && { styles: colors }
+  };
+}
 var HEADERS = [
+  [/^requirementDiagram\b/, "requirement"],
+  [/^C4(Context|Container|Component)\b/, "c4"],
   [/^classDiagram(-v2)?\b/, "class"],
   [/^sequenceDiagram\b/, "sequence"],
   [/^(flowchart|graph)\b/, "flowchart"],
@@ -4809,21 +5296,28 @@ var HEADERS = [
 ];
 function parseMermaid(source, as) {
   const { title: front, lines } = preprocess(source);
-  if (lines.length === 0) fail(1, "no diagram");
+  if (lines.length === 0) fail2(1, "no diagram");
   const title = front ?? takeTitle(lines);
   const header = lines[0];
   const found = HEADERS.find(([re]) => re.test(header.text));
-  if (!found) {
-    return fail(
+  if (/^C4(Dynamic|Deployment)\b/.test(header.text)) {
+    fail2(
       header.no,
-      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram or mindmap`
+      `${header.text.split(/\s/)[0]} is not built: StarUML 7.1.1 has no C4 dynamic or deployment elements; C4Context, C4Container and C4Component are`,
+      "UNSUPPORTED_SYNTAX"
+    );
+  }
+  if (!found) {
+    return fail2(
+      header.no,
+      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap, requirementDiagram or C4Context/C4Container/C4Component`
     );
   }
   let kind = found[1];
   if (kind === "flowchart" && (as === "activity" || as === "usecase"))
     kind = as;
   else if (as !== void 0 && as !== kind) {
-    fail(header.no, `${header.text.split(/\s/)[0]} cannot be built as ${as}`);
+    fail2(header.no, `${header.text.split(/\s/)[0]} cannot be built as ${as}`);
   }
   const titled = title !== void 0 ? { title: multiline(title) } : {};
   const body = () => lines.slice(1);
@@ -4838,6 +5332,17 @@ function parseMermaid(source, as) {
       return { kind, ...titled, spec: stateDiagram(body()) };
     case "mindmap":
       return { kind, ...titled, spec: mindmap(body()) };
+    case "requirement":
+      return { kind, ...titled, spec: requirementDiagram(body()) };
+    case "c4": {
+      const { spec, warnings } = readC4(body(), fail2, () => false);
+      return {
+        kind,
+        ...titled,
+        spec,
+        ...warnings.length > 0 && { warnings }
+      };
+    }
     case "activity":
       return { kind, ...titled, ...activitySpec(lines) };
     case "usecase":
@@ -4847,16 +5352,1305 @@ function parseMermaid(source, as) {
   }
 }
 
+// src/build/plantuml.ts
+var fail3 = (no, message, code = "INVALID_ARGUMENT") => {
+  throw new ApiError(code, `plantuml line ${no}: ${message}`);
+};
+var refuse = (no, message) => fail3(no, message, "UNSUPPORTED_SYNTAX");
+var STYLING = /^(skinparam|hide|show|scale|caption|header|footer|!theme|!pragma|!define|!undef|!option|!procedure|!function|!endprocedure|!endfunction|!\$|autonumber|newpage|allowmixing|set\s+namespaceSeparator|mainframe|sprite|together)\b/i;
+function preprocess2(source) {
+  const raw = source.replace(/\r\n?/g, "\n").split("\n");
+  const start = raw.findIndex((l) => /^\s*@start\w+/i.test(l));
+  if (start < 0) fail3(1, "no @startuml line");
+  const type2 = /@start(\w+)/i.exec(raw[start])[1].toLowerCase();
+  const lines = [];
+  const includes = [];
+  let title;
+  let direction2;
+  let comment = false;
+  let skipUntil = null;
+  for (let i = start + 1; i < raw.length; i++) {
+    let text4 = raw[i].trim();
+    if (/^@end\w+/i.test(text4)) break;
+    if (comment) {
+      const end = text4.indexOf("'/");
+      if (end < 0) continue;
+      comment = false;
+      text4 = text4.slice(end + 2).trim();
+    }
+    if (text4.startsWith("/'")) {
+      const end = text4.indexOf("'/", 2);
+      if (end < 0) {
+        comment = true;
+        continue;
+      }
+      text4 = text4.slice(end + 2).trim();
+    }
+    if (skipUntil) {
+      if (skipUntil.test(text4)) skipUntil = null;
+      continue;
+    }
+    if (!text4 || text4.startsWith("'")) continue;
+    let m;
+    if (m = /^title\s+(.+)$/i.exec(text4)) {
+      title = multiline(unquote(m[1]));
+    } else if (/^(skinparam\b.*|style)\s*\{$|^<style>$/i.test(text4)) {
+      skipUntil = /^(\}|<\/style>)$/;
+    } else if (/^legend\b/i.test(text4) || /^(title|header|footer)$/i.test(text4)) {
+      skipUntil = /^end\s*(legend|title|header|footer)$/i;
+    } else if (/^left to right direction$/i.test(text4)) {
+      direction2 = "LR";
+    } else if (/^top to bottom direction$/i.test(text4)) {
+      direction2 = "TB";
+    } else if (m = /^!include(?:url|sub)?\s+(.+)$/i.exec(text4)) {
+      includes.push(m[1]);
+    } else if (!STYLING.test(text4)) {
+      lines.push({ no: i + 1, text: text4 });
+    }
+  }
+  return {
+    type: type2,
+    no: start + 1,
+    lines,
+    ...title !== void 0 && { title },
+    ...direction2 && { direction: direction2 },
+    includes
+  };
+}
+var ID = String.raw`"[^"]+"|[\w.$:]+`;
+function named(text4) {
+  let m = /^"([^"]+)"\s+as\s+([\w.$:]+)$/.exec(text4);
+  if (m) return { key: m[2], name: multiline(m[1]) };
+  m = /^([\w.$:]+)\s+as\s+"([^"]+)"$/.exec(text4);
+  if (m) return { key: m[1], name: multiline(m[2]) };
+  m = /^([\w.$:]+)\s+as\s+([\w.$:]+)$/.exec(text4);
+  if (m) return { key: m[2], name: m[1] };
+  const plain = unquote(text4);
+  return { key: plain, name: multiline(plain) };
+}
+var HEX = /#([0-9a-f]{3}|[0-9a-f]{6})\b/i;
+function adornments(text4) {
+  let rest = text4;
+  let stereotype;
+  rest = rest.replace(/<<\s*([^>]+?)\s*>>/g, (_, s) => {
+    stereotype ??= s;
+    return "";
+  });
+  const color2 = HEX.exec(rest);
+  rest = rest.replace(/#[\w|/\\-]+/g, "").trim();
+  return {
+    rest,
+    ...stereotype !== void 0 && { stereotype },
+    ...color2 && { fill: `#${color2[1]}` }
+  };
+}
+function arrowCore(arrow) {
+  return arrow.replace(/\[[^\]]*\]/g, "").replace(/(up|down|left|right|u|d|l|r)/g, "").replace(/-+/g, "--").replace(/\.+/g, "..");
+}
+var RELATION3 = new RegExp(
+  String.raw`^(${ID})\s*(?:"([^"]*)"\s*)?((?:<\||[<*o#x+^}])?[-.]+(?:\[[^\]]*\])?[-.]*(?:(?:up|down|left|right|u|d|l|r)[-.]+)?(?:\|>|[>*o#x+^{])?)\s*(?:"([^"]*)"\s*)?(${ID})\s*(?::\s*(.*))?$`
+);
+var label = (text4) => text4?.replace(/^\s*[<>]\s*|\s*[<>]\s*$/g, "").trim() || void 0;
+function readNote(lines, i) {
+  const { text: text4 } = lines[i];
+  const m = /^[hr]?note\b\s*(.*?)\s*(?::\s*(.*))?$/i.exec(text4);
+  if (!m) return null;
+  if (m[2] !== void 0) return { head: m[1], text: m[2], next: i + 1 };
+  const quoted2 = /^"(.*)"(.*)$/.exec(m[1]);
+  if (quoted2) return { head: quoted2[2].trim(), text: quoted2[1], next: i + 1 };
+  const body = [];
+  let j = i + 1;
+  for (; j < lines.length && !/^end\s*[hr]?note$/i.test(lines[j].text); j++) {
+    body.push(lines[j].text);
+  }
+  if (j === lines.length)
+    fail3(lines[i].no, "note is never closed with end note");
+  return { head: m[1], text: body.join("\n"), next: j + 1 };
+}
+var CLASS_KINDS = {
+  "abstract class": "abstract",
+  abstract: "abstract",
+  class: void 0,
+  interface: "interface",
+  enum: "enum",
+  entity: void 0,
+  struct: void 0,
+  exception: void 0
+};
+function classDiagram2(lines) {
+  const classes = /* @__PURE__ */ new Map();
+  const packages = [];
+  const relations = [];
+  const notes = [];
+  const noteAliases = /* @__PURE__ */ new Map();
+  const styles = {};
+  const warnings = [];
+  const open = [];
+  let last;
+  const entry = (key, name2 = key) => {
+    let e = classes.get(key);
+    if (!e) {
+      e = { name: name2, attributes: [], operations: [], literals: [] };
+      if (open.length > 0) e.package = open.at(-1);
+      classes.set(key, e);
+    }
+    return e;
+  };
+  const member = (e, text4) => {
+    if (/^(--|\.\.|==|__)/.test(text4)) return;
+    const clean = text4.replace(/\{(field|method)\}\s*/g, "").replace(/^\{static\}\s*(.*)$/, "$1$").replace(/^\{abstract\}\s*(.*)$/, "$1*").replace(/[;,]$/, "");
+    if (e.kind === "enum") e.literals.push(clean.trim());
+    else if (isOperation(clean)) e.operations.push(clean);
+    else e.attributes.push(clean);
+  };
+  let body = null;
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text: text4 } = lines[i];
+    if (body) {
+      if (text4 === "}") body = null;
+      else member(body, text4);
+      continue;
+    }
+    let m;
+    const note = readNote(lines, i);
+    if (note) {
+      i = note.next - 1;
+      const as = /^as\s+(\w+)$/.exec(note.head);
+      const of = /^(?:left|right|top|bottom)(?:\s+of\s+(.+))?$/.exec(note.head);
+      const n = { text: note.text };
+      if (as) noteAliases.set(as[1], n);
+      else if (of) {
+        const target = of[1] ? named(of[1]).key : last;
+        if (target !== void 0) n.on = [target];
+      } else if (/^on\s+link/.test(note.head)) continue;
+      else if (note.head) fail3(no, `cannot read "${text4}"`);
+      notes.push(n);
+    } else if (m = /^(abstract\s+class|abstract|class|interface|enum|entity|struct|exception)\s+(.+?)\s*(\{)?$/.exec(
+      text4
+    )) {
+      const { rest, stereotype, fill } = adornments(m[2]);
+      const parents = {
+        generalization: /\s+extends\s+(.+?)(?=\s+implements\s|$)/.exec(rest),
+        realization: /\s+implements\s+(.+?)(?=\s+extends\s|$)/.exec(rest)
+      };
+      const decl = rest.replace(/\s+(extends|implements)\s.*$/, "").replace(/<[^<>]*>$/, "").trim();
+      const { key, name: name2 } = named(decl);
+      const e = entry(key, name2);
+      e.name = name2;
+      const kind = CLASS_KINDS[m[1].replace(/\s+/g, " ")];
+      if (kind) e.kind = kind;
+      if (stereotype !== void 0) e.stereotype = stereotype;
+      if (fill) styles[key] = { fillColor: fill };
+      for (const [type2, found] of Object.entries(parents)) {
+        for (const parent of found?.[1].split(/\s*,\s*/) ?? []) {
+          entry(parent);
+          relations.push({ from: key, to: parent, type: type2 });
+        }
+      }
+      last = key;
+      if (m[3]) body = e;
+    } else if (m = /^(annotation|protocol|metaclass|stereotype|circle|diamond|object|map|json|component|node|artifact|usecase)\s/.exec(
+      text4
+    )) {
+      refuse(no, `${m[1]} is not part of a class diagram build_diagram reads`);
+    } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text4)) {
+      const { rest } = adornments(m[2]);
+      const { name: name2 } = named(rest);
+      if (open.length > 0) {
+        warnings.push(
+          `package ${name2} is nested in ${open.at(-1)}; StarUML gets it at the top level`
+        );
+      }
+      if (!packages.includes(name2)) packages.push(name2);
+      open.push(name2);
+    } else if (text4 === "}" && open.length > 0) {
+      open.pop();
+    } else if (m = RELATION3.exec(text4)) {
+      const [, a, aCard, arrow, bCard, b, text22] = m;
+      const [ka, kb] = [named(a).key, named(b).key];
+      const core = arrowCore(arrow);
+      if (noteAliases.has(ka) || noteAliases.has(kb)) {
+        const [n, other] = noteAliases.has(ka) ? [noteAliases.get(ka), kb] : [noteAliases.get(kb), ka];
+        n.on = [...n.on ?? [], other];
+        continue;
+      }
+      const found = CLASS_ARROWS.find(([re]) => re.test(core)) ?? CLASS_ARROWS.find(([re]) => re.test(core.replace(/^--$|^-$/, "--")));
+      if (!found) refuse(no, `the ${arrow} arrow has no StarUML relation`);
+      const [, type2, reversed] = found;
+      entry(ka);
+      entry(kb);
+      const [from, to, fromMul, toMul] = reversed ? [kb, ka, bCard, aCard] : [ka, kb, aCard, bCard];
+      const name2 = label(text22);
+      relations.push({
+        from,
+        to,
+        type: type2,
+        ...name2 && { name: name2 },
+        ...fromMul !== void 0 && { fromMultiplicity: fromMul },
+        ...toMul !== void 0 && { toMultiplicity: toMul }
+      });
+    } else if (m = new RegExp(String.raw`^(${ID})\s*:\s*(.+)$`).exec(text4)) {
+      member(entry(named(m[1]).key), m[2].trim());
+    } else {
+      fail3(no, `cannot read "${text4}"`);
+    }
+  }
+  const nameOf2 = (key) => classes.get(key)?.name ?? key;
+  const colors = Object.fromEntries(
+    Object.entries(styles).map(([k, v]) => [nameOf2(k), v])
+  );
+  return {
+    spec: {
+      ...packages.length > 0 && { packages },
+      classes: [...classes.values()].map((e) => ({
+        name: e.name,
+        ...e.kind && { kind: e.kind },
+        ...e.stereotype !== void 0 && { stereotype: e.stereotype },
+        ...e.package !== void 0 && { package: e.package },
+        ...e.attributes.length > 0 && { attributes: e.attributes },
+        ...e.operations.length > 0 && { operations: e.operations },
+        ...e.literals.length > 0 && { literals: e.literals }
+      })),
+      relations: relations.map((r) => ({
+        ...r,
+        from: nameOf2(r.from),
+        to: nameOf2(r.to)
+      })),
+      ...notes.length > 0 && {
+        notes: notes.map((n) => ({
+          text: n.text,
+          ...n.on && { on: n.on.map(nameOf2) }
+        }))
+      },
+      ...Object.keys(colors).length > 0 && { styles: colors }
+    },
+    warnings
+  };
+}
+var PARTICIPANT = /^(participant|actor|boundary|control|entity|database|collections|queue)\s+(.+)$/;
+var MESSAGE2 = new RegExp(
+  String.raw`^(${ID}|\[|\])?\s*(<?<?-{1,2}(?:\[[^\]]*\])?-?(?:>>?|\\\\?|//?)?[xo]?)\s*(${ID}|\[|\])?\s*(!!)?\s*(?::\s*(.*))?$`
+);
+var OPERATORS = /* @__PURE__ */ new Set([
+  "alt",
+  "opt",
+  "loop",
+  "par",
+  "break",
+  "critical",
+  "neg",
+  "strict",
+  "seq",
+  "ignore",
+  "consider",
+  "assert"
+]);
+function sequenceDiagram2(lines) {
+  const participants = [];
+  const keys = /* @__PURE__ */ new Map();
+  const messages = [];
+  const fragments = [];
+  const notes = [];
+  const open = [];
+  const creating = /* @__PURE__ */ new Set();
+  const who = (ref2) => {
+    const key = named(ref2).key;
+    if (!keys.has(key)) keys.set(key, named(ref2).name);
+    return keys.get(key);
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text: text4 } = lines[i];
+    let m;
+    const note = readNote(lines, i);
+    if (note) {
+      i = note.next - 1;
+      const at = /^(left|right|over)(?:\s+of)?\s*(.*)$/i.exec(note.head);
+      if (!at) {
+        if (/^(across|on\s+link)/i.test(note.head)) continue;
+        fail3(no, `cannot read "${text4}"`);
+      }
+      const side = at[1].toLowerCase();
+      const on = at[2] ? at[2].split(",").map((p) => who(p.trim())) : messages.length > 0 ? [String(messages.at(-1).from)] : [];
+      notes.push({ text: note.text, on, side, at: messages.length });
+    } else if (m = /^create\s+(?:(participant|actor|boundary|control|entity|database|collections|queue)\s+)?(.+)$/.exec(
+      text4
+    )) {
+      const { key, name: name2 } = named(adornments(m[2]).rest);
+      if (!keys.has(key)) {
+        keys.set(key, name2);
+        participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+      }
+      creating.add(keys.get(key));
+    } else if (m = PARTICIPANT.exec(text4)) {
+      const rest = adornments(m[2]).rest.replace(/\s+order\s+-?\d+$/, "");
+      const { key, name: name2 } = named(rest);
+      keys.set(key, name2);
+      participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
+    } else if (m = /^destroy\s+(.+)$/.exec(text4)) {
+      const target = who(m[1]);
+      const last = [...messages].reverse().find((x) => x.to === target);
+      if (last) last.kind = "delete";
+    } else if (m = /^(alt|opt|loop|par2?|break|critical|group)\b\s*(.*)$/.exec(text4)) {
+      let operator = m[1].replace("par2", "par");
+      let guard = m[2].trim();
+      if (operator === "group") {
+        const word = /^(\w+)\s*(.*)$/.exec(guard);
+        if (word && OPERATORS.has(word[1])) {
+          operator = word[1];
+          guard = word[2];
+        } else {
+          operator = "seq";
+        }
+      }
+      open.push({
+        operator,
+        ...guard && { guard },
+        from: messages.length,
+        no,
+        operands: [],
+        starts: []
+      });
+    } else if (m = /^else\b\s*(.*)$/.exec(text4)) {
+      const f = open.at(-1) ?? fail3(no, "else outside a group");
+      f.operands.push(m[1].trim());
+      f.starts.push(messages.length);
+    } else if (text4 === "end") {
+      const f = open.pop() ?? fail3(no, "end without a group");
+      const to = messages.length - 1;
+      if (to >= f.from) {
+        const divided = f.starts.every(
+          (s, k) => s > (k === 0 ? f.from : f.starts[k - 1]) && s <= to
+        );
+        fragments.push({
+          operator: f.operator,
+          ...f.guard && { guard: f.guard },
+          ...f.operands.length > 0 && { operands: f.operands },
+          ...f.starts.length > 0 && divided && { operandStarts: f.starts },
+          from: f.from,
+          to
+        });
+      }
+    } else if (/^(ref\s+over|return)\b/.test(text4)) {
+      refuse(
+        no,
+        `${text4.split(/\s/)[0]} has no StarUML sequence element build_diagram makes`
+      );
+    } else if (/^(activate|deactivate|autoactivate|box\b|end\s+box|\.\.\.|\|\|\||\|\|\d+\|\||==.*==$|delay\b|space\b)/.test(
+      text4
+    )) {
+    } else if ((m = MESSAGE2.exec(text4)) && m[1] && m[3]) {
+      if ("[]".includes(m[1]) || "[]".includes(m[3])) {
+        refuse(
+          no,
+          "found and lost messages have no StarUML sequence element build_diagram makes"
+        );
+      }
+      const arrow = m[2].replace(/\[[^\]]*\]/g, "");
+      const reversed = arrow.startsWith("<");
+      const [from, to] = reversed ? [who(m[3]), who(m[1])] : [who(m[1]), who(m[3])];
+      const dotted = /--/.test(arrow);
+      const head = arrow.replace(/^<+/, "").replace(/^-+/, "");
+      const kind = m[4] || head.includes("x") ? "delete" : creating.delete(to) ? "create" : /^(>>|\\|\/)/.test(head) || /^<</.test(arrow) ? "async" : dotted ? "reply" : "sync";
+      messages.push({
+        from,
+        to,
+        kind,
+        ...m[5] !== void 0 && { text: m[5].trim() }
+      });
+    } else {
+      fail3(no, `cannot read "${text4}"`);
+    }
+  }
+  if (open.length > 0) {
+    fail3(open.at(-1).no, `${open.at(-1).operator} is never closed with end`);
+  }
+  return {
+    spec: {
+      participants,
+      messages,
+      fragments,
+      ...notes.length > 0 && { notes }
+    },
+    warnings: []
+  };
+}
+var UC_ARROW = String.raw`(?:<\||<)?[-.]+(?:\[[^\]]*\])?[-.]*(?:(?:up|down|left|right|u|d|l|r)[-.]+)?(?:\|>|>)?`;
+var UC_END = String.raw`\([^)]+\)(?:\s+as\s+[\w.]+)?|:[^:]+:|"[^"]+"|[\w.]+`;
+var UC_RELATION = new RegExp(
+  String.raw`^(${UC_END})\s*(${UC_ARROW})\s*(${UC_END})\s*(?::\s*(.*))?$`
+);
+function usecaseDiagram(lines) {
+  const actors = [];
+  const useCases = [];
+  const names3 = /* @__PURE__ */ new Map();
+  const relations = [];
+  const notes = [];
+  const noteAliases = /* @__PURE__ */ new Map();
+  const warnings = [];
+  let system;
+  let depth = 0;
+  const declare = (list2, key, name2) => {
+    names3.set(key, name2);
+    if (!actors.includes(name2) && !useCases.includes(name2)) list2.push(name2);
+    return name2;
+  };
+  const end = (ref2) => {
+    let m = /^\((.+)\)(?:\s+as\s+([\w.]+))?$/.exec(ref2);
+    if (m) return declare(useCases, m[2] ?? m[1], multiline(m[1]));
+    m = /^:(.+):$/.exec(ref2);
+    if (m) return declare(actors, m[1], multiline(m[1]));
+    const key = unquote(ref2);
+    return names3.get(key) ?? declare(actors, key, multiline(key));
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text: text4 } = lines[i];
+    let m;
+    const note = readNote(lines, i);
+    if (note) {
+      i = note.next - 1;
+      const as = /^as\s+(\w+)$/.exec(note.head);
+      const of = /^(?:left|right|top|bottom)\s+of\s+(.+)$/.exec(note.head);
+      const n = { text: note.text };
+      if (as) noteAliases.set(as[1], n);
+      else if (of) n.on = [end(of[1])];
+      notes.push(n);
+    } else if ((m = /^actor\/?\s+(.+)$/.exec(text4)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text4))) {
+      const rest = adornments(m[1]).rest;
+      const colon = /^:(.+):(?:\s+as\s+(\S+))?$/.exec(rest);
+      const { key, name: name2 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
+      declare(actors, key, name2);
+    } else if ((m = /^usecase\/?\s+(.+)$/.exec(text4)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text4))) {
+      const rest = adornments(m[1]).rest;
+      const paren = /^\((.+)\)(?:\s+as\s+(\S+))?$/.exec(rest);
+      const { key, name: name2 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
+      declare(useCases, key, name2);
+    } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text4)) {
+      const name2 = named(adornments(m[2]).rest).name;
+      if (system === void 0) system = name2;
+      else warnings.push(`only one system boundary is drawn; ${name2} is not`);
+      depth++;
+    } else if (text4 === "}" && depth > 0) {
+      depth--;
+    } else if (m = UC_RELATION.exec(text4)) {
+      const [, a, arrow, b, text22] = m;
+      if (noteAliases.has(a) || noteAliases.has(b)) {
+        const [n, other] = noteAliases.has(a) ? [noteAliases.get(a), b] : [noteAliases.get(b), a];
+        n.on = [...n.on ?? [], end(other)];
+        continue;
+      }
+      const core = arrowCore(arrow);
+      const tag = label(text22)?.replace(/[«»<>]/g, "").trim().toLowerCase();
+      const general = core.includes("|>") || core.includes("<|");
+      const reversed = core.startsWith("<");
+      const [from, to] = reversed ? [end(b), end(a)] : [end(a), end(b)];
+      const type2 = general ? "generalization" : tag === "include" || tag === "extend" ? tag : "association";
+      const name2 = label(text22);
+      relations.push({
+        from,
+        to,
+        type: type2,
+        ...type2 === "association" && name2 && { name: name2 }
+      });
+    } else {
+      fail3(no, `cannot read "${text4}"`);
+    }
+  }
+  return {
+    spec: {
+      ...system !== void 0 && { system },
+      actors,
+      useCases,
+      relations,
+      ...notes.length > 0 && { notes }
+    },
+    warnings
+  };
+}
+function activityDiagram(lines) {
+  const nodes = [];
+  const flows = [];
+  const lanes = [];
+  const notes = [];
+  let lane;
+  let tails = [];
+  let pending;
+  let lastNode;
+  const stack = [];
+  const node = (type2, name2) => {
+    const id2 = `${type2}${nodes.length}`;
+    nodes.push({
+      id: id2,
+      ...name2 !== void 0 && { name: multiline(name2) },
+      type: type2,
+      ...lane !== void 0 && { lane }
+    });
+    for (const t of tails) {
+      const guard = t.guard ?? pending;
+      flows.push({ from: t.key, to: id2, ...guard && { guard } });
+    }
+    pending = void 0;
+    tails = [{ key: id2 }];
+    lastNode = id2;
+    return id2;
+  };
+  const top = (no, kind) => {
+    const f = stack.at(-1);
+    if (f?.kind !== kind) fail3(no, `no open ${kind}`);
+    return f;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text: text4 } = lines[i];
+    let m;
+    const note = readNote(lines, i);
+    if (note) {
+      i = note.next - 1;
+      notes.push({ text: note.text, ...lastNode && { on: [lastNode] } });
+      continue;
+    }
+    if (text4.startsWith(":")) {
+      let body = text4.slice(1);
+      while (!/[;|<>\]}/]$/.test(body) && i + 1 < lines.length) {
+        body += `
+${lines[++i].text}`;
+      }
+      if (!/[;|<>\]}/]$/.test(body)) fail3(no, "action is never closed with ;");
+      node("action", body.slice(0, -1));
+    } else if (/^start$/.test(text4)) {
+      node("initial");
+    } else if (/^(stop|end)$/.test(text4)) {
+      node("final");
+      tails = [];
+    } else if (/^(kill|detach)$/.test(text4)) {
+      node("flowFinal");
+      tails = [];
+    } else if (m = /^->\s*(.*?);?$/.exec(text4)) {
+      pending = m[1] || void 0;
+    } else if (m = /^if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text4)) {
+      const d = node("decision", m[1]);
+      stack.push({ kind: "if", node: d, ends: [], otherwise: false, no });
+      tails = [{ key: d, ...m[2] && { guard: m[2] } }];
+    } else if (m = /^else\s*if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text4)) {
+      const f = top(no, "if");
+      f.ends.push(...tails);
+      tails = [{ key: f.node, guard: m[2] || m[1] }];
+    } else if (m = /^else\s*(?:\((.*)\))?$/.exec(text4)) {
+      const f = top(no, "if");
+      f.ends.push(...tails);
+      f.otherwise = true;
+      tails = [{ key: f.node, ...m[1] && { guard: m[1] } }];
+    } else if (/^end\s*if$/.test(text4)) {
+      const f = top(no, "if");
+      stack.pop();
+      const ends2 = [
+        ...f.ends,
+        ...tails,
+        ...f.otherwise ? [] : [{ key: f.node }]
+      ];
+      tails = ends2;
+      if (ends2.length > 0) node("merge");
+    } else if (m = /^while\s*\((.*?)\)\s*(?:is\s*\((.*)\))?$/.exec(text4)) {
+      const d = node("decision", m[1]);
+      stack.push({ kind: "while", node: d, ends: [], otherwise: false, no });
+      tails = [{ key: d, ...m[2] && { guard: m[2] } }];
+    } else if (m = /^end\s*while\s*(?:\((.*)\))?$/.exec(text4)) {
+      const f = top(no, "while");
+      stack.pop();
+      for (const t of tails) {
+        flows.push({
+          from: t.key,
+          to: f.node,
+          ...t.guard && { guard: t.guard }
+        });
+      }
+      tails = [{ key: f.node, ...m[1] && { guard: m[1] } }];
+    } else if (/^repeat$/.test(text4)) {
+      const r = node("merge");
+      stack.push({ kind: "repeat", node: r, ends: [], otherwise: false, no });
+    } else if (m = /^repeat\s*while\s*\((.*?)\)\s*(?:is\s*\((.*?)\))?\s*(?:not\s*\((.*)\))?$/.exec(
+      text4
+    )) {
+      const f = top(no, "repeat");
+      stack.pop();
+      const d = node("decision", m[1]);
+      flows.push({ from: d, to: f.node, ...m[2] && { guard: m[2] } });
+      tails = [{ key: d, ...m[3] && { guard: m[3] } }];
+    } else if (/^(fork|split)$/.test(text4)) {
+      const f = node("fork");
+      stack.push({ kind: "fork", node: f, ends: [], otherwise: false, no });
+    } else if (/^(fork|split)\s+again$/.test(text4)) {
+      const f = top(no, "fork");
+      f.ends.push(...tails);
+      tails = [{ key: f.node }];
+    } else if (/^end\s*(fork|merge|split)(\s*\{.*\})?$/.test(text4)) {
+      const f = top(no, "fork");
+      stack.pop();
+      tails = [...f.ends, ...tails];
+      node("join");
+    } else if (m = /^\|(?:[^|]*\|)?([^|]+)\|$/.exec(text4)) {
+      lane = multiline(m[1].trim());
+      if (!lanes.includes(lane)) lanes.push(lane);
+    } else if (/^(partition|group)\b.*\{$/.test(text4) || text4 === "}") {
+    } else if (/^(goto|label|backward|break)\b/.test(text4)) {
+      refuse(
+        no,
+        `${text4.split(/\s/)[0]} has no activity element build_diagram makes`
+      );
+    } else {
+      fail3(no, `cannot read "${text4}"`);
+    }
+  }
+  if (stack.length > 0)
+    fail3(stack.at(-1).no, `${stack.at(-1).kind} is never closed`);
+  return {
+    spec: {
+      ...lanes.length > 0 && { lanes },
+      nodes,
+      flows,
+      ...notes.length > 0 && { notes }
+    },
+    warnings: []
+  };
+}
+var LEGACY_END = String.raw`\(\*(?:top)?\)|===[^=]+===|"[^"]+"(?:\s+as\s+\w+)?|[\w.]+`;
+var LEGACY = new RegExp(
+  String.raw`^(${LEGACY_END})?\s*-+(?:\[[^\]]*\])?-*(?:(?:up|down|left|right|u|d|l|r)-+)?>\s*(?:\[([^\]]*)\]\s*)?(${LEGACY_END})$`
+);
+function legacyActivity(lines) {
+  const nodes = /* @__PURE__ */ new Map();
+  const flows = [];
+  let last;
+  let starts = 0;
+  let ends2 = 0;
+  const ref2 = (text4, side) => {
+    if (/^\(\*/.test(text4)) {
+      const id3 = side === "from" ? `start${++starts}` : `end${++ends2}`;
+      nodes.set(id3, { id: id3, type: side === "from" ? "initial" : "final" });
+      return id3;
+    }
+    let m = /^===([^=]+)===$/.exec(text4);
+    if (m) {
+      const id3 = m[1].trim();
+      if (!nodes.has(id3)) nodes.set(id3, { id: id3, type: "fork" });
+      return id3;
+    }
+    m = /^"([^"]+)"(?:\s+as\s+(\w+))?$/.exec(text4);
+    const id2 = m ? m[2] ?? m[1] : text4;
+    if (!nodes.has(id2)) {
+      nodes.set(id2, { id: id2, name: multiline(m ? m[1] : text4), type: "action" });
+    }
+    return id2;
+  };
+  for (const { no, text: text4 } of lines) {
+    const m = LEGACY.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
+    const from = m[1] ? ref2(m[1], "from") : last ?? fail3(no, "an arrow needs a start");
+    const to = ref2(m[3], "to");
+    flows.push({ from, to, ...m[2] && { guard: m[2] } });
+    last = to;
+  }
+  for (const n of nodes.values()) {
+    if (n.type === "fork" && flows.filter((f) => f.to === n.id).length > 1) {
+      n.type = "join";
+    }
+  }
+  return { spec: { nodes: [...nodes.values()], flows }, warnings: [] };
+}
+var STATE_REF = String.raw`\[\*\]|[\w.]+`;
+var TRANSITION = new RegExp(
+  String.raw`^(${STATE_REF})\s*(-+(?:\[[^\]]*\])?-*(?:(?:up|down|left|right|u|d|l|r)-+)?>)\s*(${STATE_REF})\s*(?::\s*(.*))?$`
+);
+function stateDiagram2(lines) {
+  const states = /* @__PURE__ */ new Map();
+  const transitions = [];
+  const notes = [];
+  const blocks = [];
+  const warnings = [];
+  let starts = 0;
+  let ends2 = 0;
+  const declare = (id2, fields) => {
+    const known = states.get(id2);
+    if (known) Object.assign(known, fields);
+    else {
+      states.set(id2, {
+        id: id2,
+        ...fields,
+        ...blocks.length > 0 && { parent: blocks.at(-1) }
+      });
+    }
+  };
+  const state2 = (id2, side) => {
+    if (id2 === "[*]") {
+      const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends2}`;
+      declare(key, { type: side === "from" ? "initial" : "final" });
+      return key;
+    }
+    if (!states.has(id2)) declare(id2, { name: multiline(id2) });
+    return id2;
+  };
+  const PSEUDO = {
+    choice: { type: "choice" },
+    fork: { type: "fork" },
+    join: { type: "join" },
+    start: { type: "initial" },
+    end: { type: "final" }
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text: text4 } = lines[i];
+    let m;
+    const note = readNote(lines, i);
+    if (note) {
+      i = note.next - 1;
+      const of = /^(?:left|right|top|bottom)\s+of\s+([\w.]+)$/.exec(note.head);
+      if (/^on\s+link/.test(note.head)) continue;
+      if (of) state2(of[1], "to");
+      notes.push({ text: note.text, ...of && { on: [of[1]] } });
+    } else if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w.]+)(?:\s+as\s+"([^"]+)")?\s*(<<\s*\w+\s*>>)?\s*(#\S+)?\s*(\{)?$/.exec(
+      text4
+    )) {
+      const id2 = m[2];
+      const stereotype = m[4]?.replace(/[<>\s]/g, "");
+      if (stereotype !== void 0) {
+        const pseudo = PSEUDO[stereotype] ?? refuse(
+          no,
+          `<<${stereotype}>> states have no StarUML element build_diagram makes`
+        );
+        declare(id2, pseudo);
+      } else {
+        const label3 = m[1] ?? m[3];
+        declare(
+          id2,
+          label3 !== void 0 || !states.has(id2) ? { name: multiline(label3 ?? id2) } : {}
+        );
+      }
+      if (m[6]) blocks.push(id2);
+    } else if (text4 === "}") {
+      if (blocks.pop() === void 0) fail3(no, "} without a state block");
+    } else if (text4 === "--" || text4 === "||") {
+      refuse(
+        no,
+        "concurrent regions are not built; a composite state gets one region"
+      );
+    } else if (m = TRANSITION.exec(text4)) {
+      const from = state2(m[1], "from");
+      const to = state2(m[3], "to");
+      const labelText = m[4]?.trim() ?? "";
+      const guard = /\[([^\]]*)\]/.exec(labelText);
+      const [event, effect] = labelText.replace(/\[[^\]]*\]/, "").split("/").map((s) => s.trim());
+      transitions.push({
+        from,
+        to,
+        ...event && { trigger: event },
+        ...guard && { guard: guard[1] },
+        ...effect && { effect }
+      });
+    } else if (/^\[H\*?\]/.test(text4) || /\[H\*?\]/.test(text4)) {
+      refuse(no, "history states have no StarUML element build_diagram makes");
+    } else if (m = /^([\w.]+)$/.exec(text4)) {
+      state2(m[1], "to");
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text4)) {
+      state2(m[1], "to");
+      warnings.push(
+        `line ${no}: the description of ${m[1]} is not written to StarUML`
+      );
+    } else {
+      fail3(no, `cannot read "${text4}"`);
+    }
+  }
+  if (blocks.length > 0) {
+    fail3(lines.at(-1).no, `state ${blocks.at(-1)} is never closed with }`);
+  }
+  return {
+    spec: {
+      states: [...states.values()],
+      transitions,
+      ...notes.length > 0 && { notes }
+    },
+    warnings
+  };
+}
+var ERD_RELATION = new RegExp(
+  String.raw`^(${ID})\s+(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)\s+(${ID})\s*(?::\s*(.*))?$`
+);
+function erDiagram2(lines) {
+  const entities = /* @__PURE__ */ new Map();
+  const relationships = [];
+  let open = null;
+  const entity2 = (ref2) => {
+    const { key, name: name2 } = named(ref2);
+    if (!entities.has(key)) entities.set(key, { name: name2, columns: [] });
+    return entities.get(key);
+  };
+  for (const { no, text: text4 } of lines) {
+    let m;
+    if (open) {
+      if (text4 === "}") open = null;
+      else if (!/^(--|\.\.|==|__)/.test(text4)) {
+        m = /^(\*)?\s*([\w$]+)\s*(?::\s*([^<]*?))?\s*((?:<<\s*\w+\s*>>\s*)*)$/.exec(
+          text4
+        ) ?? fail3(no, `cannot read column "${text4}"`);
+        const flags = m[4];
+        const type2 = m[3]?.trim();
+        const sized = type2 ? /^([^(]+)\(([^)]*)\)$/.exec(type2) : null;
+        open.columns.push({
+          name: m[2],
+          ...type2 && { type: sized ? sized[1] : type2 },
+          ...sized && { length: sized[2] },
+          .../PK/.test(flags) && { primaryKey: true },
+          .../FK/.test(flags) && { foreignKey: true },
+          .../UK/.test(flags) && { unique: true },
+          ...!m[1] && !/PK/.test(flags) && { nullable: true }
+        });
+      }
+      continue;
+    }
+    if (m = /^entity\s+(.+?)\s*(\{)?$/.exec(text4)) {
+      const e = entity2(adornments(m[1]).rest);
+      if (m[2]) open = e;
+    } else if (m = ERD_RELATION.exec(text4)) {
+      const from = entity2(m[1]).name;
+      const to = entity2(m[5]).name;
+      relationships.push({
+        from,
+        to,
+        fromCardinality: LEFT_CARD[m[2]],
+        toCardinality: RIGHT_CARD[m[4]],
+        identifying: m[3] === "--",
+        ...label(m[6]) && { name: label(m[6]) }
+      });
+    } else {
+      fail3(no, `cannot read "${text4}"`);
+    }
+  }
+  return {
+    spec: {
+      entities: [...entities.values()].map((e) => ({
+        name: e.name,
+        ...e.columns.length > 0 && { columns: e.columns }
+      })),
+      relationships
+    },
+    warnings: []
+  };
+}
+function mindmap2(lines) {
+  const stack = [];
+  let root;
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text: text4 } = lines[i];
+    const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
+    const depth = m[1].length;
+    let name2 = m[3];
+    if (name2.startsWith(":")) {
+      name2 = name2.slice(1);
+      while (!name2.endsWith(";") && i + 1 < lines.length) {
+        name2 += `
+${lines[++i].text}`;
+      }
+      name2 = name2.replace(/;$/, "");
+    }
+    const node = { name: multiline(name2), children: [] };
+    if (depth === 1) {
+      if (root) refuse(no, "a mind map has one root in StarUML");
+      root = node;
+    } else {
+      const parent = stack[depth - 2] ?? fail3(no, "a level is skipped");
+      parent.children.push(node);
+    }
+    stack[depth - 1] = node;
+    stack.length = depth;
+  }
+  const strip = (n) => ({
+    name: n.name,
+    ...n.children.length > 0 && { children: n.children.map(strip) }
+  });
+  return { spec: { root: strip(root) }, warnings: [] };
+}
+var C4_MACRO = /^(Person|System|Container|Component)(Db|Queue)?(_Ext)?\s*\(/;
+function detect(src) {
+  const texts = src.lines.map((l) => l.text);
+  const has = (re) => texts.some((t) => re.test(t));
+  if (src.includes.some((i) => /C4/i.test(i)) || has(C4_MACRO)) return "c4";
+  if (has(/^state\s/) || has(/\[\*\]/)) return "statemachine";
+  if (has(/^entity\s/) && (has(/(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)/) || has(/<<\s*(PK|FK)\s*>>/))) {
+    return "erd";
+  }
+  if (has(/\(\*(top)?\)|^===/)) return "legacy";
+  if (has(
+    /^(start|stop|kill|detach|repeat|fork|split)$|^:.*[;|<>\]}/]$|^if\s*\(|^while\s*\(|^\|(?:#\w+\|)?[^|]+\|$/
+  )) {
+    return "activity";
+  }
+  if (has(/^(usecase|rectangle)\s|^\(.+\)|^:[^:]+:|^actor\//) || has(/[-.]>?\s*\([^)]+\)(\s*:.*)?$/)) {
+    return "usecase";
+  }
+  if (has(
+    /^(abstract\s+class|abstract|class|interface|enum|entity|struct|exception|namespace)\s/
+  ) || has(/<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o/)) {
+    return "class";
+  }
+  const other = /^(component|node|artifact|cloud|frame|folder|storage|card|agent|hexagon|object|map|json|robust|concise|clock|binary|analog)\s|^\[(?!\*\])[^\]]+\]/;
+  const found = src.lines.find((l) => other.test(l.text));
+  if (found) {
+    refuse(
+      found.no,
+      `${found.text.split(/\s/)[0]} diagrams are not built; class, sequence, use case, activity, state, IE entity and C4 diagrams are`
+    );
+  }
+  if (has(PARTICIPANT) || has(/-{1,2}>|<-{1,2}/)) return "sequence";
+  return fail3(src.no, "cannot tell which kind of diagram this is; pass kind");
+}
+var READERS = {
+  class: classDiagram2,
+  sequence: sequenceDiagram2,
+  usecase: usecaseDiagram,
+  statemachine: stateDiagram2,
+  erd: erDiagram2
+};
+function parsePlantUml(source, as) {
+  const src = preprocess2(source);
+  if (src.lines.length === 0) fail3(src.no, "no diagram");
+  const titled = {
+    ...src.title !== void 0 && { title: src.title },
+    ...src.direction && { direction: src.direction }
+  };
+  const done = (kind2, read) => ({
+    kind: kind2,
+    ...titled,
+    spec: read.spec,
+    ...read.warnings.length > 0 && { warnings: read.warnings }
+  });
+  if (src.type === "mindmap") return done("mindmap", mindmap2(src.lines));
+  if (src.type !== "uml") {
+    refuse(
+      src.no,
+      `@start${src.type} diagrams are not built; @startuml (class, sequence, use case, activity, state, IE entity, C4) and @startmindmap are`
+    );
+  }
+  const detected = detect(src);
+  if (detected === "c4") {
+    return done(
+      "c4",
+      readC4(
+        src.lines,
+        (no, message, code) => fail3(no, message, code),
+        () => false
+      )
+    );
+  }
+  const kind = as ?? (detected === "legacy" ? "activity" : detected);
+  if (kind === "activity") {
+    return done(
+      kind,
+      detected === "activity" ? activityDiagram(src.lines) : legacyActivity(src.lines)
+    );
+  }
+  const reader = READERS[kind];
+  if (!reader) {
+    refuse(src.no, `PlantUML is not read as ${kind}`);
+  }
+  return done(kind, reader(src.lines));
+}
+
+// src/build/sql.ts
+var fail4 = (line, message, code = "INVALID_ARGUMENT") => {
+  throw new ApiError(code, `sql line ${line}: ${message}`);
+};
+function statements(source) {
+  const out = [];
+  let text4 = "";
+  let line = 1;
+  let start = 1;
+  let quote = null;
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (ch === "\n") line++;
+    if (quote) {
+      text4 += ch;
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "-" && next === "-") {
+      while (i < source.length && source[i] !== "\n") i++;
+      i--;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const end = source.indexOf("*/", i + 2);
+      const stop = end < 0 ? source.length : end + 2;
+      line += (source.slice(i, stop).match(/\n/g) ?? []).length;
+      i = stop - 1;
+      continue;
+    }
+    if (ch === ";") {
+      if (text4.trim()) out.push({ line: start, text: text4.trim() });
+      text4 = "";
+      continue;
+    }
+    if (!text4.trim()) start = line;
+    if (ch === "'" || ch === '"' || ch === "`") quote = ch;
+    if (ch === "[") quote = "]";
+    text4 += ch;
+  }
+  if (text4.trim()) out.push({ line: start, text: text4.trim() });
+  return out;
+}
+function items(text4) {
+  const out = [];
+  let depth = 0;
+  let quote = null;
+  let current = "";
+  for (const ch of text4) {
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"' || ch === "`") quote = ch;
+    else if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (ch === "," && depth === 0) {
+      out.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) out.push(current.trim());
+  return out;
+}
+var NAME3 = String.raw`(?:"[^"]+"|\`[^\`]+\`|\[[^\]]+\]|[\w$]+)(?:\s*\.\s*(?:"[^"]+"|\`[^\`]+\`|\[[^\]]+\]|[\w$]+))*`;
+function bare(name2) {
+  const last = name2.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
+  return last.replace(/^["`[]|["`\]]$/g, "");
+}
+var names = (list2) => items(list2).map(bare);
+var CONSTRAINT = /\s+(?=(?:not\s+null|null|primary\s+key|unique|references|default|check|constraint|generated|auto_increment|autoincrement|identity|collate|comment|on\s+update)\b)/i;
+var SKIPPED = /^(create\s+(unique\s+)?index|create\s+sequence|create\s+extension|create\s+schema|create\s+database|alter\s+sequence|alter\s+(database|schema|default)|set\s|select\s|comment\s+on|grant\s|revoke\s|insert\s|update\s|delete\s|drop\s|begin|commit|start\s+transaction|use\s|lock\s|unlock\s|analyze|vacuum|pragma|copy\s|\\)/i;
+var REFUSED = /^create\s+(or\s+replace\s+)?(view|materialized\s+view|type|function|procedure|trigger|domain|rule|policy|event|aggregate|operator|cast)\b/i;
+function parseSql(source) {
+  const tables = /* @__PURE__ */ new Map();
+  const keys = [];
+  const skipped = /* @__PURE__ */ new Map();
+  const table = (name2) => tables.get(name2.toLowerCase());
+  const column = (t, def, line) => {
+    const m = new RegExp(String.raw`^(${NAME3})\s+([\s\S]+)$`).exec(def) ?? fail4(line, `cannot read column "${def}"`);
+    const [typeText2, ...rest] = m[2].split(CONSTRAINT);
+    const constraints = rest.join(" ");
+    const sized = /^([^(]+?)\s*\(([^)]*)\)\s*(.*)$/.exec(typeText2.trim());
+    const c = {
+      name: bare(m[1]),
+      type: sized ? `${sized[1]}${sized[3] ? ` ${sized[3]}` : ""}` : typeText2.trim(),
+      ...sized && { length: sized[2].replace(/\s+/g, "") }
+    };
+    if (/primary\s+key/i.test(constraints)) t.primaryKey.push(c.name);
+    if (/\bunique\b/i.test(constraints)) c.unique = true;
+    if (!/not\s+null|primary\s+key/i.test(constraints)) c.nullable = true;
+    const ref2 = new RegExp(
+      String.raw`references\s+(${NAME3})\s*(?:\(([^)]*)\))?`,
+      "i"
+    ).exec(constraints);
+    if (ref2) {
+      keys.push({
+        line,
+        table: t.name,
+        columns: [c.name],
+        references: bare(ref2[1]),
+        referenced: ref2[2] ? names(ref2[2]) : []
+      });
+    }
+    t.columns.push(c);
+  };
+  const constraint = (t, def, line) => {
+    const body = def.replace(
+      new RegExp(String.raw`^constraint\s+${NAME3}\s+`, "i"),
+      ""
+    );
+    let m;
+    if (m = /^primary\s+key\s*\(([^)]*)\)/i.exec(body)) {
+      t.primaryKey.push(...names(m[1]));
+    } else if (m = /^unique(?:\s+(?:key|index))?(?:\s+[\w$`"]+)?\s*\(([^)]*)\)/i.exec(
+      body
+    )) {
+      t.unique.push(names(m[1]));
+    } else if (m = new RegExp(
+      String.raw`^foreign\s+key(?:\s+[\w$\`"]+)?\s*\(([^)]*)\)\s*references\s+(${NAME3})\s*(?:\(([^)]*)\))?`,
+      "i"
+    ).exec(body)) {
+      keys.push({
+        line,
+        table: t.name,
+        columns: names(m[1]),
+        references: bare(m[2]),
+        referenced: m[3] ? names(m[3]) : []
+      });
+    } else if (!/^(check|exclude|key|index|fulltext|spatial)\b/i.test(body)) {
+      return false;
+    }
+    return true;
+  };
+  for (const { line, text: text4 } of statements(source)) {
+    let m;
+    if (m = new RegExp(
+      String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp)\s+|unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME3})\s*\(([\s\S]*)\)[^)]*$`,
+      "i"
+    ).exec(text4)) {
+      const name2 = bare(m[1]);
+      const t = { name: name2, columns: [], primaryKey: [], unique: [] };
+      if (table(name2)) fail4(line, `table ${name2} is created twice`);
+      tables.set(name2.toLowerCase(), t);
+      for (const def of items(m[2])) {
+        if (/^(constraint|primary\s+key|foreign\s+key|unique|check|exclude|key|index|fulltext|spatial)\b/i.test(
+          def
+        )) {
+          if (!constraint(t, def, line)) fail4(line, `cannot read "${def}"`);
+        } else if (/^like\s/i.test(def)) {
+          fail4(
+            line,
+            "CREATE TABLE ... LIKE copies a table build_diagram cannot see",
+            "UNSUPPORTED_SYNTAX"
+          );
+        } else {
+          column(t, def, line);
+        }
+      }
+    } else if (m = new RegExp(
+      String.raw`^alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?(${NAME3})\s+([\s\S]+)$`,
+      "i"
+    ).exec(text4)) {
+      const t = table(bare(m[1])) ?? fail4(line, `ALTER TABLE ${bare(m[1])} before CREATE TABLE`);
+      for (const action of items(m[2])) {
+        const add = /^add\s+(?:column\s+)?(?:if\s+not\s+exists\s+)?([\s\S]+)$/i.exec(
+          action
+        );
+        if (!add) {
+          skipped.set("ALTER TABLE", (skipped.get("ALTER TABLE") ?? 0) + 1);
+        } else if (!constraint(t, add[1], line)) {
+          column(t, add[1], line);
+        }
+      }
+    } else if (REFUSED.test(text4)) {
+      fail4(
+        line,
+        `${text4.split(/\s+/).slice(0, text4.match(/^create\s+or\s+replace/i) ? 4 : 2).join(" ").toUpperCase()} has no ERD element; only tables and their keys are drawn`,
+        "UNSUPPORTED_SYNTAX"
+      );
+    } else if (SKIPPED.test(text4)) {
+      const what = text4.split(/\s+/).slice(0, 2).join(" ").toUpperCase();
+      skipped.set(what, (skipped.get(what) ?? 0) + 1);
+    } else {
+      fail4(line, `cannot read "${text4.split("\n")[0]}"`);
+    }
+  }
+  if (tables.size === 0) fail4(1, "no CREATE TABLE statement");
+  const warnings = [...skipped].map(
+    ([what, n]) => `${n} ${what} statement${n === 1 ? " is" : "s are"} skipped`
+  );
+  const relationships = [];
+  for (const k of keys) {
+    const child = table(k.table);
+    let parent = table(k.references);
+    if (!parent) {
+      warnings.push(
+        `line ${k.line}: ${k.table} references ${k.references}, which is not created here; it is drawn without columns`
+      );
+      parent = { name: k.references, columns: [], primaryKey: [], unique: [] };
+      tables.set(k.references.toLowerCase(), parent);
+    }
+    const cols = k.columns.map(
+      (name2) => child.columns.find(
+        (c) => c.name.toLowerCase() === name2.toLowerCase()
+      ) ?? fail4(k.line, `${k.table} has no column ${name2}`)
+    );
+    for (const c of cols) c.foreignKey = true;
+    const same = (a, b) => a.length === b.length && a.every((x) => b.some((y) => y.toLowerCase() === x.toLowerCase()));
+    const unique = same(k.columns, child.primaryKey) || child.unique.some((u) => same(k.columns, u)) || cols.length === 1 && cols[0].unique === true;
+    const inKey = k.columns.every(
+      (c) => child.primaryKey.some((p) => p.toLowerCase() === c.toLowerCase())
+    );
+    relationships.push({
+      from: parent.name,
+      to: child.name,
+      fromCardinality: cols.some((c) => c.nullable && !inKey) ? "0..1" : "1",
+      toCardinality: unique ? "0..1" : "0..*",
+      identifying: inKey
+    });
+  }
+  const entities = [...tables.values()].map((t) => {
+    for (const c of t.columns) {
+      if (t.primaryKey.some((p) => p.toLowerCase() === c.name.toLowerCase())) {
+        c.primaryKey = true;
+        delete c.nullable;
+      }
+    }
+    for (const u of t.unique) {
+      if (u.length !== 1) continue;
+      const c = t.columns.find(
+        (x) => x.name.toLowerCase() === u[0].toLowerCase()
+      );
+      if (c) c.unique = true;
+    }
+    return {
+      name: t.name,
+      ...t.columns.length > 0 && { columns: t.columns }
+    };
+  });
+  return {
+    kind: "erd",
+    spec: { entities, relationships },
+    ...warnings.length > 0 && { warnings }
+  };
+}
+
+// src/build/source.ts
+var FORMATS = ["mermaid", "plantuml", "sql", "jsonschema"];
+function detectFormat(text4) {
+  const body = text4.replace(/^\s*(?:(?:'|--|%%).*\n\s*)*/, "");
+  if (/^@start\w+/im.test(text4)) return "plantuml";
+  if (body.startsWith("{")) return "jsonschema";
+  if (/\bcreate\s+(?:\w+\s+)*?table\b/i.test(text4)) return "sql";
+  return "mermaid";
+}
+function parseSource(text4, format = detectFormat(text4), kind) {
+  switch (format) {
+    case "plantuml":
+      return { ...parsePlantUml(text4, kind), format };
+    case "sql":
+      if (kind !== void 0 && kind !== "erd") {
+        throw new ApiError(
+          "UNSUPPORTED_SYNTAX",
+          `sql: DDL is read as an ERD, not ${kind}`
+        );
+      }
+      return { ...parseSql(text4), format };
+    case "jsonschema":
+      return { ...parseJsonSchema(text4, kind), format };
+    default:
+      return { ...parseMermaid(text4, kind), format };
+  }
+}
+
 // src/build/place.ts
 var MARGIN = 40;
 var GAP = 60;
 function ranks(keys, edges) {
+  const out = new Map(keys.map((k) => [k, []]));
+  for (const e of edges) out.get(e.from).push(e);
+  const state2 = /* @__PURE__ */ new Map();
+  const back = /* @__PURE__ */ new Set();
+  const walk = (key) => {
+    state2.set(key, "open");
+    for (const e of out.get(key)) {
+      const s = state2.get(e.to);
+      if (s === "open") back.add(e);
+      else if (s === void 0) walk(e.to);
+    }
+    state2.set(key, "done");
+  };
+  for (const k of keys) if (!state2.has(k)) walk(k);
+  const forward = edges.filter((e) => !back.has(e));
   const rank = new Map(keys.map((k) => [k, 0]));
   for (let round = 0; round < keys.length; round++) {
     let changed = false;
-    for (const e of edges) {
+    for (const e of forward) {
       const next = rank.get(e.from) + 1;
-      if (e.from !== e.to && next > rank.get(e.to) && next < keys.length) {
+      if (next > rank.get(e.to)) {
         rank.set(e.to, next);
         changed = true;
       }
@@ -5045,7 +6839,9 @@ var KINDS = [
   "statemachine",
   "erd",
   "flowchart",
-  "mindmap"
+  "mindmap",
+  "requirement",
+  "c4"
 ];
 var DIAGRAM_TYPES = {
   class: "UMLClassDiagram",
@@ -5055,7 +6851,9 @@ var DIAGRAM_TYPES = {
   statemachine: "UMLStatechartDiagram",
   erd: "ERDDiagram",
   flowchart: "FCFlowchartDiagram",
-  mindmap: "MMMindmapDiagram"
+  mindmap: "MMMindmapDiagram",
+  requirement: "SysMLRequirementDiagram",
+  c4: "C4Diagram"
 };
 var name = () => string2().check(_minLength(1));
 var strings = () => array(name());
@@ -5418,6 +7216,114 @@ var mindNode = object({
   }
 });
 var mindmapSpec = () => object({ ...common(), root: mindNode });
+var REQUIREMENT_TYPES = {
+  requirement: void 0,
+  functional: "functionalRequirement",
+  interface: "interfaceRequirement",
+  performance: "performanceRequirement",
+  physical: "physicalRequirement",
+  design: "designConstraint"
+};
+var REQUIREMENT_RELATIONS = {
+  contains: "UMLContainment",
+  copies: "SysMLCopy",
+  derives: "SysMLDeriveReqt",
+  satisfies: "SysMLSatisfy",
+  verifies: "SysMLVerify",
+  refines: "SysMLRefine",
+  traces: "UMLDependency"
+};
+var requirementSpec = () => object({
+  ...common(),
+  requirements: optional(
+    array(
+      object({
+        name: name(),
+        type: optional(
+          _enum(
+            Object.keys(REQUIREMENT_TYPES)
+          )
+        ),
+        id: optional(string2()),
+        text: optional(string2()),
+        risk: optional(_enum(["low", "medium", "high"])),
+        verifyMethod: optional(
+          _enum(["analysis", "inspection", "test", "demonstration"])
+        )
+      })
+    )
+  ),
+  elements: optional(
+    array(
+      object({
+        name: name(),
+        type: optional(string2()),
+        docRef: optional(string2())
+      })
+    )
+  ),
+  relations: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        type: _enum(
+          Object.keys(REQUIREMENT_RELATIONS)
+        )
+      })
+    )
+  )
+});
+var C4_CONTAINER_KINDS = [
+  "server-webapp",
+  "client-webapp",
+  "desktop-app",
+  "mobile-app",
+  "console-app",
+  "serverless-function",
+  "database",
+  "blob-store",
+  "filesystem",
+  "shell-script",
+  "etc"
+];
+var C4_TYPES = {
+  person: "C4Person",
+  system: "C4SoftwareSystem",
+  container: "C4Container",
+  component: "C4Component"
+};
+var c4Spec = () => object({
+  ...common(),
+  elements: optional(
+    array(
+      object({
+        id: optional(doc(name(), "Key for relations; default the name.")),
+        name: name(),
+        type: _enum(Object.keys(C4_TYPES)),
+        kind: optional(
+          doc(_enum(C4_CONTAINER_KINDS), "Container kind, e.g. database.")
+        ),
+        technology: optional(string2()),
+        description: optional(string2()),
+        external: optional(
+          doc(boolean2(), "Outside the system in scope; drawn grey.")
+        )
+      })
+    )
+  ),
+  relations: optional(
+    array(
+      object({
+        from: name(),
+        to: name(),
+        label: optional(string2()),
+        technology: optional(string2()),
+        description: optional(string2())
+      })
+    )
+  )
+});
 var SPEC_SCHEMAS = {
   class: classSpec,
   sequence: sequenceSpec,
@@ -5426,7 +7332,9 @@ var SPEC_SCHEMAS = {
   statemachine: statemachineSpec,
   erd: erdSpec,
   flowchart: flowchartSpec2,
-  mindmap: mindmapSpec
+  mindmap: mindmapSpec,
+  requirement: requirementSpec,
+  c4: c4Spec
 };
 function parseSpec(kind, spec) {
   const result = safeParse(SPEC_SCHEMAS[kind](), spec);
@@ -5810,9 +7718,9 @@ var ACTIVITY_TYPES = {
   join: ["UMLJoinNode", 120, 10],
   object: ["UMLObjectNode", 120, 50]
 };
-function nodeName(name2, key, named) {
+function nodeName(name2, key, named2) {
   if (name2 !== void 0) return multiline(name2);
-  return named ? key : "";
+  return named2 ? key : "";
 }
 function activityPlan(spec) {
   const b = new Builder("activity");
@@ -5921,7 +7829,7 @@ function statemachinePlan(spec) {
     }
   }
   (spec.transitions ?? []).forEach((t, i) => {
-    const label2 = [
+    const label3 = [
       t.trigger ?? "",
       t.effect !== void 0 ? ` / ${t.effect}` : ""
     ].join("").trim();
@@ -5930,7 +7838,7 @@ function statemachinePlan(spec) {
         type: "UMLTransition",
         from: t.from,
         to: t.to,
-        ...label2 && { name: label2 },
+        ...label3 && { name: label3 },
         ...t.guard !== void 0 && { properties: { guard: t.guard } }
       },
       `transitions.${i}`
@@ -6042,6 +7950,95 @@ function mindmapPlan(spec) {
   visit(spec.root, null);
   return b.plan();
 }
+function requirementPlan(spec) {
+  const b = new Builder("requirement");
+  for (const r of spec.requirements ?? []) {
+    const stereotype = REQUIREMENT_TYPES[r.type ?? "requirement"];
+    const notes = [
+      r.risk && `Risk: ${r.risk}`,
+      r.verifyMethod && `VerifyMethod: ${r.verifyMethod}`
+    ].filter(Boolean);
+    const lines = [r.id, r.text].filter(Boolean).length;
+    b.node({
+      key: multiline(r.name),
+      type: "SysMLRequirement",
+      name: multiline(r.name),
+      properties: {
+        ...r.id !== void 0 && { id: r.id },
+        ...r.text !== void 0 && { text: r.text },
+        ...stereotype && { stereotype },
+        ...notes.length > 0 && { documentation: notes.join("\n") }
+      },
+      width: 180,
+      height: 60 + 20 * lines
+    });
+  }
+  for (const e of spec.elements ?? []) {
+    const attributes = [
+      e.type !== void 0 && { name: "Type", defaultValue: e.type },
+      e.docRef !== void 0 && { name: "DocRef", defaultValue: e.docRef }
+    ].filter((a) => a !== false);
+    b.node({
+      key: multiline(e.name),
+      type: "UMLClass",
+      name: multiline(e.name),
+      properties: { stereotype: "element" },
+      ...attributes.length > 0 && { attributes },
+      width: 180,
+      height: 50 + 14 * attributes.length
+    });
+  }
+  (spec.relations ?? []).forEach((r, i) => {
+    const contains = r.type === "contains";
+    b.edge(
+      {
+        type: REQUIREMENT_RELATIONS[r.type],
+        from: contains ? r.to : r.from,
+        to: contains ? r.from : r.to,
+        ...r.type === "traces" && { properties: { stereotype: "trace" } }
+      },
+      `relations.${i}`
+    );
+  });
+  return b.plan();
+}
+var C4_EXTERNAL = { fillColor: "#999999", lineColor: "#8a8a8a" };
+function c4Plan(spec) {
+  const b = new Builder("c4");
+  for (const e of spec.elements ?? []) {
+    const properties2 = {
+      ...e.type === "container" && e.kind !== void 0 && { kind: e.kind },
+      ...e.technology !== void 0 && { technology: e.technology },
+      ...e.description !== void 0 && { description: e.description }
+    };
+    b.node({
+      key: e.id ?? multiline(e.name),
+      type: C4_TYPES[e.type],
+      name: multiline(e.name),
+      ...Object.keys(properties2).length > 0 && { properties: properties2 },
+      ...e.external && { style: C4_EXTERNAL },
+      width: 180,
+      height: e.type === "person" ? 140 : 110
+    });
+  }
+  (spec.relations ?? []).forEach((r, i) => {
+    const properties2 = {
+      ...r.technology !== void 0 && { technology: r.technology },
+      ...r.description !== void 0 && { description: r.description }
+    };
+    b.edge(
+      {
+        type: "C4Relationship",
+        from: r.from,
+        to: r.to,
+        ...r.label !== void 0 && { name: multiline(r.label) },
+        ...Object.keys(properties2).length > 0 && { properties: properties2 }
+      },
+      `relations.${i}`
+    );
+  });
+  return b.plan();
+}
 var PLANNERS = {
   class: classPlan,
   sequence: sequencePlan,
@@ -6050,12 +8047,14 @@ var PLANNERS = {
   statemachine: statemachinePlan,
   erd: erdPlan,
   flowchart: flowchartPlan,
-  mindmap: mindmapPlan
+  mindmap: mindmapPlan,
+  requirement: requirementPlan,
+  c4: c4Plan
 };
 var longHex = (color2) => color2.length === 4 ? `#${[...color2.slice(1)].map((c) => c + c).join("")}`.toLowerCase() : color2.toLowerCase();
 function decorate(plan, spec) {
   const byKey = new Map(plan.nodes.map((n) => [n.key, n]));
-  const fail2 = (where, key) => {
+  const fail5 = (where, key) => {
     throw new ApiError(
       "INVALID_ARGUMENT",
       `spec.${where}: no node named ${key}`
@@ -6083,13 +8082,13 @@ function decorate(plan, spec) {
       byKey.set(key, node);
       const on = n.on === void 0 ? [] : typeof n.on === "string" ? [n.on] : n.on;
       for (const target of on.map(multiline)) {
-        if (!byKey.has(target)) fail2(`notes.${i}.on`, target);
+        if (!byKey.has(target)) fail5(`notes.${i}.on`, target);
         plan.edges.push({ type: "NoteLink", from: key, to: target });
       }
     });
   }
   for (const [key, style] of Object.entries(spec.styles ?? {})) {
-    const node = byKey.get(multiline(key)) ?? fail2(`styles.${key}`, key);
+    const node = byKey.get(multiline(key)) ?? fail5(`styles.${key}`, key);
     const colors = Object.fromEntries(
       Object.entries(style).map(([k, v]) => [k, longHex(v)])
     );
@@ -6529,8 +8528,8 @@ function createModelAndView(options) {
 var CURSOR_OPTIONS = /* @__PURE__ */ new Set(["id", "connectable-views", "self-connection"]);
 var DEFAULT_COMMAND = "factory:create-model-and-view";
 function resolveCreateType(typeName2) {
-  const { items } = app.toolbox;
-  const item = Object.hasOwn(items, typeName2) ? items[typeName2] : void 0;
+  const { items: items2 } = app.toolbox;
+  const item = Object.hasOwn(items2, typeName2) ? items2[typeName2] : void 0;
   const custom = item?.command && item.command !== DEFAULT_COMMAND;
   if (!item || custom) {
     if (app.factory.getModelAndViewIds().includes(typeName2)) {
@@ -6717,13 +8716,13 @@ function changeReferences(elem, attr, op, value) {
       `${op} needs a reference list; ${typeName2}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
     );
   }
-  const items = toModelValue(
+  const items2 = toModelValue(
     typeName2,
     attr,
     Array.isArray(value) ? value : [value]
   );
   const list2 = elem[attr.name];
-  for (const item of items) {
+  for (const item of items2) {
     if (op === "add" && !list2.includes(item)) {
       inStarUML(() => app.engine.addItem(elem, attr.name, item));
     } else if (op === "remove" && list2.includes(item)) {
@@ -7523,6 +9522,11 @@ var Pool = class {
   }
 };
 var isEdge = (v) => "tail" in v && "head" in v;
+var VIEW_ONLY_EDGES = {
+  UMLNoteLinkView: "NoteLink",
+  UMLContainmentView: "UMLContainment"
+};
+var viewOnly = (type2) => Object.values(VIEW_ONLY_EDGES).includes(type2);
 function existing(diagram) {
   const nodes = new Pool();
   const edges = new Pool();
@@ -7533,9 +9537,12 @@ function existing(diagram) {
     if (!model) {
       if (view instanceof type.UMLNoteView) {
         nodes.add(`Note|${String(view.text)}`, view);
-      } else if (view instanceof type.UMLNoteLinkView) {
+      } else if (VIEW_ONLY_EDGES[view.constructor.name]) {
         const ends2 = [view.tail, view.head];
-        edges.add(`NoteLink|${ends2[0]._id}|${ends2[1]._id}`, view);
+        edges.add(
+          `${VIEW_ONLY_EDGES[view.constructor.name]}|${ends2[0]._id}|${ends2[1]._id}`,
+          view
+        );
       } else {
         continue;
       }
@@ -7553,11 +9560,11 @@ function existing(diagram) {
   }
   return { nodes, edges, all };
 }
-var names = (list2) => new Set((Array.isArray(list2) ? list2 : []).map((e) => e.name));
+var names2 = (list2) => new Set((Array.isArray(list2) ? list2 : []).map((e) => e.name));
 function memberOps(node, owner, model) {
   const ops = [];
   const add = (field, members2, op) => {
-    const have = names(model?.[field]);
+    const have = names2(model?.[field]);
     for (const member of members2 ?? []) {
       if (have.has(member.name)) continue;
       have.add(member.name);
@@ -7606,7 +9613,13 @@ function styleOps(node, view, current) {
     }
   ];
 }
-var SHARED_KINDS = /* @__PURE__ */ new Set(["class", "usecase", "erd"]);
+var SHARED_KINDS = /* @__PURE__ */ new Set([
+  "class",
+  "usecase",
+  "erd",
+  "requirement",
+  "c4"
+]);
 function atPath(model, path) {
   let e = model;
   for (let i = path.length - 1; i >= 0; i--) {
@@ -7827,9 +9840,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
   plan.edges.forEach((edge, i) => {
     const tail = refs.get(edge.from);
     const head = refs.get(edge.to);
-    const noteLink = edge.type === "NoteLink";
+    const noteLink = viewOnly(edge.type);
     const found = pools?.edges.take(
-      noteLink ? `NoteLink|${tail.view}|${head.view}` : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`
+      noteLink ? `${edge.type}|${tail.view}|${head.view}` : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`
     );
     const key = `${edge.from} -> ${edge.to}`;
     if (found) {
@@ -7844,7 +9857,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         path: "/create_edge_with_view",
         as,
         body: {
-          type: "NoteLink",
+          type: edge.type,
           diagramId: diagramRef,
           tailViewId: tail.view,
           headViewId: head.view
@@ -7933,26 +9946,38 @@ var refSchema = () => object({
 function buildDiagramEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/build_diagram",
-    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
+    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: object({
       kind: optional(
         doc(
           _enum(KINDS),
-          "Diagram kind; required with spec. With mermaid it is read from the header, and 'activity' or 'usecase' reads a flowchart as that kind."
+          "Diagram kind; required with spec. With text it is read from the source; 'activity' or 'usecase' reads a Mermaid flowchart as that kind, 'erd' JSON Schema as an ERD, and any kind picks the PlantUML reader."
         )
       ),
       spec: optional(
         doc(
           record(string2(), unknown()),
-          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
+          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
         )
       ),
       mermaid: optional(
         doc(
           string2().check(_minLength(1)),
           "Mermaid source instead of spec. The diagram is named by 'name', else front matter 'title:' or a 'title' line."
+        )
+      ),
+      text: optional(
+        doc(
+          string2().check(_minLength(1)),
+          "Diagram source instead of spec, in format: Mermaid, PlantUML (class, sequence, use case, activity, state, IE entity, mind map, C4-PlantUML), SQL DDL (an ERD from CREATE TABLE and foreign keys) or JSON Schema (a class diagram, or an ERD with kind erd). Constructs a StarUML diagram cannot hold are refused as UNSUPPORTED_SYNTAX."
+        )
+      ),
+      format: optional(
+        doc(
+          _enum(FORMATS),
+          "Format of text (or mermaid); detected when omitted: @start... is PlantUML, a JSON object JSON Schema, CREATE TABLE SQL, anything else Mermaid."
         )
       ),
       name: optional(doc(string2(), "Diagram name.")),
@@ -7991,7 +10016,7 @@ function buildDiagramEndpoint(endpoints2) {
       reuse: optional(
         doc(
           boolean2(),
-          "Default true: a class, interface, enum, package, actor, use case or entity named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements."
+          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements."
         )
       )
     }),
@@ -8021,6 +10046,7 @@ function buildDiagramEndpoint(endpoints2) {
       warnings: optional(
         doc(array(string2()), "What was built differently than written.")
       ),
+      format: optional(doc(_enum(FORMATS), "The format text was read as.")),
       layout: doc(
         _enum(["engine", "placed"]),
         "engine: Format > Layout arranged it; placed: the computed placement stands."
@@ -8039,18 +10065,33 @@ function buildDiagramEndpoint(endpoints2) {
       )
     }),
     handle: async (input) => {
-      if (input.spec === void 0 === (input.mermaid === void 0)) {
+      const given = [input.spec, input.mermaid, input.text].filter(
+        (x) => x !== void 0
+      );
+      if (given.length !== 1) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          "Pass either spec (with kind) or mermaid"
+          "Pass one of spec (with kind), mermaid and text"
+        );
+      }
+      if (input.mermaid !== void 0 && (input.format ?? "mermaid") !== "mermaid") {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `format: mermaid holds Mermaid; pass ${input.format} source as text`
         );
       }
       let kind;
       let spec;
       let title;
       let direction2 = input.direction;
-      if (input.mermaid !== void 0) {
-        const parsed = parseMermaid(input.mermaid, input.kind);
+      const source = input.mermaid ?? input.text;
+      let parsed;
+      if (source !== void 0) {
+        parsed = parseSource(
+          source,
+          input.mermaid !== void 0 ? "mermaid" : input.format,
+          input.kind
+        );
         kind = parsed.kind;
         spec = parsed.spec;
         title = parsed.title;
@@ -8104,6 +10145,7 @@ function buildDiagramEndpoint(endpoints2) {
         return { key, model: r.model?._id ?? null, view: r.view._id };
       });
       const target = diagram ?? requireElement(byName.get("diagram")._id);
+      const warnings = [...parsed?.warnings ?? [], ...built.warnings];
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
@@ -8116,7 +10158,8 @@ function buildDiagramEndpoint(endpoints2) {
         ...built.preset && { preset: built.preset },
         ...built.shown > 0 && { shown: built.shown },
         ...input.prune && { deleted: built.deleted },
-        ...built.warnings.length > 0 && { warnings: built.warnings },
+        ...parsed && input.text !== void 0 && { format: parsed.format },
+        ...warnings.length > 0 && { warnings },
         ids: ids2,
         edges
       };
@@ -11982,20 +14025,20 @@ function dialogMethods() {
   return found;
 }
 function methodNames(host) {
-  const names2 = new Set(Object.keys(host));
+  const names3 = new Set(Object.keys(host));
   for (const name2 of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
-    names2.add(name2);
+    names3.add(name2);
   }
-  return [...names2].filter((n) => typeof host[n] === "function");
+  return [...names3].filter((n) => typeof host[n] === "function");
 }
 async function withoutDialogs(what, run) {
   const attempted = [];
   const restore = [];
-  for (const [host, name2, label2] of dialogMethods()) {
+  for (const [host, name2, label3] of dialogMethods()) {
     const own2 = Object.getOwnPropertyDescriptor(host, name2);
     host[name2] = () => {
-      attempted.push(label2);
-      throw new DialogRefused(label2);
+      attempted.push(label3);
+      throw new DialogRefused(label3);
     };
     restore.push(() => {
       if (own2) Object.defineProperty(host, name2, own2);
@@ -12050,11 +14093,11 @@ function refuseDialog(id2, args) {
   }
   const needed = info?.avoidWith ?? 0;
   if (info?.dialog === "without-args" && args.length < needed) {
-    const names2 = info.args.slice(0, needed).map((a) => a.name);
+    const names3 = info.args.slice(0, needed).map((a) => a.name);
     throw new ApiError(
       "DIALOG_REQUIRED",
-      `${id2} opens a dialog unless given ${names2.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
-      { dialog: "without-args", args: names2 }
+      `${id2} opens a dialog unless given ${names3.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
+      { dialog: "without-args", args: names3 }
     );
   }
 }
@@ -12476,7 +14519,7 @@ function diagramExport() {
 }
 
 // src/handlers/describe.ts
-function label(elem) {
+function label2(elem) {
   return elem.name.replace(/\s*\n\s*/g, " ");
 }
 function nodeViews(diagram) {
@@ -12494,10 +14537,10 @@ function membersOf(model) {
   return [
     ...list(model.attributes).map((a) => formatAttribute(a)),
     ...list(model.operations).map((o) => formatOperation(o)),
-    ...list(model.literals).map((l) => label(l)),
+    ...list(model.literals).map((l) => label2(l)),
     ...list(model.columns).map(
       (c) => [
-        label(c),
+        label2(c),
         typeText(c.type) + (typeof c.length === "string" && c.length ? `(${c.length})` : ""),
         c.primaryKey ? "PK" : "",
         c.foreignKey ? "FK" : ""
@@ -12506,7 +14549,7 @@ function membersOf(model) {
   ];
 }
 var quoted = (elem) => {
-  const name2 = label(elem);
+  const name2 = label2(elem);
   return name2 ? `"${name2}"` : "(unnamed)";
 };
 function nodeLine(view) {
@@ -12516,7 +14559,7 @@ function nodeLine(view) {
 }
 function edgeLine(view) {
   const model = view.model;
-  const name2 = label(model);
+  const name2 = label2(model);
   return `- ${quoted(view.tail.model)} -[${model.constructor.name}` + (name2 ? ` "${name2}"` : "") + `]-> ${quoted(view.head.model)}`;
 }
 var describeDiagram = defineEndpoint({
@@ -12747,23 +14790,23 @@ function classSpec2(v) {
   for (const edge of v.edges) {
     const m = edge.model;
     const t = typeOf(m);
-    const named = m.name ? { name: nameOf(m) } : {};
+    const named2 = m.name ? { name: nameOf(m) } : {};
     if (t === "UMLGeneralization" || t === "UMLInterfaceRealization") {
       relations.push({
         from: nameOf(m.source),
         to: nameOf(m.target),
         type: t === "UMLGeneralization" ? "generalization" : "realization",
-        ...named
+        ...named2
       });
     } else if (t === "UMLDependency") {
       relations.push({
         from: nameOf(m.source),
         to: nameOf(m.target),
         type: "dependency",
-        ...named
+        ...named2
       });
     } else if (t === "UMLAssociation") {
-      relations.push(association(m, named));
+      relations.push(association(m, named2));
     } else {
       v.skip(edge);
     }
@@ -12775,7 +14818,7 @@ function classNotes(v) {
     (m) => m instanceof type.UMLClassifier ? nameOf(m) : void 0
   );
 }
-function association(m, named) {
+function association(m, named2) {
   let [a, b] = [m.end1, m.end2];
   if (a.aggregation !== "none" && b.aggregation === "none") [a, b] = [b, a];
   const type2 = b.aggregation === "composite" ? "composition" : b.aggregation === "shared" ? "aggregation" : b.navigable === "navigable" && a.navigable !== "navigable" ? "directed" : "association";
@@ -12783,7 +14826,7 @@ function association(m, named) {
     from: nameOf(a.reference),
     to: nameOf(b.reference),
     type: type2,
-    ...named,
+    ...named2,
     ...str2(a.multiplicity) && { fromMultiplicity: str2(a.multiplicity) },
     ...str2(b.multiplicity) && { toMultiplicity: str2(b.multiplicity) }
   };
@@ -13092,6 +15135,106 @@ function scopeOf(spec) {
     return chain(t.from).find((p) => outer.has(p));
   };
 }
+var REQUIREMENT_STEREOTYPES = Object.fromEntries(
+  Object.entries(REQUIREMENT_TYPES).map(([type2, s]) => [s ?? "", type2])
+);
+var REQUIREMENT_EDGES = Object.fromEntries(
+  Object.entries(REQUIREMENT_RELATIONS).map(([type2, t]) => [t, type2])
+);
+function requirementSpec2(v, owned) {
+  const requirements = [];
+  const elements = [];
+  for (const view of v.nodes) {
+    const m = view.model;
+    const t = typeOf(m);
+    if (t === "SysMLRequirement") {
+      const doc2 = str2(m.documentation);
+      const line = (key) => new RegExp(`^${key}: (.+)$`, "m").exec(doc2)?.[1];
+      const risk = line("Risk");
+      const verifyMethod = line("VerifyMethod");
+      requirements.push({
+        name: nameOf(m),
+        type: REQUIREMENT_STEREOTYPES[str2(m.stereotype)] ?? "requirement",
+        id: str2(m.id),
+        text: str2(m.text),
+        ...risk && { risk },
+        ...verifyMethod && { verifyMethod }
+      });
+    } else if (t === "UMLClass") {
+      const attr = (n) => list(m.attributes).find((a) => a.name === n)?.defaultValue;
+      const type2 = attr("Type");
+      const docRef = attr("DocRef");
+      elements.push({
+        name: nameOf(m),
+        ...type2 !== void 0 && { type: type2 },
+        ...docRef !== void 0 && { docRef }
+      });
+    } else {
+      v.skip(view);
+    }
+  }
+  const relations = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    const t = typeOf(m);
+    const type2 = t === "UMLDependency" ? str2(m.stereotype) === "trace" ? "traces" : void 0 : REQUIREMENT_EDGES[t];
+    if (!type2) {
+      v.skip(edge);
+      continue;
+    }
+    const { tail, head } = ends(edge);
+    relations.push({ from: nameOf(tail), to: nameOf(head), type: type2 });
+  }
+  for (const view of owned) {
+    if (!(view instanceof type.UMLContainmentView)) continue;
+    const { tail, head } = ends(view);
+    relations.push({ from: nameOf(head), to: nameOf(tail), type: "contains" });
+  }
+  return { requirements, elements, relations };
+}
+var C4_KINDS = Object.fromEntries(
+  Object.entries(C4_TYPES).map(([type2, t]) => [t, type2])
+);
+function c4Spec2(v) {
+  const ids2 = /* @__PURE__ */ new Map();
+  const elements = [];
+  for (const view of v.nodes) {
+    const m = view.model;
+    const type2 = C4_KINDS[typeOf(m)];
+    if (!type2) {
+      v.skip(view);
+      continue;
+    }
+    const id2 = `E${elements.length}`;
+    ids2.set(m, id2);
+    elements.push({
+      id: id2,
+      name: nameOf(m),
+      type: type2,
+      ...type2 === "container" && { kind: str2(m.kind) },
+      technology: str2(m.technology),
+      description: str2(m.description),
+      external: str2(view.fillColor).toLowerCase() === "#999999"
+    });
+  }
+  const relations = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    const { tail, head } = ends(edge);
+    if (typeOf(m) !== "C4Relationship" || !ids2.has(tail) || !ids2.has(head)) {
+      v.skip(edge);
+      continue;
+    }
+    relations.push({
+      from: ids2.get(tail),
+      to: ids2.get(head),
+      label: nameOf(m),
+      technology: str2(m.technology),
+      description: str2(m.description)
+    });
+  }
+  return { elements, relations };
+}
 function extract(diagram, kind) {
   const nodes = nodeViews(diagram);
   const edges = edgeViews(diagram);
@@ -13123,11 +15266,49 @@ function extract(diagram, kind) {
         return { kind, spec: erdSpec2(v) };
       case "flowchart":
         return { kind, spec: flowchartSpec3(v), direction: direction2 };
+      case "requirement":
+        return { kind, spec: requirementSpec2(v, owned) };
+      case "c4":
+        return { kind, spec: c4Spec2(v) };
       default:
         return { kind, spec: mindmapSpec2(v) };
     }
   })();
   return { extracted, warnings: v.warnings() };
+}
+
+// src/text/c4-writer.ts
+function c4Level(spec) {
+  if (spec.elements.some((e) => e.type === "component")) return "Component";
+  if (spec.elements.some((e) => e.type === "container")) return "Container";
+  return "Context";
+}
+var MACROS = {
+  person: "Person",
+  system: "System",
+  container: "Container",
+  component: "Component"
+};
+function call(name2, alias, args) {
+  while (args.length > 0 && args.at(-1) === "") args.pop();
+  const quoted2 = args.map(
+    (a) => `"${a.replace(/"/g, "'").replace(/\r?\n/g, " ")}"`
+  );
+  return `${name2}(${[...alias, ...quoted2].join(", ")})`;
+}
+function c4Macros(spec) {
+  const lines = spec.elements.map((e) => {
+    const db = e.kind === "database" && e.type !== "person" ? "Db" : "";
+    const name2 = `${MACROS[e.type]}${db}${e.external ? "_Ext" : ""}`;
+    const technology = e.type === "container" || e.type === "component" ? [e.technology] : [];
+    return call(name2, [e.id], [e.name, ...technology, e.description]);
+  });
+  for (const r of spec.relations) {
+    lines.push(
+      call("Rel", [r.from, r.to], [r.label, r.technology, r.description])
+    );
+  }
+  return lines;
 }
 
 // src/text/mermaid-writer.ts
@@ -13149,7 +15330,7 @@ var Ids = class {
     return id2;
   }
 };
-function classDiagram2(spec, notes) {
+function classDiagram3(spec, notes) {
   const ids2 = new Ids("C");
   const warnings = [];
   const lines = ["classDiagram"];
@@ -13187,7 +15368,7 @@ function classDiagram2(spec, notes) {
     const to = ids2.get(r.to);
     const card = (m) => m ? ` "${m}"` : "";
     const cardAfter = (m) => m ? `"${m}" ` : "";
-    const label2 = r.name ? ` : ${text3(r.name)}` : "";
+    const label3 = r.name ? ` : ${text3(r.name)}` : "";
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
@@ -13196,7 +15377,7 @@ function classDiagram2(spec, notes) {
       directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
       dependency: `${from} ..> ${to}`
     }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
-    lines.push(`  ${line}${label2}`);
+    lines.push(`  ${line}${label3}`);
   }
   for (const n of notes) {
     if (n.on.length > 1)
@@ -13222,7 +15403,7 @@ var BLOCKS = {
   par: "and",
   critical: "option"
 };
-function sequenceDiagram2(spec, notes) {
+function sequenceDiagram3(spec, notes) {
   const lines = ["sequenceDiagram"];
   const warnings = [];
   const ids2 = new Ids("P");
@@ -13304,9 +15485,9 @@ function usecase(spec, direction2) {
   }
   spec.useCases.forEach((u, i) => !u.inSystem && useCase(u, i, "  "));
   for (const r of spec.relations) {
-    const label2 = r.type === "association" ? r.name : r.type;
+    const label3 = r.type === "association" ? r.name : r.type;
     lines.push(
-      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label2 ? `|${text3(label2)}|` : ""} ${ids2.get(r.to)}`
+      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label3 ? `|${text3(label3)}|` : ""} ${ids2.get(r.to)}`
     );
   }
   return lines;
@@ -13333,8 +15514,8 @@ function activity(spec, direction2) {
   const lines = [HEADER2[direction2]];
   const node = (n, indent) => {
     const [open, close] = ACTIVITY_SHAPES[n.type];
-    const label2 = n.name || ACTIVITY_LABELS[n.type] || " ";
-    lines.push(`${indent}${n.id}${open}"${text3(label2)}"${close}`);
+    const label3 = n.name || ACTIVITY_LABELS[n.type] || " ";
+    lines.push(`${indent}${n.id}${open}"${text3(label3)}"${close}`);
   };
   for (const lane of spec.lanes) {
     lines.push(`  subgraph ${laneId(spec.lanes, lane)}["${text3(lane)}"]`);
@@ -13348,7 +15529,7 @@ function activity(spec, direction2) {
   return lines;
 }
 var laneId = (lanes, lane) => `L${lanes.indexOf(lane)}`;
-function stateDiagram2(spec, direction2, notes) {
+function stateDiagram3(spec, direction2, notes) {
   const lines = ["stateDiagram-v2"];
   if (direction2 === "LR" || direction2 === "RL") {
     lines.push(`  direction ${direction2}`);
@@ -13375,12 +15556,12 @@ function stateDiagram2(spec, direction2, notes) {
     }
     for (const t of spec.transitions) {
       if (scope(t) !== parent) continue;
-      const label2 = [
+      const label3 = [
         t.trigger ? text3(t.trigger) : "",
         t.guard ? `[${text3(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines.push(
-        `${indent}${ref2(t.from)} --> ${ref2(t.to)}${label2 ? ` : ${label2}` : ""}`
+        `${indent}${ref2(t.from)} --> ${ref2(t.to)}${label3 ? ` : ${label3}` : ""}`
       );
     }
   };
@@ -13406,7 +15587,7 @@ var RIGHT = {
   "1..*": "|{"
 };
 var entity = (name2) => /^[\w-]+$/.test(name2) ? name2 : `"${text3(name2)}"`;
-function erDiagram2(spec) {
+function erDiagram3(spec) {
   const lines = ["erDiagram"];
   for (const e of spec.entities) {
     if (e.columns.length === 0) {
@@ -13460,13 +15641,13 @@ function flowchart2(spec, direction2) {
   }
   return { lines, warnings };
 }
-function mindmap2(roots) {
+function mindmap3(roots) {
   const lines = ["mindmap"];
   const warnings = [];
   const write = (node, depth) => {
     const name2 = text3(node.name);
-    const label2 = /[()[\]{}]/.test(name2) ? `n["${name2}"]` : name2 || '[" "]';
-    lines.push(`${"  ".repeat(depth)}${label2}`);
+    const label3 = /[()[\]{}]/.test(name2) ? `n["${name2}"]` : name2 || '[" "]';
+    lines.push(`${"  ".repeat(depth)}${label3}`);
     for (const child of node.children) write(child, depth + 1);
   };
   if (roots.length > 1) {
@@ -13474,6 +15655,39 @@ function mindmap2(roots) {
   }
   if (roots[0]) write(roots[0], 1);
   return { lines, warnings };
+}
+var REQUIREMENT_KEYWORDS2 = {
+  requirement: "requirement",
+  functional: "functionalRequirement",
+  interface: "interfaceRequirement",
+  performance: "performanceRequirement",
+  physical: "physicalRequirement",
+  design: "designConstraint"
+};
+var reqName = (name2) => /^\w+$/.test(name2) ? name2 : `"${text3(name2)}"`;
+function requirementDiagram2(spec) {
+  const lines = ["requirementDiagram"];
+  for (const r of spec.requirements) {
+    lines.push(`  ${REQUIREMENT_KEYWORDS2[r.type]} ${reqName(r.name)} {`);
+    if (r.id) lines.push(`    id: "${text3(r.id)}"`);
+    if (r.text) lines.push(`    text: "${text3(r.text)}"`);
+    if (r.risk) lines.push(`    risk: ${r.risk}`);
+    if (r.verifyMethod) lines.push(`    verifymethod: ${r.verifyMethod}`);
+    lines.push("  }");
+  }
+  for (const e of spec.elements) {
+    lines.push(`  element ${reqName(e.name)} {`);
+    if (e.type !== void 0) lines.push(`    type: "${text3(e.type)}"`);
+    if (e.docRef !== void 0) lines.push(`    docref: "${text3(e.docRef)}"`);
+    lines.push("  }");
+  }
+  for (const r of spec.relations) {
+    lines.push(`  ${reqName(r.from)} - ${r.type} -> ${reqName(r.to)}`);
+  }
+  return lines;
+}
+function c4(spec) {
+  return [`C4${c4Level(spec)}`, ...c4Macros(spec).map((l) => `  ${l}`)];
 }
 function toMermaid(x, title = "") {
   const front = title ? ["---", `title: "${text3(title)}"`, "---"] : [];
@@ -13484,11 +15698,11 @@ function toMermaid(x, title = "") {
   });
   switch (x.kind) {
     case "class": {
-      const { lines, warnings } = classDiagram2(x.spec, x.notes ?? []);
+      const { lines, warnings } = classDiagram3(x.spec, x.notes ?? []);
       return done(lines, warnings);
     }
     case "sequence": {
-      const { lines, warnings } = sequenceDiagram2(x.spec, x.notes ?? []);
+      const { lines, warnings } = sequenceDiagram3(x.spec, x.notes ?? []);
       return done(lines, warnings);
     }
     case "usecase":
@@ -13496,15 +15710,19 @@ function toMermaid(x, title = "") {
     case "activity":
       return done(activity(x.spec, x.direction));
     case "statemachine":
-      return done(stateDiagram2(x.spec, x.direction, x.notes ?? []));
+      return done(stateDiagram3(x.spec, x.direction, x.notes ?? []));
     case "erd":
-      return done(erDiagram2(x.spec));
+      return done(erDiagram3(x.spec));
     case "flowchart": {
       const { lines, warnings } = flowchart2(x.spec, x.direction);
       return done(lines, warnings);
     }
+    case "requirement":
+      return done(requirementDiagram2(x.spec));
+    case "c4":
+      return done(c4(x.spec));
     default: {
-      const { lines, warnings } = mindmap2(x.spec.roots);
+      const { lines, warnings } = mindmap3(x.spec.roots);
       return done(lines, warnings);
     }
   }
@@ -13513,9 +15731,9 @@ function toMermaid(x, title = "") {
 // src/text/plantuml-writer.ts
 var q = (name2) => `"${name2.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
 var one = (name2) => name2.replace(/\r?\n/g, " ");
-function aliases(names2, prefix) {
+function aliases(names3, prefix) {
   const ids2 = /* @__PURE__ */ new Map();
-  for (const n of names2) if (!ids2.has(n)) ids2.set(n, `${prefix}${ids2.size}`);
+  for (const n of names3) if (!ids2.has(n)) ids2.set(n, `${prefix}${ids2.size}`);
   return (name2) => ids2.get(name2);
 }
 var noteLines = (head, body, indent = "") => [
@@ -13523,7 +15741,7 @@ var noteLines = (head, body, indent = "") => [
   ...body.split(/\r?\n/).map((l) => `${indent}  ${l}`),
   `${indent}end note`
 ];
-function classDiagram3(spec, notes) {
+function classDiagram4(spec, notes) {
   const id2 = aliases(
     spec.classes.map((c) => c.name),
     "C"
@@ -13557,7 +15775,7 @@ function classDiagram3(spec, notes) {
     const to = id2(r.to);
     const card = (m) => m ? ` "${m}"` : "";
     const cardAfter = (m) => m ? `"${m}" ` : "";
-    const label2 = r.name ? ` : ${one(r.name)}` : "";
+    const label3 = r.name ? ` : ${one(r.name)}` : "";
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
@@ -13566,7 +15784,7 @@ function classDiagram3(spec, notes) {
       directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
       dependency: `${from} ..> ${to}`
     }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
-    lines.push(`${line}${label2}`);
+    lines.push(`${line}${label3}`);
   }
   notes.forEach((n, i) => {
     lines.push(...noteLines(`note as N${i}`, n.text));
@@ -13582,7 +15800,7 @@ var ARROWS2 = {
   delete: "->"
 };
 var GROUPS = /* @__PURE__ */ new Set(["alt", "opt", "loop", "par", "break", "critical"]);
-function sequenceDiagram3(spec, notes) {
+function sequenceDiagram4(spec, notes) {
   const id2 = aliases(spec.participants, "P");
   const lines = spec.participants.map((p) => `participant ${q(p)} as ${id2(p)}`);
   const open = [];
@@ -13702,7 +15920,7 @@ function flowchart3(spec, direction2) {
   return graph(spec.nodes, spec.flows, direction2);
 }
 var STEREOTYPES = /* @__PURE__ */ new Set(["choice", "fork", "join"]);
-function stateDiagram3(spec, direction2, notes) {
+function stateDiagram4(spec, direction2, notes) {
   const lines = [...LAYOUT[direction2]];
   const types = new Map(spec.states.map((s) => [s.id, s.type]));
   const ref2 = (id2) => {
@@ -13728,12 +15946,12 @@ function stateDiagram3(spec, direction2, notes) {
     }
     for (const t of spec.transitions) {
       if (scope(t) !== parent) continue;
-      const label2 = [
+      const label3 = [
         t.trigger ? one(t.trigger) : "",
         t.guard ? `[${one(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines.push(
-        `${indent}${ref2(t.from)} --> ${ref2(t.to)}${label2 ? ` : ${label2}` : ""}`
+        `${indent}${ref2(t.from)} --> ${ref2(t.to)}${label3 ? ` : ${label3}` : ""}`
       );
     }
   };
@@ -13757,7 +15975,7 @@ var RIGHT2 = {
   "0..*": "o{",
   "1..*": "|{"
 };
-function erDiagram3(spec) {
+function erDiagram4(spec) {
   const id2 = aliases(
     spec.entities.map((e) => e.name),
     "E"
@@ -13786,7 +16004,7 @@ function erDiagram3(spec) {
   }
   return lines;
 }
-function mindmap3(roots) {
+function mindmap4(roots) {
   const lines = [];
   const write = (node, depth) => {
     lines.push(`${"*".repeat(depth)} ${one(node.name)}`);
@@ -13794,6 +16012,45 @@ function mindmap3(roots) {
   };
   for (const root of roots) write(root, 1);
   return lines;
+}
+var REQUIREMENT_ARROWS = {
+  copies: "<<copy>>",
+  derives: "<<deriveReqt>>",
+  satisfies: "<<satisfy>>",
+  verifies: "<<verify>>",
+  refines: "<<refine>>",
+  traces: "<<trace>>"
+};
+function requirementDiagram3(spec) {
+  const id2 = aliases(
+    [...spec.requirements, ...spec.elements].map((r) => r.name),
+    "R"
+  );
+  const lines = [];
+  for (const r of spec.requirements) {
+    const stereotype = REQUIREMENT_TYPES[r.type] ?? "requirement";
+    lines.push(`class ${q(r.name)} as ${id2(r.name)} <<${stereotype}>> {`);
+    if (r.id) lines.push(`  id = ${one(r.id)}`);
+    if (r.text) lines.push(`  text = ${one(r.text)}`);
+    if (r.risk) lines.push(`  risk = ${r.risk}`);
+    if (r.verifyMethod) lines.push(`  verifyMethod = ${r.verifyMethod}`);
+    lines.push("}");
+  }
+  for (const e of spec.elements) {
+    lines.push(`class ${q(e.name)} as ${id2(e.name)} <<element>> {`);
+    if (e.type !== void 0) lines.push(`  type = ${one(e.type)}`);
+    if (e.docRef !== void 0) lines.push(`  docRef = ${one(e.docRef)}`);
+    lines.push("}");
+  }
+  for (const r of spec.relations) {
+    lines.push(
+      r.type === "contains" ? `${id2(r.from)} +-- ${id2(r.to)}` : `${id2(r.from)} ..> ${id2(r.to)} : ${REQUIREMENT_ARROWS[r.type]}`
+    );
+  }
+  return lines;
+}
+function c42(spec) {
+  return [`!include <C4/C4_${c4Level(spec)}>`, ...c4Macros(spec)];
 }
 function toPlantUml(x, title = "") {
   const done = (lines, warnings = [], start = "@startuml", end = "@enduml") => ({
@@ -13803,9 +16060,9 @@ function toPlantUml(x, title = "") {
   });
   switch (x.kind) {
     case "class":
-      return done(classDiagram3(x.spec, x.notes ?? []));
+      return done(classDiagram4(x.spec, x.notes ?? []));
     case "sequence":
-      return done(sequenceDiagram3(x.spec, x.notes ?? []));
+      return done(sequenceDiagram4(x.spec, x.notes ?? []));
     case "usecase":
       return done(usecase2(x.spec, x.direction));
     case "activity": {
@@ -13816,15 +16073,19 @@ function toPlantUml(x, title = "") {
       ]);
     }
     case "statemachine":
-      return done(stateDiagram3(x.spec, x.direction, x.notes ?? []));
+      return done(stateDiagram4(x.spec, x.direction, x.notes ?? []));
     case "erd":
-      return done(erDiagram3(x.spec));
+      return done(erDiagram4(x.spec));
     case "flowchart": {
       const { lines, warnings } = flowchart3(x.spec, x.direction);
       return done(lines, warnings);
     }
+    case "requirement":
+      return done(requirementDiagram3(x.spec));
+    case "c4":
+      return done(c42(x.spec));
     default:
-      return done(mindmap3(x.spec.roots), [], "@startmindmap", "@endmindmap");
+      return done(mindmap4(x.spec.roots), [], "@startmindmap", "@endmindmap");
   }
 }
 
@@ -14316,14 +16577,14 @@ function describeModelAndView(id2) {
   };
 }
 function describeToolbox() {
-  const { groups, items } = app.toolbox;
+  const { groups, items: items2 } = app.toolbox;
   return {
     groups: Object.values(groups).map((g) => ({
       id: g.id,
       title: g.title,
       diagramTypes: g.diagramTypes ? g.diagramTypes.map((t) => t.name) : null
     })),
-    items: Object.values(items).map((item) => {
+    items: Object.values(items2).map((item) => {
       const { id: id2, ...options } = item.commandArg ?? {};
       return {
         id: item.id,
@@ -14409,11 +16670,11 @@ function introspectEndpoint(endpoints2) {
           modelAndView: new Set(ids2.modelAndView),
           diagram: new Set(ids2.diagram)
         };
-        const names2 = (input.types ?? Object.keys(meta)).filter(
+        const names3 = (input.types ?? Object.keys(meta)).filter(
           (name2) => Object.hasOwn(meta, name2)
         );
         out.metamodel = Object.fromEntries(
-          names2.sort().map((name2) => [
+          names3.sort().map((name2) => [
             name2,
             describeType(name2, sets, input.inherited === true)
           ])
@@ -14599,9 +16860,9 @@ var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "De
 var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
 var flag = (description) => optional(doc(boolean2(), description));
 var str3 = (description) => optional(text2(description));
-function pick2(input, names2) {
+function pick2(input, names3) {
   const out = {};
-  for (const name2 of names2) {
+  for (const name2 of names3) {
     if (input[name2] !== void 0) out[name2] = input[name2];
   }
   return out;
@@ -14635,10 +16896,10 @@ var structuralShape = () => ({
   documentation: str3("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
-function featureValues(typeName2, input, names2) {
+function featureValues(typeName2, input, names3) {
   return initialValues(typeName2, input.name, {
     ...input.properties,
-    ...pick2(input, names2)
+    ...pick2(input, names3)
   });
 }
 var addAttribute = defineEndpoint({

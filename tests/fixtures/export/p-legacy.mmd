@@ -1,0 +1,17 @@
+flowchart TD
+  N0(["start"])
+  N1["Receive order"]
+  N2{{"fork"}}
+  N3["Pick"]
+  N4["Bill"]
+  N5{{"join"}}
+  N6["Ship"]
+  N7(["end"])
+  N0 --> N1
+  N1 --> N2
+  N2 --> N3
+  N2 --> N4
+  N3 --> N5
+  N4 --> N5
+  N5 -->|paid| N6
+  N6 --> N7

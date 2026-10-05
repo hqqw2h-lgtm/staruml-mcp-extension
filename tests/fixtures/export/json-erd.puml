@@ -1,0 +1,37 @@
+@startuml
+title Order tables
+entity "OrderShipping" as E0 {
+  street : varchar
+  city : varchar
+}
+entity "Order" as E1 {
+  *id : uuid <<PK>>
+  --
+  placedAt : timestamp
+  status_id : varchar <<FK>>
+  customer_id <<FK>>
+  shipping_id <<FK>>
+  note : varchar
+}
+entity "Status" as E2 {
+  *value : varchar <<PK>>
+}
+entity "Party" as E3 {
+  *id : integer <<PK>>
+  --
+  name : varchar
+}
+entity "Customer" as E4 {
+  email : varchar
+}
+entity "Line" as E5 {
+  qty : integer
+  price : numeric
+  tags : varchar[]
+}
+E2 |o..o{ E1
+E4 ||..o{ E1
+E1 ||..o{ E5
+E0 |o..o{ E1
+E3 ||--o| E4
+@enduml

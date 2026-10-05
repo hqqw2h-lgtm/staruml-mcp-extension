@@ -1,0 +1,13 @@
+flowchart LR
+  A0["Customer"]
+  A1["Shop Admin"]
+  subgraph S["Shop"]
+    U0(["Browse catalogue"])
+    U1(["Checkout"])
+    U2(["Pay"])
+  end
+  A0 --- U0
+  A0 --- U1
+  U1 -->|include| U2
+  A1 --- U0
+  A1 -->|generalization| A0

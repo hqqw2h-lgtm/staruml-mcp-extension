@@ -113,19 +113,25 @@ describe("/build_diagram requests", () => {
       build,
       {},
       "INVALID_ARGUMENT",
-      "Pass either spec (with kind) or mermaid",
+      "Pass one of spec (with kind), mermaid and text",
     );
     await fails(
       build,
       { kind: "class", spec: {}, mermaid: "classDiagram" },
       "INVALID_ARGUMENT",
-      "Pass either spec (with kind) or mermaid",
+      "Pass one of spec (with kind), mermaid and text",
     );
     await fails(
       build,
       { spec: {} },
       "INVALID_ARGUMENT",
       "kind: required with spec",
+    );
+    await fails(
+      build,
+      { mermaid: "flowchart\n  A", format: "plantuml" },
+      "INVALID_ARGUMENT",
+      "format: mermaid holds Mermaid; pass plantuml source as text",
     );
     await fails(
       build,

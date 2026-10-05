@@ -667,3 +667,61 @@ describe("notes and nesting", () => {
     ]);
   });
 });
+
+// Issue #16: requirement and C4 writers.
+describe("requirement and C4 writers", () => {
+  it("writes bare requirements and quotes names that are not words", () => {
+    const x: Extracted = {
+      kind: "requirement",
+      spec: {
+        requirements: [
+          { name: "Two words", type: "requirement", id: "", text: "" },
+        ],
+        elements: [{ name: "E" }],
+        relations: [{ from: "E", to: "Two words", type: "satisfies" }],
+      },
+    };
+    const { mermaid, plantuml } = both(x);
+    expect(mermaid.text.split("\n")).toEqual([
+      "requirementDiagram",
+      '  requirement "Two words" {',
+      "  }",
+      "  element E {",
+      "  }",
+      '  E - satisfies -> "Two words"',
+      "",
+    ]);
+    expect(plantuml.text).toContain(
+      'class "Two words" as R0 <<requirement>> {\n}',
+    );
+  });
+
+  it("writes the C4 level the elements need", () => {
+    const element = {
+      technology: "",
+      description: "",
+      external: false,
+    };
+    const x: Extracted = {
+      kind: "c4",
+      spec: {
+        elements: [
+          {
+            ...element,
+            id: "E0",
+            name: "C",
+            type: "component",
+            kind: undefined,
+          },
+          { ...element, id: "E1", name: 'Say "hi"\nnow', type: "person" },
+        ],
+        relations: [],
+      },
+    };
+    const { mermaid, plantuml } = both(x);
+    expect(mermaid.text).toBe(
+      'C4Component\n  Component(E0, "C")\n  Person(E1, "Say \'hi\' now")\n',
+    );
+    expect(plantuml.text).toContain("!include <C4/C4_Component>");
+  });
+});

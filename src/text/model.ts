@@ -26,7 +26,14 @@ import {
   formatOperation,
   typeText,
 } from "../build/members.js";
-import { DIAGRAM_TYPES, FLOWCHART_SHAPES, type Kind } from "../build/spec.js";
+import {
+  C4_TYPES,
+  DIAGRAM_TYPES,
+  FLOWCHART_SHAPES,
+  type Kind,
+  REQUIREMENT_RELATIONS,
+  REQUIREMENT_TYPES,
+} from "../build/spec.js";
 import { edgeViews, list, nodeViews } from "../handlers/describe.js";
 import type { Element, View } from "../types.js";
 
@@ -141,6 +148,42 @@ export interface MindNode {
   children: MindNode[];
 }
 
+export interface RequirementSpec {
+  requirements: {
+    name: string;
+    type: keyof typeof REQUIREMENT_TYPES;
+    id: string;
+    text: string;
+    risk?: string;
+    verifyMethod?: string;
+  }[];
+  elements: { name: string; type?: string; docRef?: string }[];
+  relations: {
+    from: string;
+    to: string;
+    type: keyof typeof REQUIREMENT_RELATIONS;
+  }[];
+}
+
+export interface C4Spec {
+  elements: {
+    id: string;
+    name: string;
+    type: keyof typeof C4_TYPES;
+    kind?: string;
+    technology: string;
+    description: string;
+    external: boolean;
+  }[];
+  relations: {
+    from: string;
+    to: string;
+    label: string;
+    technology: string;
+    description: string;
+  }[];
+}
+
 export type Extracted =
   | { kind: "class"; spec: ClassSpec; notes?: NoteSpec[] }
   | { kind: "sequence"; spec: SequenceSpec; notes?: NoteSpec[] }
@@ -154,7 +197,9 @@ export type Extracted =
     }
   | { kind: "erd"; spec: ErdSpec }
   | { kind: "flowchart"; spec: FlowchartSpec; direction: Direction }
-  | { kind: "mindmap"; spec: { roots: MindNode[] } };
+  | { kind: "mindmap"; spec: { roots: MindNode[] } }
+  | { kind: "requirement"; spec: RequirementSpec }
+  | { kind: "c4"; spec: C4Spec };
 
 const typeOf = (elem: Element) => elem.constructor.name;
 /** Every model element has a name, "" when unnamed (core/core.js). */
@@ -711,6 +756,127 @@ export function scopeOf(spec: StateSpec) {
   };
 }
 
+const REQUIREMENT_STEREOTYPES = Object.fromEntries(
+  Object.entries(REQUIREMENT_TYPES).map(([type, s]) => [s ?? "", type]),
+) as Record<string, keyof typeof REQUIREMENT_TYPES>;
+
+const REQUIREMENT_EDGES = Object.fromEntries(
+  Object.entries(REQUIREMENT_RELATIONS).map(([type, t]) => [t, type]),
+) as Record<string, keyof typeof REQUIREMENT_RELATIONS>;
+
+/**
+ * Requirements, the classes shown with them as elements (Type and DocRef
+ * attributes), and the relations between them. Risk and verify method are
+ * the documentation lines build_diagram writes, as StarUML's own importer
+ * does. A containment has no model; its view runs from the contained
+ * element to the container.
+ */
+function requirementSpec(v: Views, owned: readonly View[]): RequirementSpec {
+  const requirements: RequirementSpec["requirements"] = [];
+  const elements: RequirementSpec["elements"] = [];
+  for (const view of v.nodes) {
+    const m = view.model!;
+    const t = typeOf(m);
+    if (t === "SysMLRequirement") {
+      const doc = str(m.documentation);
+      const line = (key: string) =>
+        new RegExp(`^${key}: (.+)$`, "m").exec(doc)?.[1];
+      const risk = line("Risk");
+      const verifyMethod = line("VerifyMethod");
+      requirements.push({
+        name: nameOf(m),
+        type: REQUIREMENT_STEREOTYPES[str(m.stereotype)] ?? "requirement",
+        id: str(m.id),
+        text: str(m.text),
+        ...(risk && { risk }),
+        ...(verifyMethod && { verifyMethod }),
+      });
+    } else if (t === "UMLClass") {
+      const attr = (n: string) =>
+        list(m.attributes).find((a) => a.name === n)?.defaultValue as
+          string | undefined;
+      const type = attr("Type");
+      const docRef = attr("DocRef");
+      elements.push({
+        name: nameOf(m),
+        ...(type !== undefined && { type }),
+        ...(docRef !== undefined && { docRef }),
+      });
+    } else {
+      v.skip(view);
+    }
+  }
+  const relations: RequirementSpec["relations"] = [];
+  for (const edge of v.edges) {
+    const m = edge.model!;
+    const t = typeOf(m);
+    const type =
+      t === "UMLDependency"
+        ? str(m.stereotype) === "trace"
+          ? "traces"
+          : undefined
+        : REQUIREMENT_EDGES[t];
+    if (!type) {
+      v.skip(edge);
+      continue;
+    }
+    const { tail, head } = ends(edge);
+    relations.push({ from: nameOf(tail), to: nameOf(head), type });
+  }
+  for (const view of owned) {
+    if (!(view instanceof type.UMLContainmentView)) continue;
+    const { tail, head } = ends(view);
+    relations.push({ from: nameOf(head), to: nameOf(tail), type: "contains" });
+  }
+  return { requirements, elements, relations };
+}
+
+const C4_KINDS = Object.fromEntries(
+  Object.entries(C4_TYPES).map(([type, t]) => [t, type]),
+) as Record<string, keyof typeof C4_TYPES>;
+
+/** External elements are the grey ones build_diagram draws. */
+function c4Spec(v: Views): C4Spec {
+  const ids = new Map<Element, string>();
+  const elements: C4Spec["elements"] = [];
+  for (const view of v.nodes) {
+    const m = view.model!;
+    const type = C4_KINDS[typeOf(m)];
+    if (!type) {
+      v.skip(view);
+      continue;
+    }
+    const id = `E${elements.length}`;
+    ids.set(m, id);
+    elements.push({
+      id,
+      name: nameOf(m),
+      type,
+      ...(type === "container" && { kind: str(m.kind) }),
+      technology: str(m.technology),
+      description: str(m.description),
+      external: str(view.fillColor).toLowerCase() === "#999999",
+    });
+  }
+  const relations: C4Spec["relations"] = [];
+  for (const edge of v.edges) {
+    const m = edge.model!;
+    const { tail, head } = ends(edge);
+    if (typeOf(m) !== "C4Relationship" || !ids.has(tail) || !ids.has(head)) {
+      v.skip(edge);
+      continue;
+    }
+    relations.push({
+      from: ids.get(tail)!,
+      to: ids.get(head)!,
+      label: nameOf(m),
+      technology: str(m.technology),
+      description: str(m.description),
+    });
+  }
+  return { elements, relations };
+}
+
 /** The spec of `diagram`'s kind with a warning per kind of view left out. */
 export function extract(
   diagram: Element,
@@ -747,6 +913,10 @@ export function extract(
         return { kind, spec: erdSpec(v) };
       case "flowchart":
         return { kind, spec: flowchartSpec(v), direction };
+      case "requirement":
+        return { kind, spec: requirementSpec(v, owned) };
+      case "c4":
+        return { kind, spec: c4Spec(v) };
       default:
         return { kind, spec: mindmapSpec(v) };
     }

@@ -48,6 +48,22 @@ const EXPECTED: Record<string, [nodes: number, edges: number, kind: string]> = {
   "m-seq-notes": [6, 4, "sequence"],
   "m-flow-styles": [3, 2, "flowchart"],
   "statemachine-nested": [7, 7, "statemachine"],
+  "p-class": [9, 7, "class"],
+  "p-seq": [8, 7, "sequence"],
+  "p-usecase": [6, 5, "usecase"],
+  "p-activity": [16, 16, "activity"],
+  "p-legacy": [8, 8, "activity"],
+  "p-state": [9, 8, "statemachine"],
+  "p-erd": [2, 1, "erd"],
+  "p-mindmap": [6, 5, "mindmap"],
+  "p-c4": [3, 2, "c4"],
+  "sql-shop": [4, 3, "erd"],
+  "json-class": [6, 5, "class"],
+  "json-erd": [6, 5, "erd"],
+  "m-requirement": [5, 5, "requirement"],
+  "m-c4": [5, 4, "c4"],
+  requirement: [3, 3, "requirement"],
+  c4: [4, 3, "c4"],
 };
 
 // Issue #9: /build_diagram against StarUML 7.1.1, every kind from a spec and
@@ -395,3 +411,95 @@ describeLive(
     });
   },
 );
+
+// Issue #16 against StarUML 7.1.1: text formats and their refusals.
+describeLive("/build_diagram text formats (#16)", () => {
+  beforeAll(async () => {
+    await call("/new_project");
+  });
+
+  afterAll(async () => {
+    await call("/new_project");
+  });
+
+  it("detects each format and says which it read", async () => {
+    const formats: [string, string][] = [
+      ["@startuml\nA -> B : hi\n@enduml", "plantuml"],
+      ["CREATE TABLE t (id int PRIMARY KEY)", "sql"],
+      ['{"properties": {"a": {"type": "string"}}}', "jsonschema"],
+      ["flowchart\n  A --> B", "mermaid"],
+    ];
+    for (const [text, format] of formats) {
+      const res = await call<Built & { format: string }>("/build_diagram", {
+        text,
+      });
+      expect(res.success, JSON.stringify(res)).toBe(true);
+      expect(res.data.format).toBe(format);
+    }
+  });
+
+  it("refuses unsupported constructs with UNSUPPORTED_SYNTAX and builds nothing", async () => {
+    const before = await call<{ count: number }>("/find_elements", {
+      type: "Diagram",
+    });
+    for (const text of [
+      "@startgantt\n[A] lasts 2 days\n@endgantt",
+      "@startuml\ncomponent C\n@enduml",
+      "CREATE TABLE t (id int); CREATE VIEW v AS SELECT 1",
+      '{"properties": {"a": {"oneOf": []}}}',
+      'C4Dynamic\n  Rel(a, b, "x")',
+    ]) {
+      const res = await call("/build_diagram", { text });
+      expect(res, text).toMatchObject({
+        status: 422,
+        code: "UNSUPPORTED_SYNTAX",
+      });
+    }
+    const after = await call<{ count: number }>("/find_elements", {
+      type: "Diagram",
+    });
+    expect(after.data.count).toBe(before.data.count);
+  });
+
+  it("writes requirement and C4 diagrams as Mermaid and PlantUML that build again", async () => {
+    for (const body of [cases.requirement, cases.c4]) {
+      const built = await call<Built>(
+        "/build_diagram",
+        body as Record<string, unknown>,
+      );
+      expect(built.success, JSON.stringify(built)).toBe(true);
+      const plantuml = await call<{ text: string }>("/export_text", {
+        diagramId: built.data.diagram._id,
+        format: "plantuml",
+      });
+      expect(plantuml.data.text).toMatch(/^@startuml\n/);
+      const mermaid = await call<{ text: string; kind: string }>(
+        "/export_text",
+        { diagramId: built.data.diagram._id, format: "mermaid" },
+      );
+      const again = await call<Built>("/build_diagram", {
+        text: mermaid.data.text,
+        reuse: false,
+      });
+      expect(again.success, mermaid.data.text).toBe(true);
+      expect(again.data.kind).toBe(built.data.kind);
+      expect(Object.keys(again.data.ids)).toHaveLength(
+        Object.keys(built.data.ids).length,
+      );
+      expect(again.data.edges).toHaveLength(built.data.edges.length);
+    }
+    const c4 = await call<Built>("/build_diagram", {
+      text: '@startuml\n!include <C4/C4_Context>\nPerson(u, "User")\nSystem(s, "Sys")\nRel(u, s, "Uses")\n@enduml',
+    });
+    expect(c4.data.kind).toBe("c4");
+    const plantuml = await call<{ text: string }>("/export_text", {
+      diagramId: c4.data.diagram._id,
+      format: "plantuml",
+    });
+    const rebuilt = await call<Built>("/build_diagram", {
+      text: plantuml.data.text,
+      reuse: false,
+    });
+    expect(rebuilt.data).toMatchObject({ kind: "c4", created: 3 });
+  });
+});

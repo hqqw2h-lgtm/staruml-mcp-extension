@@ -500,5 +500,149 @@
         }
       }
     }
+  },
+  "p-class": {
+    "text": "@startuml\ntitle Library\nskinparam classAttributeIconSize 0\npackage \"Catalogue\" {\n  abstract class Item <<entity>> {\n    -id : long\n    +title : String\n    {abstract} +loanPeriod() : int\n  }\n  class Book extends Item {\n    +isbn : String\n  }\n  interface Lendable\n  enum Format {\n    PRINT\n    EBOOK\n  }\n}\nclass Member #ffeecc {\n  String name\n  +borrow(item : Item) : Loan\n}\nclass Loan\nBook ..|> Lendable\nMember \"1\" -- \"0..*\" Loan : holds >\nLoan --> \"1\" Item\nLoan *-- Format\nnote \"Members borrow items\" as N1\nN1 .. Member\nnote right of Book : printed or e-book\n@enduml"
+  },
+  "p-seq": {
+    "text": "@startuml\nactor User\nparticipant \"Web App\" as W\nparticipant Server as S\ndatabase DB\nUser -> W : open\nactivate W\nW ->> S : fetch\nS --> W : data\nalt cache hit\n  S -> S : read cache\nelse miss\n  S -> DB : query\n  DB --> S : rows\nend\ncreate participant Log\nS -> Log : new\nnote over W, S : all HTTPS\nnote right of User\n  happy\n  path\nend note\n@enduml"
+  },
+  "p-usecase": {
+    "text": "@startuml\nleft to right direction\nactor Customer\nactor \"Shop Admin\" as Admin\nrectangle Shop {\n  usecase \"Browse catalogue\" as UC1\n  usecase (Checkout) as UC2\n  (Pay)\n}\nCustomer --> UC1\nCustomer --> UC2\nUC2 ..> (Pay) : <<include>>\nAdmin -- UC1\nAdmin --|> Customer\n@enduml"
+  },
+  "p-activity": {
+    "text": "@startuml\n|Customer|\nstart\n:Choose items;\n|Shop|\n:Check stock;\nif (in stock?) then (yes)\n  :Reserve;\n  fork\n    :Charge card;\n  fork again\n    :Pack;\n  end fork\nelse (no)\n  :Notify;\nendif\nwhile (more?) is (yes)\n  :Next;\nendwhile (no)\nstop\n@enduml"
+  },
+  "p-legacy": {
+    "text": "@startuml\n(*) --> \"Receive order\" as A1\nA1 --> ===S1===\n===S1=== --> \"Pick\" as A2\n===S1=== --> \"Bill\" as A3\nA2 --> ===S2===\nA3 --> ===S2===\n===S2=== --> [paid] \"Ship\" as A4\nA4 --> (*)\n@enduml",
+    "format": "plantuml"
+  },
+  "p-state": {
+    "text": "@startuml\n[*] --> Idle\nstate \"Working hard\" as Active {\n  [*] --> Running\n  Running --> Paused : pause\n  Paused --> Running : resume [allowed] / log\n}\nIdle --> Active : start\nstate Check <<choice>>\nActive --> Check\nCheck --> [*]\nnote left of Idle : waiting\n@enduml"
+  },
+  "p-erd": {
+    "text": "@startuml\nentity \"Customer\" as E0 {\n  *id : int <<PK>>\n  --\n  name : varchar(80)\n  email : varchar <<UK>>\n}\nentity Invoice {\n  *no : int <<PK>>\n  customer_id : int <<FK>>\n}\nE0 ||--o{ Invoice : bills\n@enduml"
+  },
+  "p-mindmap": {
+    "text": "@startmindmap\n* Project\n** Goals\n*** Speed\n** Risks\n*** Budget\n**:Multi\nline;\n@endmindmap"
+  },
+  "p-c4": {
+    "text": "@startuml\n!include <C4/C4_Context>\nLAYOUT_LEFT_RIGHT()\nPerson(admin, \"Administrator\")\nSystem_Boundary(c1, \"Sample\") {\n  System(web, \"Web\", \"Serves pages\")\n}\nSystemDb_Ext(db, \"Store\", \"Keeps data\")\nRel(admin, web, \"Uses\", \"HTTPS\")\nBiRel(web, db, \"Reads\")\n@enduml"
+  },
+  "sql-shop": {
+    "text": "-- Online shop\nCREATE TABLE customer (\n  id SERIAL PRIMARY KEY,\n  email VARCHAR(120) NOT NULL UNIQUE,\n  name VARCHAR(80)\n);\nCREATE TABLE \"order\" (\n  id BIGINT NOT NULL,\n  customer_id INT NOT NULL REFERENCES customer(id),\n  placed_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  total NUMERIC(10, 2),\n  CONSTRAINT order_pk PRIMARY KEY (id)\n);\nCREATE TABLE order_line (\n  order_id BIGINT NOT NULL,\n  line_no INT NOT NULL,\n  product_id INT,\n  qty INT NOT NULL CHECK (qty > 0),\n  PRIMARY KEY (order_id, line_no),\n  FOREIGN KEY (order_id) REFERENCES \"order\"(id) ON DELETE CASCADE\n);\nCREATE TABLE product (id INT PRIMARY KEY, sku VARCHAR(20) UNIQUE);\nCREATE INDEX order_customer ON \"order\"(customer_id);\nALTER TABLE order_line ADD CONSTRAINT line_product FOREIGN KEY (product_id) REFERENCES product(id);",
+    "name": "Shop"
+  },
+  "json-class": {
+    "text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"Order\",\n  \"type\": \"object\",\n  \"required\": [\"id\", \"customer\", \"lines\"],\n  \"properties\": {\n    \"id\": { \"type\": \"string\", \"format\": \"uuid\" },\n    \"placedAt\": { \"type\": \"string\", \"format\": \"date-time\" },\n    \"status\": { \"$ref\": \"#/$defs/Status\" },\n    \"customer\": { \"$ref\": \"#/$defs/Customer\" },\n    \"lines\": { \"type\": \"array\", \"items\": { \"$ref\": \"#/$defs/Line\" } },\n    \"shipping\": {\n      \"type\": \"object\",\n      \"properties\": { \"street\": { \"type\": \"string\" }, \"city\": { \"type\": \"string\" } }\n    },\n    \"note\": { \"type\": [\"string\", \"null\"] }\n  },\n  \"$defs\": {\n    \"Status\": { \"type\": \"string\", \"enum\": [\"NEW\", \"PAID\", \"SHIPPED\"] },\n    \"Party\": { \"type\": \"object\", \"properties\": { \"id\": { \"type\": \"integer\" }, \"name\": { \"type\": \"string\" } }, \"required\": [\"id\"] },\n    \"Customer\": { \"allOf\": [ { \"$ref\": \"#/$defs/Party\" }, { \"properties\": { \"email\": { \"type\": \"string\", \"format\": \"email\" } } } ] },\n    \"Line\": {\n      \"type\": \"object\",\n      \"required\": [\"qty\"],\n      \"properties\": { \"qty\": { \"type\": \"integer\" }, \"price\": { \"type\": \"number\" }, \"tags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } } }\n    }\n  }\n}"
+  },
+  "json-erd": {
+    "text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"Order\",\n  \"type\": \"object\",\n  \"required\": [\"id\", \"customer\", \"lines\"],\n  \"properties\": {\n    \"id\": { \"type\": \"string\", \"format\": \"uuid\" },\n    \"placedAt\": { \"type\": \"string\", \"format\": \"date-time\" },\n    \"status\": { \"$ref\": \"#/$defs/Status\" },\n    \"customer\": { \"$ref\": \"#/$defs/Customer\" },\n    \"lines\": { \"type\": \"array\", \"items\": { \"$ref\": \"#/$defs/Line\" } },\n    \"shipping\": {\n      \"type\": \"object\",\n      \"properties\": { \"street\": { \"type\": \"string\" }, \"city\": { \"type\": \"string\" } }\n    },\n    \"note\": { \"type\": [\"string\", \"null\"] }\n  },\n  \"$defs\": {\n    \"Status\": { \"type\": \"string\", \"enum\": [\"NEW\", \"PAID\", \"SHIPPED\"] },\n    \"Party\": { \"type\": \"object\", \"properties\": { \"id\": { \"type\": \"integer\" }, \"name\": { \"type\": \"string\" } }, \"required\": [\"id\"] },\n    \"Customer\": { \"allOf\": [ { \"$ref\": \"#/$defs/Party\" }, { \"properties\": { \"email\": { \"type\": \"string\", \"format\": \"email\" } } } ] },\n    \"Line\": {\n      \"type\": \"object\",\n      \"required\": [\"qty\"],\n      \"properties\": { \"qty\": { \"type\": \"integer\" }, \"price\": { \"type\": \"number\" }, \"tags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } } }\n    }\n  }\n}",
+    "kind": "erd",
+    "name": "Order tables"
+  },
+  "m-requirement": {
+    "text": "requirementDiagram\n    requirement test_req {\n    id: 1\n    text: the test text.\n    risk: high\n    verifymethod: test\n    }\n    functionalRequirement test_req2 {\n    id: 1.1\n    text: the second test text.\n    risk: low\n    verifymethod: inspection\n    }\n    performanceRequirement test_req3 {\n    id: 1.2\n    text: the third test text.\n    risk: medium\n    verifymethod: demonstration\n    }\n    element test_entity {\n    type: simulation\n    }\n    element test_entity2 {\n    type: word doc\n    docRef: reqs/test_entity\n    }\n    test_entity - satisfies -> test_req2\n    test_req - traces -> test_req2\n    test_req - contains -> test_req3\n    test_entity2 - verifies -> test_req3\n    test_req <- copies - test_entity2"
+  },
+  "m-c4": {
+    "mermaid": "C4Container\ntitle Container diagram for Internet Banking System\nPerson(customer, \"Customer\", \"A customer of the bank, with personal bank accounts\")\nSystem_Boundary(c1, \"Internet Banking\") {\n    Container(spa, \"Single-Page App\", \"JavaScript, Angular\", \"Provides all the Internet banking functionality to customers via their web browser\")\n    Container(backend_api, \"API Application\", \"Java, Docker Container\", \"Provides Internet banking functionality via API\")\n    ContainerDb(database, \"Database\", \"SQL Database\", \"Stores user registration information, hashed auth credentials, access logs, etc.\")\n}\nSystem_Ext(email_system, \"E-Mail System\", \"The internal Microsoft Exchange system\")\nRel(customer, spa, \"Uses\", \"HTTPS\")\nRel(spa, backend_api, \"Uses\", \"async, JSON/HTTPS\")\nRel_Back(database, backend_api, \"Reads from and writes to\", \"sync, JDBC\")\nRel(email_system, customer, \"Sends e-mails to\")\nUpdateElementStyle(customer, $fontColor=\"red\", $bgColor=\"#08427b\", $borderColor=\"#073b6f\")"
+  },
+  "requirement": {
+    "kind": "requirement",
+    "name": "Spec requirements",
+    "spec": {
+      "requirements": [
+        {
+          "name": "Fast",
+          "type": "performance",
+          "id": "R1",
+          "text": "Pages load in 1 s",
+          "risk": "high",
+          "verifyMethod": "test"
+        },
+        {
+          "name": "Secure",
+          "id": "R2",
+          "text": "Data is encrypted"
+        }
+      ],
+      "elements": [
+        {
+          "name": "LoadTest",
+          "type": "test",
+          "docRef": "tests/load"
+        }
+      ],
+      "relations": [
+        {
+          "from": "LoadTest",
+          "to": "Fast",
+          "type": "verifies"
+        },
+        {
+          "from": "Fast",
+          "to": "Secure",
+          "type": "derives"
+        },
+        {
+          "from": "Secure",
+          "to": "Fast",
+          "type": "contains"
+        }
+      ]
+    }
+  },
+  "c4": {
+    "kind": "c4",
+    "name": "Spec C4",
+    "spec": {
+      "elements": [
+        {
+          "id": "u",
+          "name": "User",
+          "type": "person",
+          "description": "Uses the app"
+        },
+        {
+          "id": "app",
+          "name": "App",
+          "type": "container",
+          "technology": "React",
+          "description": "UI"
+        },
+        {
+          "id": "db",
+          "name": "DB",
+          "type": "container",
+          "kind": "database",
+          "technology": "Postgres"
+        },
+        {
+          "id": "mail",
+          "name": "Mailer",
+          "type": "system",
+          "external": true
+        }
+      ],
+      "relations": [
+        {
+          "from": "u",
+          "to": "app",
+          "label": "Uses",
+          "technology": "HTTPS"
+        },
+        {
+          "from": "app",
+          "to": "db",
+          "label": "Reads",
+          "description": "SQL queries"
+        },
+        {
+          "from": "app",
+          "to": "mail",
+          "label": "Sends mail"
+        }
+      ]
+    }
   }
 }

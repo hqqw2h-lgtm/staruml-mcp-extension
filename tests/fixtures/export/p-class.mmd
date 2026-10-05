@@ -1,0 +1,35 @@
+---
+title: "Library"
+---
+classDiagram
+  namespace Catalogue {
+    class Item {
+      <<abstract>>
+      -id: long
+      +title: String
+      +loanPeriod(): int*
+    }
+    class Book {
+      +isbn: String
+    }
+    class Lendable {
+      <<interface>>
+    }
+    class Format {
+      <<enumeration>>
+      PRINT
+      EBOOK
+    }
+  }
+  class Member {
+    +name: String
+    +borrow(item: Item): Loan
+  }
+  class Loan
+  Item <|-- Book
+  Lendable <|.. Book
+  Member "1" -- "0..*" Loan : holds
+  Loan --> "1" Item
+  Loan *-- Format
+  note for Member "Members borrow items"
+  note for Book "printed or e-book"

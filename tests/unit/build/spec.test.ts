@@ -570,3 +570,134 @@ describe("composite states", () => {
     ).toBe("spec.states.0.parent: A would be nested in itself");
   });
 });
+
+// Issue #16: requirement and C4 kinds.
+describe("requirement and c4", () => {
+  it("plans requirements, elements and relations as StarUML's importer builds them", () => {
+    const plan = planFor("requirement", {
+      requirements: [
+        {
+          name: "R",
+          type: "functional",
+          id: "1",
+          text: "t",
+          risk: "low",
+          verifyMethod: "test",
+        },
+        { name: "Q" },
+      ],
+      elements: [{ name: "E", type: "sim", docRef: "d" }, { name: "F" }],
+      relations: [
+        { from: "E", to: "R", type: "satisfies" },
+        { from: "R", to: "Q", type: "traces" },
+        { from: "R", to: "Q", type: "contains" },
+      ],
+    });
+    expect(
+      plan.nodes.map((n) => [
+        n.key,
+        n.type,
+        n.properties,
+        n.attributes,
+        n.height,
+      ]),
+    ).toEqual([
+      [
+        "R",
+        "SysMLRequirement",
+        {
+          id: "1",
+          text: "t",
+          stereotype: "functionalRequirement",
+          documentation: "Risk: low\nVerifyMethod: test",
+        },
+        undefined,
+        100,
+      ],
+      ["Q", "SysMLRequirement", {}, undefined, 60],
+      [
+        "E",
+        "UMLClass",
+        { stereotype: "element" },
+        [
+          { name: "Type", defaultValue: "sim" },
+          { name: "DocRef", defaultValue: "d" },
+        ],
+        78,
+      ],
+      ["F", "UMLClass", { stereotype: "element" }, undefined, 50],
+    ]);
+    expect(plan.edges).toEqual([
+      { type: "SysMLSatisfy", from: "E", to: "R" },
+      {
+        type: "UMLDependency",
+        from: "R",
+        to: "Q",
+        properties: { stereotype: "trace" },
+      },
+      { type: "UMLContainment", from: "Q", to: "R" },
+    ]);
+  });
+
+  it("plans C4 elements by type, kind and externality", () => {
+    const plan = planFor("c4", {
+      elements: [
+        { id: "p", name: "P", type: "person" },
+        {
+          name: "DB",
+          type: "container",
+          kind: "database",
+          technology: "pg",
+          description: "d",
+        },
+        { name: "S", type: "system", kind: "database", external: true },
+      ],
+      relations: [
+        {
+          from: "p",
+          to: "DB",
+          label: "uses",
+          technology: "sql",
+          description: "q",
+        },
+        { from: "DB", to: "S" },
+      ],
+    });
+    expect(
+      plan.nodes.map((n) => [n.key, n.type, n.properties, n.style, n.height]),
+    ).toEqual([
+      ["p", "C4Person", undefined, undefined, 140],
+      [
+        "DB",
+        "C4Container",
+        { kind: "database", technology: "pg", description: "d" },
+        undefined,
+        110,
+      ],
+      [
+        "S",
+        "C4SoftwareSystem",
+        undefined,
+        { fillColor: "#999999", lineColor: "#8a8a8a" },
+        110,
+      ],
+    ]);
+    expect(plan.edges).toEqual([
+      {
+        type: "C4Relationship",
+        from: "p",
+        to: "DB",
+        name: "uses",
+        properties: { technology: "sql", description: "q" },
+      },
+      { type: "C4Relationship", from: "DB", to: "S" },
+    ]);
+  });
+});
+
+describe("empty requirement and c4 specs", () => {
+  it("plan nothing", () => {
+    expect(planFor("requirement", {})).toMatchObject({ nodes: [], edges: [] });
+    expect(planFor("c4", {})).toMatchObject({ nodes: [], edges: [] });
+  });
+});

@@ -1,0 +1,169 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "ERDDiagram",
+   "name": "",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#5"
+     },
+     "left": 20,
+     "top": 20,
+     "width": 160,
+     "height": 88
+    },
+    {
+     "_id": "#6",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#7"
+     },
+     "left": 20,
+     "top": 120,
+     "width": 160,
+     "height": 72
+    },
+    {
+     "_id": "#8",
+     "_type": "ERDRelationshipView",
+     "model": {
+      "$ref": "#9"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "ERDEntity",
+   "name": "Customer",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#10",
+     "_type": "ERDColumn",
+     "name": "id",
+     "ownedElements": [],
+     "type": "int",
+     "length": "",
+     "primaryKey": true,
+     "foreignKey": false,
+     "nullable": false,
+     "unique": false
+    },
+    {
+     "_id": "#11",
+     "_type": "ERDColumn",
+     "name": "name",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "80",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    },
+    {
+     "_id": "#12",
+     "_type": "ERDColumn",
+     "name": "email",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": true
+    }
+   ]
+  },
+  {
+   "_id": "#7",
+   "_type": "ERDEntity",
+   "name": "Invoice",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#13",
+     "_type": "ERDColumn",
+     "name": "no",
+     "ownedElements": [],
+     "type": "int",
+     "length": "",
+     "primaryKey": true,
+     "foreignKey": false,
+     "nullable": false,
+     "unique": false
+    },
+    {
+     "_id": "#14",
+     "_type": "ERDColumn",
+     "name": "customer_id",
+     "ownedElements": [],
+     "type": "int",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": true,
+     "nullable": true,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#9",
+   "_type": "ERDRelationship",
+   "name": "bills",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#15",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#5"
+    },
+    "cardinality": "1"
+   },
+   "end2": {
+    "_id": "#16",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "cardinality": "0..*"
+   },
+   "identifying": true
+  }
+ ]
+}

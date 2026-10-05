@@ -1,0 +1,10 @@
+@startuml
+(*) --> "Receive order" as N1
+N1 --> ===N2===
+===N2=== --> "Pick" as N3
+===N2=== --> "Bill" as N4
+N3 --> ===N5===
+N4 --> ===N5===
+===N5=== --> [paid] "Ship" as N6
+N6 --> (*)
+@enduml

@@ -644,6 +644,23 @@ export class Factory {
   createModelAndView(options: ModelAndViewOptions): View | null {
     const entry = MODEL_AND_VIEW[options.id];
     if (!entry) return null;
+    if (options.id === "UMLContainment") {
+      // containmentFn (uml-factory.js): the tail model moves into the head
+      // model, and the edge has no model of its own.
+      const view = create<View>("UMLContainmentView");
+      view.tail = options.tailView ?? null;
+      view.head = options.headView ?? null;
+      const tail = options.tailModel!;
+      const head = options.headModel!;
+      if (tail._parent !== head) {
+        const from = tail._parent!.ownedElements as MockElement[];
+        from.splice(from.indexOf(tail), 1);
+        attach(head, "ownedElements", tail);
+      }
+      attach(options.diagram, "ownedViews", view);
+      this.repository.index(view);
+      return view;
+    }
     if (!entry.modelType) {
       if (!entry.viewType) notModeled("Factory", options.id);
       const only = create<View>(entry.viewType);

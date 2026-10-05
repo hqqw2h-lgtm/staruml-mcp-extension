@@ -1,0 +1,21 @@
+---
+title: "Spec requirements"
+---
+requirementDiagram
+  performanceRequirement Fast {
+    id: "R1"
+    text: "Pages load in 1 s"
+    risk: high
+    verifymethod: test
+  }
+  requirement Secure {
+    id: "R2"
+    text: "Data is encrypted"
+  }
+  element LoadTest {
+    type: "test"
+    docref: "tests/load"
+  }
+  LoadTest - verifies -> Fast
+  Fast - derives -> Secure
+  Secure - contains -> Fast

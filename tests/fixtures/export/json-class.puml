@@ -1,0 +1,34 @@
+@startuml
+title Order
+class "OrderShipping" as C0 {
+  +street: string[0..1]
+  +city: string[0..1]
+}
+class "Order" as C1 {
+  +id: uuid
+  +placedAt: date-time[0..1]
+  +note: string[0..1]
+}
+enum "Status" as C2 {
+  NEW
+  PAID
+  SHIPPED
+}
+class "Party" as C3 {
+  +id: integer
+  +name: string[0..1]
+}
+class "Customer" as C4 {
+  +email: email[0..1]
+}
+class "Line" as C5 {
+  +qty: integer
+  +price: number[0..1]
+  +tags: string[*]
+}
+C1 --> "0..1" C2 : status
+C1 --> "1" C4 : customer
+C1 --> "*" C5 : lines
+C1 *-- "0..1" C0
+C3 <|-- C4
+@enduml

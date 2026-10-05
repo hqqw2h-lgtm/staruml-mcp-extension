@@ -1,0 +1,14 @@
+@startuml
+entity "Customer" as E0 {
+  *id : int <<PK>>
+  --
+  name : varchar(80)
+  email : varchar <<UK>>
+}
+entity "Invoice" as E1 {
+  *no : int <<PK>>
+  --
+  customer_id : int <<FK>>
+}
+E0 ||--o{ E1 : bills
+@enduml

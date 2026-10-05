@@ -1,0 +1,390 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLSequenceDiagram",
+   "name": "",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#5"
+     },
+     "left": 40,
+     "top": 20,
+     "width": 120,
+     "height": 703
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#7"
+     },
+     "left": 240,
+     "top": 20,
+     "width": 120,
+     "height": 703
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#9"
+     },
+     "left": 440,
+     "top": 20,
+     "width": 120,
+     "height": 703
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#11"
+     },
+     "left": 640,
+     "top": 20,
+     "width": 120,
+     "height": 703
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#13"
+     },
+     "left": 840,
+     "top": 20,
+     "width": 120,
+     "height": 703
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLCombinedFragmentView",
+     "model": {
+      "$ref": "#15"
+     },
+     "left": 410,
+     "top": 265,
+     "width": 380,
+     "height": 205
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLNoteView",
+     "model": null,
+     "left": 230,
+     "top": 540,
+     "width": 340,
+     "height": 40
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLNoteView",
+     "model": null,
+     "left": 110,
+     "top": 590,
+     "width": 120,
+     "height": 48
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#19"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#21"
+     },
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#23"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#25"
+     },
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#26",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#27"
+     },
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#28",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#29"
+     },
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#30",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#31"
+     },
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLLifeline",
+   "name": "User",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLLifeline",
+   "name": "Web App",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLLifeline",
+   "name": "Server",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLLifeline",
+   "name": "DB",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLLifeline",
+   "name": "Log",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLCombinedFragment",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "parameters": [],
+   "interactionOperator": "alt",
+   "operands": [
+    {
+     "_id": "#32",
+     "_type": "UMLInteractionOperand",
+     "name": "",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "cache hit"
+    },
+    {
+     "_id": "#33",
+     "_type": "UMLInteractionOperand",
+     "name": "",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "miss"
+    }
+   ]
+  },
+  {
+   "_id": "#19",
+   "_type": "UMLMessage",
+   "name": "open",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#21",
+   "_type": "UMLMessage",
+   "name": "fetch",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "asynchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#23",
+   "_type": "UMLMessage",
+   "name": "data",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "reply",
+   "guard": ""
+  },
+  {
+   "_id": "#25",
+   "_type": "UMLMessage",
+   "name": "read cache",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#27",
+   "_type": "UMLMessage",
+   "name": "query",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#11"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#29",
+   "_type": "UMLMessage",
+   "name": "rows",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "reply",
+   "guard": ""
+  },
+  {
+   "_id": "#31",
+   "_type": "UMLMessage",
+   "name": "new",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#13"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "createMessage",
+   "guard": ""
+  }
+ ]
+}

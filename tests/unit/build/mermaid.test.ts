@@ -812,3 +812,117 @@ describe("composite states", () => {
     });
   });
 });
+
+// Issue #16: requirement and C4 diagrams.
+describe("requirementDiagram", () => {
+  const spec = (body: string) =>
+    parseMermaid(`requirementDiagram\n${body}`).spec as Record<string, unknown>;
+
+  it("reads requirements, elements, both relation directions and colours", () => {
+    const s = spec(
+      [
+        "  direction LR",
+        "  requirement r1 {",
+        "    id: 1",
+        '    text: "the <br/> text"',
+        "    risk: High",
+        "    verifymethod: Test",
+        "  }",
+        '  designConstraint "R two":::hot {',
+        "  }",
+        "  element e1 {",
+        '    type: "sim"',
+        "    docRef: a/b",
+        "  }",
+        '  e1 - satisfies -> "R two"',
+        "  r1 <- copies - e1",
+        "  classDef hot fill:#f00",
+      ].join("\n"),
+    );
+    expect(s).toEqual({
+      requirements: [
+        {
+          name: "r1",
+          id: "1",
+          text: "the \n text",
+          risk: "high",
+          verifyMethod: "test",
+        },
+        { name: "R two", type: "design" },
+      ],
+      elements: [{ name: "e1", type: "sim", docRef: "a/b" }],
+      relations: [
+        { from: "e1", to: "R two", type: "satisfies" },
+        { from: "e1", to: "r1", type: "copies" },
+      ],
+      styles: { "R two": { fillColor: "#f00" } },
+    });
+    expect(spec("  requirement r {\n  }").styles).toBeUndefined();
+  });
+
+  it("refuses unknown types, fields, relations and unclosed blocks", () => {
+    expect(refused("requirementDiagram\n  wish w {\n  }")).toBe(
+      "mermaid line 2: unknown requirement type wish",
+    );
+    expect(
+      refused("requirementDiagram\n  element e {\n    risk: high\n  }"),
+    ).toBe("mermaid line 3: unknown field risk");
+    expect(
+      refused("requirementDiagram\n  requirement r {\n    nonsense\n  }"),
+    ).toBe('mermaid line 3: cannot read "nonsense"');
+    expect(refused("requirementDiagram\n  a - likes -> b")).toBe(
+      "mermaid line 2: unknown relation likes",
+    );
+    expect(refused("requirementDiagram\n  requirement r {")).toBe(
+      "mermaid line 2: r is never closed with }",
+    );
+    expect(refused("requirementDiagram\n  ???")).toBe(
+      'mermaid line 2: cannot read "???"',
+    );
+  });
+});
+
+describe("C4", () => {
+  it("reads C4 diagrams through the shared macros, with warnings", () => {
+    const parsed = parseMermaid(
+      'C4Context\n  title Sys\n  Person(a, "A")\n  Boundary(b, "B") {\n    System(s, "S")\n  }\n  Rel(a, s, "uses")',
+    );
+    expect(parsed).toMatchObject({
+      kind: "c4",
+      title: "Sys",
+      spec: {
+        elements: [
+          { id: "a", name: "A", type: "person" },
+          { id: "s", name: "S", type: "system" },
+        ],
+        relations: [{ from: "a", to: "s", label: "uses" }],
+      },
+      warnings: [
+        "1 boundary is not drawn; StarUML 7.1.1 has no C4 boundary element",
+      ],
+    });
+    expect(parseMermaid('C4Component\n  Component(c, "C")')).not.toHaveProperty(
+      "warnings",
+    );
+  });
+
+  it("refuses dynamic and deployment diagrams as unsupported", () => {
+    try {
+      parseMermaid('C4Deployment\n  Deployment_Node(n, "N")');
+      throw new Error("expected a refusal");
+    } catch (err) {
+      expect((err as ApiError).code).toBe("UNSUPPORTED_SYNTAX");
+      expect((err as ApiError).message).toMatch(
+        /^mermaid line 1: C4Deployment is not built/,
+      );
+    }
+  });
+});
+
+describe("C4 lines Mermaid cannot read", () => {
+  it("are refused", () => {
+    expect(refused('C4Context\n  Person(a, "A")\n  nonsense')).toBe(
+      'mermaid line 3: cannot read "nonsense"',
+    );
+  });
+});

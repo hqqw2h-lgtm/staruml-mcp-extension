@@ -1,0 +1,258 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "MMMindmapDiagram",
+   "name": "",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#5"
+     },
+     "left": 20,
+     "top": 20,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#6",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#7"
+     },
+     "left": 20,
+     "top": 120,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#8",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#9"
+     },
+     "left": 20,
+     "top": 220,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#10",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#11"
+     },
+     "left": 20,
+     "top": 320,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#12",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#13"
+     },
+     "left": 20,
+     "top": 420,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#14",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#15"
+     },
+     "left": 20,
+     "top": 520,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#16",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#17"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#19"
+     },
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#21"
+     },
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#23"
+     },
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#25"
+     },
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "MMNode",
+   "name": "Project",
+   "ownedElements": []
+  },
+  {
+   "_id": "#7",
+   "_type": "MMNode",
+   "name": "Goals",
+   "ownedElements": []
+  },
+  {
+   "_id": "#9",
+   "_type": "MMNode",
+   "name": "Speed",
+   "ownedElements": []
+  },
+  {
+   "_id": "#11",
+   "_type": "MMNode",
+   "name": "Risks",
+   "ownedElements": []
+  },
+  {
+   "_id": "#13",
+   "_type": "MMNode",
+   "name": "Budget",
+   "ownedElements": []
+  },
+  {
+   "_id": "#15",
+   "_type": "MMNode",
+   "name": "Multi\nline",
+   "ownedElements": []
+  },
+  {
+   "_id": "#17",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   }
+  },
+  {
+   "_id": "#19",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   }
+  },
+  {
+   "_id": "#21",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#11"
+   }
+  },
+  {
+   "_id": "#23",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#13"
+   }
+  },
+  {
+   "_id": "#25",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#15"
+   }
+  }
+ ]
+}

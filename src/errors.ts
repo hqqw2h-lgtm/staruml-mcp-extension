@@ -49,6 +49,12 @@ export const ERROR_STATUS = {
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**
+   * Well-formed diagram text using a construct /build_diagram does not
+   * translate, e.g. a PlantUML timing diagram or a SQL CREATE VIEW; the
+   * message names it and its line.
+   */
+  UNSUPPORTED_SYNTAX: 422,
+  /**
    * The command would open a modal or native dialog and wait for someone at
    * StarUML; it was refused, or stopped where the dialog would have opened.
    */

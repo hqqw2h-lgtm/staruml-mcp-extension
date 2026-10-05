@@ -35,19 +35,37 @@ const MARGIN = 40;
 const GAP = 60;
 
 /**
- * Longest-path rank from the sources along the edges. Cycles stop growing
- * after as many rounds as there are nodes, so every rank is finite.
+ * Longest-path rank from the sources along the edges, ignoring the edges
+ * that close a cycle (back edges of a depth-first walk in spec order), so a
+ * loop such as a while's way back does not push the nodes it returns to
+ * below the ones it comes from.
  */
 export function ranks(
   keys: readonly string[],
   edges: readonly PlanEdge[],
 ): Map<string, number> {
+  const out = new Map<string, PlanEdge[]>(keys.map((k) => [k, []]));
+  for (const e of edges) out.get(e.from)!.push(e);
+  const state = new Map<string, "open" | "done">();
+  const back = new Set<PlanEdge>();
+  const walk = (key: string) => {
+    state.set(key, "open");
+    for (const e of out.get(key)!) {
+      const s = state.get(e.to);
+      if (s === "open") back.add(e);
+      else if (s === undefined) walk(e.to);
+    }
+    state.set(key, "done");
+  };
+  for (const k of keys) if (!state.has(k)) walk(k);
+  const forward = edges.filter((e) => !back.has(e));
   const rank = new Map(keys.map((k) => [k, 0]));
+  // A DAG's longest paths settle within as many rounds as it has nodes.
   for (let round = 0; round < keys.length; round++) {
     let changed = false;
-    for (const e of edges) {
+    for (const e of forward) {
       const next = rank.get(e.from)! + 1;
-      if (e.from !== e.to && next > rank.get(e.to)! && next < keys.length) {
+      if (next > rank.get(e.to)!) {
         rank.set(e.to, next);
         changed = true;
       }

@@ -35,7 +35,10 @@ import type {
   StateSpec,
   UsecaseSpec,
 } from "./model.js";
+import { REQUIREMENT_TYPES } from "../build/spec.js";
 import { scopeOf } from "./model.js";
+import type { C4Spec, RequirementSpec } from "./model.js";
+import { c4Level, c4Macros } from "./c4-writer.js";
 
 /*
  * Writes the specs read from a diagram as PlantUML (plantuml.com, the
@@ -378,6 +381,56 @@ function mindmap(roots: MindNode[]): string[] {
   return lines;
 }
 
+const REQUIREMENT_ARROWS: Record<string, string> = {
+  copies: "<<copy>>",
+  derives: "<<deriveReqt>>",
+  satisfies: "<<satisfy>>",
+  verifies: "<<verify>>",
+  refines: "<<refine>>",
+  traces: "<<trace>>",
+};
+
+/**
+ * PlantUML has no requirement diagram, so requirements are drawn as
+ * stereotyped classes and their relations as labelled dependencies, the
+ * way SysML draws them; containment is PlantUML's nesting link.
+ */
+function requirementDiagram(spec: RequirementSpec): string[] {
+  const id = aliases(
+    [...spec.requirements, ...spec.elements].map((r) => r.name),
+    "R",
+  );
+  const lines: string[] = [];
+  for (const r of spec.requirements) {
+    const stereotype = REQUIREMENT_TYPES[r.type] ?? "requirement";
+    lines.push(`class ${q(r.name)} as ${id(r.name)} <<${stereotype}>> {`);
+    if (r.id) lines.push(`  id = ${one(r.id)}`);
+    if (r.text) lines.push(`  text = ${one(r.text)}`);
+    if (r.risk) lines.push(`  risk = ${r.risk}`);
+    if (r.verifyMethod) lines.push(`  verifyMethod = ${r.verifyMethod}`);
+    lines.push("}");
+  }
+  for (const e of spec.elements) {
+    lines.push(`class ${q(e.name)} as ${id(e.name)} <<element>> {`);
+    if (e.type !== undefined) lines.push(`  type = ${one(e.type)}`);
+    if (e.docRef !== undefined) lines.push(`  docRef = ${one(e.docRef)}`);
+    lines.push("}");
+  }
+  for (const r of spec.relations) {
+    lines.push(
+      r.type === "contains"
+        ? `${id(r.from)} +-- ${id(r.to)}`
+        : `${id(r.from)} ..> ${id(r.to)} : ${REQUIREMENT_ARROWS[r.type]}`,
+    );
+  }
+  return lines;
+}
+
+/** C4-PlantUML from the standard library include of the level needed. */
+function c4(spec: C4Spec): string[] {
+  return [`!include <C4/C4_${c4Level(spec)}>`, ...c4Macros(spec)];
+}
+
 export function toPlantUml(
   x: Extracted,
   title = "",
@@ -415,6 +468,10 @@ export function toPlantUml(
       const { lines, warnings } = flowchart(x.spec, x.direction);
       return done(lines, warnings);
     }
+    case "requirement":
+      return done(requirementDiagram(x.spec));
+    case "c4":
+      return done(c4(x.spec));
     default:
       return done(mindmap(x.spec.roots), [], "@startmindmap", "@endmindmap");
   }

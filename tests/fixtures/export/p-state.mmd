@@ -1,0 +1,16 @@
+stateDiagram-v2
+  state "Idle" as N1
+  state "Working hard" as N2
+  state N2 {
+    state "Running" as N4
+    state "Paused" as N5
+    [*] --> N4
+    N4 --> N5 : pause
+    N5 --> N4 : resume / log [allowed]
+  }
+  state N6 <<choice>>
+  [*] --> N1
+  N1 --> N2 : start
+  N2 --> N6
+  N6 --> [*]
+  note right of N1 : waiting

@@ -1,0 +1,36 @@
+---
+title: "Order"
+---
+classDiagram
+  class OrderShipping {
+    +street: string[0..1]
+    +city: string[0..1]
+  }
+  class Order {
+    +id: uuid
+    +placedAt: date-time[0..1]
+    +note: string[0..1]
+  }
+  class Status {
+    <<enumeration>>
+    NEW
+    PAID
+    SHIPPED
+  }
+  class Party {
+    +id: integer
+    +name: string[0..1]
+  }
+  class Customer {
+    +email: email[0..1]
+  }
+  class Line {
+    +qty: integer
+    +price: number[0..1]
+    +tags: string[*]
+  }
+  Order --> "0..1" Status : status
+  Order --> "1" Customer : customer
+  Order --> "*" Line : lines
+  Order *-- "0..1" OrderShipping
+  Party <|-- Customer

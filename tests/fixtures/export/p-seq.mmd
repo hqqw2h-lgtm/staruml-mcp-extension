@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant User
+  participant P0 as Web App
+  participant Server
+  participant DB
+  participant Log
+  User->>P0: open
+  P0-)Server: fetch
+  Server-->>P0: data
+  alt cache hit
+    Server->>Server: read cache
+  else miss
+    Server->>DB: query
+    DB-->>Server: rows
+  end
+  Server->>Log: new
+  Note over P0,Server: all HTTPS
+  Note right of User: happy<br/>path

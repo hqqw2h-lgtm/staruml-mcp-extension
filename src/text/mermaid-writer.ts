@@ -35,6 +35,8 @@ import type {
   UsecaseSpec,
 } from "./model.js";
 import { scopeOf } from "./model.js";
+import type { C4Spec, RequirementSpec } from "./model.js";
+import { c4Level, c4Macros } from "./c4-writer.js";
 
 /*
  * Writes the specs read from a diagram as Mermaid that /build_diagram reads
@@ -449,6 +451,45 @@ function mindmap(roots: MindNode[]): { lines: string[]; warnings: string[] } {
   return { lines, warnings };
 }
 
+const REQUIREMENT_KEYWORDS: Record<string, string> = {
+  requirement: "requirement",
+  functional: "functionalRequirement",
+  interface: "interfaceRequirement",
+  performance: "performanceRequirement",
+  physical: "physicalRequirement",
+  design: "designConstraint",
+};
+
+/** A requirement or element name: a word as is, anything else quoted. */
+const reqName = (name: string) =>
+  /^\w+$/.test(name) ? name : `"${text(name)}"`;
+
+function requirementDiagram(spec: RequirementSpec): string[] {
+  const lines = ["requirementDiagram"];
+  for (const r of spec.requirements) {
+    lines.push(`  ${REQUIREMENT_KEYWORDS[r.type]} ${reqName(r.name)} {`);
+    if (r.id) lines.push(`    id: "${text(r.id)}"`);
+    if (r.text) lines.push(`    text: "${text(r.text)}"`);
+    if (r.risk) lines.push(`    risk: ${r.risk}`);
+    if (r.verifyMethod) lines.push(`    verifymethod: ${r.verifyMethod}`);
+    lines.push("  }");
+  }
+  for (const e of spec.elements) {
+    lines.push(`  element ${reqName(e.name)} {`);
+    if (e.type !== undefined) lines.push(`    type: "${text(e.type)}"`);
+    if (e.docRef !== undefined) lines.push(`    docref: "${text(e.docRef)}"`);
+    lines.push("  }");
+  }
+  for (const r of spec.relations) {
+    lines.push(`  ${reqName(r.from)} - ${r.type} -> ${reqName(r.to)}`);
+  }
+  return lines;
+}
+
+function c4(spec: C4Spec): string[] {
+  return [`C4${c4Level(spec)}`, ...c4Macros(spec).map((l) => `  ${l}`)];
+}
+
 /** `title` goes into front matter, where build_diagram takes the name from. */
 export function toMermaid(
   x: Extracted,
@@ -480,6 +521,10 @@ export function toMermaid(
       const { lines, warnings } = flowchart(x.spec, x.direction);
       return done(lines, warnings);
     }
+    case "requirement":
+      return done(requirementDiagram(x.spec));
+    case "c4":
+      return done(c4(x.spec));
     default: {
       const { lines, warnings } = mindmap(x.spec.roots);
       return done(lines, warnings);

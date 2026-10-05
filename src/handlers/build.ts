@@ -23,7 +23,7 @@
 
 import * as z from "zod/mini";
 import { multiline } from "../build/members.js";
-import { parseMermaid } from "../build/mermaid.js";
+import { FORMATS, parseSource } from "../build/source.js";
 import { place } from "../build/place.js";
 import {
   DIAGRAM_TYPES,
@@ -105,6 +105,14 @@ class Pool<T> {
 
 const isEdge = (v: View) => "tail" in v && "head" in v;
 
+/** Edges drawn without a model, by view type: their create ids. */
+const VIEW_ONLY_EDGES: Record<string, string> = {
+  UMLNoteLinkView: "NoteLink",
+  UMLContainmentView: "UMLContainment",
+};
+const viewOnly = (type: string) =>
+  Object.values(VIEW_ONLY_EDGES).includes(type);
+
 /**
  * Views already on `diagram`, keyed for upsert: nodes and edges that show
  * a model, notes by their text and note links by their ends. A frame
@@ -122,9 +130,12 @@ function existing(diagram: Element) {
     if (!model) {
       if (view instanceof type.UMLNoteView) {
         nodes.add(`Note|${String(view.text)}`, view);
-      } else if (view instanceof type.UMLNoteLinkView) {
+      } else if (VIEW_ONLY_EDGES[view.constructor.name]) {
         const ends = [view.tail, view.head] as View[];
-        edges.add(`NoteLink|${ends[0]!._id}|${ends[1]!._id}`, view);
+        edges.add(
+          `${VIEW_ONLY_EDGES[view.constructor.name]}|${ends[0]!._id}|${ends[1]!._id}`,
+          view,
+        );
       } else {
         continue;
       }
@@ -216,7 +227,13 @@ function styleOps(node: PlanNode, view: string, current?: View): Op[] {
 }
 
 /** Diagram kinds whose nodes show model elements other diagrams may show too. */
-const SHARED_KINDS = new Set<Kind>(["class", "usecase", "erd"]);
+const SHARED_KINDS = new Set<Kind>([
+  "class",
+  "usecase",
+  "erd",
+  "requirement",
+  "c4",
+]);
 
 /**
  * Whether `model` sits at `path` (outermost first, the model's own name
@@ -544,10 +561,10 @@ export function opsFor(
   plan.edges.forEach((edge, i) => {
     const tail = refs.get(edge.from)!;
     const head = refs.get(edge.to)!;
-    const noteLink = edge.type === "NoteLink";
+    const noteLink = viewOnly(edge.type);
     const found = pools?.edges.take(
       noteLink
-        ? `NoteLink|${tail.view}|${head.view}`
+        ? `${edge.type}|${tail.view}|${head.view}`
         : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`,
     );
     const key = `${edge.from} -> ${edge.to}`;
@@ -563,7 +580,7 @@ export function opsFor(
         path: "/create_edge_with_view",
         as,
         body: {
-          type: "NoteLink",
+          type: edge.type,
           diagramId: diagramRef,
           tailViewId: tail.view,
           headViewId: head.view,
@@ -690,26 +707,38 @@ export function buildDiagramEndpoint(
   return defineEndpoint({
     path: "/build_diagram",
     description:
-      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
+      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: z.object({
       kind: z.optional(
         doc(
           z.enum(KINDS),
-          "Diagram kind; required with spec. With mermaid it is read from the header, and 'activity' or 'usecase' reads a flowchart as that kind.",
+          "Diagram kind; required with spec. With text it is read from the source; 'activity' or 'usecase' reads a Mermaid flowchart as that kind, 'erd' JSON Schema as an ERD, and any kind picks the PlantUML reader.",
         ),
       ),
       spec: z.optional(
         doc(
           z.record(z.string(), z.unknown()),
-          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
+          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
         ),
       ),
       mermaid: z.optional(
         doc(
           z.string().check(z.minLength(1)),
           "Mermaid source instead of spec. The diagram is named by 'name', else front matter 'title:' or a 'title' line.",
+        ),
+      ),
+      text: z.optional(
+        doc(
+          z.string().check(z.minLength(1)),
+          "Diagram source instead of spec, in format: Mermaid, PlantUML (class, sequence, use case, activity, state, IE entity, mind map, C4-PlantUML), SQL DDL (an ERD from CREATE TABLE and foreign keys) or JSON Schema (a class diagram, or an ERD with kind erd). Constructs a StarUML diagram cannot hold are refused as UNSUPPORTED_SYNTAX.",
+        ),
+      ),
+      format: z.optional(
+        doc(
+          z.enum(FORMATS),
+          "Format of text (or mermaid); detected when omitted: @start... is PlantUML, a JSON object JSON Schema, CREATE TABLE SQL, anything else Mermaid.",
         ),
       ),
       name: z.optional(doc(z.string(), "Diagram name.")),
@@ -748,7 +777,7 @@ export function buildDiagramEndpoint(
       reuse: z.optional(
         doc(
           z.boolean(),
-          "Default true: a class, interface, enum, package, actor, use case or entity named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements.",
+          "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements.",
         ),
       ),
     }),
@@ -778,6 +807,7 @@ export function buildDiagramEndpoint(
       warnings: z.optional(
         doc(z.array(z.string()), "What was built differently than written."),
       ),
+      format: z.optional(doc(z.enum(FORMATS), "The format text was read as.")),
       layout: doc(
         z.enum(["engine", "placed"]),
         "engine: Format > Layout arranged it; placed: the computed placement stands.",
@@ -796,18 +826,36 @@ export function buildDiagramEndpoint(
       ),
     }),
     handle: async (input) => {
-      if ((input.spec === undefined) === (input.mermaid === undefined)) {
+      const given = [input.spec, input.mermaid, input.text].filter(
+        (x) => x !== undefined,
+      );
+      if (given.length !== 1) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          "Pass either spec (with kind) or mermaid",
+          "Pass one of spec (with kind), mermaid and text",
+        );
+      }
+      if (
+        input.mermaid !== undefined &&
+        (input.format ?? "mermaid") !== "mermaid"
+      ) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `format: mermaid holds Mermaid; pass ${input.format} source as text`,
         );
       }
       let kind: Kind;
       let spec: unknown;
       let title: string | undefined;
       let direction: Direction | undefined = input.direction;
-      if (input.mermaid !== undefined) {
-        const parsed = parseMermaid(input.mermaid, input.kind);
+      const source = input.mermaid ?? input.text;
+      let parsed: ReturnType<typeof parseSource> | undefined;
+      if (source !== undefined) {
+        parsed = parseSource(
+          source,
+          input.mermaid !== undefined ? "mermaid" : input.format,
+          input.kind,
+        );
         kind = parsed.kind;
         spec = parsed.spec;
         title = parsed.title;
@@ -867,6 +915,7 @@ export function buildDiagramEndpoint(
         return { key, model: r.model?._id ?? null, view: r.view!._id };
       });
       const target = diagram ?? requireElement(byName.get("diagram")!._id!);
+      const warnings = [...(parsed?.warnings ?? []), ...built.warnings];
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
@@ -879,7 +928,8 @@ export function buildDiagramEndpoint(
         ...(built.preset && { preset: built.preset }),
         ...(built.shown > 0 && { shown: built.shown }),
         ...(input.prune && { deleted: built.deleted }),
-        ...(built.warnings.length > 0 && { warnings: built.warnings }),
+        ...(parsed && input.text !== undefined && { format: parsed.format }),
+        ...(warnings.length > 0 && { warnings }),
         ids,
         edges,
       };

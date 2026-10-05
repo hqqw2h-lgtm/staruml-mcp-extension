@@ -1,0 +1,20 @@
+@startuml
+title Spec requirements
+class "Fast" as R0 <<performanceRequirement>> {
+  id = R1
+  text = Pages load in 1 s
+  risk = high
+  verifyMethod = test
+}
+class "Secure" as R1 <<requirement>> {
+  id = R2
+  text = Data is encrypted
+}
+class "LoadTest" as R2 <<element>> {
+  type = test
+  docRef = tests/load
+}
+R2 ..> R0 : <<verify>>
+R0 ..> R1 : <<deriveReqt>>
+R1 +-- R0
+@enduml
