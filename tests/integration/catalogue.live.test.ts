@@ -196,6 +196,9 @@ describeLive("every catalogue id on StarUML 7.1.1", () => {
     }
   });
 
+  // Some 250 creations. StarUML 7.1.1 gets slower at them once earlier
+  // suites have made large models, even after the project is replaced:
+  // 10 s after a restart, over 30 s at the end of the live run.
   it("creates every node item of the toolbox on its diagram, hosted where the factory requires", async () => {
     const failures: string[] = [];
     for (const item of intro.toolbox.items) {
@@ -212,7 +215,7 @@ describeLive("every catalogue id on StarUML 7.1.1", () => {
       if (!res.success) failures.push(`${item.id}: ${res.code} ${res.error}`);
     }
     expect(failures).toEqual([]);
-  });
+  }, 120_000);
 
   // parameterFn files the parameter in the block's `parameters`, which only a
   // SysMLConstraintBlock has; on a plain block StarUML fails inside the factory.
