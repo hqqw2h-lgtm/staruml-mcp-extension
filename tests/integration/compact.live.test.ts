@@ -136,8 +136,8 @@ describeLive("compact responses against StarUML 7.1.1", () => {
       visibility: "public",
       isAbstract: false,
     });
-    // UMLAttribute created through createModel lands in ownedElements, not attributes.
-    expect(full.data.ownedElements).toContainEqual({ $ref: attributeId });
+    // /create_element files a UMLAttribute in the class's `attributes` list (#5).
+    expect(full.data.attributes).toEqual([{ $ref: attributeId }]);
     for (const value of Object.values(full.data)) {
       expect(inlinesElement(value)).toBe(false);
     }
@@ -177,15 +177,15 @@ describeLive("compact responses against StarUML 7.1.1", () => {
       true,
     );
     const deep = await call<{
-      ownedElements: { _id: string; name?: string; ownedElements: unknown[] }[];
+      ownedElements: { _id: string; name?: string; attributes: unknown[] }[];
     }>("/get_element_by_id", {
       id: modelId,
-      fields: ["ownedElements", "name"],
+      fields: ["ownedElements", "name", "attributes"],
       depth: 1,
     });
     const book = deep.data.ownedElements.find((e) => e._id === classId)!;
     expect(book.name).toBe("Book");
-    expect(book.ownedElements).toContainEqual({ $ref: attributeId });
+    expect(book.attributes).toEqual([{ $ref: attributeId }]);
   });
 
   it("projects every element of a real project without inlining references", async () => {

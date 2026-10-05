@@ -43,12 +43,33 @@ Both take effect after a restart. **Tools → MCP Extension → Server Info...**
 
 All `POST` + JSON body. Base URL: `http://localhost:58322`; `GET /` lists the endpoints.
 
-| Group        | Endpoints                                                                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Commands     | `/get_all_commands`, `/execute_command`                                                                                                                |
-| Project      | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`                                                              |
-| Element CRUD | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`, `/create_edge_with_view` |
-| Diagrams     | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                 |
+| Group         | Endpoints                                                                                                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalogue     | `/introspect`, `/debug`                                                                                                                                                       |
+| Commands      | `/get_all_commands`, `/execute_command`                                                                                                                                       |
+| Project       | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`                                                                                     |
+| Elements      | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`                                                  |
+| Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
+| Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
+| Diagrams      | `/create_diagram`, `/switch_diagram`, `/close_diagram`                                                                                                                        |
+
+### `/introspect`
+
+Returns the StarUML and extension versions and, unless `include` narrows it, four sections:
+
+- `factory`: the ids `create_element`, `create_element_with_view` and `create_diagram` accept, and what each model-and-view id creates.
+- `metamodel`: every type of the loaded metamodel with its kind, super types, attributes (kind and type), view type, relationship kind and which factory creates it. `types` restricts it, `inherited: true` lists inherited attributes too.
+- `toolbox`: the diagram editor's palette. An item id can be passed as `type` wherever a model-and-view id is accepted and applies the item's presets (`UMLComposition`, `UMLAsyncMessage`, `UMLInitialState`, ...).
+- `endpoints`: the manifest: path, description, `readOnly` and `destructive` flags, and JSON Schemas (2020-12) of the request and of `data` in the response; `errors` gives the status per code and the error body schema. Every request is validated against its schema.
+
+`tests/fixtures/introspect.7.1.1.json` records the answer of 7.1.1; `npm run snapshot:introspect` refreshes it.
+
+### Creating and changing elements
+
+- `create_element` files the element in the owner list typed for it (`attributes` for a UMLAttribute in a class, `columns` for an ERDColumn) unless `field` says otherwise; `properties` sets attributes on creation.
+- `create_element_with_view` takes `containerViewId` for views placed on or inside another view (ports, parts, pins, BPMN boundary events, timing diagram parts).
+- `create_relationship` sets the ends: source/target, or end1/end2 with `tailEnd`/`headEnd` attributes. With `diagramId` it draws the edge through StarUML's factory and its connection rules; without, it creates the model only.
+- `update_element` with `op`: `set` (references as id or `{$ref}`), `add`/`remove` on reference lists, `reorder` within a list, `relocate` to another owner. Each call is one undo step.
 
 ### Responses
 

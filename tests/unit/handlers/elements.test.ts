@@ -341,10 +341,10 @@ describe("/update_element", () => {
     );
   });
 
-  it.each([{}, { field: "" }])("requires a field: %j", async (body) => {
+  it("rejects an empty field name", async () => {
     await fails(
       updateElement,
-      { id: "x", ...body },
+      { id: env.model._id, field: "", value: 1 },
       "INVALID_ARGUMENT",
       /^field: /,
     );
@@ -458,5 +458,374 @@ describe("/delete_element", () => {
       throw new Error("locked");
     });
     await fails(deleteElement, { id: cls._id }, "STARUML_ERROR", "locked");
+  });
+});
+
+describe("/create_element (#5)", () => {
+  it("files the element in the owner list typed for it", async () => {
+    const cls = addClass("Book");
+    const data = await ok(createElement, {
+      type: "UMLAttribute",
+      parentId: cls._id,
+      name: "title",
+    });
+    expect(cls.attributes).toContainEqual(
+      env.app.repository.get(data._id as string),
+    );
+  });
+
+  it("takes an explicit list and initial properties, references by id", async () => {
+    const cls = addClass("Book");
+    const data = await ok(createElement, {
+      type: "UMLAttribute",
+      parentId: cls._id,
+      field: "ownedElements",
+      properties: { type: { $ref: cls._id }, multiplicity: "*" },
+      fields: ["type", "multiplicity", "_parent"],
+    });
+    expect(data).toMatchObject({
+      _parent: cls._id,
+      type: { $ref: cls._id },
+      multiplicity: "*",
+    });
+    expect(cls.ownedElements).toHaveLength(1);
+  });
+
+  it("checks properties and the list before calling StarUML", async () => {
+    const spy = vi.spyOn(env.app.factory, "createModel");
+    await fails(
+      createElement,
+      {
+        type: "UMLClass",
+        parentId: env.model._id,
+        properties: { isAbstract: "yes" },
+      },
+      "INVALID_ARGUMENT",
+      /isAbstract/,
+    );
+    await fails(
+      createElement,
+      { type: "UMLClass", parentId: env.model._id, field: "attributes" },
+      "INVALID_ARGUMENT",
+      "UMLModel has no owned-element list 'attributes'",
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("/update_element (#5)", () => {
+  let cls: Element;
+  let other: Element;
+
+  beforeEach(() => {
+    cls = addClass("A");
+    other = addClass("B");
+  });
+
+  function addAttribute(owner: Element, name: string): Element {
+    return env.app.factory.createModel({
+      id: "UMLAttribute",
+      parent: owner,
+      field: "attributes",
+      modelInitializer: (m) => {
+        m.name = name;
+      },
+    })!;
+  }
+
+  describe("set", () => {
+    it("sets a reference by id or {$ref} and clears it with null", async () => {
+      const attr = addAttribute(cls, "b");
+      expect(
+        await ok(updateElement, {
+          id: attr._id,
+          field: "type",
+          value: { $ref: other._id },
+          fields: ["type"],
+        }),
+      ).toMatchObject({ type: { $ref: other._id } });
+      expect(attr.type).toBe(other);
+      const end = (
+        env.app.factory.createModelAndView({
+          id: "UMLAssociation",
+          parent: env.model,
+          diagram: env.mainDiagram,
+        })!.model!.end1 as Element
+      )._id;
+      await ok(updateElement, { id: end, field: "reference", value: cls._id });
+      expect(env.app.repository.get(end)!.reference).toBe(cls);
+      await ok(updateElement, { id: end, field: "reference", value: null });
+      expect(env.app.repository.get(end)!.reference).toBeNull();
+    });
+
+    it("needs field and value", async () => {
+      await fails(
+        updateElement,
+        { id: cls._id, value: 1 },
+        "INVALID_ARGUMENT",
+        "set needs field",
+      );
+      await fails(
+        updateElement,
+        { id: cls._id, field: "name" },
+        "INVALID_ARGUMENT",
+        "set needs value",
+      );
+    });
+
+    it("refuses owned and custom attributes and values of the wrong kind", async () => {
+      await fails(
+        updateElement,
+        { id: cls._id, field: "attributes", value: [] },
+        "INVALID_ARGUMENT",
+        /cannot be set here/,
+      );
+      await fails(
+        updateElement,
+        { id: cls._id, field: "isAbstract", value: "true" },
+        "INVALID_ARGUMENT",
+        /expects a Boolean/,
+      );
+    });
+  });
+
+  describe("add and remove", () => {
+    let op: Element;
+
+    beforeEach(() => {
+      op = env.app.factory.createModel({
+        id: "UMLOperation",
+        parent: cls,
+        field: "operations",
+      })!;
+    });
+
+    it("adds one or several references once each, and removes them", async () => {
+      await ok(updateElement, {
+        id: op._id,
+        op: "add",
+        field: "raisedExceptions",
+        value: other._id,
+      });
+      await ok(updateElement, {
+        id: op._id,
+        op: "add",
+        field: "raisedExceptions",
+        value: [{ $ref: other._id }, cls._id],
+      });
+      expect(op.raisedExceptions).toEqual([other, cls]);
+      expect(
+        await ok(updateElement, {
+          id: op._id,
+          op: "remove",
+          field: "raisedExceptions",
+          value: [other._id, other._id],
+          fields: ["raisedExceptions"],
+        }),
+      ).toMatchObject({ raisedExceptions: [{ $ref: cls._id }] });
+    });
+
+    it("only works on reference lists", async () => {
+      await fails(
+        updateElement,
+        { id: cls._id, op: "add", field: "attributes", value: other._id },
+        "INVALID_ARGUMENT",
+        /^add needs a reference list; UMLClass.attributes is objs/,
+      );
+    });
+
+    it("checks the referenced elements", async () => {
+      await fails(
+        updateElement,
+        { id: op._id, op: "add", field: "raisedExceptions", value: "missing" },
+        "NOT_FOUND",
+      );
+    });
+  });
+
+  describe("reorder", () => {
+    it("moves an owned item to an index as one operation", async () => {
+      const [x, y, z] = ["x", "y", "z"].map((n) => addAttribute(cls, n));
+      const spy = vi.spyOn(env.app.repository, "doOperation");
+      await ok(updateElement, {
+        id: cls._id,
+        op: "reorder",
+        field: "attributes",
+        value: z!._id,
+        index: 0,
+      });
+      expect(cls.attributes).toEqual([z, x, y]);
+      expect(spy).toHaveBeenCalledTimes(1);
+      await ok(updateElement, {
+        id: cls._id,
+        op: "reorder",
+        field: "attributes",
+        value: { $ref: z!._id },
+        index: 2,
+      });
+      expect(cls.attributes).toEqual([x, y, z]);
+    });
+
+    it.each([
+      [
+        { field: "name", value: "x", index: 0 },
+        "INVALID_ARGUMENT",
+        /^reorder needs a list/,
+      ],
+      [
+        { field: "attributes", value: "x" },
+        "INVALID_ARGUMENT",
+        /^reorder needs index$/,
+      ],
+      [
+        { field: "attributes", value: "nope", index: 0 },
+        "NOT_FOUND",
+        /^nope is not in UMLClass.attributes$/,
+      ],
+      [
+        { field: "attributes", value: 5, index: 0 },
+        "NOT_FOUND",
+        /^null is not in/,
+      ],
+      [
+        { field: "attributes", value: "FIRST", index: 1 },
+        "INVALID_ARGUMENT",
+        /^index 1 is past the end of UMLClass.attributes \(1 items\)$/,
+      ],
+    ])("refuses %j", async (body, code, message) => {
+      const first = addAttribute(cls, "only");
+      const value = body.value === "FIRST" ? first._id : body.value;
+      await fails(
+        updateElement,
+        { id: cls._id, op: "reorder", ...body, value },
+        code as "INVALID_ARGUMENT",
+        message,
+      );
+    });
+  });
+
+  describe("relocate", () => {
+    it("moves an element to another owner, keeping its list", async () => {
+      const pkg = env.app.factory.createModel({
+        id: "UMLPackage",
+        parent: env.model,
+      })!;
+      expect(
+        await ok(updateElement, {
+          id: cls._id,
+          op: "relocate",
+          parentId: pkg._id,
+          fields: ["_parent"],
+        }),
+      ).toEqual({ _id: cls._id, _type: "UMLClass", _parent: pkg._id });
+      expect(pkg.ownedElements).toContain(cls);
+      expect(env.model.ownedElements).not.toContain(cls);
+    });
+
+    it("moves an attribute between classes", async () => {
+      const attr = addAttribute(cls, "a");
+      await ok(updateElement, {
+        id: attr._id,
+        op: "relocate",
+        parentId: other._id,
+        field: "attributes",
+      });
+      expect(other.attributes).toEqual([attr]);
+    });
+
+    it("does nothing for the current owner", async () => {
+      const spy = vi.spyOn(env.app.engine, "relocate");
+      await ok(updateElement, {
+        id: cls._id,
+        op: "relocate",
+        parentId: env.model._id,
+      });
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("needs parentId", async () => {
+      await fails(
+        updateElement,
+        { id: cls._id, op: "relocate" },
+        "INVALID_ARGUMENT",
+        "relocate needs parentId",
+      );
+    });
+
+    it("refuses a different list, an owner without the list, and moving into itself", async () => {
+      const attr = addAttribute(cls, "a");
+      await fails(
+        updateElement,
+        {
+          id: attr._id,
+          op: "relocate",
+          parentId: other._id,
+          field: "ownedElements",
+        },
+        "INVALID_ARGUMENT",
+        `relocate keeps the list field: ${attr._id} is in 'attributes', not 'ownedElements'`,
+      );
+      await fails(
+        updateElement,
+        { id: attr._id, op: "relocate", parentId: env.model._id },
+        "INVALID_ARGUMENT",
+        "UMLModel has no list field 'attributes'",
+      );
+      const inner = env.app.factory.createModel({
+        id: "UMLPackage",
+        parent: cls,
+      })!;
+      for (const target of [cls, inner]) {
+        await fails(
+          updateElement,
+          { id: cls._id, op: "relocate", parentId: target._id },
+          "INVALID_ARGUMENT",
+          `${target._id} is ${cls._id} itself or inside it`,
+        );
+      }
+    });
+
+    it("refuses elements that are not in a list of their owner", async () => {
+      const end = env.app.factory.createModelAndView({
+        id: "UMLAssociation",
+        parent: env.model,
+        diagram: env.mainDiagram,
+      })!.model!.end1 as Element;
+      await fails(
+        updateElement,
+        { id: end._id, op: "relocate", parentId: other._id },
+        "INVALID_ARGUMENT",
+        `UMLAssociationEnd ${end._id} is not in a list of its owner and cannot be relocated`,
+      );
+      await fails(
+        updateElement,
+        { id: env.project._id, op: "relocate", parentId: other._id },
+        "INVALID_ARGUMENT",
+        /is not in a list of its owner/,
+      );
+    });
+
+    it("reports a relocation StarUML did not perform", async () => {
+      const pkg = env.app.factory.createModel({
+        id: "UMLPackage",
+        parent: env.model,
+      })!;
+      vi.spyOn(env.app.engine, "relocate").mockImplementation(() => {});
+      await fails(
+        updateElement,
+        { id: cls._id, op: "relocate", parentId: pkg._id },
+        "STARUML_ERROR",
+        `StarUML did not relocate ${cls._id} to ${pkg._id}`,
+      );
+    });
+  });
+
+  it("rejects an unknown op", async () => {
+    await fails(
+      updateElement,
+      { id: cls._id, op: "merge" },
+      "INVALID_ARGUMENT",
+      /^op: /,
+    );
   });
 });

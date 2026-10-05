@@ -24,13 +24,13 @@
 import type { Endpoint } from "./endpoint.js";
 import { executeCommand, getAllCommands } from "./handlers/commands.js";
 import { debug } from "./handlers/debug.js";
+import { introspectEndpoint } from "./handlers/introspect.js";
 import {
   closeDiagram,
   createDiagram,
   switchDiagram,
 } from "./handlers/diagrams.js";
 import {
-  createEdgeWithView,
   createElement,
   createElementWithView,
   deleteElement,
@@ -45,6 +45,21 @@ import {
   saveProject,
   saveProjectAs,
 } from "./handlers/project.js";
+import {
+  addAttribute,
+  addEnumerationLiteral,
+  addOperation,
+  addParameter,
+  addSlot,
+  addTag,
+  addTemplateParameter,
+  setDocumentation,
+  setStereotype,
+} from "./handlers/features.js";
+import {
+  createEdgeWithView,
+  createRelationship,
+} from "./handlers/relationships.js";
 import type { Handler } from "./http-server.js";
 
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
@@ -65,11 +80,23 @@ export const endpoints: readonly Endpoint[] = [
   deleteElement,
   createElementWithView,
   createEdgeWithView,
+  createRelationship,
+
+  addAttribute,
+  addOperation,
+  addParameter,
+  addEnumerationLiteral,
+  addTemplateParameter,
+  addSlot,
+  addTag,
+  setStereotype,
+  setDocumentation,
 
   createDiagram,
   switchDiagram,
   closeDiagram,
 
+  introspectEndpoint(() => endpoints),
   debug,
 ];
 

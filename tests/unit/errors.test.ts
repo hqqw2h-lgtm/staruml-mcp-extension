@@ -43,6 +43,15 @@ describe("inStarUML", () => {
     expect(inStarUML(() => 3)).toBe(3);
   });
 
+  it("lets an ApiError from our own callbacks through unchanged", () => {
+    const own = new ApiError("NOT_FOUND", "inner");
+    expect(() =>
+      inStarUML(() => {
+        throw own;
+      }),
+    ).toThrow(own);
+  });
+
   it("reports a thrown string, as factory preconditions throw, as STARUML_ERROR", () => {
     expect(() =>
       inStarUML(() => {

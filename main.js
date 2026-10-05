@@ -110,6 +110,7 @@ function inStarUML(call) {
   try {
     return call();
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw new ApiError("STARUML_ERROR", errorMessage(err));
   }
 }
@@ -255,6 +256,11 @@ function stackOf(err) {
 }
 
 // node_modules/zod/v4/core/util.js
+function getEnumValues(entries) {
+  const numericValues = Object.values(entries).filter((v) => typeof v === "number");
+  const values = Object.entries(entries).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
+  return values;
+}
 function joinValues(array2, separator = "|") {
   return array2.map((val) => stringifyPrimitive(val)).join(separator);
 }
@@ -301,6 +307,26 @@ var captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace :
 function isObject(data) {
   return typeof data === "object" && data !== null && !Array.isArray(data);
 }
+function isPlainObject(o) {
+  if (isObject(o) === false)
+    return false;
+  const ctor = o.constructor;
+  if (ctor === void 0)
+    return true;
+  if (typeof ctor !== "function")
+    return true;
+  const prot = ctor.prototype;
+  if (isObject(prot) === false)
+    return false;
+  if (Object.prototype.hasOwnProperty.call(prot, "isPrototypeOf") === false) {
+    return false;
+  }
+  return true;
+}
+var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
+function escapeRegex(str2) {
+  return str2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
   if (!def || params?.parent)
@@ -342,6 +368,10 @@ var NUMBER_FORMAT_RANGES = /* @__PURE__ */ (() => ({
   float32: [-34028234663852886e22, 34028234663852886e22],
   float64: [-Number.MAX_VALUE, Number.MAX_VALUE]
 }))();
+var BIGINT_FORMAT_RANGES = {
+  int64: [/* @__PURE__ */ BigInt("-9223372036854775808"), /* @__PURE__ */ BigInt("9223372036854775807")],
+  uint64: [/* @__PURE__ */ BigInt(0), /* @__PURE__ */ BigInt("18446744073709551615")]
+};
 function aborted(x, startIndex = 0) {
   if (x.aborted === true)
     return true;
@@ -404,13 +434,13 @@ function finalizeIssue(iss, ctx, config2) {
   return full;
 }
 var highSurrogate = /[\uD800-\uDBFF]/;
-function codePointLength(str) {
-  const units = str.length;
-  if (!highSurrogate.test(str))
+function codePointLength(str2) {
+  const units = str2.length;
+  if (!highSurrogate.test(str2))
     return units;
   let count = units;
   for (let i = 0; i < units - 1; i++) {
-    if ((str.charCodeAt(i) & 64512) === 55296 && (str.charCodeAt(i + 1) & 64512) === 56320) {
+    if ((str2.charCodeAt(i) & 64512) === 55296 && (str2.charCodeAt(i + 1) & 64512) === 56320) {
       count--;
       i++;
     }
@@ -765,7 +795,10 @@ var _safeParseAsync = (_Err) => async (schema, value, _ctx) => {
 var safeParseAsync = /* @__PURE__ */ _safeParseAsync($ZodRealError);
 
 // node_modules/zod/v4/core/regexes.js
+var base64 = /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/;
+var base64url = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/;
 var anyString = /^[\s\S]{0,}$/;
+var integer = /^-?\d+$/;
 var number = /^-?\d+(?:\.\d+)?$/;
 var boolean = /^(?:true|false)$/i;
 
@@ -1073,6 +1106,8 @@ var $ZodString = /* @__PURE__ */ $constructor("$ZodString", (inst, def) => {
     return payload;
   };
 });
+var base64Charset = /^[0-9a-zA-Z+/]*={0,2}$/;
+var base64urlCharset = /^[A-Za-z0-9_-]*$/;
 var $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
   $ZodType.init(inst, def);
   inst._zod.pattern = number;
@@ -1349,6 +1384,271 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     return handleCatchall(proms, input, payload, ctx, _normalized.value, inst, abortEarly === true);
   };
 });
+function handleUnionResults(results, final, inst, ctx) {
+  for (const result of results) {
+    if (result.issues.length === 0) {
+      final.value = result.value;
+      return final;
+    }
+  }
+  const nonaborted = results.filter((r) => !aborted(r));
+  if (nonaborted.length === 1) {
+    final.value = nonaborted[0].value;
+    return nonaborted[0];
+  }
+  final.issues.push({
+    code: "invalid_union",
+    input: final.value,
+    inst,
+    errors: results.map((result) => result.issues.map((iss) => finalizeIssue(iss, ctx, config())))
+  });
+  return final;
+}
+var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
+  $ZodType.init(inst, def);
+  defineLazyInternal(inst, "optin", (zod) => zod.def.options.some((o) => o._zod.optin === "defaulted") ? "defaulted" : zod.def.options.some((o) => o._zod.optin !== void 0) ? "optional" : void 0);
+  defineLazyInternal(inst, "optout", (zod) => zod.def.options.some((o) => o._zod.optout === "optional") ? "optional" : void 0);
+  defineLazyInternal(inst, "values", (zod) => {
+    if (zod.def.options.every((o) => o._zod.values)) {
+      return new Set(zod.def.options.flatMap((option) => Array.from(option._zod.values)));
+    }
+    return void 0;
+  });
+  defineLazyInternal(inst, "pattern", (zod) => {
+    if (zod.def.options.every((o) => o._zod.pattern)) {
+      const patterns = zod.def.options.map((o) => o._zod.pattern);
+      return new RegExp(`^(${patterns.map((p) => cleanRegex(p.source)).join("|")})$`);
+    }
+    return void 0;
+  });
+  const first = def.options.length === 1 ? def.options[0]._zod.run : null;
+  inst._zod.parse = (payload, ctx) => {
+    if (first) {
+      return first(payload, ctx);
+    }
+    let async = false;
+    const results = [];
+    for (const option of def.options) {
+      const result = option._zod.run({
+        value: payload.value,
+        issues: []
+      }, ctx);
+      if (result instanceof Promise) {
+        results.push(result);
+        async = true;
+      } else {
+        if (result.issues.length === 0)
+          return result;
+        results.push(result);
+      }
+    }
+    if (!async)
+      return handleUnionResults(results, payload, inst, ctx);
+    return Promise.all(results).then((results2) => {
+      return handleUnionResults(results2, payload, inst, ctx);
+    });
+  };
+});
+var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
+  $ZodType.init(inst, def);
+  const memo = globalConfig.memoizer;
+  memo?.attach(inst);
+  inst._zod.parse = (payload, ctx) => {
+    const input = payload.value;
+    if (!isPlainObject(input)) {
+      payload.issues.push({
+        expected: "record",
+        code: "invalid_type",
+        input,
+        inst
+      });
+      return payload;
+    }
+    const proms = [];
+    const values = def.keyType._zod.values;
+    if (values && !def.partial) {
+      payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+      const recordKeys = /* @__PURE__ */ new Set();
+      for (const key of values) {
+        if (typeof key === "string" || typeof key === "number" || typeof key === "symbol") {
+          recordKeys.add(typeof key === "number" ? key.toString() : key);
+          if (key === "__proto__")
+            continue;
+          const keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
+          if (keyResult instanceof Promise) {
+            throw new Error("Async schemas not supported in object keys currently");
+          }
+          if (keyResult.issues.length) {
+            payload.issues.push({
+              code: "invalid_key",
+              origin: "record",
+              issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
+              input: key,
+              path: [key],
+              inst
+            });
+            continue;
+          }
+          const outKey = keyResult.value;
+          if (outKey === "__proto__")
+            continue;
+          const result = def.valueType._zod.run({ value: input[key], issues: [] }, ctx);
+          if (result instanceof Promise) {
+            proms.push(result.then((result2) => {
+              if (result2.issues.length) {
+                payload.issues.push(...prefixIssues(key, result2.issues));
+              }
+              payload.value[outKey] = result2.value;
+            }));
+          } else {
+            if (result.issues.length) {
+              payload.issues.push(...prefixIssues(key, result.issues));
+            }
+            payload.value[outKey] = result.value;
+          }
+        }
+      }
+      let unrecognized;
+      for (const key in input) {
+        if (!recordKeys.has(key)) {
+          if (def.mode === "loose") {
+            if (key === "__proto__")
+              continue;
+            payload.value[key] = input[key];
+          } else {
+            unrecognized = unrecognized ?? [];
+            unrecognized.push(key);
+          }
+        }
+      }
+      if (unrecognized && unrecognized.length > 0) {
+        payload.issues.push({
+          code: "unrecognized_keys",
+          input,
+          inst,
+          keys: unrecognized,
+          continue: true
+        });
+      }
+    } else {
+      payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
+      let unrecognized;
+      for (const key of Reflect.ownKeys(input)) {
+        if (key === "__proto__")
+          continue;
+        if (!Object.prototype.propertyIsEnumerable.call(input, key))
+          continue;
+        let keyResult = def.keyType._zod.run({ value: key, issues: [] }, ctx);
+        if (keyResult instanceof Promise) {
+          throw new Error("Async schemas not supported in object keys currently");
+        }
+        const checkNumericKey = typeof key === "string" && number.test(key) && keyResult.issues.length;
+        if (checkNumericKey) {
+          const retryResult = def.keyType._zod.run({ value: Number(key), issues: [] }, ctx);
+          if (retryResult instanceof Promise) {
+            throw new Error("Async schemas not supported in object keys currently");
+          }
+          if (retryResult.issues.length === 0) {
+            keyResult = retryResult;
+          }
+        }
+        if (keyResult.issues.length) {
+          if (def.mode === "loose") {
+            payload.value[key] = input[key];
+          } else if (values) {
+            unrecognized = unrecognized ?? [];
+            unrecognized.push(key);
+          } else {
+            payload.issues.push({
+              code: "invalid_key",
+              origin: "record",
+              issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
+              input: key,
+              path: [key],
+              inst
+            });
+          }
+          continue;
+        }
+        const outKey = keyResult.value;
+        if (outKey === "__proto__")
+          continue;
+        const result = def.valueType._zod.run({ value: input[key], issues: [] }, ctx);
+        if (result instanceof Promise) {
+          proms.push(result.then((result2) => {
+            if (result2.issues.length) {
+              payload.issues.push(...prefixIssues(key, result2.issues));
+            }
+            payload.value[outKey] = result2.value;
+          }));
+        } else {
+          if (result.issues.length) {
+            payload.issues.push(...prefixIssues(key, result.issues));
+          }
+          payload.value[outKey] = result.value;
+        }
+      }
+      if (unrecognized && unrecognized.length > 0) {
+        payload.issues.push({
+          code: "unrecognized_keys",
+          input,
+          inst,
+          keys: unrecognized,
+          continue: true
+        });
+      }
+    }
+    if (proms.length) {
+      return Promise.all(proms).then(() => payload);
+    }
+    return payload;
+  };
+});
+var $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def) => {
+  $ZodType.init(inst, def);
+  const values = getEnumValues(def.entries);
+  const valuesSet = new Set(values);
+  inst._zod.values = valuesSet;
+  defineLazyInternal(inst, "pattern", (zod) => {
+    const patternValues = getEnumValues(zod.def.entries).filter((k) => propertyKeyTypes.has(typeof k));
+    return new RegExp(patternValues.length ? `^(${patternValues.map((o) => escapeRegex(o.toString())).join("|")})$` : "^[^\\s\\S]$");
+  });
+  inst._zod.parse = (payload, _ctx) => {
+    const input = payload.value;
+    if (valuesSet.has(input)) {
+      return payload;
+    }
+    payload.issues.push({
+      code: "invalid_value",
+      values,
+      input,
+      inst
+    });
+    return payload;
+  };
+});
+var $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
+  $ZodType.init(inst, def);
+  const values = new Set(def.values);
+  inst._zod.values = values;
+  defineLazyInternal(inst, "pattern", (zod) => {
+    const vals = zod.def.values;
+    return new RegExp(vals.length ? `^(${vals.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$` : "^[^\\s\\S]$");
+  });
+  inst._zod.parse = (payload, _ctx) => {
+    const input = payload.value;
+    if (values.has(input)) {
+      return payload;
+    }
+    payload.issues.push({
+      code: "invalid_value",
+      values: def.values,
+      input,
+      inst
+    });
+    return payload;
+  };
+});
 function handleOptionalResult(payload, result) {
   payload.value = result.issues.length ? void 0 : result.value;
   return payload;
@@ -1528,10 +1828,10 @@ var $ZodRegistry = class {
     this._idmap = /* @__PURE__ */ new Map();
   }
   add(schema, ..._meta) {
-    const meta2 = _meta[0];
-    this._map.set(schema, meta2);
-    if (meta2 && typeof meta2 === "object" && "id" in meta2) {
-      this._idmap.set(meta2.id, schema);
+    const meta3 = _meta[0];
+    this._map.set(schema, meta3);
+    if (meta3 && typeof meta3 === "object" && "id" in meta3) {
+      this._idmap.set(meta3.id, schema);
     }
     return this;
   }
@@ -1541,9 +1841,9 @@ var $ZodRegistry = class {
     return this;
   }
   remove(schema) {
-    const meta2 = this._map.get(schema);
-    if (meta2 && typeof meta2 === "object" && "id" in meta2) {
-      this._idmap.delete(meta2.id);
+    const meta3 = this._map.get(schema);
+    if (meta3 && typeof meta3 === "object" && "id" in meta3) {
+      this._idmap.delete(meta3.id);
     }
     this._map.delete(schema);
     return this;
@@ -1632,6 +1932,1278 @@ function _minLength(minimum, params) {
   });
 }
 
+// node_modules/zod/v4/core/to-json-schema.js
+function assignProps(target, ...sources) {
+  for (const source of sources) {
+    for (const key of Reflect.ownKeys(source)) {
+      if (Object.prototype.propertyIsEnumerable.call(source, key)) {
+        assignProp(target, key, source[key]);
+      }
+    }
+  }
+  return target;
+}
+function initializeContext(params) {
+  let target = params?.target ?? "draft-2020-12";
+  if (target === "draft-4")
+    target = "draft-04";
+  if (target === "draft-7")
+    target = "draft-07";
+  return {
+    processors: params.processors ?? {},
+    metadataRegistry: params?.metadata ?? globalRegistry,
+    target,
+    unrepresentable: params?.unrepresentable ?? "throw",
+    override: params?.override ?? (() => {
+    }),
+    io: params?.io ?? "output",
+    counter: 0,
+    seen: /* @__PURE__ */ new Map(),
+    sharedDefsExtractedFor: void 0,
+    sharedEmitDoneFor: void 0,
+    cycles: params?.cycles ?? "ref",
+    reused: params?.reused ?? "inline",
+    intersections: [],
+    deferred: [],
+    external: params?.external ?? void 0
+  };
+}
+function handleUnrepresentable(schema, ctx, json, params, message) {
+  const result = typeof ctx.unrepresentable === "function" ? ctx.unrepresentable({ zodSchema: schema, path: params.path, message }) : ctx.unrepresentable;
+  if (result === "any")
+    return false;
+  if (result === void 0 || result === "throw")
+    throw new Error(message);
+  Object.assign(json, result);
+  return true;
+}
+function processSchema(schema, ctx, _params = { path: [], schemaPath: [] }) {
+  var _a3;
+  const def = schema._zod.def;
+  const seen = ctx.seen.get(schema);
+  if (seen) {
+    seen.count++;
+    const isCycle = _params.schemaPath.includes(schema);
+    if (isCycle) {
+      seen.cycle = _params.path;
+    }
+    return seen.schema;
+  }
+  const result = { schema: {}, count: 1, cycle: void 0, path: _params.path };
+  ctx.seen.set(schema, result);
+  ctx.sharedDefsExtractedFor = void 0;
+  ctx.sharedEmitDoneFor = void 0;
+  const overrideSchema = schema._zod.toJSONSchema?.();
+  if (overrideSchema) {
+    result.schema = overrideSchema;
+  } else {
+    const params = {
+      ..._params,
+      schemaPath: [..._params.schemaPath, schema],
+      path: _params.path
+    };
+    if (schema._zod.processJSONSchema) {
+      schema._zod.processJSONSchema(ctx, result.schema, params);
+    } else {
+      const _json = result.schema;
+      const processor = ctx.processors[def.type];
+      if (!processor) {
+        throw new Error(`[toJSONSchema]: Non-representable type encountered: ${def.type}`);
+      }
+      processor(schema, ctx, _json, params);
+    }
+    const parent = schema._zod.parent;
+    if (parent) {
+      if (!result.ref)
+        result.ref = parent;
+      processSchema(parent, ctx, params);
+      ctx.seen.get(parent).isParent = true;
+    }
+  }
+  const meta3 = ctx.metadataRegistry.get(schema);
+  if (meta3)
+    assignProps(result.schema, meta3);
+  if (ctx.io === "input" && isTransforming(schema)) {
+    delete result.schema.examples;
+    delete result.schema.default;
+  }
+  if (ctx.io === "input" && "_prefault" in result.schema)
+    (_a3 = result.schema).default ?? (_a3.default = result.schema._prefault);
+  delete result.schema._prefault;
+  const _result = ctx.seen.get(schema);
+  return _result.schema;
+}
+function encodeJSONPointerSegment(segment) {
+  return segment.replace(/~/g, "~0").replace(/\//g, "~1");
+}
+function extractDefs(ctx, schema) {
+  const root = ctx.seen.get(schema);
+  if (!root)
+    throw new Error("Unprocessed schema. This is a bug in Zod.");
+  if (ctx.external && ctx.sharedDefsExtractedFor === ctx.external)
+    return;
+  const idToSchema = /* @__PURE__ */ new Map();
+  for (const entry of ctx.seen.entries()) {
+    const id2 = ctx.metadataRegistry.get(entry[0])?.id;
+    if (id2) {
+      const existing = idToSchema.get(id2);
+      if (existing && existing !== entry[0]) {
+        throw new Error(`Duplicate schema id "${id2}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
+      }
+      idToSchema.set(id2, entry[0]);
+    }
+  }
+  const makeURI = (entry) => {
+    const defsSegment = ctx.target === "draft-2020-12" ? "$defs" : "definitions";
+    if (ctx.external) {
+      const externalId = ctx.external.registry.get(entry[0])?.id;
+      const uriGenerator = ctx.external.uri ?? ((id3) => id3);
+      if (externalId) {
+        return { ref: uriGenerator(externalId) };
+      }
+      const id2 = entry[1].defId ?? entry[1].schema.id ?? `schema${ctx.counter++}`;
+      entry[1].defId = id2;
+      return { defId: id2, ref: `${uriGenerator("__shared")}#/${defsSegment}/${encodeJSONPointerSegment(id2)}` };
+    }
+    const uriPrefix = `#`;
+    const defUriPrefix = `${uriPrefix}/${defsSegment}/`;
+    if (entry[1] === root && !entry[1].schema.id) {
+      return { ref: uriPrefix };
+    }
+    const defId = entry[1].schema.id ?? `__schema${ctx.counter++}`;
+    return { defId, ref: defUriPrefix + encodeJSONPointerSegment(defId) };
+  };
+  const extractToDef = (entry) => {
+    if (entry[1].schema.$ref) {
+      return;
+    }
+    const seen = entry[1];
+    const { ref: ref2, defId } = makeURI(entry);
+    seen.def = { ...seen.schema };
+    if (defId)
+      seen.defId = defId;
+    const schema2 = seen.schema;
+    for (const key in schema2) {
+      delete schema2[key];
+    }
+    schema2.$ref = ref2;
+  };
+  if (ctx.cycles === "throw") {
+    for (const entry of ctx.seen.entries()) {
+      const seen = entry[1];
+      if (seen.cycle) {
+        throw new Error(`Cycle detected: #/${seen.cycle?.join("/")}/<root>
+
+Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.`);
+      }
+    }
+  }
+  for (const entry of ctx.seen.entries()) {
+    const seen = entry[1];
+    if (schema === entry[0]) {
+      extractToDef(entry);
+      continue;
+    }
+    if (ctx.external) {
+      const ext = ctx.external.registry.get(entry[0])?.id;
+      if (schema !== entry[0] && ext) {
+        extractToDef(entry);
+        continue;
+      }
+    }
+    const id2 = ctx.metadataRegistry.get(entry[0])?.id;
+    if (id2) {
+      extractToDef(entry);
+      continue;
+    }
+    if (seen.cycle) {
+      extractToDef(entry);
+      continue;
+    }
+    if (seen.count > 1) {
+      if (ctx.reused === "ref") {
+        extractToDef(entry);
+      }
+    }
+  }
+  if (ctx.external)
+    ctx.sharedDefsExtractedFor = ctx.external;
+}
+function compactTypeUnion(schema) {
+  const options = schema.anyOf;
+  if (!Array.isArray(options) || options.length === 0 || schema.type !== void 0)
+    return;
+  const types = [];
+  for (const option of options) {
+    if (!option || typeof option !== "object")
+      return;
+    compactTypeUnion(option);
+    const keys = Object.keys(option);
+    if (keys.length !== 1 || keys[0] !== "type")
+      return;
+    const type2 = option.type;
+    for (const member of Array.isArray(type2) ? type2 : [type2]) {
+      if (typeof member !== "string")
+        return;
+      if (!types.includes(member))
+        types.push(member);
+    }
+  }
+  delete schema.anyOf;
+  schema.type = types.length === 1 ? types[0] : types;
+}
+var FOLDABLE_KEYS = /* @__PURE__ */ new Set(["type", "properties", "required", "additionalProperties"]);
+var UNION_KEYS = ["oneOf", "anyOf"];
+function undeclaredConstraint(member) {
+  const extra = member.additionalProperties;
+  if (extra === void 0 || extra === false || typeof extra !== "object" || extra === null)
+    return null;
+  return Object.keys(extra).length ? extra : null;
+}
+function foldObjects(members2) {
+  const objects = [];
+  for (const member of members2) {
+    if (typeof member !== "object" || member.type !== "object")
+      return null;
+    for (const key in member) {
+      if (!FOLDABLE_KEYS.has(key))
+        return null;
+    }
+    objects.push(member);
+  }
+  const properties2 = {};
+  const required2 = /* @__PURE__ */ new Set();
+  for (const object2 of objects) {
+    for (const key in object2.properties) {
+      if (Object.prototype.hasOwnProperty.call(properties2, key))
+        continue;
+      const parts = [];
+      for (const other of objects) {
+        const part = other.properties?.[key] ?? undeclaredConstraint(other);
+        if (part === null || part === void 0)
+          continue;
+        if (!parts.some((seen) => JSON.stringify(seen) === JSON.stringify(part)))
+          parts.push(part);
+      }
+      const merged = parts.length === 1 ? parts[0] : foldObjects(parts) ?? { allOf: parts };
+      assignProp(properties2, key, merged);
+    }
+    for (const key of object2.required ?? [])
+      required2.add(key);
+  }
+  const folded = { type: "object", properties: properties2 };
+  if (required2.size)
+    folded.required = [...required2];
+  if (objects.every((object2) => object2.additionalProperties === false)) {
+    folded.additionalProperties = false;
+  } else {
+    const constraints = [];
+    for (const object2 of objects) {
+      const constraint = undeclaredConstraint(object2);
+      if (constraint && !constraints.some((seen) => JSON.stringify(seen) === JSON.stringify(constraint)))
+        constraints.push(constraint);
+    }
+    if (constraints.length === 1)
+      folded.additionalProperties = constraints[0];
+    else if (constraints.length > 1)
+      folded.additionalProperties = { allOf: constraints };
+  }
+  return folded;
+}
+function foldIntersection(json) {
+  const allOf = json.allOf;
+  if (!Array.isArray(allOf) || allOf.length < 2)
+    return;
+  for (const key of FOLDABLE_KEYS)
+    if (key in json)
+      return;
+  const unions = allOf.filter((m) => UNION_KEYS.some((k) => Array.isArray(m[k])));
+  let folded = null;
+  if (!unions.length) {
+    folded = foldObjects(allOf);
+  } else {
+    const union2 = unions[0];
+    const keyword = UNION_KEYS.find((k) => Array.isArray(union2[k]));
+    if (Object.keys(union2).length !== 1)
+      return;
+    const rest = allOf.filter((m) => m !== union2);
+    const branches = union2[keyword].map((branch) => foldObjects([...rest, branch]));
+    if (branches.some((b) => !b))
+      return;
+    folded = { [keyword]: branches };
+  }
+  if (!folded)
+    return;
+  delete json.allOf;
+  assignProps(json, folded);
+}
+function finalize(ctx, schema) {
+  const root = ctx.seen.get(schema);
+  if (!root)
+    throw new Error("Unprocessed schema. This is a bug in Zod.");
+  const flattenRef = (zodSchema) => {
+    const seen = ctx.seen.get(zodSchema);
+    if (seen.ref === null)
+      return;
+    const schema2 = seen.def ?? seen.schema;
+    const _cached = { ...schema2 };
+    const ref2 = seen.ref;
+    seen.ref = null;
+    if (ref2) {
+      flattenRef(ref2);
+      const refSeen = ctx.seen.get(ref2);
+      const refSchema = refSeen.schema;
+      if (refSchema.$ref && (ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0")) {
+        schema2.allOf = schema2.allOf ?? [];
+        schema2.allOf.push(refSchema);
+      } else {
+        assignProps(schema2, refSchema);
+      }
+      assignProps(schema2, _cached);
+      const isParentRef = zodSchema._zod.parent === ref2;
+      if (isParentRef) {
+        for (const key in schema2) {
+          if (key === "$ref" || key === "allOf")
+            continue;
+          if (!(key in _cached)) {
+            delete schema2[key];
+          }
+        }
+      }
+      if (refSchema.$ref && refSeen.def) {
+        for (const key in schema2) {
+          if (key === "$ref" || key === "allOf")
+            continue;
+          if (key in refSeen.def && JSON.stringify(schema2[key]) === JSON.stringify(refSeen.def[key])) {
+            delete schema2[key];
+          }
+        }
+      }
+    }
+    const parent = zodSchema._zod.parent;
+    if (parent && parent !== ref2) {
+      flattenRef(parent);
+      const parentSeen = ctx.seen.get(parent);
+      if (parentSeen?.schema.$ref) {
+        schema2.$ref = parentSeen.schema.$ref;
+        if (parentSeen.def) {
+          for (const key in schema2) {
+            if (key === "$ref" || key === "allOf")
+              continue;
+            if (key in parentSeen.def && JSON.stringify(schema2[key]) === JSON.stringify(parentSeen.def[key])) {
+              delete schema2[key];
+            }
+          }
+        }
+      }
+    }
+    ctx.override({
+      zodSchema,
+      jsonSchema: schema2,
+      path: seen.path ?? []
+    });
+  };
+  if (!ctx.external || ctx.sharedEmitDoneFor !== ctx.external) {
+    for (const entry of [...ctx.seen.entries()].reverse()) {
+      flattenRef(entry[0]);
+    }
+    if (ctx.target !== "openapi-3.0") {
+      for (const entry of ctx.seen.entries()) {
+        compactTypeUnion(entry[1].def ?? entry[1].schema);
+      }
+    }
+    for (const rewrite of ctx.deferred)
+      rewrite();
+    if (ctx.intersections.length) {
+      const carriers = /* @__PURE__ */ new Map();
+      for (const seen of ctx.seen.values()) {
+        for (const json of [seen.schema, seen.def]) {
+          const allOf = json?.allOf;
+          if (!Array.isArray(allOf))
+            continue;
+          const existing = carriers.get(allOf);
+          if (existing)
+            existing.push(json);
+          else
+            carriers.set(allOf, [json]);
+        }
+      }
+      for (const allOf of ctx.intersections) {
+        for (const json of carriers.get(allOf) ?? [])
+          foldIntersection(json);
+      }
+    }
+  }
+  const result = {};
+  if (ctx.target === "draft-2020-12") {
+    result.$schema = "https://json-schema.org/draft/2020-12/schema";
+  } else if (ctx.target === "draft-07") {
+    result.$schema = "http://json-schema.org/draft-07/schema#";
+  } else if (ctx.target === "draft-04") {
+    result.$schema = "http://json-schema.org/draft-04/schema#";
+  } else if (ctx.target === "openapi-3.0") {
+  } else {
+  }
+  if (ctx.external?.uri) {
+    const id2 = ctx.external.registry.get(schema)?.id;
+    if (!id2)
+      throw new Error("Schema is missing an `id` property");
+    result.$id = ctx.external.uri(id2);
+  }
+  assignProps(result, root.defId ? root.schema : root.def ?? root.schema);
+  const rootMetaId = ctx.metadataRegistry.get(schema)?.id;
+  if (rootMetaId !== void 0 && result.id === rootMetaId)
+    delete result.id;
+  const defs = ctx.external?.defs ?? {};
+  if (!ctx.external || ctx.sharedEmitDoneFor !== ctx.external) {
+    for (const entry of ctx.seen.entries()) {
+      const seen = entry[1];
+      if (seen.def && seen.defId) {
+        if (seen.def.id === seen.defId)
+          delete seen.def.id;
+        assignProp(defs, seen.defId, seen.def);
+      }
+    }
+  }
+  if (ctx.external)
+    ctx.sharedEmitDoneFor = ctx.external;
+  if (ctx.external) {
+  } else {
+    if (Object.keys(defs).length > 0) {
+      if (ctx.target === "draft-2020-12") {
+        result.$defs = defs;
+      } else {
+        result.definitions = defs;
+      }
+    }
+  }
+  try {
+    const finalized = JSON.parse(JSON.stringify(result));
+    Object.defineProperty(finalized, "~standard", {
+      value: {
+        ...schema["~standard"],
+        jsonSchema: {
+          input: createStandardJSONSchemaMethod(schema, "input", ctx.processors),
+          output: createStandardJSONSchemaMethod(schema, "output", ctx.processors)
+        }
+      },
+      enumerable: false,
+      writable: false
+    });
+    return finalized;
+  } catch (_err) {
+    throw new Error("Error converting schema to JSON.");
+  }
+}
+function isTransforming(_schema, _ctx) {
+  const ctx = _ctx ?? { seen: /* @__PURE__ */ new Set() };
+  if (ctx.seen.has(_schema))
+    return false;
+  ctx.seen.add(_schema);
+  const def = _schema._zod.def;
+  if (def.type === "transform")
+    return true;
+  if (def.type === "array")
+    return isTransforming(def.element, ctx);
+  if (def.type === "set")
+    return isTransforming(def.valueType, ctx);
+  if (def.type === "lazy")
+    return isTransforming(def.getter(), ctx);
+  if (def.type === "promise" || def.type === "optional" || def.type === "nonoptional" || def.type === "nullable" || def.type === "readonly" || def.type === "default" || def.type === "prefault" || def.type === "catch") {
+    return isTransforming(def.innerType, ctx);
+  }
+  if (def.type === "intersection") {
+    return isTransforming(def.left, ctx) || isTransforming(def.right, ctx);
+  }
+  if (def.type === "record" || def.type === "map") {
+    return isTransforming(def.keyType, ctx) || isTransforming(def.valueType, ctx);
+  }
+  if (def.type === "pipe") {
+    if (_schema._zod.traits.has("$ZodCodec"))
+      return true;
+    return isTransforming(def.in, ctx) || isTransforming(def.out, ctx);
+  }
+  if (def.type === "object") {
+    for (const key in def.shape) {
+      if (isTransforming(def.shape[key], ctx))
+        return true;
+    }
+    return false;
+  }
+  if (def.type === "union") {
+    for (const option of def.options) {
+      if (isTransforming(option, ctx))
+        return true;
+    }
+    return false;
+  }
+  if (def.type === "tuple") {
+    for (const item of def.items) {
+      if (isTransforming(item, ctx))
+        return true;
+    }
+    if (def.rest && isTransforming(def.rest, ctx))
+      return true;
+    return false;
+  }
+  return false;
+}
+var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) => {
+  const { libraryOptions, target } = params ?? {};
+  const ctx = initializeContext({ ...libraryOptions ?? {}, target, io, processors });
+  processSchema(schema, ctx);
+  extractDefs(ctx, schema);
+  return finalize(ctx, schema);
+};
+
+// node_modules/zod/v4/core/json-schema-processors.js
+var narrowMin = (agg, key, value) => {
+  if (agg[key] === void 0 || value > agg[key])
+    agg[key] = value;
+};
+var narrowMax = (agg, key, value) => {
+  if (agg[key] === void 0 || value < agg[key])
+    agg[key] = value;
+};
+var narrowBoth = (agg, value) => {
+  narrowMin(agg, "minimum", value);
+  narrowMax(agg, "maximum", value);
+};
+var addDivisor = (agg, value) => {
+  agg.multipleOf ?? (agg.multipleOf = []);
+  if (!agg.multipleOf.includes(value))
+    agg.multipleOf.push(value);
+};
+var addPattern = (agg, pattern) => {
+  agg.patterns ?? (agg.patterns = /* @__PURE__ */ new Set());
+  agg.patterns.add(pattern);
+};
+var intersectMime = (agg, mime) => {
+  agg.mime = agg.mime ? agg.mime.filter((m) => mime.includes(m)) : [...mime];
+};
+var setFormat = (agg, format) => {
+  agg.format = format;
+  if (format.includes("int"))
+    agg.isInt = true;
+};
+var minContributor = (agg, def) => narrowMin(agg, "minimum", def.minimum);
+var maxContributor = (agg, def) => narrowMax(agg, "maximum", def.maximum);
+var formatContributor = (ranges) => (agg, def) => {
+  setFormat(agg, def.format);
+  const [minimum, maximum] = ranges[def.format];
+  narrowMin(agg, "minimum", minimum);
+  narrowMax(agg, "maximum", maximum);
+};
+var contributors = {
+  greater_than: (agg, def) => narrowMin(agg, def.inclusive ? "minimum" : "exclusiveMinimum", def.value),
+  less_than: (agg, def) => narrowMax(agg, def.inclusive ? "maximum" : "exclusiveMaximum", def.value),
+  multiple_of: (agg, def) => addDivisor(agg, def.value),
+  number_format: formatContributor(NUMBER_FORMAT_RANGES),
+  bigint_format: formatContributor(BIGINT_FORMAT_RANGES),
+  min_length: minContributor,
+  max_length: maxContributor,
+  length_equals: (agg, def) => narrowBoth(agg, def.length),
+  min_size: minContributor,
+  max_size: maxContributor,
+  size_equals: (agg, def) => narrowBoth(agg, def.size),
+  string_format: (agg, def) => {
+    setFormat(agg, def.format);
+    if (def.pattern)
+      addPattern(agg, def.pattern);
+    if (def.format === "base64" || def.format === "base64url")
+      agg.contentEncoding = def.format;
+    if (def.local || def.precision === -1)
+      agg.laxFormat = true;
+  },
+  mime_type: (agg, def) => intersectMime(agg, def.mime)
+};
+function aggregateChecks(schema) {
+  const agg = {};
+  const def = schema._zod.def;
+  const list = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  for (const ch of list)
+    contributors[ch._zod.def.check]?.(agg, ch._zod.def);
+  const bag = schema._zod.bag;
+  if (bag.minimum !== void 0)
+    narrowMin(agg, "minimum", bag.minimum);
+  if (bag.exclusiveMinimum !== void 0)
+    narrowMin(agg, "exclusiveMinimum", bag.exclusiveMinimum);
+  if (bag.maximum !== void 0)
+    narrowMax(agg, "maximum", bag.maximum);
+  if (bag.exclusiveMaximum !== void 0)
+    narrowMax(agg, "exclusiveMaximum", bag.exclusiveMaximum);
+  if (bag.multipleOf !== void 0)
+    addDivisor(agg, bag.multipleOf);
+  if (bag.format !== void 0) {
+    agg.format ?? (agg.format = bag.format);
+    if (bag.format.includes("int"))
+      agg.isInt = true;
+  }
+  if (bag.mime)
+    intersectMime(agg, bag.mime);
+  for (const pattern of bag.patterns ?? [])
+    addPattern(agg, pattern);
+  return agg;
+}
+var formatMap = {
+  guid: "uuid",
+  url: "uri",
+  datetime: "date-time",
+  json_string: "json-string",
+  regex: ""
+  // do not set
+};
+var exactPatterns = /* @__PURE__ */ new Map([
+  [base64Charset, base64],
+  [base64urlCharset, base64url]
+]);
+var exactPattern = (p) => exactPatterns.get(p) ?? p;
+var stringProcessor = (schema, ctx, _json, _params) => {
+  const json = _json;
+  json.type = "string";
+  const { minimum, maximum, format, patterns, contentEncoding, laxFormat } = aggregateChecks(schema);
+  if (typeof minimum === "number")
+    json.minLength = minimum;
+  if (typeof maximum === "number")
+    json.maxLength = maximum;
+  if (format) {
+    json.format = formatMap[format] ?? format;
+    if (json.format === "")
+      delete json.format;
+    if (format === "time" || laxFormat) {
+      delete json.format;
+    }
+  }
+  if (contentEncoding)
+    json.contentEncoding = contentEncoding;
+  if (patterns && patterns.size > 0) {
+    const patternList = [...patterns].map(exactPattern);
+    if (patternList.length === 1)
+      json.pattern = patternList[0].source;
+    else if (patternList.length > 1) {
+      json.allOf = [
+        ...patternList.map((regex) => ({
+          ...ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0" ? { type: "string" } : {},
+          pattern: regex.source
+        }))
+      ];
+    }
+  }
+};
+var numberProcessor = (schema, ctx, _json, params) => {
+  const json = _json;
+  const { minimum, maximum, multipleOf, exclusiveMaximum, exclusiveMinimum, isInt } = aggregateChecks(schema);
+  json.type = isInt ? "integer" : "number";
+  const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
+  const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
+  const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
+  if (exMin) {
+    if (legacy) {
+      json.minimum = exclusiveMinimum;
+      json.exclusiveMinimum = true;
+    } else {
+      json.exclusiveMinimum = exclusiveMinimum;
+    }
+  } else if (typeof minimum === "number") {
+    json.minimum = minimum;
+  }
+  if (exMax) {
+    if (legacy) {
+      json.maximum = exclusiveMaximum;
+      json.exclusiveMaximum = true;
+    } else {
+      json.exclusiveMaximum = exclusiveMaximum;
+    }
+  } else if (typeof maximum === "number") {
+    json.maximum = maximum;
+  }
+  if (multipleOf) {
+    const divisors = /* @__PURE__ */ new Set();
+    for (const divisor of multipleOf) {
+      if (Number.isFinite(divisor) && divisor !== 0)
+        divisors.add(Math.abs(divisor));
+      else
+        handleUnrepresentable(schema, ctx, json, params, `A multipleOf divisor of ${divisor} cannot be represented in JSON Schema`);
+    }
+    const [first, ...rest] = divisors;
+    if (first !== void 0)
+      json.multipleOf = first;
+    if (rest.length)
+      json.allOf = [...json.allOf ?? [], ...rest.map((m) => ({ multipleOf: m }))];
+  }
+};
+var booleanProcessor = (_schema, _ctx, json, _params) => {
+  json.type = "boolean";
+};
+var bigintProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "BigInt cannot be represented in JSON Schema");
+};
+var symbolProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Symbols cannot be represented in JSON Schema");
+};
+var nullProcessor = (_schema, ctx, json, _params) => {
+  if (ctx.target === "openapi-3.0") {
+    json.type = "string";
+    json.nullable = true;
+    json.enum = [null];
+  } else {
+    json.type = "null";
+  }
+};
+var undefinedProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Undefined cannot be represented in JSON Schema");
+};
+var voidProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Void cannot be represented in JSON Schema");
+};
+var neverProcessor = (_schema, _ctx, json, _params) => {
+  json.not = {};
+};
+var anyProcessor = (_schema, _ctx, _json, _params) => {
+};
+var unknownProcessor = (_schema, _ctx, _json, _params) => {
+};
+var dateProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Date cannot be represented in JSON Schema");
+};
+var enumProcessor = (schema, _ctx, json, _params) => {
+  const def = schema._zod.def;
+  const values = getEnumValues(def.entries);
+  if (values.length === 0) {
+    json.not = {};
+    return;
+  }
+  if (values.every((v) => typeof v === "number"))
+    json.type = "number";
+  if (values.every((v) => typeof v === "string"))
+    json.type = "string";
+  json.enum = values;
+};
+var literalProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  if (def.values.length === 0) {
+    json.not = {};
+    return;
+  }
+  const vals = [];
+  for (const val of def.values) {
+    if (val === void 0) {
+      if (handleUnrepresentable(schema, ctx, json, params, "Literal `undefined` cannot be represented in JSON Schema"))
+        return;
+    } else if (typeof val === "bigint") {
+      if (handleUnrepresentable(schema, ctx, json, params, "BigInt literals cannot be represented in JSON Schema"))
+        return;
+      vals.push(Number(val));
+    } else {
+      vals.push(val);
+    }
+  }
+  if (vals.length === 0) {
+  } else if (vals.length === 1) {
+    const val = vals[0];
+    json.type = val === null ? "null" : typeof val;
+    if (ctx.target === "draft-04" || ctx.target === "openapi-3.0") {
+      json.enum = [val];
+    } else {
+      json.const = val;
+    }
+  } else {
+    if (vals.every((v) => typeof v === "number"))
+      json.type = "number";
+    if (vals.every((v) => typeof v === "string"))
+      json.type = "string";
+    if (vals.every((v) => typeof v === "boolean"))
+      json.type = "boolean";
+    if (vals.every((v) => v === null))
+      json.type = "null";
+    json.enum = vals;
+  }
+};
+var nanProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "NaN cannot be represented in JSON Schema");
+};
+var templateLiteralProcessor = (schema, _ctx, json, _params) => {
+  const _json = json;
+  const pattern = schema._zod.pattern;
+  if (!pattern)
+    throw new Error("Pattern not found in template literal");
+  _json.type = "string";
+  _json.pattern = pattern.source;
+};
+var fileProcessor = (schema, _ctx, json, _params) => {
+  const _json = json;
+  _json.type = "string";
+  _json.format = "binary";
+  _json.contentEncoding = "binary";
+  const { minimum, maximum, mime } = aggregateChecks(schema);
+  if (minimum !== void 0)
+    _json.minLength = minimum;
+  if (maximum !== void 0)
+    _json.maxLength = maximum;
+  if (!mime)
+    return;
+  if (mime.length === 0)
+    _json.not = {};
+  else if (mime.length === 1)
+    _json.contentMediaType = mime[0];
+  else
+    _json.anyOf = mime.map((m) => ({ contentMediaType: m }));
+};
+var successProcessor = (_schema, _ctx, json, _params) => {
+  json.type = "boolean";
+};
+var customProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Custom types cannot be represented in JSON Schema");
+};
+var functionProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Function types cannot be represented in JSON Schema");
+};
+var transformProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Transforms cannot be represented in JSON Schema");
+};
+var mapProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Map cannot be represented in JSON Schema");
+};
+var setProcessor = (schema, ctx, json, params) => {
+  handleUnrepresentable(schema, ctx, json, params, "Set cannot be represented in JSON Schema");
+};
+var arrayProcessor = (schema, ctx, _json, params) => {
+  const json = _json;
+  const def = schema._zod.def;
+  const { minimum, maximum } = aggregateChecks(schema);
+  if (typeof minimum === "number")
+    json.minItems = minimum;
+  if (typeof maximum === "number")
+    json.maxItems = maximum;
+  json.type = "array";
+  json.items = processSchema(def.element, ctx, {
+    ...params,
+    path: [...params.path, "items"]
+  });
+};
+function inputOptin(schema) {
+  const def = schema._zod.def;
+  if (def.type === "pipe" && def.in._zod.traits.has("$ZodTransform")) {
+    return inputOptin(def.out);
+  }
+  if (def.type === "catch") {
+    return inputOptin(def.innerType);
+  }
+  return schema._zod.optin;
+}
+var objectProcessor = (schema, ctx, _json, params) => {
+  const json = _json;
+  const def = schema._zod.def;
+  const shape = def.shape;
+  const symbolKeys = Object.getOwnPropertySymbols(shape);
+  if (symbolKeys.length && handleUnrepresentable(schema, ctx, json, params, "Symbol keys cannot be represented in JSON Schema")) {
+    return;
+  }
+  json.type = "object";
+  json.properties = {};
+  for (const key in shape) {
+    assignProp(json.properties, key, processSchema(shape[key], ctx, {
+      ...params,
+      path: [...params.path, "properties", key]
+    }));
+  }
+  const requiredKeys = [];
+  for (const key of Object.keys(shape)) {
+    const field = def.shape[key];
+    if (ctx.io === "input" ? inputOptin(field) === void 0 : field._zod.optout === void 0) {
+      requiredKeys.push(key);
+    }
+  }
+  if (requiredKeys.length > 0) {
+    json.required = requiredKeys;
+  }
+  if (def.catchall?._zod.def.type === "never") {
+    json.additionalProperties = false;
+  } else if (!def.catchall) {
+    if (ctx.io === "output")
+      json.additionalProperties = false;
+  } else if (def.catchall) {
+    json.additionalProperties = processSchema(def.catchall, ctx, {
+      ...params,
+      path: [...params.path, "additionalProperties"]
+    });
+  }
+};
+var unionProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  const isExclusive = def.inclusive === false;
+  const options = def.options.map((x, i) => processSchema(x, ctx, {
+    ...params,
+    path: [...params.path, isExclusive ? "oneOf" : "anyOf", i]
+  }));
+  if (isExclusive) {
+    json.oneOf = options;
+  } else {
+    json.anyOf = options;
+  }
+};
+var intersectionProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  const a = processSchema(def.left, ctx, {
+    ...params,
+    path: [...params.path, "allOf", 0]
+  });
+  const b = processSchema(def.right, ctx, {
+    ...params,
+    path: [...params.path, "allOf", 1]
+  });
+  const isSimpleIntersection = (val) => "allOf" in val && Object.keys(val).length === 1;
+  const allOf = [
+    ...isSimpleIntersection(a) ? a.allOf : [a],
+    ...isSimpleIntersection(b) ? b.allOf : [b]
+  ];
+  json.allOf = allOf;
+  ctx.intersections.push(allOf);
+};
+var tupleProcessor = (schema, ctx, _json, params) => {
+  const json = _json;
+  const def = schema._zod.def;
+  json.type = "array";
+  const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
+  const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
+  const prefixItems = def.items.map((x, i) => processSchema(x, ctx, {
+    ...params,
+    path: [...params.path, prefixPath, i]
+  }));
+  const rest = def.rest ? processSchema(def.rest, ctx, {
+    ...params,
+    path: [...params.path, restPath, ...ctx.target === "openapi-3.0" ? [def.items.length] : []]
+  }) : null;
+  let minItems = def.items.length;
+  while (minItems > 0) {
+    const item = def.items[minItems - 1];
+    const optional2 = ctx.io === "input" ? inputOptin(item) !== void 0 : item._zod.optout === "optional";
+    if (!optional2)
+      break;
+    minItems--;
+  }
+  const maxItems = def.items.length;
+  const isClosed = !def.rest;
+  if (ctx.target === "draft-2020-12") {
+    json.prefixItems = prefixItems;
+    if (isClosed) {
+      json.items = false;
+    } else if (rest) {
+      json.items = rest;
+    }
+    if (minItems > 0)
+      json.minItems = minItems;
+    if (isClosed)
+      json.maxItems = maxItems;
+  } else if (ctx.target === "openapi-3.0") {
+    json.items = {
+      anyOf: prefixItems
+    };
+    if (rest) {
+      json.items.anyOf.push(rest);
+    }
+    if (minItems > 0)
+      json.minItems = minItems;
+    if (isClosed)
+      json.maxItems = maxItems;
+  } else {
+    json.items = prefixItems;
+    if (isClosed) {
+      json.additionalItems = false;
+    } else if (rest) {
+      json.additionalItems = rest;
+    }
+    if (minItems > 0)
+      json.minItems = minItems;
+    if (isClosed)
+      json.maxItems = maxItems;
+  }
+  const { minimum, maximum } = aggregateChecks(schema);
+  if (typeof minimum === "number")
+    json.minItems = minimum;
+  if (typeof maximum === "number")
+    json.maxItems = maximum;
+};
+function stringifyKeyNames(bySchema, json, visited) {
+  if (json.$ref) {
+    if (visited.has(json))
+      return json;
+    visited.add(json);
+    const def = bySchema.get(json)?.def;
+    if (!def)
+      return json;
+    const inlined = stringifyKeyNames(bySchema, def, visited);
+    return inlined === def ? json : inlined;
+  }
+  for (const keyword of ["anyOf", "oneOf"]) {
+    const branches = json[keyword];
+    if (!Array.isArray(branches))
+      continue;
+    const mapped = branches.map((branch) => stringifyKeyNames(bySchema, branch, visited));
+    if (mapped.some((branch, i) => branch !== branches[i]))
+      json = { ...json, [keyword]: mapped };
+  }
+  const types = Array.isArray(json.type) ? json.type : [json.type];
+  const numericType = !types.includes("string") && types.some((t) => t === "number" || t === "integer");
+  const values = json.enum ?? (json.const !== void 0 ? [json.const] : void 0);
+  if (!numericType && !values?.some((v) => typeof v === "number"))
+    return json;
+  const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, format, id: id2, ...rest } = json;
+  if (rest.enum)
+    rest.enum = rest.enum.map((v) => typeof v === "number" ? String(v) : v);
+  else if (typeof rest.const === "number")
+    rest.const = String(rest.const);
+  if (!numericType)
+    return rest;
+  rest.type = "string";
+  if (!values)
+    rest.pattern = (types.includes("number") ? number : integer).source;
+  return rest;
+}
+var pendingRecords = /* @__PURE__ */ new WeakMap();
+function rewriteKeyNames(ctx) {
+  const bySchema = /* @__PURE__ */ new Map();
+  for (const entry of ctx.seen.values()) {
+    if (entry.def && !bySchema.has(entry.schema))
+      bySchema.set(entry.schema, entry);
+  }
+  const rewrites = /* @__PURE__ */ new Map();
+  for (const record2 of pendingRecords.get(ctx) ?? []) {
+    const seen = ctx.seen.get(record2);
+    const names = (seen?.def ?? seen?.schema)?.propertyNames;
+    if (!names || names === true || rewrites.has(names))
+      continue;
+    const rewritten = stringifyKeyNames(bySchema, names, /* @__PURE__ */ new Set());
+    if (rewritten !== names)
+      rewrites.set(names, rewritten);
+  }
+  if (!rewrites.size)
+    return;
+  for (const entry of ctx.seen.values()) {
+    for (const carrier of [entry.schema, entry.def]) {
+      const rewritten = carrier && rewrites.get(carrier.propertyNames);
+      if (rewritten)
+        carrier.propertyNames = rewritten;
+    }
+  }
+}
+var recordProcessor = (schema, ctx, _json, params) => {
+  const json = _json;
+  const def = schema._zod.def;
+  json.type = "object";
+  const keyType = def.keyType;
+  const patterns = aggregateChecks(keyType).patterns;
+  if (def.mode === "loose" && patterns && patterns.size > 0) {
+    const valueSchema = processSchema(def.valueType, ctx, {
+      ...params,
+      path: [...params.path, "patternProperties", "*"]
+    });
+    json.patternProperties = {};
+    for (const pattern of patterns) {
+      assignProp(json.patternProperties, exactPattern(pattern).source, valueSchema);
+    }
+  } else {
+    if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
+      json.propertyNames = processSchema(def.keyType, ctx, {
+        ...params,
+        path: [...params.path, "propertyNames"]
+      });
+      let pending = pendingRecords.get(ctx);
+      if (!pending) {
+        pending = [];
+        pendingRecords.set(ctx, pending);
+        ctx.deferred.push(() => rewriteKeyNames(ctx));
+      }
+      pending.push(schema);
+    }
+    json.additionalProperties = processSchema(def.valueType, ctx, {
+      ...params,
+      path: [...params.path, "additionalProperties"]
+    });
+  }
+  const keyValues = keyType._zod.values;
+  const omittableOnInput = ctx.io === "input" && inputOptin(def.valueType) !== void 0;
+  if (keyValues && !def.partial && !omittableOnInput) {
+    const validKeyValues = [...keyValues].filter((v) => typeof v === "string" || typeof v === "number");
+    if (validKeyValues.length > 0) {
+      json.required = validKeyValues.map(String);
+    }
+  }
+};
+var nullableProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  const inner = processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  if (ctx.target === "openapi-3.0") {
+    seen.ref = def.innerType;
+    json.nullable = true;
+  } else {
+    json.anyOf = [inner, { type: "null" }];
+  }
+};
+var nonoptionalProcessor = (schema, ctx, _json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+};
+var UNREPRESENTABLE_DEFAULT = /* @__PURE__ */ Symbol();
+function serializeDefaultValue(value, schema, ctx, json, params) {
+  let unrepresentable = false;
+  const serialized = JSON.stringify(value, (_, val) => {
+    if (typeof val !== "bigint")
+      return val;
+    unrepresentable = true;
+    return null;
+  });
+  if (!unrepresentable)
+    return JSON.parse(serialized);
+  handleUnrepresentable(schema, ctx, json, params, "BigInt defaults cannot be represented in JSON Schema");
+  return UNREPRESENTABLE_DEFAULT;
+}
+var defaultProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+  const value = serializeDefaultValue(def.defaultValue, schema, ctx, json, params);
+  if (value !== UNREPRESENTABLE_DEFAULT)
+    json.default = value;
+};
+var prefaultProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+  if (ctx.io !== "input")
+    return;
+  const value = serializeDefaultValue(def.defaultValue, schema, ctx, json, params);
+  if (value !== UNREPRESENTABLE_DEFAULT)
+    json._prefault = value;
+};
+var catchProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+  let catchValue;
+  try {
+    catchValue = def.catchValue(void 0);
+  } catch {
+    handleUnrepresentable(schema, ctx, json, params, "Dynamic catch values are not supported in JSON Schema");
+    return;
+  }
+  json.default = catchValue;
+};
+var pipeProcessor = (schema, ctx, _json, params) => {
+  const def = schema._zod.def;
+  const inIsTransform = def.in._zod.traits.has("$ZodTransform");
+  const innerType = ctx.io === "input" ? inIsTransform ? def.out : def.in : def.out;
+  processSchema(innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = innerType;
+};
+var readonlyProcessor = (schema, ctx, json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+  json.readOnly = true;
+};
+var promiseProcessor = (schema, ctx, _json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+};
+var optionalProcessor = (schema, ctx, _json, params) => {
+  const def = schema._zod.def;
+  processSchema(def.innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = def.innerType;
+};
+var lazyProcessor = (schema, ctx, _json, params) => {
+  const innerType = schema._zod.innerType;
+  processSchema(innerType, ctx, params);
+  const seen = ctx.seen.get(schema);
+  seen.ref = innerType;
+};
+var allProcessors = {
+  string: stringProcessor,
+  number: numberProcessor,
+  boolean: booleanProcessor,
+  bigint: bigintProcessor,
+  symbol: symbolProcessor,
+  null: nullProcessor,
+  undefined: undefinedProcessor,
+  void: voidProcessor,
+  never: neverProcessor,
+  any: anyProcessor,
+  unknown: unknownProcessor,
+  date: dateProcessor,
+  enum: enumProcessor,
+  literal: literalProcessor,
+  nan: nanProcessor,
+  template_literal: templateLiteralProcessor,
+  file: fileProcessor,
+  success: successProcessor,
+  custom: customProcessor,
+  function: functionProcessor,
+  transform: transformProcessor,
+  map: mapProcessor,
+  set: setProcessor,
+  array: arrayProcessor,
+  object: objectProcessor,
+  union: unionProcessor,
+  intersection: intersectionProcessor,
+  tuple: tupleProcessor,
+  record: recordProcessor,
+  nullable: nullableProcessor,
+  nonoptional: nonoptionalProcessor,
+  default: defaultProcessor,
+  prefault: prefaultProcessor,
+  catch: catchProcessor,
+  pipe: pipeProcessor,
+  readonly: readonlyProcessor,
+  promise: promiseProcessor,
+  optional: optionalProcessor,
+  lazy: lazyProcessor
+};
+function toJSONSchema(input, params) {
+  if ("_idmap" in input) {
+    const registry2 = input;
+    const ctx2 = initializeContext({ ...params, processors: allProcessors });
+    const defs = {};
+    for (const entry of registry2._idmap.entries()) {
+      const [_, schema] = entry;
+      processSchema(schema, ctx2);
+    }
+    const schemas = {};
+    const external = {
+      registry: registry2,
+      uri: params?.uri,
+      defs
+    };
+    ctx2.external = external;
+    for (const entry of registry2._idmap.entries()) {
+      const [key, schema] = entry;
+      extractDefs(ctx2, schema);
+      assignProp(schemas, key, finalize(ctx2, schema));
+    }
+    if (Object.keys(defs).length > 0) {
+      const defsSegment = ctx2.target === "draft-2020-12" ? "$defs" : "definitions";
+      schemas.__shared = {
+        [defsSegment]: defs
+      };
+    }
+    return { schemas };
+  }
+  const ctx = initializeContext({ ...params, processors: allProcessors });
+  processSchema(input, ctx);
+  extractDefs(ctx, input);
+  return finalize(ctx, input);
+}
+
 // node_modules/zod/v4/mini/schemas.js
 var ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
   if (!inst._zod)
@@ -1675,8 +3247,8 @@ var ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
   brand() {
     return this;
   },
-  register(reg, meta2) {
-    reg.add(this, meta2);
+  register(reg, meta3) {
+    reg.add(this, meta3);
     return this;
   },
   apply(fn, ...args) {
@@ -1754,6 +3326,65 @@ function looseObject(shape, params) {
     type: "object",
     shape,
     catchall: /* @__PURE__ */ unknown(),
+    ...normalizeParams(params)
+  });
+}
+var ZodMiniUnion = /* @__PURE__ */ $constructor("ZodMiniUnion", (inst, def) => {
+  $ZodUnion.init(inst, def);
+  ZodMiniType.init(inst, def);
+});
+// @__NO_SIDE_EFFECTS__
+function union(options, params) {
+  return new ZodMiniUnion({
+    type: "union",
+    options,
+    ...normalizeParams(params)
+  });
+}
+var ZodMiniRecord = /* @__PURE__ */ $constructor("ZodMiniRecord", (inst, def) => {
+  $ZodRecord.init(inst, def);
+  ZodMiniType.init(inst, def);
+});
+// @__NO_SIDE_EFFECTS__
+function record(keyType, valueType, params) {
+  if (!valueType || !valueType._zod) {
+    return new ZodMiniRecord({
+      type: "record",
+      keyType: /* @__PURE__ */ string2(),
+      valueType: keyType,
+      ...normalizeParams(valueType)
+    });
+  }
+  return new ZodMiniRecord({
+    type: "record",
+    keyType,
+    valueType,
+    ...normalizeParams(params)
+  });
+}
+var ZodMiniEnum = /* @__PURE__ */ $constructor("ZodMiniEnum", (inst, def) => {
+  $ZodEnum.init(inst, def);
+  ZodMiniType.init(inst, def);
+  inst.options = [...inst._zod.values];
+});
+// @__NO_SIDE_EFFECTS__
+function _enum(values, params) {
+  const entries = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
+  return new ZodMiniEnum({
+    type: "enum",
+    entries,
+    ...normalizeParams(params)
+  });
+}
+var ZodMiniLiteral = /* @__PURE__ */ $constructor("ZodMiniLiteral", (inst, def) => {
+  $ZodLiteral.init(inst, def);
+  ZodMiniType.init(inst, def);
+});
+// @__NO_SIDE_EFFECTS__
+function literal(value, params) {
+  return new ZodMiniLiteral({
+    type: "literal",
+    values: Array.isArray(value) ? value : [value],
     ...normalizeParams(params)
   });
 }
@@ -1936,6 +3567,25 @@ function elementSchema() {
     "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
   );
 }
+function properties(description) {
+  return optional(doc(record(string2(), unknown()), description));
+}
+function reference(description) {
+  return doc(
+    union([
+      string2().check(_minLength(1)),
+      object({ $ref: string2().check(_minLength(1)) })
+    ]),
+    description
+  );
+}
+function typeValue(description) {
+  return doc(
+    union([string2(), object({ $ref: string2().check(_minLength(1)) })]),
+    description
+  );
+}
+var ATTRIBUTE_VALUES_HELP = "Initial attribute values by name, as /introspect lists them: plain values for prim/enum attributes, an id or {$ref: id} for references, arrays of those for reference lists.";
 
 // src/handlers/commands.ts
 var getAllCommands = defineEndpoint({
@@ -2034,6 +3684,385 @@ var debug = defineEndpoint({
   }
 });
 
+// src/metamodel.ts
+function isMetaClass(name) {
+  return Object.hasOwn(meta, name) && meta[name].kind === "class";
+}
+function lineage(name) {
+  const out = [];
+  for (let t = name; t; t = meta[t]?.super) out.push(t);
+  return out;
+}
+function attributeOf(typeName2, name) {
+  return app.metamodels.getMetaAttributes(typeName2).find((attr) => attr.name === name);
+}
+function ownerField(owner, childType) {
+  let best = null;
+  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
+    if (attr.kind !== "objs" || !app.metamodels.isKindOf(childType, attr.type))
+      continue;
+    const depth = lineage(attr.type).length;
+    if (!best || depth > best.depth) best = { name: attr.name, depth };
+  }
+  return best?.name ?? null;
+}
+function resolveOwnerField(owner, childType, field) {
+  const ownerType = owner.constructor.name;
+  if (field === void 0) {
+    const chosen = ownerField(owner, childType);
+    if (!chosen) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${ownerType} has no list that holds ${childType}`
+      );
+    }
+    return chosen;
+  }
+  const attr = attributeOf(ownerType, field);
+  if (!attr || attr.kind !== "objs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${ownerType} has no owned-element list '${field}'`
+    );
+  }
+  if (!app.metamodels.isKindOf(childType, attr.type)) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${ownerType}.${field} holds ${attr.type}, not ${childType}`
+    );
+  }
+  return field;
+}
+function relationshipKind(typeName2) {
+  if (app.metamodels.isKindOf(typeName2, "DirectedRelationship"))
+    return "directed";
+  if (app.metamodels.isKindOf(typeName2, "UndirectedRelationship"))
+    return "undirected";
+  return null;
+}
+
+// src/handlers/introspect.ts
+var SECTIONS = ["factory", "metamodel", "toolbox", "endpoints"];
+var attributeSchema = () => object({
+  name: string2(),
+  kind: doc(
+    _enum(["prim", "enum", "var", "ref", "refs", "obj", "objs", "custom"]),
+    "prim/enum: value; ref/refs: reference(s) to other elements; obj/objs: owned element(s); var: a reference or a plain value; custom: an object StarUML stores as a string (Font, Points)."
+  ),
+  type: doc(
+    string2(),
+    "Integer, Real, String, Boolean or Image for prim; otherwise a metamodel type name."
+  ),
+  default: optional(unknown()),
+  transient: optional(
+    doc(boolean2(), "Runtime state; not saved or returned.")
+  ),
+  options: optional(
+    doc(array(string2()), "Suggested values, e.g. multiplicities.")
+  )
+});
+var metaTypeSchema = () => object({
+  kind: _enum(["class", "enum"]),
+  super: nullable(string2()),
+  supers: doc(array(string2()), "Ancestors, nearest first."),
+  attributes: doc(
+    array(attributeSchema()),
+    "Own attributes; with inherited: true, inherited ones first."
+  ),
+  literals: optional(array(string2())),
+  viewType: doc(
+    nullable(string2()),
+    "View class that shows this model class on a diagram."
+  ),
+  viewTypes: optional(
+    doc(
+      array(string2()),
+      "Diagrams only: view classes the diagram accepts."
+    )
+  ),
+  relationship: doc(
+    nullable(_enum(["directed", "undirected"])),
+    "directed: source/target; undirected: end1/end2 elements."
+  ),
+  isView: boolean2(),
+  isDiagram: boolean2(),
+  creatable: doc(
+    object({
+      model: boolean2(),
+      modelAndView: boolean2(),
+      diagram: boolean2()
+    }),
+    "Which factory registers this name: /create_element, /create_element_with_view and /create_relationship, /create_diagram."
+  )
+});
+var modelAndViewSchema = () => object({
+  id: string2(),
+  modelType: nullable(string2()),
+  viewType: nullable(string2()),
+  relationship: nullable(_enum(["directed", "undirected"]))
+});
+var toolboxSchema = () => object({
+  groups: array(
+    object({
+      id: string2(),
+      title: string2(),
+      diagramTypes: doc(
+        nullable(array(string2())),
+        "Diagrams the group is shown for; null for every diagram."
+      )
+    })
+  ),
+  items: doc(
+    array(
+      object({
+        id: doc(
+          string2(),
+          "Pass as 'type' to /create_element_with_view, /create_edge_with_view or /create_relationship."
+        ),
+        group: string2(),
+        title: string2(),
+        rubberband: doc(
+          string2(),
+          "line for edges; rect or point for nodes."
+        ),
+        creates: doc(string2(), "The model-and-view id the item creates."),
+        options: doc(
+          record(string2(), unknown()),
+          "Presets the item adds, e.g. model-init attribute values or parasitic: true for elements placed on a host view (pass containerViewId)."
+        ),
+        command: optional(
+          doc(
+            string2(),
+            "A command other than factory:create-model-and-view; such items cannot be created through this API unless `creates` is itself a model-and-view id."
+          )
+        )
+      })
+    ),
+    "The diagram editor's palette entries; an id in several groups is listed once."
+  )
+});
+var manifestEntrySchema = () => object({
+  path: string2(),
+  description: string2(),
+  readOnly: boolean2(),
+  destructive: boolean2(),
+  request: doc(record(string2(), unknown()), "JSON Schema (2020-12)."),
+  response: doc(
+    record(string2(), unknown()),
+    "JSON Schema (2020-12) of `data` in a successful response."
+  )
+});
+var errorBodySchema = () => object({
+  success: literal(false),
+  code: _enum(ERROR_CODES),
+  error: string2(),
+  details: optional(unknown())
+});
+var introspectResponse = object({
+  staruml: object({
+    version: string2(),
+    apiVersion: nullable(string2())
+  }),
+  extension: object({ name: string2(), version: string2() }),
+  factory: optional(
+    object({
+      modelIds: array(string2()),
+      diagramIds: array(string2()),
+      modelAndViewIds: array(string2()),
+      modelAndView: doc(
+        array(modelAndViewSchema()),
+        "What each model-and-view id creates; ids such as UMLInputExpansionNode create another model type."
+      )
+    })
+  ),
+  metamodel: optional(record(string2(), metaTypeSchema())),
+  toolbox: optional(toolboxSchema()),
+  endpoints: optional(array(manifestEntrySchema())),
+  errors: optional(
+    object({
+      status: doc(record(string2(), int()), "HTTP status per error code."),
+      schema: doc(
+        record(string2(), unknown()),
+        "JSON Schema of an error response body."
+      )
+    })
+  )
+});
+function describeAttribute(attr) {
+  return {
+    name: attr.name,
+    kind: attr.kind,
+    type: attr.type,
+    ...attr.default !== void 0 && { default: attr.default },
+    ...attr.transient && { transient: true },
+    ...attr.options && { options: [...attr.options] }
+  };
+}
+function describeType(name, ids, inherited) {
+  const metaType = meta[name];
+  if (metaType.kind === "enum") {
+    return {
+      kind: "enum",
+      super: null,
+      supers: [],
+      attributes: [],
+      literals: [...metaType.literals ?? []],
+      viewType: null,
+      relationship: null,
+      isView: false,
+      isDiagram: false,
+      creatable: { model: false, modelAndView: false, diagram: false }
+    };
+  }
+  const isDiagram = app.metamodels.isKindOf(name, "Diagram");
+  const attributes = inherited ? app.metamodels.getMetaAttributes(name) : metaType.attributes ?? [];
+  return {
+    kind: "class",
+    super: metaType.super ?? null,
+    supers: lineage(name).slice(1),
+    attributes: attributes.map(describeAttribute),
+    viewType: app.metamodels.getViewTypeOf(name),
+    ...isDiagram && {
+      viewTypes: app.metamodels.getAvailableViewTypes(name)
+    },
+    relationship: relationshipKind(name),
+    isView: app.metamodels.isKindOf(name, "View"),
+    isDiagram,
+    creatable: {
+      model: ids.model.has(name),
+      modelAndView: ids.modelAndView.has(name),
+      diagram: ids.diagram.has(name)
+    }
+  };
+}
+function describeModelAndView(id2) {
+  const options = app.factory.modelAndViewOptions[id2] ?? {};
+  const candidate = options.modelType ?? id2;
+  const modelType = isMetaClass(candidate) ? candidate : null;
+  return {
+    id: id2,
+    modelType,
+    viewType: options.viewType ?? (modelType ? app.metamodels.getViewTypeOf(modelType) : null),
+    relationship: modelType ? relationshipKind(modelType) : null
+  };
+}
+function describeToolbox() {
+  const { groups, items } = app.toolbox;
+  return {
+    groups: Object.values(groups).map((g) => ({
+      id: g.id,
+      title: g.title,
+      diagramTypes: g.diagramTypes ? g.diagramTypes.map((t) => t.name) : null
+    })),
+    items: Object.values(items).map((item) => {
+      const { id: id2, ...options } = item.commandArg ?? {};
+      return {
+        id: item.id,
+        group: item.groupId,
+        title: item.title,
+        rubberband: item.rubberband,
+        creates: typeof id2 === "string" ? id2 : item.id,
+        options: serializeValue(options),
+        ...item.command && { command: item.command }
+      };
+    })
+  };
+}
+var manifestCache = null;
+function manifest(endpoints2) {
+  if (manifestCache?.endpoints !== endpoints2) {
+    manifestCache = {
+      endpoints: endpoints2,
+      entries: endpoints2.map((e) => ({
+        path: e.path,
+        description: e.description,
+        readOnly: e.readOnly,
+        destructive: e.destructive,
+        request: toJSONSchema(e.request, { io: "input" }),
+        response: toJSONSchema(e.response, { io: "output" })
+      }))
+    };
+  }
+  return manifestCache.entries;
+}
+function introspectEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/introspect",
+    description: "StarUML and extension versions, factory ids, the metamodel catalogue, the diagram editor's toolbox, and this endpoint manifest with JSON Schemas.",
+    readOnly: true,
+    destructive: false,
+    request: object({
+      include: optional(
+        doc(
+          array(_enum(SECTIONS)),
+          "Sections to return besides the versions; default all."
+        )
+      ),
+      types: optional(
+        doc(
+          array(string2().check(_minLength(1))),
+          "Restrict the metamodel section to these type names."
+        )
+      ),
+      inherited: optional(
+        doc(
+          boolean2(),
+          "List inherited attributes with each type; default false (own attributes and supers)."
+        )
+      )
+    }),
+    response: introspectResponse,
+    handle: (input) => {
+      const include = new Set(input.include ?? SECTIONS);
+      const ids = {
+        model: app.factory.getModelIds(),
+        modelAndView: app.factory.getModelAndViewIds(),
+        diagram: app.factory.getDiagramIds()
+      };
+      const out = {
+        staruml: {
+          version: app.version,
+          apiVersion: app.metadata.apiVersion ?? null
+        },
+        extension: { name: EXTENSION_NAME, version: EXTENSION_VERSION }
+      };
+      if (include.has("factory")) {
+        out.factory = {
+          modelIds: [...ids.model].sort(),
+          diagramIds: [...ids.diagram].sort(),
+          modelAndViewIds: [...ids.modelAndView].sort(),
+          modelAndView: [...ids.modelAndView].sort().map(describeModelAndView)
+        };
+      }
+      if (include.has("metamodel")) {
+        const sets = {
+          model: new Set(ids.model),
+          modelAndView: new Set(ids.modelAndView),
+          diagram: new Set(ids.diagram)
+        };
+        const names = (input.types ?? Object.keys(meta)).filter(
+          (name) => Object.hasOwn(meta, name)
+        );
+        out.metamodel = Object.fromEntries(
+          names.sort().map((name) => [
+            name,
+            describeType(name, sets, input.inherited === true)
+          ])
+        );
+      }
+      if (include.has("toolbox")) out.toolbox = describeToolbox();
+      if (include.has("endpoints")) {
+        out.endpoints = manifest(endpoints2());
+        out.errors = {
+          status: { ...ERROR_STATUS },
+          schema: toJSONSchema(errorBodySchema())
+        };
+      }
+      return out;
+    }
+  });
+}
+
 // src/lookup.ts
 function requireElement(id2, role = "Element") {
   const elem = app.repository.get(id2);
@@ -2128,6 +4157,222 @@ var closeDiagram = defineEndpoint({
   }
 });
 
+// src/values.ts
+var PRIM_CHECKS = {
+  String: (v) => typeof v === "string",
+  Image: (v) => typeof v === "string",
+  Boolean: (v) => typeof v === "boolean",
+  Integer: (v) => Number.isInteger(v),
+  Real: (v) => typeof v === "number" && Number.isFinite(v)
+};
+function refId(value) {
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value !== null && typeof value.$ref === "string") {
+    return value.$ref;
+  }
+  return null;
+}
+function invalid(owner, attr, expected) {
+  throw new ApiError(
+    "INVALID_ARGUMENT",
+    `${owner}.${attr.name} (${attr.kind} ${attr.type}) expects ${expected}`
+  );
+}
+function referenced(owner, attr, value) {
+  const id2 = refId(value);
+  if (id2 === null) invalid(owner, attr, "an element id or {$ref: id}");
+  const elem = app.repository.get(id2);
+  if (!elem) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${owner}.${attr.name}: element not found: ${id2}`
+    );
+  }
+  if (!app.metamodels.isKindOf(elem.constructor.name, attr.type)) {
+    invalid(owner, attr, `a ${attr.type}, got ${elem.constructor.name} ${id2}`);
+  }
+  return elem;
+}
+function toModelValue(owner, attr, value) {
+  switch (attr.kind) {
+    case "prim": {
+      const check = PRIM_CHECKS[attr.type];
+      if (check && !check(value)) invalid(owner, attr, `a ${attr.type}`);
+      return value;
+    }
+    case "enum": {
+      const literals = meta[attr.type]?.literals ?? [];
+      if (!literals.includes(value))
+        invalid(owner, attr, `one of ${literals.join(", ")}`);
+      return value;
+    }
+    case "ref":
+      return value === null ? null : referenced(owner, attr, value);
+    case "refs":
+      if (!Array.isArray(value))
+        invalid(owner, attr, "an array of element ids");
+      return value.map((v) => referenced(owner, attr, v));
+    case "var":
+      if (refId(value) !== null && typeof value === "object")
+        return referenced(owner, attr, value);
+      if (value !== null && typeof value === "object")
+        invalid(owner, attr, "a string, number, boolean, null or {$ref: id}");
+      return value;
+    default:
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${owner}.${attr.name} is a ${attr.kind} attribute and cannot be set here`
+      );
+  }
+}
+function settableAttribute(typeName2, name) {
+  const attr = name === "_id" || name === "_parent" ? void 0 : attributeOf(typeName2, name);
+  if (!attr) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${typeName2} has no field '${name}'`
+    );
+  }
+  return attr;
+}
+function toModelValues(typeName2, properties2) {
+  const out = {};
+  for (const [name, value] of Object.entries(properties2)) {
+    out[name] = toModelValue(
+      typeName2,
+      settableAttribute(typeName2, name),
+      value
+    );
+  }
+  return out;
+}
+
+// src/create.ts
+function initialValues(typeName2, name, properties2) {
+  return toModelValues(typeName2, {
+    ...properties2,
+    ...name !== void 0 && { name }
+  });
+}
+function requireModelId(id2) {
+  if (!app.factory.getModelIds().includes(id2)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${id2}`);
+  }
+  if (!isMetaClass(id2)) {
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      `${id2} is registered with the factory but has no metamodel class, so StarUML cannot create it`
+    );
+  }
+}
+function createOwned(owner, typeName2, field, values, initialize = () => {
+}) {
+  requireModelId(typeName2);
+  const into = resolveOwnerField(owner, typeName2, field);
+  const elem = inStarUML(
+    () => app.factory.createModel({
+      id: typeName2,
+      parent: owner,
+      field: into,
+      modelInitializer: (m) => {
+        Object.assign(m, values);
+        initialize(m);
+      }
+    })
+  );
+  if (!elem) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not create ${typeName2} in ${owner.constructor.name}.${into}`
+    );
+  }
+  return elem;
+}
+function instantiate(typeName2) {
+  if (!isMetaClass(typeName2) || !Object.hasOwn(type, typeName2)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${typeName2}`);
+  }
+  const Ctor = type[typeName2];
+  return new Ctor();
+}
+function diagramOf(view) {
+  let e = view;
+  while (e && !(e instanceof type.Diagram)) e = e._parent;
+  return e ?? null;
+}
+function endView(id2, diagram, role) {
+  const elem = requireElement(id2, role);
+  if (elem instanceof type.View) {
+    if (diagramOf(elem) !== diagram) {
+      throw new ApiError(
+        "NOT_FOUND",
+        `${role} ${id2} is not on diagram ${diagram._id}`
+      );
+    }
+    return elem;
+  }
+  const view = app.repository.getViewsOf(elem).find((v) => diagramOf(v) === diagram);
+  if (!view) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${role}: no view of ${id2} on diagram ${diagram._id}`
+    );
+  }
+  return view;
+}
+function center(view) {
+  const { left, top, width, height } = view;
+  if (typeof left !== "number" || typeof top !== "number" || typeof width !== "number" || typeof height !== "number") {
+    return null;
+  }
+  return { x: left + width / 2, y: top + height / 2 };
+}
+function createModelAndView(options) {
+  if (!app.factory.getModelAndViewIds().includes(options.id)) {
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      `Unknown model-and-view type: ${options.id}`
+    );
+  }
+  const view = inStarUML(
+    () => app.factory.createModelAndView({
+      ...options,
+      editor: app.diagrams.getEditor()
+    })
+  );
+  if (!view) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not create ${options.id} on diagram ${options.diagram._id}`
+    );
+  }
+  return view;
+}
+
+// src/toolbox.ts
+var CURSOR_OPTIONS = /* @__PURE__ */ new Set(["id", "connectable-views", "self-connection"]);
+var DEFAULT_COMMAND = "factory:create-model-and-view";
+function resolveCreateType(typeName2) {
+  const { items } = app.toolbox;
+  const item = Object.hasOwn(items, typeName2) ? items[typeName2] : void 0;
+  const custom = item?.command && item.command !== DEFAULT_COMMAND;
+  if (!item || custom) {
+    if (app.factory.getModelAndViewIds().includes(typeName2)) {
+      return { id: typeName2, preset: {} };
+    }
+    throw new ApiError(
+      "UNKNOWN_TYPE",
+      custom ? `${typeName2} is a toolbox item run by the command ${item.command}, which this API does not call` : `Unknown model-and-view type: ${typeName2}`
+    );
+  }
+  const arg = item.commandArg ?? {};
+  const preset = {};
+  for (const [key, value] of Object.entries(arg)) {
+    if (!CURSOR_OPTIONS.has(key)) preset[key] = value;
+  }
+  return { id: typeof arg.id === "string" ? arg.id : typeName2, preset };
+}
+
 // src/handlers/elements.ts
 var getElementById = defineEndpoint({
   path: "/get_element_by_id",
@@ -2192,65 +4437,202 @@ var findElements = defineEndpoint({
 function compare(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
-function nameInitializer(name) {
-  if (name === void 0) return {};
-  return {
-    modelInitializer: (m) => {
-      m.name = name;
-    }
-  };
-}
 var createElement = defineEndpoint({
   path: "/create_element",
-  description: "Create a model element (no view) under a parent, e.g. a UMLClass in a UMLModel.",
+  description: "Create a model element (no view) under an owner, e.g. a UMLClass in a UMLModel or an ERDColumn in an ERDEntity.",
   readOnly: false,
   destructive: false,
   request: object({
-    type: typeName("A model id of app.factory.getModelIds(), e.g. 'UMLClass'."),
+    type: typeName(
+      "A model id of /introspect factory.modelIds, e.g. 'UMLClass'."
+    ),
     parentId: id("Owner element id."),
     name: optional(text("Element name; StarUML generates one if omitted.")),
+    field: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "Owner list to add to; default the owner's list typed most specifically for the element, e.g. 'attributes' for a UMLAttribute in a class, else 'ownedElements'."
+      )
+    ),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
   response: elementSchema(),
   handle: (input) => {
     const parent = requireElement(input.parentId, "Parent element");
-    const elem = inStarUML(
-      () => app.factory.createModel({
-        id: input.type,
-        parent,
-        ...nameInitializer(input.name)
-      })
+    requireModelId(input.type);
+    const values = initialValues(input.type, input.name, input.properties);
+    return serialize(
+      createOwned(parent, input.type, input.field, values),
+      input
     );
-    if (!elem) {
-      throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${input.type}`);
-    }
-    return serialize(elem, input);
   }
 });
+var UPDATE_OPS = ["set", "add", "remove", "reorder", "relocate"];
 var updateElement = defineEndpoint({
   path: "/update_element",
-  description: "Set one attribute of an element.",
+  description: "Change an element: set an attribute (references by id), add to or remove from a reference list, move an item within a list, or relocate the element to another owner. Each call is one undo step.",
   readOnly: false,
   destructive: true,
   request: object({
     id: id("Element id."),
-    field: doc(string2().check(_minLength(1)), "Attribute name."),
-    value: doc(unknown(), "New value."),
+    op: optional(
+      doc(
+        _enum(UPDATE_OPS),
+        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parentId`, keeping its list field."
+      )
+    ),
+    field: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "Attribute name; required except for relocate."
+      )
+    ),
+    value: optional(
+      doc(
+        unknown(),
+        "set: the new value; an id or {$ref: id} for references, null to clear. add/remove: an id, {$ref: id} or an array of them. reorder: the item to move."
+      )
+    ),
+    index: optional(
+      doc(
+        int().check(_gte(0)),
+        "reorder: target position, counted after the item is taken out."
+      )
+    ),
+    parentId: optional(id("relocate: the new owner.")),
     ...projectionShape()
   }),
   response: elementSchema(),
   handle: (input) => {
     const elem = requireElement(input.id);
-    if (typeof elem[input.field] === "undefined") {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `${elem.constructor.name} has no field '${input.field}'`
-      );
+    const op = input.op ?? "set";
+    if (op === "relocate") {
+      if (input.parentId === void 0) {
+        throw new ApiError("INVALID_ARGUMENT", "relocate needs parentId");
+      }
+      relocate(elem, requireElement(input.parentId, "Parent"), input.field);
+      return serialize(elem, input);
     }
-    inStarUML(() => app.engine.setProperty(elem, input.field, input.value));
+    if (input.field === void 0) {
+      throw new ApiError("INVALID_ARGUMENT", `${op} needs field`);
+    }
+    if (input.value === void 0) {
+      throw new ApiError("INVALID_ARGUMENT", `${op} needs value`);
+    }
+    const typeName2 = elem.constructor.name;
+    const attr = settableAttribute(typeName2, input.field);
+    if (op === "set") {
+      const value = toModelValue(typeName2, attr, input.value);
+      inStarUML(() => app.engine.setProperty(elem, attr.name, value));
+    } else if (op === "reorder") {
+      reorder(elem, attr, input.value, input.index);
+    } else {
+      changeReferences(elem, attr, op, input.value);
+    }
     return serialize(elem, input);
   }
 });
+function changeReferences(elem, attr, op, value) {
+  const typeName2 = elem.constructor.name;
+  if (attr.kind !== "refs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${op} needs a reference list; ${typeName2}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`
+    );
+  }
+  const items = toModelValue(
+    typeName2,
+    attr,
+    Array.isArray(value) ? value : [value]
+  );
+  const list = elem[attr.name];
+  for (const item of items) {
+    if (op === "add" && !list.includes(item)) {
+      inStarUML(() => app.engine.addItem(elem, attr.name, item));
+    } else if (op === "remove" && list.includes(item)) {
+      inStarUML(() => app.engine.removeItem(elem, attr.name, item));
+    }
+  }
+}
+function reorder(elem, attr, value, index) {
+  const typeName2 = elem.constructor.name;
+  if (attr.kind !== "refs" && attr.kind !== "objs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `reorder needs a list; ${typeName2}.${attr.name} is ${attr.kind}`
+    );
+  }
+  if (index === void 0) {
+    throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
+  }
+  const list = elem[attr.name];
+  const itemId = refId(value);
+  const item = list.find((e) => e._id === itemId);
+  if (!item) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${String(itemId)} is not in ${typeName2}.${attr.name}`
+    );
+  }
+  if (index >= list.length) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `index ${index} is past the end of ${typeName2}.${attr.name} (${list.length} items)`
+    );
+  }
+  const builder = app.repository.getOperationBuilder();
+  builder.begin("reorder");
+  builder.fieldReorder(elem, attr.name, item, index);
+  builder.end();
+  inStarUML(() => app.repository.doOperation(builder.getOperation()));
+}
+function containingField(elem) {
+  const owner = elem._parent;
+  if (!owner) return null;
+  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
+    const value = owner[attr.name];
+    if (Array.isArray(value) && value.includes(elem)) return attr.name;
+  }
+  return null;
+}
+function relocate(elem, newOwner, field) {
+  const current = containingField(elem);
+  if (!current) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${elem.constructor.name} ${elem._id} is not in a list of its owner and cannot be relocated`
+    );
+  }
+  if (field !== void 0 && field !== current) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `relocate keeps the list field: ${elem._id} is in '${current}', not '${field}'`
+    );
+  }
+  if (!Array.isArray(newOwner[current])) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${newOwner.constructor.name} has no list field '${current}'`
+    );
+  }
+  for (let e = newOwner; e; e = e._parent) {
+    if (e === elem) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${newOwner._id} is ${elem._id} itself or inside it`
+      );
+    }
+  }
+  if (elem._parent === newOwner) return;
+  inStarUML(() => app.engine.relocate(elem, newOwner, current));
+  if (elem._parent !== newOwner) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not relocate ${elem._id} to ${newOwner._id}`
+    );
+  }
+}
 var deleteElement = defineEndpoint({
   path: "/delete_element",
   description: "Delete an element with everything it owns, the views showing them, and edges attached to those views.",
@@ -2295,35 +4677,39 @@ function collectDeletionTargets(root) {
   }
   return { models, views };
 }
-var createdSchema = () => object({ view: elementSchema(), model: elementSchema() });
-function createModelAndView(options, projection) {
-  const view = inStarUML(() => app.factory.createModelAndView(options));
-  if (!view) {
-    throw new ApiError(
-      "UNKNOWN_TYPE",
-      `Unknown model-and-view type: ${options.id}`
-    );
-  }
+var createdSchema = () => object({
+  view: elementSchema(),
+  model: doc(
+    nullable(elementSchema()),
+    "Null for view-only ids such as Note or NoteLink."
+  )
+});
+function created(view, projection) {
   return {
     view: serialize(view, projection),
-    model: serialize(view.model, projection)
+    model: view.model ? serialize(view.model, projection) : null
   };
 }
-var placementShape = () => ({
-  parentId: id("Owner of the new model element."),
-  diagramId: id("Diagram to place the view on.")
-});
 var createElementWithView = defineEndpoint({
   path: "/create_element_with_view",
-  description: "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram.",
+  description: "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass containerViewId for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
   readOnly: false,
   destructive: false,
   request: object({
     type: typeName(
-      "A model-and-view id of app.factory.getModelAndViewIds(), e.g. 'UMLClass', 'UMLUseCase'."
+      "A model-and-view id of /introspect factory.modelAndViewIds, e.g. 'UMLClass', 'ERDEntity', or a toolbox item id, which applies the item's presets, e.g. 'UMLInitialState', 'UMLCompositeState', 'C4ContainerDatabase'."
     ),
-    ...placementShape(),
+    diagramId: id("Diagram to place the view on."),
+    parentId: optional(
+      id(
+        "Owner of the new model element; default the diagram's owner, as the diagram editor does. Items placed on a host view (toolbox option parasitic, e.g. ports and pins) are filed under the host's model by StarUML regardless."
+      )
+    ),
+    containerViewId: optional(
+      id("View that hosts or contains the new view.")
+    ),
     name: optional(text("Element name; StarUML generates one if omitted.")),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
     x: coordinate("Left edge in diagram coordinates, default 100."),
     y: coordinate("Top edge, default 100."),
     x2: coordinate("Right edge, default x + 100."),
@@ -2332,61 +4718,53 @@ var createElementWithView = defineEndpoint({
   }),
   response: createdSchema(),
   handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent");
     const diagram = requireDiagram(input.diagramId);
+    const container = input.containerViewId === void 0 ? void 0 : requireView(input.containerViewId, "Container view");
+    const parent = input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent");
+    const { id: createId, preset } = resolveCreateType(input.type);
+    const values = valuesFor(createId, input.name, input.properties);
     const x1 = input.x ?? 100;
     const y1 = input.y ?? 100;
-    return createModelAndView(
-      {
-        id: input.type,
-        parent,
-        diagram,
-        x1,
-        y1,
-        x2: input.x2 ?? x1 + 100,
-        y2: input.y2 ?? y1 + 50,
-        ...nameInitializer(input.name)
+    const view = createModelAndView({
+      ...preset,
+      id: createId,
+      parent,
+      diagram,
+      x1,
+      y1,
+      x2: input.x2 ?? x1 + 100,
+      y2: input.y2 ?? y1 + 50,
+      // The toolbox's "parasitic" and "container-views" options make the
+      // view under the cursor the head view and container (engine/factory.js).
+      ...container && {
+        containerView: container,
+        headView: container,
+        headModel: container.model,
+        tailView: container,
+        tailModel: container.model
       },
-      input
-    );
+      modelInitializer: (m) => {
+        Object.assign(m, values);
+      }
+    });
+    return created(view, input);
   }
 });
-var createEdgeWithView = defineEndpoint({
-  path: "/create_edge_with_view",
-  description: "Create a relationship (UMLAssociation, UMLControlFlow, ...) between the models of two views, and the edge view connecting them.",
-  readOnly: false,
-  destructive: false,
-  request: object({
-    type: typeName(
-      "A relationship id of app.factory.getModelAndViewIds(), e.g. 'UMLAssociation'."
-    ),
-    ...placementShape(),
-    tailViewId: id("View at the source end."),
-    headViewId: id("View at the target end."),
-    name: optional(text("Relationship name.")),
-    ...projectionShape()
-  }),
-  response: createdSchema(),
-  handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent");
-    const diagram = requireDiagram(input.diagramId);
-    const tailView = requireView(input.tailViewId, "Tail view");
-    const headView = requireView(input.headViewId, "Head view");
-    return createModelAndView(
-      {
-        id: input.type,
-        parent,
-        diagram,
-        tailView,
-        headView,
-        tailModel: tailView.model,
-        headModel: headView.model,
-        ...nameInitializer(input.name)
-      },
-      input
+function valuesFor(id2, name, props) {
+  const modelType = modelTypeOf(id2);
+  if (modelType) return initialValues(modelType, name, props);
+  if (name !== void 0 || props !== void 0) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${id2} creates only a view; name and properties do not apply`
     );
   }
-});
+  return {};
+}
+function modelTypeOf(id2) {
+  const candidate = app.factory.modelAndViewOptions[id2]?.modelType ?? id2;
+  return isMetaClass(candidate) ? candidate : null;
+}
 
 // src/handlers/project.ts
 var filename = (description) => doc(string2().check(_minLength(1)), description);
@@ -2481,6 +4859,582 @@ var openProject = defineEndpoint({
   }
 });
 
+// src/handlers/features.ts
+var visibility = () => optional(
+  doc(
+    _enum(["public", "protected", "private", "package"]),
+    "Default public."
+  )
+);
+var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "Default none."));
+var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
+var flag = (description) => optional(doc(boolean2(), description));
+var str = (description) => optional(text(description));
+function pick2(input, names) {
+  const out = {};
+  for (const name of names) {
+    if (input[name] !== void 0) out[name] = input[name];
+  }
+  return out;
+}
+var STRUCTURAL = [
+  "type",
+  "visibility",
+  "multiplicity",
+  "defaultValue",
+  "isStatic",
+  "isReadOnly",
+  "isDerived",
+  "isID",
+  "aggregation",
+  "documentation"
+];
+var structuralShape = () => ({
+  type: optional(
+    typeValue(
+      "A type name such as 'String', or {$ref: id} of a classifier in the model."
+    )
+  ),
+  visibility: visibility(),
+  multiplicity: str("E.g. '0..1', '1', '*', '1..*'."),
+  defaultValue: str("Default value as text."),
+  isStatic: flag("Class-level feature."),
+  isReadOnly: flag("Read only."),
+  isDerived: flag("Derived."),
+  isID: flag("Part of the identity."),
+  aggregation: aggregation(),
+  documentation: str("Documentation text."),
+  properties: properties(ATTRIBUTE_VALUES_HELP)
+});
+function featureValues(typeName2, input, names) {
+  return initialValues(typeName2, input.name, {
+    ...input.properties,
+    ...pick2(input, names)
+  });
+}
+var addAttribute = defineEndpoint({
+  path: "/add_attribute",
+  description: "Add a UMLAttribute to a classifier (class, interface, data type, signal, ...).",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ownerId: id("Classifier id."),
+    name: text("Attribute name."),
+    ...structuralShape(),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.ownerId, "Owner");
+    const values = featureValues("UMLAttribute", input, STRUCTURAL);
+    return serialize(
+      createOwned(owner, "UMLAttribute", "attributes", values),
+      input
+    );
+  }
+});
+var PARAMETER = [
+  "type",
+  "direction",
+  "multiplicity",
+  "defaultValue",
+  "isReadOnly",
+  "documentation"
+];
+var parameterShape = () => ({
+  name: text("Parameter name."),
+  type: optional(
+    typeValue("A type name, or {$ref: id} of a classifier in the model.")
+  ),
+  direction: direction(),
+  multiplicity: str("E.g. '0..1', '*'."),
+  defaultValue: str("Default value as text."),
+  isReadOnly: flag("Read only."),
+  documentation: str("Documentation text."),
+  properties: properties(ATTRIBUTE_VALUES_HELP)
+});
+var OPERATION = [
+  "visibility",
+  "isStatic",
+  "isAbstract",
+  "isQuery",
+  "specification",
+  "documentation"
+];
+var addOperation = defineEndpoint({
+  path: "/add_operation",
+  description: "Add a UMLOperation with its parameters and return type to a classifier.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ownerId: id("Classifier id."),
+    name: text("Operation name."),
+    visibility: visibility(),
+    isStatic: flag("Class-level operation."),
+    isAbstract: flag("Abstract."),
+    isQuery: flag("Does not change state."),
+    specification: str("Body or specification text."),
+    documentation: str("Documentation text."),
+    parameters: optional(
+      doc(array(object(parameterShape())), "In declaration order.")
+    ),
+    returnType: optional(
+      typeValue(
+        "Return type: a type name or {$ref: id}; stored as a parameter with direction 'return'."
+      )
+    ),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.ownerId, "Owner");
+    const values = featureValues("UMLOperation", input, OPERATION);
+    const parameters = [
+      ...(input.parameters ?? []).map(
+        (p) => featureValues("UMLParameter", p, PARAMETER)
+      ),
+      ...input.returnType === void 0 ? [] : [
+        initialValues("UMLParameter", "", {
+          type: input.returnType,
+          direction: "return"
+        })
+      ]
+    ];
+    const operation = createOwned(
+      owner,
+      "UMLOperation",
+      "operations",
+      values,
+      (op) => {
+        for (const paramValues of parameters) {
+          const param = Object.assign(instantiate("UMLParameter"), paramValues);
+          param._parent = op;
+          op.parameters.push(param);
+        }
+      }
+    );
+    return serialize(operation, input);
+  }
+});
+var addParameter = defineEndpoint({
+  path: "/add_parameter",
+  description: "Add a UMLParameter to an operation (or another behavioral feature).",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    operationId: id("Operation id."),
+    ...parameterShape(),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.operationId, "Operation");
+    const values = featureValues("UMLParameter", input, PARAMETER);
+    return serialize(
+      createOwned(owner, "UMLParameter", "parameters", values),
+      input
+    );
+  }
+});
+var addEnumerationLiteral = defineEndpoint({
+  path: "/add_enumeration_literal",
+  description: "Add a UMLEnumerationLiteral to a UMLEnumeration.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    enumerationId: id("UMLEnumeration id."),
+    name: text("Literal name."),
+    documentation: str("Documentation text."),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.enumerationId, "Enumeration");
+    const values = featureValues("UMLEnumerationLiteral", input, [
+      "documentation"
+    ]);
+    return serialize(
+      createOwned(owner, "UMLEnumerationLiteral", "literals", values),
+      input
+    );
+  }
+});
+var addTemplateParameter = defineEndpoint({
+  path: "/add_template_parameter",
+  description: "Add a UMLTemplateParameter to a model element, e.g. T of a generic class.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ownerId: id("Templated element id."),
+    name: text("Parameter name, e.g. 'T'."),
+    parameterType: optional(
+      typeValue("Kind of argument, e.g. 'class', or {$ref: id}.")
+    ),
+    defaultValue: optional(
+      typeValue("Default argument: text or {$ref: id}.")
+    ),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.ownerId, "Owner");
+    const values = featureValues("UMLTemplateParameter", input, [
+      "parameterType",
+      "defaultValue"
+    ]);
+    return serialize(
+      createOwned(owner, "UMLTemplateParameter", "templateParameters", values),
+      input
+    );
+  }
+});
+var addSlot = defineEndpoint({
+  path: "/add_slot",
+  description: "Add a UMLSlot (attribute value) to an instance such as a UMLObject.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    instanceId: id("Instance id, e.g. a UMLObject."),
+    name: str("Slot name; usually the defining attribute's name."),
+    definingFeature: optional(
+      reference(
+        "The UMLAttribute (or other structural feature) the slot sets."
+      )
+    ),
+    value: str("Value as text."),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.instanceId, "Instance");
+    const values = featureValues("UMLSlot", input, [
+      "definingFeature",
+      "value"
+    ]);
+    return serialize(createOwned(owner, "UMLSlot", "slots", values), input);
+  }
+});
+var TAG_VALUE_FIELD = {
+  string: "value",
+  enum: "value",
+  number: "number",
+  boolean: "checked",
+  reference: "reference"
+};
+var addTag = defineEndpoint({
+  path: "/add_tag",
+  description: "Add a Tag (name/value extension property) to an element. Tags show in the property editor and, unless hidden, on diagrams with Format > Show Property.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    elementId: id("Element to tag."),
+    name: text("Tag name."),
+    kind: doc(
+      _enum(["string", "number", "boolean", "reference", "enum"]),
+      "TagKind; decides which value attribute is set."
+    ),
+    value: doc(
+      unknown(),
+      "string/enum: text; number: an integer; boolean: true/false; reference: an id or {$ref: id}."
+    ),
+    hidden: flag("Hide the tag on diagrams."),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const owner = requireElement(input.elementId, "Element");
+    const values = initialValues("Tag", input.name, {
+      ...input.properties,
+      kind: input.kind,
+      [TAG_VALUE_FIELD[input.kind]]: input.value,
+      ...input.hidden !== void 0 && { hidden: input.hidden }
+    });
+    return serialize(createOwned(owner, "Tag", "tags", values), input);
+  }
+});
+function setAttribute(elem, field, value) {
+  const typeName2 = elem.constructor.name;
+  const converted = toModelValue(
+    typeName2,
+    settableAttribute(typeName2, field),
+    value
+  );
+  inStarUML(() => app.engine.setProperty(elem, field, converted));
+}
+var setStereotype = defineEndpoint({
+  path: "/set_stereotype",
+  description: "Set or clear an element's stereotype: a name shown as \xABname\xBB, or a UMLStereotype from a profile.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    elementId: id("Element id."),
+    stereotype: doc(
+      nullable(
+        union([
+          string2(),
+          object({ $ref: string2().check(_minLength(1)) })
+        ])
+      ),
+      "Stereotype name, {$ref: id} of a UMLStereotype, or null to clear."
+    ),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const elem = requireElement(input.elementId);
+    setAttribute(elem, "stereotype", input.stereotype);
+    return serialize(elem, input);
+  }
+});
+var setDocumentation = defineEndpoint({
+  path: "/set_documentation",
+  description: "Set an element's documentation text.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    elementId: id("Element id."),
+    documentation: text("Documentation; replaces the current text."),
+    ...projectionShape()
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const elem = requireElement(input.elementId);
+    setAttribute(elem, "documentation", input.documentation);
+    return serialize(elem, input);
+  }
+});
+
+// src/handlers/relationships.ts
+function endTypes(modelType) {
+  const probe = instantiate(modelType);
+  return {
+    tail: probe.end1.constructor.name,
+    head: probe.end2.constructor.name
+  };
+}
+function endValues(modelType, kind, tailEnd, headEnd) {
+  if (tailEnd === void 0 && headEnd === void 0) {
+    return { tail: {}, head: {} };
+  }
+  if (kind !== "undirected") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `tailEnd/headEnd apply to undirected relationships (end1/end2); ${String(modelType)} has none`
+    );
+  }
+  const types = endTypes(modelType);
+  return {
+    tail: toModelValues(types.tail, tailEnd ?? {}),
+    head: toModelValues(types.head, headEnd ?? {})
+  };
+}
+function assignEnds(model, ends) {
+  if (model.end1) Object.assign(model.end1, ends.tail);
+  if (model.end2) Object.assign(model.end2, ends.head);
+}
+function edgeGeometry(tail, head, input) {
+  const from = center(tail);
+  const to = center(head);
+  return {
+    x1: input.x1 ?? from?.x ?? 0,
+    y1: input.y1 ?? from?.y ?? 0,
+    x2: input.x2 ?? to?.x ?? 0,
+    y2: input.y2 ?? to?.y ?? 0
+  };
+}
+var geometryShape = () => ({
+  x1: coordinate(
+    "Edge start in diagram coordinates; default the tail view's centre. For a sequence message, y1/y2 place it on the lifelines."
+  ),
+  y1: coordinate("See x1."),
+  x2: coordinate("Edge end; default the head view's centre."),
+  y2: coordinate("See x2.")
+});
+var endShape = () => ({
+  tailEnd: properties(
+    "Undirected relationships only: attributes of end1, e.g. {name, navigable, aggregation, multiplicity} for a UMLAssociation."
+  ),
+  headEnd: properties("Undirected relationships only: attributes of end2.")
+});
+function createEdge(request) {
+  const { id: createId, preset } = resolveCreateType(request.type);
+  const modelType = modelTypeOf(createId);
+  const kind = modelType ? relationshipKind(modelType) : null;
+  const values = valuesFor(createId, request.name, request.properties);
+  const ends = endValues(modelType, kind, request.tailEnd, request.headEnd);
+  return createModelAndView({
+    ...preset,
+    id: createId,
+    parent: request.parent,
+    diagram: request.diagram,
+    tailView: request.tail,
+    headView: request.head,
+    tailModel: request.tail.model,
+    headModel: request.head.model,
+    ...edgeGeometry(request.tail, request.head, request),
+    modelInitializer: (m) => {
+      Object.assign(m, values);
+      assignEnds(m, ends);
+    }
+  });
+}
+var createEdgeWithView = defineEndpoint({
+  path: "/create_edge_with_view",
+  description: "Create a relationship (UMLAssociation, UMLControlFlow, ...) between the models of two views, and the edge view connecting them. /create_relationship does the same and also accepts model ids and end attributes.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    type: typeName(
+      "A model-and-view id of /introspect factory.modelAndViewIds whose entry has a relationship kind, e.g. 'UMLAssociation', an edge id such as 'NoteLink', or a toolbox item id such as 'UMLComposition' or 'UMLAsyncMessage'."
+    ),
+    diagramId: id("Diagram to place the edge on."),
+    parentId: optional(
+      id(
+        "Passed to the factory as the diagram editor does; default the diagram's owner. Most relationship factories file the relationship under the tail model regardless."
+      )
+    ),
+    tailViewId: id("View at the source end."),
+    headViewId: id("View at the target end."),
+    name: optional(text("Relationship name.")),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
+    ...endShape(),
+    ...geometryShape(),
+    ...projectionShape()
+  }),
+  response: createdSchema(),
+  handle: (input) => {
+    const diagram = requireDiagram(input.diagramId);
+    const parent = input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent");
+    const view = createEdge({
+      ...input,
+      parent,
+      diagram,
+      tail: requireView(input.tailViewId, "Tail view"),
+      head: requireView(input.headViewId, "Head view")
+    });
+    return created(view, input);
+  }
+});
+function createModelOnly(modelType, kind, input, tail, head) {
+  const values = initialValues(modelType, input.name, input.properties);
+  const ends = endValues(modelType, kind, input.tailEnd, input.headEnd);
+  const parent = input.parentId === void 0 ? defaultOwner(tail, modelType) : requireElement(input.parentId, "Parent");
+  const field = resolveOwnerField(parent, modelType, input.field);
+  const model = instantiate(modelType);
+  if (kind === "directed") {
+    model.source = tail;
+    model.target = head;
+  } else {
+    model.end1.reference = tail;
+    model.end2.reference = head;
+  }
+  Object.assign(model, values);
+  assignEnds(model, ends);
+  const stored = inStarUML(() => app.engine.addModel(parent, field, model));
+  if (!stored) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not add ${modelType} to ${parent.constructor.name}.${field}`
+    );
+  }
+  return stored;
+}
+function defaultOwner(tail, modelType) {
+  const owner = tail._parent;
+  const field = owner ? ownerField(owner, modelType) : null;
+  if (owner && field) {
+    const attr = attributeOf(owner.constructor.name, field);
+    if (attr.type !== "Element") return owner;
+  }
+  return tail;
+}
+function endModel(id2, role) {
+  const elem = requireElement(id2, role);
+  const model = elem instanceof type.View ? elem.model : elem;
+  if (!model) {
+    throw new ApiError("INVALID_ARGUMENT", `${role} ${id2} shows no model`);
+  }
+  return model;
+}
+var createRelationship = defineEndpoint({
+  path: "/create_relationship",
+  description: "Create a relationship between two elements with its ends set: source/target for directed kinds (Generalization, Dependency, Realization, InterfaceRealization, Include, Extend, Transition, ControlFlow, ObjectFlow, Message, flows of the other diagram families), end1/end2 for undirected ones (Association with end name, navigability, aggregation, multiplicity; Link; ERD relationship; connectors). With diagramId the edge view is created too, through StarUML's own factory and its connection rules; tail/head may then be view ids or ids of models shown on that diagram.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    type: typeName(
+      "With diagramId: a model-and-view id (see /introspect factory.modelAndView) or a toolbox item id that presets one, e.g. 'UMLComposition', 'UMLReplyMessage', 'ERDRelationshipOneToMany'. Without: a metamodel class whose relationship kind is directed or undirected."
+    ),
+    tailId: id("Source end: a model, or a view on the diagram."),
+    headId: id("Target end: a model, or a view on the diagram."),
+    diagramId: optional(id("Diagram to draw the relationship on.")),
+    parentId: optional(
+      id(
+        "Owner of the relationship. With a diagram it is passed to the factory as the diagram editor does (default the diagram's owner); most relationship factories file the relationship under the tail model regardless. Without a diagram the default is the tail's owner when that has a list for this type (messages, edges, transitions), else the tail model."
+      )
+    ),
+    field: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "Without a diagram: owner list to add to; default the list typed for the relationship, e.g. 'messages' of a UMLInteraction."
+      )
+    ),
+    name: optional(text("Relationship name.")),
+    properties: properties(
+      `${ATTRIBUTE_VALUES_HELP} E.g. {messageSort: "asynchCall"} for a UMLMessage, {guard: "x > 0"} for a UMLControlFlow.`
+    ),
+    ...endShape(),
+    ...geometryShape(),
+    ...projectionShape()
+  }),
+  response: object({
+    view: doc(nullable(elementSchema()), "Null without a diagram."),
+    model: doc(
+      nullable(elementSchema()),
+      "Null for view-only edge ids such as NoteLink."
+    )
+  }),
+  handle: (input) => {
+    if (input.diagramId !== void 0) {
+      const diagram = requireDiagram(input.diagramId);
+      if (input.field !== void 0) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          "field applies without a diagram; the factory function decides where a drawn relationship goes"
+        );
+      }
+      const view = createEdge({
+        ...input,
+        parent: input.parentId === void 0 ? diagram._parent : requireElement(input.parentId, "Parent"),
+        diagram,
+        tail: endView(input.tailId, diagram, "Tail"),
+        head: endView(input.headId, diagram, "Head")
+      });
+      return created(view, input);
+    }
+    const kind = isMetaClass(input.type) ? relationshipKind(input.type) : null;
+    if (!kind) {
+      throw new ApiError(
+        "UNKNOWN_TYPE",
+        `Not a relationship type: ${input.type}`
+      );
+    }
+    const model = createModelOnly(
+      input.type,
+      kind,
+      input,
+      endModel(input.tailId, "Tail"),
+      endModel(input.headId, "Head")
+    );
+    return { view: null, model: serialize(model, input) };
+  }
+});
+
 // src/routes.ts
 var endpoints = [
   getAllCommands,
@@ -2497,9 +5451,20 @@ var endpoints = [
   deleteElement,
   createElementWithView,
   createEdgeWithView,
+  createRelationship,
+  addAttribute,
+  addOperation,
+  addParameter,
+  addEnumerationLiteral,
+  addTemplateParameter,
+  addSlot,
+  addTag,
+  setStereotype,
+  setDocumentation,
   createDiagram,
   switchDiagram,
   closeDiagram,
+  introspectEndpoint(() => endpoints),
   debug
 ];
 var routes = Object.fromEntries(

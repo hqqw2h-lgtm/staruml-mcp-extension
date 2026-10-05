@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createEdgeWithView,
-  createElementWithView,
-} from "../../../src/handlers/elements.js";
+import { createElementWithView } from "../../../src/handlers/elements.js";
 import {
   installMockApp,
-  type Element,
   type MockEnvironment,
   type View,
 } from "../../mock/staruml.js";
@@ -34,7 +30,7 @@ describe("/create_element_with_view", () => {
     };
   }
 
-  it.each(["type", "parentId", "diagramId"])("requires %s", async (field) => {
+  it.each(["type", "diagramId"])("requires %s", async (field) => {
     await fails(
       createElementWithView,
       nodeBody({ [field]: undefined }),
@@ -125,6 +121,112 @@ describe("/create_element_with_view", () => {
     );
   });
 
+  it("defaults the owner to the diagram's owner, as the diagram editor does", async () => {
+    const data = await ok<Created>(
+      createElementWithView,
+      nodeBody({ parentId: undefined }),
+    );
+    expect(data.model).toMatchObject({ _parent: env.model._id });
+  });
+
+  it("applies properties to the new model in the same creation", async () => {
+    const spy = vi.spyOn(env.app.factory, "createModelAndView");
+    const data = await ok<{ model: Record<string, unknown> }>(
+      createElementWithView,
+      nodeBody({
+        name: "Shape",
+        properties: { isAbstract: true },
+        fields: ["isAbstract", "name"],
+      }),
+    );
+    expect(data.model).toMatchObject({ isAbstract: true, name: "Shape" });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a property the model type lacks before calling StarUML", async () => {
+    const spy = vi.spyOn(env.app.factory, "createModelAndView");
+    await fails(
+      createElementWithView,
+      nodeBody({ properties: { colour: "red" } }),
+      "INVALID_ARGUMENT",
+      "UMLClass has no field 'colour'",
+    );
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("hosts the view in a container view, as the editor does on a drop onto it", async () => {
+    const host = await ok<Created>(createElementWithView, nodeBody());
+    const spy = vi.spyOn(env.app.factory, "createModelAndView");
+    const data = await ok<Created>(
+      createElementWithView,
+      nodeBody({
+        type: "UMLInterface",
+        parentId: undefined,
+        containerViewId: host.view._id,
+      }),
+    );
+    const container = env.app.repository.get(host.view._id) as View;
+    expect(spy.mock.calls[0]![0]).toMatchObject({
+      containerView: container,
+      headView: container,
+      headModel: container.model,
+      tailView: container,
+      parent: env.model,
+    });
+    expect(container.containedViews).toContain(
+      env.app.repository.get(data.view._id),
+    );
+  });
+
+  it("passes an explicit parentId on", async () => {
+    const host = await ok<Created>(createElementWithView, nodeBody());
+    const spy = vi.spyOn(env.app.factory, "createModelAndView");
+    await ok(
+      createElementWithView,
+      nodeBody({ parentId: host.model._id, containerViewId: host.view._id }),
+    );
+    expect(spy.mock.calls[0]![0]).toMatchObject({
+      parent: env.app.repository.get(host.model._id),
+    });
+  });
+
+  it("rejects a container that is not a view", async () => {
+    await fails(
+      createElementWithView,
+      nodeBody({ containerViewId: env.model._id }),
+      "NOT_FOUND",
+      `Container view not found: ${env.model._id}`,
+    );
+  });
+
+  it("applies a toolbox item's presets, with the request's values on top", async () => {
+    const spy = vi.spyOn(env.app.factory, "createModelAndView");
+    await ok(
+      createElementWithView,
+      nodeBody({ type: "C4ContainerDatabase", name: "db" }),
+    );
+    const options = spy.mock.calls[0]![0] as unknown as Record<string, unknown>;
+    expect(options).toMatchObject({
+      id: "C4Container",
+      "model-init": { kind: "database" },
+      x1: 100,
+    });
+  });
+
+  it("creates view-only ids such as Note, which take no name or properties", async () => {
+    const data = await ok<{ view: { _type: string }; model: null }>(
+      createElementWithView,
+      nodeBody({ type: "Note" }),
+    );
+    expect(data).toMatchObject({ view: { _type: "UMLNoteView" }, model: null });
+    await fails(
+      createElementWithView,
+      nodeBody({ type: "Note", name: "x" }),
+      "INVALID_ARGUMENT",
+      "Note creates only a view; name and properties do not apply",
+    );
+  });
+
   it("reports a type without a model-and-view factory, for which it returns null", async () => {
     await fails(
       createElementWithView,
@@ -143,126 +245,6 @@ describe("/create_element_with_view", () => {
       nodeBody(),
       "STARUML_ERROR",
       "factory down",
-    );
-  });
-});
-
-describe("/create_edge_with_view", () => {
-  let tail: View;
-  let head: View;
-
-  beforeEach(() => {
-    const make = (x: number) =>
-      env.app.factory.createModelAndView({
-        id: "UMLClass",
-        parent: env.model,
-        diagram: env.mainDiagram,
-        x1: x,
-        y1: 0,
-        x2: x + 100,
-        y2: 50,
-      })!;
-    tail = make(0);
-    head = make(200);
-  });
-
-  function edgeBody(
-    extra: Record<string, unknown> = {},
-  ): Record<string, unknown> {
-    return {
-      type: "UMLAssociation",
-      parentId: env.model._id,
-      diagramId: env.mainDiagram._id,
-      tailViewId: tail._id,
-      headViewId: head._id,
-      ...extra,
-    };
-  }
-
-  it.each(["type", "parentId", "diagramId", "tailViewId", "headViewId"])(
-    "requires %s",
-    async (field) => {
-      await fails(
-        createEdgeWithView,
-        edgeBody({ [field]: undefined }),
-        "INVALID_ARGUMENT",
-        new RegExp(`^${field}: `),
-      );
-    },
-  );
-
-  it.each([
-    [{ parentId: "missing" }, "Parent not found: missing"],
-    [{ diagramId: "missing" }, "Diagram not found: missing"],
-  ])("checks parent and diagram: %j", async (extra, error) => {
-    await fails(createEdgeWithView, edgeBody(extra), "NOT_FOUND", error);
-  });
-
-  it.each([
-    ["tailViewId", "Tail"],
-    ["headViewId", "Head"],
-  ])("rejects a %s that is missing or not a view", async (field, label) => {
-    for (const id of ["missing", env.model._id]) {
-      await fails(
-        createEdgeWithView,
-        edgeBody({ [field]: id }),
-        "NOT_FOUND",
-        `${label} view not found: ${id}`,
-      );
-    }
-  });
-
-  it("connects the two views with a named association between their models (#1)", async () => {
-    const spy = vi.spyOn(env.app.factory, "createModelAndView");
-    const data = await ok<Created>(
-      createEdgeWithView,
-      edgeBody({ name: "wrote" }),
-    );
-    expect(data.model).toMatchObject({
-      _type: "UMLAssociation",
-      name: "wrote",
-    });
-    expect(spy.mock.calls[0]).toHaveLength(1);
-
-    const edge = env.app.repository.get(data.view._id) as View;
-    expect(edge.tail).toBe(tail);
-    expect(edge.head).toBe(head);
-    const association = edge.model!;
-    expect((association.end1 as Element).reference).toBe(tail.model);
-    expect((association.end2 as Element).reference).toBe(head.model);
-  });
-
-  it("sets source and target of a directed relationship", async () => {
-    const data = await ok<Created>(
-      createEdgeWithView,
-      edgeBody({ type: "UMLGeneralization", fields: ["source", "target"] }),
-    );
-    expect(data.model).toEqual({
-      _id: data.model._id,
-      _type: "UMLGeneralization",
-      source: { $ref: tail.model!._id },
-      target: { $ref: head.model!._id },
-    });
-  });
-
-  it("reports a type without a model-and-view factory", async () => {
-    await fails(
-      createEdgeWithView,
-      edgeBody({ type: "UMLAttribute" }),
-      "UNKNOWN_TYPE",
-      "Unknown model-and-view type: UMLAttribute",
-    );
-  });
-
-  it("reports a factory exception as STARUML_ERROR", async () => {
-    vi.spyOn(env.app.factory, "createModelAndView").mockImplementation(() => {
-      throw "Invalid connection (UMLAssociation)";
-    });
-    await fails(
-      createEdgeWithView,
-      edgeBody(),
-      "STARUML_ERROR",
-      "Invalid connection (UMLAssociation)",
     );
   });
 });

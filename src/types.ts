@@ -75,6 +75,23 @@ export interface ProjectManager {
   newProject(): Element;
 }
 
+/**
+ * core/repository.js. An operation is the unit of undo; Engine methods build
+ * one per call, which is also how Engine.moveUp/moveDown reorder.
+ */
+export interface OperationBuilder {
+  begin(name: string): void;
+  /** Moves `value` to `index` of `elem[field]`, counted after removing it. */
+  fieldReorder(
+    elem: Element,
+    field: string,
+    value: Element,
+    index: number,
+  ): void;
+  end(): void;
+  getOperation(): unknown;
+}
+
 /** core/repository.js */
 export interface Repository {
   get(id: string): Element | undefined;
@@ -83,6 +100,9 @@ export interface Repository {
   findAll(predicate: (elem: Element) => boolean): Element[];
   getViewsOf(model: Element): View[];
   getEdgeViewsOf(view: Element): View[];
+  getOperationBuilder(): OperationBuilder;
+  /** Applies and records an operation; logs, rather than throws, what fails inside. */
+  doOperation(operation: unknown): void;
 }
 
 /** Options accepted by Factory.createModelAndView in 7.x. */
@@ -100,6 +120,11 @@ export interface ModelAndViewOptions {
   tailModel?: Element | null;
   headModel?: Element | null;
   containerView?: View;
+  /**
+   * Some factory functions measure against the editor's canvas, e.g. the
+   * timing diagram's time segments (uml-factory.js); the UI always passes it.
+   */
+  editor?: unknown;
   modelInitializer?: (model: Element) => void;
   viewInitializer?: (view: View) => void;
 }
@@ -123,6 +148,14 @@ export interface Factory {
   }): Element | null;
   /** Returns the created view; the created model is its `model`. */
   createModelAndView(options: ModelAndViewOptions): View | null;
+  getModelIds(): string[];
+  getModelAndViewIds(): string[];
+  getDiagramIds(): string[];
+  /** Default options per model-and-view id, e.g. modelType, viewType, field (registerModelAndViewFn). */
+  modelAndViewOptions: Record<
+    string,
+    { modelType?: string; viewType?: string }
+  >;
 }
 
 /** engine/engine.js */
@@ -131,12 +164,23 @@ export interface Engine {
   setProperty(elem: Element, field: string, value: unknown): unknown;
   /** Cascades to owned elements, relationships, views, sub-views and connected edges. */
   deleteElements(models: Element[], views: Element[]): unknown;
+  /** Inserts `model` into `parent[field]` as one operation; returns the stored element. */
+  addModel(parent: Element, field: string, model: Element): Element | null;
+  /** No-op unless `elem[field]` is an array. */
+  addItem(elem: Element, field: string, value: Element): void;
+  removeItem(elem: Element, field: string, value: Element): void;
+  /**
+   * No-op unless `elem` is in `elem._parent[field]` and `newOwner[field]`
+   * exists; the element is appended to `newOwner[field]`.
+   */
+  relocate(elem: Element, newOwner: Element, field: string): void;
 }
 
 /** ui/diagram-manager.js */
 export interface DiagramManager {
   setCurrentDiagram(diagram: Element): void;
   closeDiagram(diagram: Element): void;
+  getEditor(): unknown;
 }
 
 /** Attribute kinds accepted by MetamodelManager.validateMetaType (core/metamodel-manager.js). */
@@ -153,12 +197,59 @@ export interface MetaAttribute {
   transient?: boolean;
   default?: unknown;
   visible?: boolean;
+  /** Suggested values of a prim attribute, e.g. multiplicities. */
+  options?: string[];
+}
+
+/** One entry of the `meta` global, as registered from metamodel.json files. */
+export interface MetaType {
+  kind: "class" | "enum";
+  super?: string;
+  attributes?: MetaAttribute[];
+  literals?: string[];
+  /** View class shown for this model class. */
+  view?: string;
+  /** View classes a diagram class accepts, besides those of its supers. */
+  views?: string[];
 }
 
 /** core/metamodel-manager.js */
 export interface MetamodelManager {
   /** Inherited attributes first; throws a TypeError for a name not in `meta`. */
   getMetaAttributes(typeName: string): MetaAttribute[];
+  /** False when `child` is not in `meta`. */
+  isKindOf(child: string, parent: string): boolean;
+  getViewTypeOf(typeName: string): string | null;
+  /** Throws a TypeError for a name not in `meta`. */
+  getAvailableViewTypes(diagramTypeName: string): string[];
+}
+
+/** One palette entry, from an extension's toolbox/*.json (views/toolbox-view.js). */
+export interface ToolboxItem {
+  id: string;
+  groupId: string;
+  title: string;
+  /** "rect" | "point" for nodes, "line" for edges. */
+  rubberband: string;
+  /** Command run on drop; default factory:create-model-and-view. */
+  command?: string;
+  /** Options merged into createModelAndView's, e.g. {id, "model-init"}. */
+  commandArg?: Record<string, unknown>;
+}
+
+/** views/toolbox-view.js; groups and items are own fields. */
+export interface Toolbox {
+  groups: Record<
+    string,
+    {
+      id: string;
+      title: string;
+      /** Null when the group shows on every diagram. */
+      diagramTypes: (abstract new (...args: never[]) => unknown)[] | null;
+    }
+  >;
+  /** Keyed by item id; an id listed in several groups keeps its last entry. */
+  items: Record<string, ToolboxItem>;
 }
 
 /** core/preference-manager.js; docs: developing-extensions/defining-preferences */
@@ -182,8 +273,11 @@ export interface StarUMLApp {
   dialogs: Dialogs;
   preferences: PreferenceManager;
   metamodels: MetamodelManager;
+  toolbox: Toolbox;
   /** StarUML's package.json version, e.g. "7.1.1" (app-context.js). */
   version: string;
+  /** StarUML's package.json. */
+  metadata: { apiVersion?: string };
   [key: string]: unknown;
 }
 
@@ -191,6 +285,8 @@ declare global {
   var app: StarUMLApp;
   /** Metamodel classes by name, e.g. `type.View`, `type.UMLClass` (core/core.js). */
   var type: Record<string, abstract new (...args: never[]) => unknown>;
+  /** Metamodel definitions by type name (core/metamodel-manager.js registers into global.meta). */
+  var meta: Record<string, MetaType>;
 }
 
 export {};

@@ -84,12 +84,14 @@ export function errorMessage(err: unknown): string {
  * Runs a call into StarUML and reports what it throws as STARUML_ERROR, so a
  * refused operation is not mistaken for a defect here. Factory preconditions
  * throw plain strings such as "Invalid connection (UMLGeneralization)"
- * (Factory.assert in engine/factory.js, 7.1.1).
+ * (Factory.assert in engine/factory.js, 7.1.1). An ApiError raised by our own
+ * initializer callbacks passes through unchanged.
  */
 export function inStarUML<T>(call: () => T): T {
   try {
     return call();
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw new ApiError("STARUML_ERROR", errorMessage(err));
   }
 }

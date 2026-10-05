@@ -23,6 +23,12 @@
 
 import * as z from "zod/mini";
 import { defineEndpoint, doc } from "../endpoint.js";
+import {
+  createModelAndView,
+  createOwned,
+  initialValues,
+  requireModelId,
+} from "../create.js";
 import { ApiError, inStarUML } from "../errors.js";
 import {
   requireDiagram,
@@ -30,16 +36,21 @@ import {
   requireTypeName,
   requireView,
 } from "../lookup.js";
+import { isMetaClass } from "../metamodel.js";
+import { resolveCreateType } from "../toolbox.js";
 import {
+  ATTRIBUTE_VALUES_HELP,
   coordinate,
   elementSchema,
   id,
   projectionShape,
+  properties,
   text,
   typeName,
 } from "../schemas.js";
-import { serialize, type ElementJson, type Projection } from "../serialize.js";
-import type { Element, ModelAndViewOptions, View } from "../types.js";
+import { serialize, type Projection } from "../serialize.js";
+import type { Element, MetaAttribute, View } from "../types.js";
+import { refId, settableAttribute, toModelValue } from "../values.js";
 
 export const getElementById = defineEndpoint({
   path: "/get_element_by_id",
@@ -119,73 +130,236 @@ function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Applies a name given in a create request; factories otherwise generate one. */
-function nameInitializer(
-  name: string | undefined,
-): Pick<ModelAndViewOptions, "modelInitializer"> {
-  if (name === undefined) return {};
-  return {
-    modelInitializer: (m: Element) => {
-      m.name = name;
-    },
-  };
-}
-
 export const createElement = defineEndpoint({
   path: "/create_element",
   description:
-    "Create a model element (no view) under a parent, e.g. a UMLClass in a UMLModel.",
+    "Create a model element (no view) under an owner, e.g. a UMLClass in a UMLModel or an ERDColumn in an ERDEntity.",
   readOnly: false,
   destructive: false,
   request: z.object({
-    type: typeName("A model id of app.factory.getModelIds(), e.g. 'UMLClass'."),
+    type: typeName(
+      "A model id of /introspect factory.modelIds, e.g. 'UMLClass'.",
+    ),
     parentId: id("Owner element id."),
     name: z.optional(text("Element name; StarUML generates one if omitted.")),
+    field: z.optional(
+      doc(
+        z.string().check(z.minLength(1)),
+        "Owner list to add to; default the owner's list typed most specifically for the element, e.g. 'attributes' for a UMLAttribute in a class, else 'ownedElements'.",
+      ),
+    ),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape(),
   }),
   response: elementSchema(),
   handle: (input) => {
     const parent = requireElement(input.parentId, "Parent element");
-    const elem = inStarUML(() =>
-      app.factory.createModel({
-        id: input.type,
-        parent,
-        ...nameInitializer(input.name),
-      }),
+    requireModelId(input.type);
+    const values = initialValues(input.type, input.name, input.properties);
+    return serialize(
+      createOwned(parent, input.type, input.field, values),
+      input,
     );
-    if (!elem) {
-      throw new ApiError("UNKNOWN_TYPE", `Unknown model type: ${input.type}`);
-    }
-    return serialize(elem, input);
   },
 });
 
+const UPDATE_OPS = ["set", "add", "remove", "reorder", "relocate"] as const;
+
 export const updateElement = defineEndpoint({
   path: "/update_element",
-  description: "Set one attribute of an element.",
+  description:
+    "Change an element: set an attribute (references by id), add to or remove from a reference list, move an item within a list, or relocate the element to another owner. Each call is one undo step.",
   readOnly: false,
   destructive: true,
   request: z.object({
     id: id("Element id."),
-    field: doc(z.string().check(z.minLength(1)), "Attribute name."),
-    value: doc(z.unknown(), "New value."),
+    op: z.optional(
+      doc(
+        z.enum(UPDATE_OPS),
+        "set (default): field = value. add/remove: value is one or more element ids for the reference list `field`. reorder: move the item `value` of list `field` to `index`. relocate: move the element to owner `parentId`, keeping its list field.",
+      ),
+    ),
+    field: z.optional(
+      doc(
+        z.string().check(z.minLength(1)),
+        "Attribute name; required except for relocate.",
+      ),
+    ),
+    value: z.optional(
+      doc(
+        z.unknown(),
+        "set: the new value; an id or {$ref: id} for references, null to clear. add/remove: an id, {$ref: id} or an array of them. reorder: the item to move.",
+      ),
+    ),
+    index: z.optional(
+      doc(
+        z.int().check(z.minimum(0)),
+        "reorder: target position, counted after the item is taken out.",
+      ),
+    ),
+    parentId: z.optional(id("relocate: the new owner.")),
     ...projectionShape(),
   }),
   response: elementSchema(),
   handle: (input) => {
     const elem = requireElement(input.id);
-    // Engine.setProperty only logs and returns for a field the element lacks,
-    // which would otherwise be reported to the caller as a successful update.
-    if (typeof elem[input.field] === "undefined") {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `${elem.constructor.name} has no field '${input.field}'`,
-      );
+    const op = input.op ?? "set";
+    if (op === "relocate") {
+      if (input.parentId === undefined) {
+        throw new ApiError("INVALID_ARGUMENT", "relocate needs parentId");
+      }
+      relocate(elem, requireElement(input.parentId, "Parent"), input.field);
+      return serialize(elem, input);
     }
-    inStarUML(() => app.engine.setProperty(elem, input.field, input.value));
+    if (input.field === undefined) {
+      throw new ApiError("INVALID_ARGUMENT", `${op} needs field`);
+    }
+    if (input.value === undefined) {
+      throw new ApiError("INVALID_ARGUMENT", `${op} needs value`);
+    }
+    const typeName = elem.constructor.name;
+    const attr = settableAttribute(typeName, input.field);
+    if (op === "set") {
+      const value = toModelValue(typeName, attr, input.value);
+      inStarUML(() => app.engine.setProperty(elem, attr.name, value));
+    } else if (op === "reorder") {
+      reorder(elem, attr, input.value, input.index);
+    } else {
+      changeReferences(elem, attr, op, input.value);
+    }
     return serialize(elem, input);
   },
 });
+
+/** Engine.addItem/removeItem, one call per element; existing items are not added twice. */
+function changeReferences(
+  elem: Element,
+  attr: MetaAttribute,
+  op: "add" | "remove",
+  value: unknown,
+): void {
+  const typeName = elem.constructor.name;
+  if (attr.kind !== "refs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${op} needs a reference list; ${typeName}.${attr.name} is ${attr.kind}. Owned elements are created with /create_element and moved with op 'relocate'.`,
+    );
+  }
+  const items = toModelValue(
+    typeName,
+    attr,
+    Array.isArray(value) ? value : [value],
+  ) as Element[];
+  const list = elem[attr.name] as Element[];
+  for (const item of items) {
+    if (op === "add" && !list.includes(item)) {
+      inStarUML(() => app.engine.addItem(elem, attr.name, item));
+    } else if (op === "remove" && list.includes(item)) {
+      inStarUML(() => app.engine.removeItem(elem, attr.name, item));
+    }
+  }
+}
+
+/**
+ * Moves one item of a list to an index as a single operation. Engine.moveUp
+ * and moveDown only step by one and skip by type ordering, so the operation
+ * is built the way they build theirs (engine/engine.js in 7.1.1).
+ */
+function reorder(
+  elem: Element,
+  attr: MetaAttribute,
+  value: unknown,
+  index: number | undefined,
+): void {
+  const typeName = elem.constructor.name;
+  if (attr.kind !== "refs" && attr.kind !== "objs") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `reorder needs a list; ${typeName}.${attr.name} is ${attr.kind}`,
+    );
+  }
+  if (index === undefined) {
+    throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
+  }
+  const list = elem[attr.name] as Element[];
+  const itemId = refId(value);
+  const item = list.find((e) => e._id === itemId);
+  if (!item) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `${String(itemId)} is not in ${typeName}.${attr.name}`,
+    );
+  }
+  if (index >= list.length) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `index ${index} is past the end of ${typeName}.${attr.name} (${list.length} items)`,
+    );
+  }
+  const builder = app.repository.getOperationBuilder();
+  builder.begin("reorder");
+  builder.fieldReorder(elem, attr.name, item, index);
+  builder.end();
+  inStarUML(() => app.repository.doOperation(builder.getOperation()));
+}
+
+/** The list field of the element's owner that holds it, if any. */
+function containingField(elem: Element): string | null {
+  const owner = elem._parent;
+  if (!owner) return null;
+  for (const attr of app.metamodels.getMetaAttributes(owner.constructor.name)) {
+    const value = owner[attr.name];
+    if (Array.isArray(value) && value.includes(elem)) return attr.name;
+  }
+  return null;
+}
+
+/**
+ * Engine.relocate keeps the field name and silently does nothing when the
+ * element is not in that field of its owner or the new owner lacks it, so
+ * both are checked first and the result is verified.
+ */
+function relocate(
+  elem: Element,
+  newOwner: Element,
+  field: string | undefined,
+): void {
+  const current = containingField(elem);
+  if (!current) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${elem.constructor.name} ${elem._id} is not in a list of its owner and cannot be relocated`,
+    );
+  }
+  if (field !== undefined && field !== current) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `relocate keeps the list field: ${elem._id} is in '${current}', not '${field}'`,
+    );
+  }
+  if (!Array.isArray(newOwner[current])) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${newOwner.constructor.name} has no list field '${current}'`,
+    );
+  }
+  for (let e: Element | null | undefined = newOwner; e; e = e._parent) {
+    if (e === elem) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${newOwner._id} is ${elem._id} itself or inside it`,
+      );
+    }
+  }
+  if (elem._parent === newOwner) return;
+  inStarUML(() => app.engine.relocate(elem, newOwner, current));
+  if (elem._parent !== newOwner) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `StarUML did not relocate ${elem._id} to ${newOwner._id}`,
+    );
+  }
+}
 
 export const deleteElement = defineEndpoint({
   path: "/delete_element",
@@ -244,49 +418,43 @@ function collectDeletionTargets(root: Element): {
   return { models, views };
 }
 
-const createdSchema = () =>
-  z.object({ view: elementSchema(), model: elementSchema() });
+export const createdSchema = () =>
+  z.object({
+    view: elementSchema(),
+    model: doc(
+      z.nullable(elementSchema()),
+      "Null for view-only ids such as Note or NoteLink.",
+    ),
+  });
 
-/**
- * createModelAndView takes one options object and returns the view, whose
- * `model` is the new model element; it returns null for an id that has no
- * model-and-view factory function (engine/factory.js in 7.1.1, docs:
- * developing-extensions/creating-deleting-and-modifying-elements).
- */
-function createModelAndView(
-  options: ModelAndViewOptions,
-  projection: Projection,
-): { view: ElementJson; model: ElementJson } {
-  const view = inStarUML(() => app.factory.createModelAndView(options));
-  if (!view) {
-    throw new ApiError(
-      "UNKNOWN_TYPE",
-      `Unknown model-and-view type: ${options.id}`,
-    );
-  }
+export function created(view: View, projection: Projection) {
   return {
     view: serialize(view, projection),
-    model: serialize(view.model as Element, projection),
+    model: view.model ? serialize(view.model, projection) : null,
   };
 }
-
-const placementShape = () => ({
-  parentId: id("Owner of the new model element."),
-  diagramId: id("Diagram to place the view on."),
-});
 
 export const createElementWithView = defineEndpoint({
   path: "/create_element_with_view",
   description:
-    "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram.",
+    "Create a model element and its view on a diagram, e.g. a UMLClass shown on a UMLClassDiagram. Pass containerViewId for elements placed on or inside another view: ports and parts on a class, pins on an action, tasks in a BPMN lane, lifelines in a timing frame.",
   readOnly: false,
   destructive: false,
   request: z.object({
     type: typeName(
-      "A model-and-view id of app.factory.getModelAndViewIds(), e.g. 'UMLClass', 'UMLUseCase'.",
+      "A model-and-view id of /introspect factory.modelAndViewIds, e.g. 'UMLClass', 'ERDEntity', or a toolbox item id, which applies the item's presets, e.g. 'UMLInitialState', 'UMLCompositeState', 'C4ContainerDatabase'.",
     ),
-    ...placementShape(),
+    diagramId: id("Diagram to place the view on."),
+    parentId: z.optional(
+      id(
+        "Owner of the new model element; default the diagram's owner, as the diagram editor does. Items placed on a host view (toolbox option parasitic, e.g. ports and pins) are filed under the host's model by StarUML regardless.",
+      ),
+    ),
+    containerViewId: z.optional(
+      id("View that hosts or contains the new view."),
+    ),
     name: z.optional(text("Element name; StarUML generates one if omitted.")),
+    properties: properties(ATTRIBUTE_VALUES_HELP),
     x: coordinate("Left edge in diagram coordinates, default 100."),
     y: coordinate("Top edge, default 100."),
     x2: coordinate("Right edge, default x + 100."),
@@ -295,60 +463,64 @@ export const createElementWithView = defineEndpoint({
   }),
   response: createdSchema(),
   handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent");
     const diagram = requireDiagram(input.diagramId);
+    const container =
+      input.containerViewId === undefined
+        ? undefined
+        : requireView(input.containerViewId, "Container view");
+    const parent =
+      input.parentId === undefined
+        ? diagram._parent!
+        : requireElement(input.parentId, "Parent");
+    const { id: createId, preset } = resolveCreateType(input.type);
+    const values = valuesFor(createId, input.name, input.properties);
     const x1 = input.x ?? 100;
     const y1 = input.y ?? 100;
-    return createModelAndView(
-      {
-        id: input.type,
-        parent,
-        diagram,
-        x1,
-        y1,
-        x2: input.x2 ?? x1 + 100,
-        y2: input.y2 ?? y1 + 50,
-        ...nameInitializer(input.name),
+    const view = createModelAndView({
+      ...preset,
+      id: createId,
+      parent,
+      diagram,
+      x1,
+      y1,
+      x2: input.x2 ?? x1 + 100,
+      y2: input.y2 ?? y1 + 50,
+      // The toolbox's "parasitic" and "container-views" options make the
+      // view under the cursor the head view and container (engine/factory.js).
+      ...(container && {
+        containerView: container,
+        headView: container,
+        headModel: container.model,
+        tailView: container,
+        tailModel: container.model,
+      }),
+      modelInitializer: (m: Element) => {
+        Object.assign(m, values);
       },
-      input,
-    );
+    });
+    return created(view, input);
   },
 });
 
-export const createEdgeWithView = defineEndpoint({
-  path: "/create_edge_with_view",
-  description:
-    "Create a relationship (UMLAssociation, UMLControlFlow, ...) between the models of two views, and the edge view connecting them.",
-  readOnly: false,
-  destructive: false,
-  request: z.object({
-    type: typeName(
-      "A relationship id of app.factory.getModelAndViewIds(), e.g. 'UMLAssociation'.",
-    ),
-    ...placementShape(),
-    tailViewId: id("View at the source end."),
-    headViewId: id("View at the target end."),
-    name: z.optional(text("Relationship name.")),
-    ...projectionShape(),
-  }),
-  response: createdSchema(),
-  handle: (input) => {
-    const parent = requireElement(input.parentId, "Parent");
-    const diagram = requireDiagram(input.diagramId);
-    const tailView: View = requireView(input.tailViewId, "Tail view");
-    const headView: View = requireView(input.headViewId, "Head view");
-    return createModelAndView(
-      {
-        id: input.type,
-        parent,
-        diagram,
-        tailView,
-        headView,
-        tailModel: tailView.model,
-        headModel: headView.model,
-        ...nameInitializer(input.name),
-      },
-      input,
+/** Initial values for the model a model-and-view id creates; view-only ids take none. */
+export function valuesFor(
+  id: string,
+  name: string | undefined,
+  props: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const modelType = modelTypeOf(id);
+  if (modelType) return initialValues(modelType, name, props);
+  if (name !== undefined || props !== undefined) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `${id} creates only a view; name and properties do not apply`,
     );
-  },
-});
+  }
+  return {};
+}
+
+/** The model class a model-and-view id creates, or null for view-only ids. */
+export function modelTypeOf(id: string): string | null {
+  const candidate = app.factory.modelAndViewOptions[id]?.modelType ?? id;
+  return isMetaClass(candidate) ? candidate : null;
+}

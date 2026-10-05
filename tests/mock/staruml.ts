@@ -7,10 +7,15 @@
  * are stubs that throw, so a handler that starts depending on one fails loudly
  * instead of passing against invented behaviour.
  *
- * Element classes are generated from the 7.1.1 metamodel
- * (tests/fixtures/metamodel.7.1.1.json): one class per meta class, extending
- * its `super`, with every own attribute initialised by kind the way the
- * element constructors in core/core.js and the extensions' elements.js do.
+ * Element classes and factory ids come from POST /introspect recorded
+ * against 7.1.1 (tests/fixtures/introspect.7.1.1.json, checked against the
+ * running app by tests/integration): one class per meta class, extending its
+ * `super`, with every own attribute initialised by kind the way the element
+ * constructors in core/core.js and the extensions' elements.js do. The
+ * factory registers exactly the 7.1.1 ids, with the generic behaviour of
+ * Factory.defaultModelFn / defaultModelAndViewFn / default*RelationshipFn;
+ * ids that 7.1.1 builds with a dedicated function (lifelines, messages,
+ * association classes, ...) get that generic behaviour too.
  *
  * Modelled semantics are taken from the 7.1.1 sources shipped in
  * StarUML.app/Contents/Resources/app/src (engine/factory.js,
@@ -25,7 +30,7 @@
  * - engine.deleteElements cascades to children, relationships and views;
  * - commands.execute returns false for an unknown id.
  */
-import metamodel from "../fixtures/metamodel.7.1.1.json";
+import introspect from "../fixtures/introspect.7.1.1.json";
 
 export interface MetaAttribute {
   name: string;
@@ -35,17 +40,40 @@ export interface MetaAttribute {
   transient?: boolean;
 }
 export interface MetaType {
-  name?: string;
   kind: string;
   super?: string;
   attributes?: MetaAttribute[];
   literals?: string[];
   view?: string;
-  views?: string[];
-  ordering?: number;
+  /** Diagrams: every view type accepted, inherited ones included. */
+  availableViews?: string[];
 }
 
-export const META = metamodel.meta as unknown as Record<string, MetaType>;
+interface CatalogueEntry {
+  kind: string;
+  super: string | null;
+  attributes: MetaAttribute[];
+  literals?: string[];
+  viewType: string | null;
+  viewTypes?: string[];
+}
+
+/** The `meta` global, rebuilt from the recorded catalogue. */
+export const META: Record<string, MetaType> = Object.fromEntries(
+  Object.entries(
+    introspect.metamodel as unknown as Record<string, CatalogueEntry>,
+  ).map(([name, entry]) => [
+    name,
+    {
+      kind: entry.kind,
+      ...(entry.super && { super: entry.super }),
+      attributes: entry.attributes,
+      ...(entry.literals && { literals: entry.literals }),
+      ...(entry.viewType && { view: entry.viewType }),
+      ...(entry.viewTypes && { availableViews: entry.viewTypes }),
+    },
+  ]),
+);
 
 let nextId = 1;
 
@@ -216,11 +244,7 @@ export class MetamodelManager {
     return META[typeName]?.view ?? null;
   }
   getAvailableViewTypes(diagramTypeName: string): string[] {
-    const metaClass = META[diagramTypeName]!;
-    const inherited = metaClass.super
-      ? this.getAvailableViewTypes(metaClass.super)
-      : [];
-    return [...inherited, ...(metaClass.views ?? [])];
+    return [...(META[diagramTypeName]!.availableViews ?? [])];
   }
 }
 stub(MetamodelManager, ["assert", "register", "validateMetaType"]);
@@ -293,6 +317,19 @@ export class Repository {
     this._modified = false;
   }
 
+  getOperationBuilder(): OperationBuilder {
+    return new OperationBuilder();
+  }
+  /** Only field reorders are modelled; Engine methods are modelled directly. */
+  doOperation(operation: Operation): void {
+    for (const op of operation.ops) {
+      const list = op.elem[op.field] as MockElement[];
+      list.splice(list.indexOf(op.value), 1);
+      list.splice(op.index, 0, op.value);
+    }
+    this.setModified(true);
+  }
+
   /** Test helper, not on the real prototype: registers an element and its subtree. */
   index(elem: MockElement): void {
     this._idMap[elem._id] = elem;
@@ -312,13 +349,11 @@ stub(Repository, [
   "_revertOperation",
   "bypassFieldAssign",
   "bypassInsert",
-  "doOperation",
   "extractChanged",
   "generateGuid",
   "getConnectedHeadNodeViews",
   "getConnectedNodeViews",
   "getConnectedTailNodeViews",
-  "getOperationBuilder",
   "getRefsTo",
   "lookupAndFind",
   "readObject",
@@ -328,6 +363,36 @@ stub(Repository, [
   "writeObject",
 ]);
 const REPOSITORY_HELPERS = ["index", "unindex"];
+
+interface Operation {
+  name: string;
+  ops: {
+    elem: MockElement;
+    field: string;
+    value: MockElement;
+    index: number;
+  }[];
+}
+
+/** core/repository.js OperationBuilder, for the operations the extension builds. */
+export class OperationBuilder {
+  private operation: Operation | null = null;
+  begin(name: string): void {
+    this.operation = { name, ops: [] };
+  }
+  fieldReorder(
+    elem: MockElement,
+    field: string,
+    value: MockElement,
+    index: number,
+  ): void {
+    this.operation!.ops.push({ elem, field, value, index });
+  }
+  end(): void {}
+  getOperation(): Operation | null {
+    return this.operation;
+  }
+}
 
 export interface ModelOptions {
   id: string;
@@ -352,6 +417,8 @@ export interface ModelAndViewOptions {
   headView?: View;
   tailModel?: MockElement | null;
   headModel?: MockElement | null;
+  containerView?: View;
+  editor?: unknown;
   modelInitializer?: (m: Element) => void;
   viewInitializer?: (v: View) => void;
 }
@@ -369,32 +436,49 @@ function assertParent(parent: MockElement, typeName: string): void {
   if (!is(parent, "Model")) throw `${typeName} cannot be placed here.`;
 }
 
-/** Ids with a registered factory function; StarUML 7.1.1 registers more. */
-export const MODEL_IDS = [
-  "UMLModel",
-  "UMLPackage",
-  "UMLClass",
-  "UMLInterface",
-  "UMLEnumeration",
-  "UMLActor",
-  "UMLUseCase",
-  "UMLAttribute",
-  "UMLOperation",
-  "UMLParameter",
-  "UMLEnumerationLiteral",
-];
-export const DIAGRAM_IDS = ["UMLClassDiagram", "UMLUseCaseDiagram"];
-export const MODEL_AND_VIEW_IDS = [
-  "UMLClass",
-  "UMLInterface",
-  "UMLActor",
-  "UMLUseCase",
-  "UMLAssociation",
-  "UMLDependency",
-  "UMLGeneralization",
-];
+interface ModelAndViewEntry {
+  id: string;
+  modelType: string | null;
+  viewType: string | null;
+  relationship: string | null;
+}
+
+/** Ids with a registered factory function in 7.1.1. */
+export const MODEL_IDS: readonly string[] = introspect.factory.modelIds;
+export const DIAGRAM_IDS: readonly string[] = introspect.factory.diagramIds;
+export const MODEL_AND_VIEW: Readonly<Record<string, ModelAndViewEntry>> =
+  Object.fromEntries(
+    (introspect.factory.modelAndView as ModelAndViewEntry[]).map((e) => [
+      e.id,
+      e,
+    ]),
+  );
 
 export class Factory {
+  /**
+   * Registered default options, an own field as in 7.1.1. Only modelType and
+   * viewType are recorded, for the ids where they differ from the defaults
+   * (the id itself, and the model type's view).
+   */
+  modelAndViewOptions: Record<
+    string,
+    { modelType?: string; viewType?: string }
+  > = Object.fromEntries(
+    Object.values(MODEL_AND_VIEW)
+      .filter((e) =>
+        e.modelType
+          ? e.modelType !== e.id || e.viewType !== META[e.modelType]!.view
+          : e.viewType,
+      )
+      .map((e) => [
+        e.id,
+        {
+          ...(e.modelType && { modelType: e.modelType }),
+          ...(e.viewType && { viewType: e.viewType }),
+        },
+      ]),
+  );
+
   constructor(private readonly repository: Repository) {}
 
   createModel(options: ModelOptions): Element | null {
@@ -402,7 +486,11 @@ export class Factory {
     assertParent(options.parent, options.id);
     const model = create(options.id);
     options.modelInitializer?.(model);
-    attach(options.parent, options.field ?? "ownedElements", model);
+    // Engine.addModel only logs for a field the parent lacks, and the
+    // factory then answers repository.get() of the never-added model.
+    const field = options.field ?? "ownedElements";
+    if (!Array.isArray(options.parent[field])) return null;
+    attach(options.parent, field, model);
     this.repository.index(model);
     this.repository.setModified(true);
     return model;
@@ -425,10 +513,19 @@ export class Factory {
    * surfaced as "Cannot read properties of null (reading 'model')".
    */
   createModelAndView(options: ModelAndViewOptions): View | null {
-    if (!MODEL_AND_VIEW_IDS.includes(options.id)) return null;
+    const entry = MODEL_AND_VIEW[options.id];
+    if (!entry) return null;
+    if (!entry.modelType) {
+      if (!entry.viewType) notModeled("Factory", options.id);
+      const only = create<View>(entry.viewType);
+      options.viewInitializer?.(only);
+      attach(options.diagram, "ownedViews", only);
+      this.repository.index(only);
+      return only;
+    }
     assertParent(options.parent, options.id);
-    const model = create(options.id);
-    const view = create<View>(META[options.id]!.view!);
+    const model = create(entry.modelType);
+    const view = create<View>(entry.viewType!);
     view.model = model;
     if (is(model, "DirectedRelationship")) {
       model.source = options.tailModel ?? null;
@@ -452,6 +549,10 @@ export class Factory {
     options.viewInitializer?.(view);
     attach(options.parent, "ownedElements", model);
     attach(options.diagram, "ownedViews", view);
+    if (options.containerView) {
+      view.containerView = options.containerView;
+      (options.containerView.containedViews as View[]).push(view);
+    }
     this.repository.index(model);
     this.repository.index(view);
     this.repository.setModified(true);
@@ -465,7 +566,7 @@ export class Factory {
     return [...DIAGRAM_IDS];
   }
   getModelAndViewIds(): string[] {
-    return [...MODEL_AND_VIEW_IDS];
+    return Object.keys(MODEL_AND_VIEW);
   }
 }
 stub(Factory, [
@@ -503,6 +604,49 @@ export class Engine {
     elem[field] = value;
     this.repository.setModified(true);
     return undefined;
+  }
+
+  addModel(
+    parent: MockElement,
+    field: string,
+    model: MockElement,
+  ): MockElement | null {
+    if (!Array.isArray(parent[field])) return null;
+    attach(parent, field, model);
+    this.repository.index(model);
+    this.repository.setModified(true);
+    return model;
+  }
+
+  addItem(elem: MockElement, field: string, value: MockElement): void {
+    if (!Array.isArray(elem[field])) return;
+    (elem[field] as MockElement[]).push(value);
+    this.repository.setModified(true);
+  }
+
+  removeItem(elem: MockElement, field: string, value: MockElement): void {
+    const list = elem[field];
+    if (!Array.isArray(list)) return;
+    if (list.includes(value)) list.splice(list.indexOf(value), 1);
+    this.repository.setModified(true);
+  }
+
+  /** engine/engine.js: silently does nothing unless both owners have the field. */
+  relocate(elem: MockElement, newOwner: MockElement, field: string): void {
+    const oldOwner = elem._parent!;
+    const from = oldOwner[field];
+    const to = newOwner[field];
+    if (
+      oldOwner === newOwner ||
+      !Array.isArray(from) ||
+      !from.includes(elem) ||
+      !Array.isArray(to)
+    )
+      return;
+    from.splice(from.indexOf(elem), 1);
+    to.push(elem);
+    elem._parent = newOwner;
+    this.repository.setModified(true);
   }
 
   setProperties(elem: MockElement, values: Record<string, unknown>): void {
@@ -546,8 +690,6 @@ export class Engine {
 stub(Engine, [
   "_determineDeletingElements",
   "_determineOutsideElements",
-  "addItem",
-  "addModel",
   "addModelAndView",
   "addViews",
   "layoutDiagram",
@@ -558,8 +700,6 @@ stub(Engine, [
   "moveViews",
   "moveViewsChangingContainer",
   "reconnectEdge",
-  "relocate",
-  "removeItem",
   "resizeNode",
   "setAutoResize",
   "setElemsProperty",
@@ -599,6 +739,10 @@ export class DiagramManager {
   getWorkingDiagrams(): MockElement[] {
     return [...this.working];
   }
+  /** The editor's canvas is only measured by the factory functions. */
+  getEditor(): { canvas: { gridFactor: { width: number; height: number } } } {
+    return { canvas: { gridFactor: { width: 5, height: 5 } } };
+  }
 }
 stub(DiagramManager, [
   "__fixDiagramProblem",
@@ -614,7 +758,6 @@ stub(DiagramManager, [
   "closeOthers",
   "deselectAll",
   "getDiagramArea",
-  "getEditor",
   "getHiddenEditor",
   "getScrollPosition",
   "getSnapToGrid",
@@ -913,8 +1056,58 @@ stub(Dialogs, [
   "showTextDialog",
 ]);
 
+interface ToolboxEntry {
+  id: string;
+  group: string;
+  title: string;
+  rubberband: string;
+  creates: string;
+  options: Record<string, unknown>;
+  command?: string;
+}
+
+/** views/toolbox-view.js state, rebuilt from the recorded toolbox section. */
+export class Toolbox {
+  groups: Record<
+    string,
+    { id: string; title: string; diagramTypes: Ctor[] | null }
+  > = Object.fromEntries(
+    introspect.toolbox.groups.map((g) => [
+      g.id,
+      {
+        id: g.id,
+        title: g.title,
+        diagramTypes: g.diagramTypes
+          ? g.diagramTypes.map((name) => mockTypes[name]!)
+          : null,
+      },
+    ]),
+  );
+  /** Items without a command-arg in their toolbox JSON have none here either. */
+  items: Record<string, Record<string, unknown>> = Object.fromEntries(
+    (introspect.toolbox.items as ToolboxEntry[]).map((item) => {
+      const commandArg = {
+        ...(item.creates !== item.id && { id: item.creates }),
+        ...item.options,
+      };
+      return [
+        item.id,
+        {
+          id: item.id,
+          groupId: item.group,
+          title: item.title,
+          rubberband: item.rubberband,
+          ...(item.command && { command: item.command }),
+          ...(Object.keys(commandArg).length > 0 && { commandArg }),
+        },
+      ];
+    }),
+  );
+}
+
 export interface MockApp {
   version: string;
+  metadata: { apiVersion?: string };
   commands: CommandManager;
   project: ProjectManager;
   repository: Repository;
@@ -925,6 +1118,7 @@ export interface MockApp {
   selections: SelectionManager;
   dialogs: Dialogs;
   metamodels: MetamodelManager;
+  toolbox: Toolbox;
 }
 
 export interface MockEnvironment {
@@ -943,6 +1137,7 @@ export function installMockApp(): MockEnvironment {
   const repository = new Repository();
   const app: MockApp = {
     version: "7.1.1",
+    metadata: { apiVersion: "7.1.1" },
     commands: new CommandManager(),
     project: new ProjectManager(repository, disk),
     repository,
@@ -953,6 +1148,7 @@ export function installMockApp(): MockEnvironment {
     selections: new SelectionManager(),
     dialogs: new Dialogs(),
     metamodels: new MetamodelManager(),
+    toolbox: new Toolbox(),
   };
   const g = globalThis as unknown as Record<string, unknown>;
   g.app = app;

@@ -29,8 +29,8 @@
  *
  * Replaces the open project with a fresh one seeded with SEED classes, then
  * fires read-only requests at a fixed concurrency: summaries, full and
- * field-projected elements, owned elements expanded one level, and paged
- * find_elements. Exits non-zero on any
+ * field-projected elements, owned elements expanded one level, paged
+ * find_elements, and /introspect sections. Exits non-zero on any
  * transport error or non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or
  * when any single handler held the renderer thread longer than
  * HANDLER_BUDGET_MS (taken from the Server-Timing header the server sets).
@@ -144,6 +144,15 @@ async function main() {
       { type: "UMLClass", limit: 50, fields: ["name", "isAbstract"] },
     ],
     () => ["/find_elements", { limit: 200, summary: false }],
+    () => [
+      "/introspect",
+      {
+        include: ["metamodel"],
+        types: ["UMLClass", "UMLAttribute", "UMLAssociation"],
+        inherited: true,
+      },
+    ],
+    () => ["/introspect", { include: ["factory", "toolbox"] }],
   ];
 
   const latencies = [];

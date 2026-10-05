@@ -88,3 +88,29 @@ export function elementSchema() {
     "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements.",
   );
 }
+
+export function properties(description: string) {
+  return z.optional(doc(z.record(z.string(), z.unknown()), description));
+}
+
+/** A reference as responses carry it, or a bare id. */
+export function reference(description: string) {
+  return doc(
+    z.union([
+      z.string().check(z.minLength(1)),
+      z.object({ $ref: z.string().check(z.minLength(1)) }),
+    ]),
+    description,
+  );
+}
+
+/** A var attribute value: a plain type name such as "String", or a reference to a classifier. */
+export function typeValue(description: string) {
+  return doc(
+    z.union([z.string(), z.object({ $ref: z.string().check(z.minLength(1)) })]),
+    description,
+  );
+}
+
+export const ATTRIBUTE_VALUES_HELP =
+  "Initial attribute values by name, as /introspect lists them: plain values for prim/enum attributes, an id or {$ref: id} for references, arrays of those for reference lists.";
