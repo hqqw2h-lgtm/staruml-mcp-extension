@@ -7,3 +7,5 @@ package-lock.json
 tests/fixtures/build/*.mdj.json
 # Golden files written by tests/unit/patterns/library.test.ts, compared byte for byte.
 tests/fixtures/patterns/*.mdj.json
+# Spec goldens written by tests/unit/handlers/export-text.test.ts, compared byte for byte.
+tests/fixtures/export/*.json

@@ -503,7 +503,10 @@ function packageDiagram(spec: PackageSpec): string[] {
 
 function componentDiagram(spec: ComponentSpec): string[] {
   const id = aliases(
-    [...spec.components.map((c) => c.name), ...spec.interfaces],
+    [
+      ...spec.components.map((c) => c.name),
+      ...spec.interfaces.map((i) => i.name),
+    ],
     "C",
   );
   const port = (ref: string) => {
@@ -525,7 +528,14 @@ function componentDiagram(spec: ComponentSpec): string[] {
     );
     lines.push("}");
   }
-  for (const i of spec.interfaces) lines.push(`interface ${q(i)} as ${id(i)}`);
+  for (const i of spec.interfaces) {
+    const head = `interface ${q(i.name)} as ${id(i.name)}`;
+    if (i.operations.length === 0) {
+      lines.push(head);
+      continue;
+    }
+    lines.push(`${head} {`, ...i.operations.map((o) => `  ${o}`), "}");
+  }
   for (const c of spec.components) {
     for (const i of c.provides) lines.push(`${id(c.name)} - ${id(i)}`);
     for (const i of c.requires) lines.push(`${id(c.name)} ..> ${id(i)} : use`);

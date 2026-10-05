@@ -1,0 +1,207 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "DFDDiagram",
+   "name": "Order processing",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "DFDExternalEntityView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 140,
+     "height": 60
+    },
+    {
+     "_id": "#6",
+     "_type": "DFDProcessView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 190,
+     "top": 40,
+     "width": 140,
+     "height": 80
+    },
+    {
+     "_id": "#8",
+     "_type": "DFDProcessView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 340,
+     "top": 40,
+     "width": 140,
+     "height": 80
+    },
+    {
+     "_id": "#10",
+     "_type": "DFDDataStoreView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 490,
+     "top": 40,
+     "width": 160,
+     "height": 40
+    },
+    {
+     "_id": "#12",
+     "_type": "DFDDataFlowView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#14",
+     "_type": "DFDDataFlowView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#16",
+     "_type": "DFDDataFlowView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "DFDDataFlowView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#4"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "DFDExternalEntity",
+   "name": "Customer",
+   "ownedElements": []
+  },
+  {
+   "_id": "#7",
+   "_type": "DFDProcess",
+   "name": "Place order",
+   "ownedElements": []
+  },
+  {
+   "_id": "#9",
+   "_type": "DFDProcess",
+   "name": "Ship order",
+   "ownedElements": []
+  },
+  {
+   "_id": "#11",
+   "_type": "DFDDataStore",
+   "name": "Orders",
+   "ownedElements": []
+  },
+  {
+   "_id": "#13",
+   "_type": "DFDDataFlow",
+   "name": "order",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   }
+  },
+  {
+   "_id": "#15",
+   "_type": "DFDDataFlow",
+   "name": "order record",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#11"
+   }
+  },
+  {
+   "_id": "#17",
+   "_type": "DFDDataFlow",
+   "name": "pending order",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#9"
+   }
+  },
+  {
+   "_id": "#19",
+   "_type": "DFDDataFlow",
+   "name": "parcel",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#5"
+   }
+  }
+ ]
+}

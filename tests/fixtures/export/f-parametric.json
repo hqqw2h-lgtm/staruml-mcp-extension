@@ -1,0 +1,29 @@
+{
+  "block": "Car",
+  "nodes": [
+    {
+      "name": "newton",
+      "type": "constraint"
+    },
+    {
+      "name": "mass",
+      "type": "value"
+    },
+    {
+      "name": "acceleration",
+      "type": "value"
+    }
+  ],
+  "edges": [
+    {
+      "from": "newton",
+      "to": "mass",
+      "type": "connector"
+    },
+    {
+      "from": "newton",
+      "to": "acceleration",
+      "type": "connector"
+    }
+  ]
+}

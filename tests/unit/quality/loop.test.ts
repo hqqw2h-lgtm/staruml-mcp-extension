@@ -88,7 +88,7 @@ describe("/diagram_quality", () => {
   });
 
   it("scores a diagram of a kind the build does not make against the profile's minScore", async () => {
-    const d = create("UMLObjectDiagram");
+    const d = create("UMLDiagram");
     d.name = "Objects";
     d._parent = env.model;
     (env.model.ownedElements as Element[]).push(d);
@@ -512,7 +512,7 @@ describe("edges of the loop", () => {
   });
 
   it("relays out a diagram of a kind the build does not make by a flow", async () => {
-    const d = create("UMLObjectDiagram");
+    const d = create("UMLDiagram");
     d._parent = env.model;
     (env.model.ownedElements as unknown[]).push(d);
     env.app.repository.index(d);

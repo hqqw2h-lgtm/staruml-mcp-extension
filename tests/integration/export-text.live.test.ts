@@ -45,6 +45,29 @@ describeLive("/export_text", () => {
       );
       expect(built.success, JSON.stringify(built)).toBe(true);
       const id = built.data.diagram._id;
+      if (_label.startsWith("f-")) {
+        // Issue #25: the families' text is their spec, built again the same.
+        const refused = await call("/export_text", {
+          diagram: id,
+          format: "plantuml",
+        });
+        expect(refused.code).toBe("INVALID_ARGUMENT");
+        const spec = await call<Exported>("/export_text", {
+          diagram: id,
+          format: "spec",
+        });
+        expect(spec.data.warnings).toEqual([]);
+        const again = await call<Built>("/build_diagram", {
+          kind: spec.data.kind,
+          spec: JSON.parse(spec.data.text) as Record<string, unknown>,
+          name: (body as { name: string }).name,
+          allowDuplicateNames: true,
+          reuse: false,
+        });
+        expect(again.success, spec.data.text).toBe(true);
+        expect(await shown(again.data.diagram._id)).toEqual(await shown(id));
+        return;
+      }
       if (["package", "component", "deployment"].includes(built.data.kind)) {
         // Mermaid has no such diagram; PlantUML writes them (issue #35).
         const refused = await call("/export_text", {
@@ -58,6 +81,15 @@ describeLive("/export_text", () => {
         });
         expect(plantuml.data.warnings).toEqual([]);
         expect(plantuml.data.text).toMatch(/^@startuml\n[\s\S]+\n@enduml\n$/);
+        // Read back as PlantUML (issue #25), the same diagram again.
+        const again = await call<Built>("/build_diagram", {
+          text: plantuml.data.text,
+          allowDuplicateNames: true,
+          reuse: false,
+        });
+        expect(again.success, plantuml.data.text).toBe(true);
+        expect(again.data.kind).toBe(built.data.kind);
+        expect(await shown(again.data.diagram._id)).toEqual(await shown(id));
         return;
       }
       const mermaid = await call<Exported>("/export_text", {

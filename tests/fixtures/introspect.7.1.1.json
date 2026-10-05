@@ -21550,7 +21550,7 @@
     },
     {
       "path": "/export_text",
-      "description": "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, and as PlantUML only package, component and deployment diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+      "description": "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, as PlantUML only package, component and deployment diagrams, and every other diagram family (composite structure, object, communication, timing, interaction overview, information flow, profile, DFD, SysML block definition, internal block and parametric, BPMN, wireframe, AWS, Azure, GCP) as its /build_diagram spec in JSON (format spec). Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
       "readOnly": true,
       "destructive": false,
       "request": {
@@ -21564,8 +21564,8 @@
           },
           "format": {
             "type": "string",
-            "enum": ["mermaid", "plantuml"],
-            "description": "Text format."
+            "enum": ["mermaid", "plantuml", "spec"],
+            "description": "Text format. spec: the /build_diagram spec as JSON, the text form of the kinds no Mermaid or PlantUML diagram holds (composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp); build it again with that kind."
           },
           "override": {
             "type": "boolean",
@@ -21610,7 +21610,23 @@
               "c4",
               "package",
               "component",
-              "deployment"
+              "deployment",
+              "composite",
+              "object",
+              "communication",
+              "timing",
+              "overview",
+              "infoflow",
+              "profile",
+              "dfd",
+              "bdd",
+              "ibd",
+              "parametric",
+              "bpmn",
+              "wireframe",
+              "aws",
+              "azure",
+              "gcp"
             ],
             "description": "The /build_diagram kind; use case and activity diagrams are written as Mermaid flowcharts and need it to be built again."
           },
@@ -21972,7 +21988,7 @@
     },
     {
       "path": "/build_diagram",
-      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
+      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4, package, component, deployment, and the families composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -21994,7 +22010,23 @@
               "c4",
               "package",
               "component",
-              "deployment"
+              "deployment",
+              "composite",
+              "object",
+              "communication",
+              "timing",
+              "overview",
+              "infoflow",
+              "profile",
+              "dfd",
+              "bdd",
+              "ibd",
+              "parametric",
+              "bpmn",
+              "wireframe",
+              "aws",
+              "azure",
+              "gcp"
             ],
             "description": "Diagram kind; required with spec. With text it is read from the source; 'activity' or 'usecase' reads a Mermaid flowchart as that kind, 'erd' JSON Schema as an ERD, and any kind picks the PlantUML reader."
           },
@@ -22002,7 +22034,7 @@
             "type": "object",
             "propertyNames": { "type": "string" },
             "additionalProperties": {},
-            "description": "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
+            "description": "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one. composite (UML composite structure: classes with their parts, ports and connectors, collaborations): {nodes: [{name, id, type: class|part|port|interface|collaboration|collaborationUse, in, stereotype, properties, attributes, operations, width, height}], edges: [{from, to, type: connector|association|dependency|realization|roleBinding|generalization, name}]}. object (UML object: instances with slot values and the links between them): {nodes: [{name, id, type: object|class|componentInstance|nodeInstance|artifactInstance, in, stereotype, properties, attributes, operations, slots, width, height}], edges: [{from, to, type: link|directedLink|dependency, name}]}. communication (UML communication: lifelines, the connectors between them and numbered messages along the connectors): {nodes: [{name, id, type: lifeline, in, stereotype, properties, width, height}], edges: [{from, to, type: connector|message, name}]}. timing (UML timing: lifelines in the frame, their states, the time segments each state lasts and messages between segments): {nodes: [{name, id, type: lifeline|state|segment, in, stereotype, properties, width, height}], edges: [{from, to, type: message, name}]}. overview (UML interaction overview: interactions and interaction uses joined by control flow): {nodes: [{name, id, type: interactionUse|interaction|initial|final|decision|merge|fork|join, in, stereotype, properties, width, height}], edges: [{from, to, type: flow, name}]}. infoflow (UML information flow: classifiers and the information items conveyed between them): {nodes: [{name, id, type: class|actor|useCase|item, in, stereotype, properties, width, height}], edges: [{from, to, type: flow|dependency|association, name}]}. profile (UML profile: stereotypes, the metaclasses they extend and their generalizations): {nodes: [{name, id, type: stereotype|metaclass|enumeration, in, stereotype, properties, attributes, operations, width, height}], edges: [{from, to, type: extension|generalization, name}]}. dfd (Data flow (Gane–Sarson): external entities, processes, data stores and data flows): {nodes: [{name, id, type: external|process|store, in, stereotype, properties, width, height}], edges: [{from, to, type: flow, name}]}. bdd (SysML block definition: blocks, value and constraint types, their compositions and generalizations): {nodes: [{name, id, type: block|valueType|interfaceBlock|constraintBlock|enumeration|signal|stakeholder|viewpoint|view, in, stereotype, properties, attributes, operations, width, height}], edges: [{from, to, type: association|directed|composition|aggregation|generalization|dependency|realization|conform|expose, name}]}. ibd (SysML internal block: the parts, references and values inside one block (spec.block), its ports and the connectors between them): {block, nodes: [{name, id, type: part|reference|value|port, in, stereotype, properties, width, height}], edges: [{from, to, type: connector, name}]}. parametric (SysML parametric: constraint properties of one block (spec.block), their parameters and the values bound to them): {block, nodes: [{name, id, type: constraint|parameter|value|part, in, stereotype, properties, width, height}], edges: [{from, to, type: connector, name}]}. bpmn (BPMN process: pools and lanes, tasks, events, gateways, data and the flows between them): {nodes: [{name, id, type: pool|lane|task|userTask|serviceTask|sendTask|receiveTask|manualTask|scriptTask|businessRuleTask|callActivity|subProcess|start|end|throw|catch|exclusive|parallel|inclusive|eventBased|complex|dataObject|dataStore|annotation, in, stereotype, properties, width, height}], edges: [{from, to, type: sequence|message|association|data, name}]}. wireframe (Wireframe: frames (web, mobile, desktop) holding panels and controls, top to bottom): {nodes: [{name, id, type: frame|webFrame|mobileFrame|desktopFrame|panel|button|text|input|dropdown|checkbox|radio|switch|link|tabList|tab|image|separator|avatar|slider, in, stereotype, properties, width, height}]}. aws (AWS architecture: groups (cloud, VPC, subnets, availability zones, security groups) holding services and resources, joined by arrows): {nodes: [{name, id, type: group|genericGroup|availabilityZone|securityGroup|service|resource|generalResource|callout, in, stereotype, properties, width, height}], edges: [{from, to, type: arrow, name}]}. azure (Azure architecture: groups holding services, joined by connectors): {nodes: [{name, id, type: group|service|callout, in, stereotype, properties, width, height}], edges: [{from, to, type: connector, name}]}. gcp (Google Cloud architecture: users, zones (project, region, …) holding products and services, joined by paths): {nodes: [{name, id, type: user|zone|product|service, in, stereotype, properties, width, height}], edges: [{from, to, type: path, name}]}."
           },
           "mermaid": {
             "type": "string",
@@ -22934,7 +22966,23 @@
               "c4",
               "package",
               "component",
-              "deployment"
+              "deployment",
+              "composite",
+              "object",
+              "communication",
+              "timing",
+              "overview",
+              "infoflow",
+              "profile",
+              "dfd",
+              "bdd",
+              "ibd",
+              "parametric",
+              "bpmn",
+              "wireframe",
+              "aws",
+              "azure",
+              "gcp"
             ],
             "description": "Diagram kind; required with spec, else read from text."
           },
@@ -24470,7 +24518,7 @@
     },
     {
       "path": "/derive_diagrams",
-      "description": "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, and the activities, ERD, C4 containers, deployments and feature mind map /build_model stored with the model. Each diagram shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds limits which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
+      "description": "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers, deployments and feature mind map /build_model stored with the model. Each diagram shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds limits which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -24497,7 +24545,8 @@
                 "erd",
                 "c4",
                 "deployment",
-                "mindmap"
+                "mindmap",
+                "communication"
               ]
             },
             "description": "Only these diagram kinds; default all."

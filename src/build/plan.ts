@@ -88,6 +88,14 @@ export interface PlanNode {
    * component's port: the view is made with that view as its container.
    */
   host?: string;
+  /**
+   * The host holds the view inside it rather than on its border: the
+   * factory needs the container at creation (a timing state in its
+   * lifeline, a part in its class) and placement nests it.
+   */
+  inside?: boolean;
+  /** Slots of an instance, "name = value" (UMLSlot). */
+  slots?: { name: string; value: string }[];
   /** Key of the node whose view contains this one's, e.g. a composite state. */
   container?: string;
   /** Text of a note, which is a view without a model. */
@@ -110,7 +118,22 @@ export interface PlanEdge {
   headEnd?: Record<string, unknown>;
   /** Sequence messages are drawn at their place in time. */
   geometry?: { x1: number; y1: number; x2: number; y2: number };
+  /**
+   * Index of the edge this one is drawn along, both its ends that edge's
+   * view: a communication message on its connector.
+   */
+  along?: number;
+  /** Index of the spec entry it was planned from, where that differs. */
+  source?: number;
+  /** Made only to carry the edges drawn along it (a message's connector). */
+  implicit?: boolean;
 }
+
+/**
+ * The key `host` takes for the frame StarUML draws on a diagram of some
+ * kinds (timing, internal block, parametric), which is no node of the plan.
+ */
+export const FRAME = "@frame";
 
 export type Direction = "TB" | "BT" | "LR" | "RL";
 
@@ -129,6 +152,16 @@ export interface Plan {
   edgeLabelWidth?: number;
   /** Size node views to their content before the engine layout. */
   fit?: boolean;
+  /**
+   * The model element the diagram is filed under and drawn for, made when
+   * the parent is not one (an internal block diagram's block); `name`
+   * names it, else the parent must be one.
+   */
+  owner?: { type: string; name?: string };
+  /** The diagram's frame view is the first it owns, and FRAME refers to it. */
+  framed?: boolean;
+  /** Nodes in a container stack top to bottom whatever the direction. */
+  stack?: boolean;
 }
 
 export const name = () => z.string().check(z.minLength(1));

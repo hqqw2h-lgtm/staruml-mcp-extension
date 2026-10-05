@@ -21,6 +21,7 @@
  *
  */
 
+import { FRAME } from "./plan.js";
 import type { Box, Direction, Plan, PlanEdge, PlanNode } from "./spec.js";
 import { PORT } from "./structure.js";
 
@@ -206,6 +207,86 @@ function activityBoxes(plan: Plan): Map<string, Box> {
   return boxes;
 }
 
+/** A pool's name band, a lane's, and the cell a BPMN flow node gets. */
+const POOL = { header: 30, lane: 30, column: 170, row: 90, minHeight: 110 };
+
+/**
+ * Pools one under the other, their lanes stacked inside, and every flow
+ * node in its lane's band at its rank's column, so the process reads left
+ * to right across lanes as BPMN draws it (BPMN 2.0.2 §9.3, §10.8). Flow
+ * nodes outside every pool sit in a band below.
+ */
+function bpmnBoxes(plan: Plan): Map<string, Box> {
+  const isPool = (n: PlanNode) => n.type === "BPMNParticipant";
+  const isLane = (n: PlanNode) => n.type === "BPMNLane";
+  const flow = plan.nodes.filter((n) => !isPool(n) && !isLane(n));
+  const keys = new Set(flow.map((n) => n.key));
+  const rank = ranks(
+    flow.map((n) => n.key),
+    plan.edges.filter((e) => keys.has(e.from) && keys.has(e.to)),
+  );
+  const columns = Math.max(0, ...rank.values()) + 1;
+  const pools = plan.nodes.filter(isPool);
+  const lanesOf = (pool: PlanNode) =>
+    plan.nodes.filter((n) => isLane(n) && n.container === pool.key);
+  // The band a flow node sits in: its lane, its pool's first lane, its
+  // pool, or the band outside the pools.
+  const bandOf = (n: PlanNode): string => {
+    const holder = plan.nodes.find((h) => h.key === n.container);
+    if (!holder) return "";
+    return isPool(holder)
+      ? (lanesOf(holder)[0]?.key ?? holder.key)
+      : holder.key;
+  };
+  const boxes = new Map<string, Box>();
+  const width = POOL.header + POOL.lane + columns * POOL.column;
+  let y = MARGIN;
+  /** Lays out one band at `top` from `left`; answers its height. */
+  const band = (key: string, top: number, left: number): number => {
+    const slots = new Map<number, PlanNode[]>();
+    for (const n of flow.filter((f) => bandOf(f) === key)) {
+      const r = rank.get(n.key)!;
+      slots.set(r, [...(slots.get(r) ?? []), n]);
+    }
+    const rows = Math.max(1, ...[...slots.values()].map((s) => s.length));
+    const height = Math.max(POOL.minHeight, rows * POOL.row);
+    for (const [r, nodes] of slots) {
+      nodes.forEach((n, i) =>
+        boxes.set(n.key, {
+          x: left + r * POOL.column + (POOL.column - n.width) / 2,
+          y:
+            top +
+            (height - nodes.length * POOL.row) / 2 +
+            i * POOL.row +
+            (POOL.row - n.height) / 2,
+          width: n.width,
+          height: n.height,
+        }),
+      );
+    }
+    return height;
+  };
+  for (const pool of pools) {
+    const top = y;
+    const lanes = lanesOf(pool);
+    for (const lane of lanes) {
+      const h = band(lane.key, y, MARGIN + POOL.header + POOL.lane);
+      boxes.set(lane.key, {
+        x: MARGIN + POOL.header,
+        y,
+        width: width - POOL.header,
+        height: h,
+      });
+      y += h;
+    }
+    if (lanes.length === 0) y += band(pool.key, y, MARGIN + POOL.header);
+    boxes.set(pool.key, { x: MARGIN, y: top, width, height: y - top });
+    y += GAP;
+  }
+  band("", y, MARGIN);
+  return boxes;
+}
+
 const INSET = 20;
 const HEADER = 40;
 
@@ -229,10 +310,11 @@ function nestedBoxes(plan: Plan, direction: Direction): Map<string, Box> {
         };
       });
     const keys = new Set(members.map((n) => n.key));
+    // Ranks across (LR) put a level's unconnected nodes in one column.
     const local = grid(
       members,
       plan.edges.filter((e) => keys.has(e.from) && keys.has(e.to)),
-      direction,
+      plan.stack && container !== undefined ? "LR" : direction,
       { x: 0, y: 0 },
     );
     let width = 0;
@@ -267,24 +349,65 @@ function nestedBoxes(plan: Plan, direction: Direction): Map<string, Box> {
   return boxes;
 }
 
-/** Where each node's view goes, by node key. */
+/** Room a framed diagram's frame keeps around what it holds, its name tab on top. */
+const FRAME_PAD = { side: 20, top: 50 };
+
+/**
+ * The frame's bounds around `boxes`, moving them down first so the frame's
+ * name tab sits above them; an empty frame keeps a size to drop into.
+ */
+function frameAround(boxes: Map<string, Box>): Box {
+  if (boxes.size === 0) {
+    return { x: FRAME_PAD.side, y: FRAME_PAD.side, width: 400, height: 240 };
+  }
+  const top = Math.min(...[...boxes.values()].map((b) => b.y));
+  const dy = Math.max(0, FRAME_PAD.top + FRAME_PAD.side - top);
+  for (const [key, b] of boxes) boxes.set(key, { ...b, y: b.y + dy });
+  const all = [...boxes.values()];
+  const left = Math.min(...all.map((b) => b.x));
+  const right = Math.max(...all.map((b) => b.x + b.width));
+  const bottom = Math.max(...all.map((b) => b.y + b.height));
+  return {
+    x: left - FRAME_PAD.side,
+    y: top + dy - FRAME_PAD.top,
+    width: right - left + 2 * FRAME_PAD.side,
+    height: bottom - (top + dy) + FRAME_PAD.top + FRAME_PAD.side,
+  };
+}
+
+/**
+ * Where each node's view goes, by node key; a framed plan also gets the
+ * frame's bounds under FRAME, wrapped around the rest.
+ */
 export function place(plan: Plan, direction: Direction): Map<string, Box> {
-  const hosted = plan.nodes.filter((n) => n.host !== undefined);
+  const onBorder = (n: PlanNode) => n.host !== undefined && !n.inside;
+  const hosted = plan.nodes.filter(onBorder);
   // An edge to a hosted view ranks its host: a connector between two ports
   // places their components.
   const hostOf = new Map(hosted.map((n) => [n.key, n.host!]));
   const boxes = placeNodes(
     {
       ...plan,
-      nodes: plan.nodes.filter((n) => n.host === undefined),
-      edges: plan.edges.map((e) => ({
-        ...e,
-        from: hostOf.get(e.from) ?? e.from,
-        to: hostOf.get(e.to) ?? e.to,
-      })),
+      // A view made inside its host is placed as one moved into it.
+      nodes: plan.nodes
+        .filter((n) => !onBorder(n))
+        .map((n) => {
+          if (!n.inside) return n;
+          const { host, ...rest } = n;
+          return host === FRAME ? rest : { ...rest, container: host };
+        }),
+      // An edge to a port on the frame ranks nothing.
+      edges: plan.edges
+        .map((e) => ({
+          ...e,
+          from: hostOf.get(e.from) ?? e.from,
+          to: hostOf.get(e.to) ?? e.to,
+        }))
+        .filter((e) => e.from !== FRAME && e.to !== FRAME),
     },
     direction,
   );
+  if (plan.framed) boxes.set(FRAME, frameAround(boxes));
   // A hosted view (a port) sits on its host's right border, one under the
   // other, as StarUML draws a port dropped on a component.
   const count = new Map<string, number>();
@@ -306,6 +429,7 @@ function placeNodes(plan: Plan, direction: Direction): Map<string, Box> {
   let boxes: Map<string, Box>;
   if (plan.kind === "usecase" && plan.fixed) boxes = usecaseBoxes(plan);
   else if (plan.kind === "activity" && plan.fixed) boxes = activityBoxes(plan);
+  else if (plan.kind === "bpmn") boxes = bpmnBoxes(plan);
   else if (plan.nodes.some((n) => n.container !== undefined)) {
     boxes = nestedBoxes(plan, direction);
   } else {

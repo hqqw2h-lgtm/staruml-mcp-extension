@@ -262,6 +262,36 @@ describe("/derive_diagrams", () => {
     expect(env.app.repository.getInstancesOf("UMLLifeline")).toHaveLength(5);
   });
 
+  it("draws a collaboration as a communication diagram when asked, from the model's own lifelines and messages", async () => {
+    const m = await model();
+    const count = (t: string) => env.app.repository.getInstancesOf(t).length;
+    const messages = count("UMLMessage");
+    const first = await ok<Derived>(ep("/derive_diagrams"), {
+      scope: m.model._id,
+      kinds: ["communication"],
+    });
+    expect(first.diagrams.map((d) => `${d.kind}:${d.name}`)).toEqual([
+      "communication:Checkout communication",
+      "communication:Idle communication",
+    ]);
+    // Checkout's three messages between lifelines, not the self call.
+    const checkout = get(first.diagrams[0]!.diagram);
+    const views = checkout.ownedViews as View[];
+    expect(
+      views.filter((v) => v.constructor.name === "UMLCommMessageView"),
+    ).toHaveLength(3);
+    expect(
+      views.filter((v) => v.constructor.name === "UMLConnectorView"),
+    ).toHaveLength(2);
+    expect(count("UMLMessage")).toBe(messages);
+    expect(count("UMLLifeline")).toBe(5);
+    const again = await ok<Derived>(ep("/derive_diagrams"), {
+      scope: m.model._id,
+      kinds: ["communication"],
+    });
+    expect(again.counts).toMatchObject({ created: 0, deleted: 0 });
+  });
+
   it("derives one class diagram per package with collaborators, an overview, and splits big ones", async () => {
     const m = await model();
     const per = await ok<Derived>(ep("/derive_diagrams"), {

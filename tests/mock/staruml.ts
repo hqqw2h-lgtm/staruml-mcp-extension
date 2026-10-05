@@ -212,13 +212,32 @@ const CONTAINS: Record<string, readonly string[]> = {
   UMLRegionView: ["UMLStateView", "UMLPseudostateView", "UMLFinalStateView"],
   UMLPackageView: ["UMLClassifierView", "UMLPackageView"],
   UMLNodeView: ["UMLClassifierView", "UMLPackageView"],
+  AWSGroupView: ["AWSGeneralNodeView", "AWSIconNodeView"],
+  AWSGenericGroupView: ["AWSGeneralNodeView", "AWSIconNodeView"],
+  AWSAvailabilityZoneView: ["AWSGeneralNodeView", "AWSIconNodeView"],
+  AWSSecurityGroupView: ["AWSGeneralNodeView", "AWSIconNodeView"],
+  AzureGroupView: ["AzureGeneralNodeView", "AzureIconNodeView"],
+  GCPZoneView: ["GCPGeneralNodeView"],
+  BPMNPoolView: [
+    "BPMNLaneView",
+    "BPMNSubProcessView",
+    "BPMNTaskView",
+    "BPMNEventView",
+    "BPMNGatewayView",
+  ],
+  BPMNLaneView: [
+    "BPMNSubProcessView",
+    "BPMNTaskView",
+    "BPMNEventView",
+    "BPMNGatewayView",
+  ],
+  // WFWebFrameView and the other frames extend WFFrameView.
+  WFFrameView: ["WFGeneralNodeView", "WFSwitchView", "WFPanelView"],
 };
 Object.defineProperty(mockTypes.View!.prototype, "canContainView", {
   value(this: MockElement, view: MockElement): boolean {
-    return (
-      view !== this &&
-      (CONTAINS[this.constructor.name] ?? []).some((k) => is(view, k))
-    );
+    const kinds = Object.entries(CONTAINS).find(([k]) => is(this, k))?.[1];
+    return view !== this && (kinds ?? []).some((k) => is(view, k));
   },
 });
 
@@ -584,6 +603,68 @@ const SEQUENCE_VIEWS: Record<string, string> = {
   UMLMessage: "UMLSeqMessageView",
 };
 
+/** lifelineFn and messageFn (uml-factory.js) pick these by the diagram. */
+const DIAGRAM_VIEWS: Record<string, Record<string, string>> = {
+  UMLCommunicationDiagram: { UMLMessage: "UMLCommMessageView" },
+  UMLTimingDiagram: {
+    UMLLifeline: "UMLTimingLifelineView",
+    UMLMessage: "UMLTimingMessageView",
+  },
+};
+
+/**
+ * Ids 7.1.1 registers with a factory function of their own and no model
+ * type (uml-factory.js, sysml-factory.js): what each makes, and the list
+ * of its container's model it is filed in.
+ */
+const CUSTOM: Record<string, { model: string; view: string; field: string }> = {
+  UMLPart: { model: "UMLAttribute", view: "UMLPartView", field: "attributes" },
+  UMLTimingState: {
+    model: "UMLConstraint",
+    view: "UMLTimingStateView",
+    field: "ownedElements",
+  },
+  UMLTimeSegment: {
+    model: "UMLStateInvariant",
+    view: "UMLTimeSegmentView",
+    field: "ownedElements",
+  },
+  UMLInteractionUseInOverview: {
+    model: "UMLAction",
+    view: "UMLInteractionUseView",
+    field: "ownedElements",
+  },
+  UMLInteractionInOverview: {
+    model: "UMLAction",
+    view: "UMLInteractionInlineView",
+    field: "ownedElements",
+  },
+  SysMLConstraintParameter: {
+    model: "SysMLProperty",
+    view: "SysMLConstraintParameterView",
+    field: "parameters",
+  },
+};
+
+/** Owner lists sysml-factory.js files block properties in. */
+const FIELDS: Record<string, string> = {
+  SysMLPart: "parts",
+  SysMLReference: "references",
+  SysMLValue: "values",
+  SysMLConstraintProperty: "constraints",
+};
+
+/** Diagram types whose diagramFn adds a frame showing the diagram. */
+const FRAMES: Record<string, string> = {
+  UMLSequenceDiagram: "UMLFrameView",
+  UMLCommunicationDiagram: "UMLFrameView",
+  UMLInteractionOverviewDiagram: "UMLFrameView",
+  UMLTimingDiagram: "UMLTimingFrameView",
+  SysMLBlockDefinitionDiagram: "UMLFrameView",
+  SysMLInternalBlockDiagram: "UMLFrameView",
+  SysMLParametricDiagram: "UMLFrameView",
+};
+
 /** Ids with a registered factory function in 7.1.1. */
 export const MODEL_IDS: readonly string[] = introspect.factory.modelIds;
 export const DIAGRAM_IDS: readonly string[] = introspect.factory.diagramIds;
@@ -646,9 +727,9 @@ export class Factory {
     assertParent(options.parent, options.id);
     const diagram = create(options.id);
     options.diagramInitializer?.(diagram);
-    if (options.id === "UMLSequenceDiagram") {
+    if (FRAMES[options.id]) {
       // _addFrame in uml-factory.js: initialize(null, 8, 8, 700, 600).
-      const frame = create<View>("UMLFrameView");
+      const frame = create<View>(FRAMES[options.id]!);
       Object.assign(frame, { left: 8, top: 8, width: 692, height: 592 });
       frame.model = diagram;
       attach(diagram, "ownedViews", frame);
@@ -685,6 +766,24 @@ export class Factory {
       this.repository.index(view);
       return view;
     }
+    const custom = CUSTOM[options.id];
+    if (custom) {
+      const model = create(custom.model);
+      const view = create<View>(custom.view);
+      view.model = model;
+      place(view, options);
+      options.modelInitializer?.(model);
+      const owner = options.containerView?.model ?? options.parent;
+      attach(owner as MockElement, custom.field, model);
+      attach(options.diagram, "ownedViews", view);
+      if (options.containerView) {
+        view.containerView = options.containerView;
+        (options.containerView.containedViews as View[]).push(view);
+      }
+      this.repository.index(model);
+      this.repository.index(view);
+      return view;
+    }
     if (!entry.modelType) {
       if (!entry.viewType) notModeled("Factory", options.id);
       const only = create<View>(entry.viewType);
@@ -706,12 +805,25 @@ export class Factory {
     // diagram; the recorded entry has the communication diagram's, or none.
     const onSequence = is(options.diagram, "UMLSequenceDiagram");
     const viewType =
-      (onSequence && SEQUENCE_VIEWS[entry.modelType]) || entry.viewType!;
+      (onSequence && SEQUENCE_VIEWS[entry.modelType]) ||
+      DIAGRAM_VIEWS[options.diagram.constructor.name]?.[entry.modelType] ||
+      entry.viewType!;
     const view = create<View>(viewType);
     view.model = model;
     if (is(model, "DirectedRelationship")) {
       model.source = options.tailModel ?? null;
       model.target = options.headModel ?? null;
+    }
+    if (viewType === "UMLCommMessageView") {
+      // messageFn on a connector: the message runs its way or against it.
+      const edge = options.headView!;
+      const [a, b] = [(edge.tail as View).model, (edge.head as View).model];
+      const forward =
+        (options as { direction?: string }).direction !== "reverse";
+      model.source = forward ? a : b;
+      model.target = forward ? b : a;
+      model.connector = edge.model;
+      view.hostEdge = edge;
     }
     if (is(model, "UndirectedRelationship")) {
       (model.end1 as MockElement).reference = options.tailModel ?? null;
@@ -751,7 +863,7 @@ export class Factory {
     assignInit(model, (options as { "model-init"?: object })["model-init"]);
     options.modelInitializer?.(model);
     options.viewInitializer?.(view);
-    attach(options.parent, "ownedElements", model);
+    attach(options.parent, FIELDS[options.id] ?? "ownedElements", model);
     attach(options.diagram, "ownedViews", view);
     if (options.containerView) {
       view.containerView = options.containerView;
@@ -805,6 +917,29 @@ export class Factory {
             (rel.end1 as MockElement).reference,
             (rel.end2 as MockElement).reference,
           ];
+    if (is(diagram, "UMLCommunicationDiagram") && is(model, "UMLMessage")) {
+      // viewForCommunicationDiagramFn: the message's connector, found or
+      // made between its lifelines' views, carries its view.
+      const [a, b] = [viewOf(model.source)!, viewOf(model.target)!];
+      let carrier = (diagram.ownedViews as View[]).find(
+        (v) =>
+          is(v, "UMLConnectorView") &&
+          ((v.tail === a && v.head === b) || (v.tail === b && v.head === a)),
+      );
+      if (!carrier) {
+        const connector = create("UMLConnector");
+        (connector.end1 as MockElement).reference = a.model;
+        (connector.end2 as MockElement).reference = b.model;
+        attach(diagram._parent!, "ownedElements", connector);
+        this.repository.index(connector);
+        carrier = edge(connector, a, b);
+      }
+      model.connector = carrier.model;
+      const view = create<View>("UMLCommMessageView");
+      view.model = model as Element;
+      view.hostEdge = carrier;
+      return add(view);
+    }
     if (is(model, "Relationship")) {
       const [a, b] = ends(model);
       return edge(model, viewOf(a)!, viewOf(b)!);
@@ -816,9 +951,9 @@ export class Factory {
     view.width = 100;
     view.height = 50;
     add(view);
-    for (const rel of onSequence
-      ? []
-      : this.repository.getRelationshipsOf(model)) {
+    // viewForCommunicationDiagramFn draws a lifeline alone too.
+    const alone = onSequence || is(diagram, "UMLCommunicationDiagram");
+    for (const rel of alone ? [] : this.repository.getRelationshipsOf(model)) {
       const [a, b] = ends(rel);
       const other = a === model ? b : a;
       const otherView = viewOf(other);

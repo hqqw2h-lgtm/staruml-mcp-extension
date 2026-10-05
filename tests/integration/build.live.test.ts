@@ -72,6 +72,23 @@ const EXPECTED: Record<string, [nodes: number, edges: number, kind: string]> = {
   "component-flat": [3, 2, "component"],
   deployment: [7, 5, "deployment"],
   "deployment-flat": [3, 2, "deployment"],
+  // Issue #25: every other 7.1.1 diagram family.
+  "f-composite": [4, 1, "composite"],
+  "f-object": [3, 2, "object"],
+  "f-communication": [3, 5, "communication"],
+  "f-timing": [10, 1, "timing"],
+  "f-overview": [5, 5, "overview"],
+  "f-infoflow": [3, 1, "infoflow"],
+  "f-profile": [4, 2, "profile"],
+  "f-dfd": [4, 4, "dfd"],
+  "f-bdd": [6, 3, "bdd"],
+  "f-ibd": [4, 3, "ibd"],
+  "f-parametric": [3, 2, "parametric"],
+  "f-bpmn": [8, 4, "bpmn"],
+  "f-wireframe": [5, 0, "wireframe"],
+  "f-aws": [5, 2, "aws"],
+  "f-azure": [3, 1, "azure"],
+  "f-gcp": [4, 2, "gcp"],
 };
 
 // Issue #9: /build_diagram against StarUML 7.1.1, every kind from a spec and
@@ -452,7 +469,7 @@ describeLive("/build_diagram text formats (#16)", () => {
     });
     for (const text of [
       "@startgantt\n[A] lasts 2 days\n@endgantt",
-      "@startuml\ncomponent C\n@enduml",
+      "@startuml\nobject o\n@enduml",
       "CREATE TABLE t (id int); CREATE VIEW v AS SELECT 1",
       '{"properties": {"a": {"oneOf": []}}}',
       'C4Dynamic\n  Rel(a, b, "x")',

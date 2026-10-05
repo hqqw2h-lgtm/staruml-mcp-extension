@@ -45,6 +45,7 @@ export const DERIVED_KINDS = [
   "c4",
   "deployment",
   "mindmap",
+  "communication",
 ] as const satisfies readonly Kind[];
 export type DerivedKind = (typeof DERIVED_KINDS)[number];
 
@@ -340,12 +341,9 @@ const SORTS: Record<string, string> = {
 
 function sequenceDiagrams(s: Scope): Derived[] {
   return s.all
-    .filter((e) => is(e, "UMLCollaboration"))
-    .flatMap((collab) => {
-      const interaction = list(collab.ownedElements).find((e) =>
-        is(e, "UMLInteraction"),
-      );
-      if (!interaction) return [];
+    .filter((e) => is(e, "UMLInteraction"))
+    .flatMap((interaction) => {
+      const collab = interaction._parent!;
       const lifelines = list(interaction.participants);
       const messages = list(interaction.messages);
       const ranges = s.views.fragments?.[String(collab.name)] ?? [];
@@ -374,6 +372,49 @@ function sequenceDiagrams(s: Scope): Derived[] {
             }),
           },
           bind,
+          bindEdges: new Map(messages.map((m, i) => [i, m])),
+          accessorsOnly: [],
+        },
+      ];
+    });
+}
+
+/**
+ * A collaboration's interaction drawn as a communication diagram: the
+ * same lifelines and messages as its sequence diagram, each shown from the
+ * model, StarUML drawing the connectors the messages run along
+ * (viewForCommunicationDiagramFn, uml-factory.js in 7.1.1). Asked for by
+ * kind only: the sequence diagram already shows the interaction.
+ */
+function communicationDiagrams(s: Scope): Derived[] {
+  return s.all
+    .filter((e) => is(e, "UMLInteraction"))
+    .flatMap((interaction) => {
+      const collab = interaction._parent!;
+      const lifelines = list(interaction.participants).filter((l) =>
+        is(l, "UMLLifeline"),
+      );
+      const shown = new Set(lifelines);
+      const messages = list(interaction.messages).filter(
+        (m) =>
+          shown.has(m.source as Element) &&
+          shown.has(m.target as Element) &&
+          m.source !== m.target,
+      );
+      return [
+        {
+          kind: "communication" as const,
+          name: `${String(collab.name)} communication`,
+          parent: interaction,
+          spec: {
+            nodes: lifelines.map((l) => String(l.name)),
+            edges: messages.map((m) => ({
+              from: String((m.source as Element).name),
+              to: String((m.target as Element).name),
+              name: String(m.name),
+            })),
+          },
+          bind: new Map(lifelines.map((l) => [String(l.name), l])),
           bindEdges: new Map(messages.map((m, i) => [i, m])),
           accessorsOnly: [],
         },
@@ -635,5 +676,6 @@ export function derive(
     ...usecaseDiagrams(s),
     ...stateDiagrams(s),
     ...sectionDiagrams(s),
+    ...(kinds?.has("communication") ? communicationDiagrams(s) : []),
   ].filter((d) => !kinds || kinds.has(d.kind));
 }

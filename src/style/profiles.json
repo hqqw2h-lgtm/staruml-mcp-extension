@@ -50,7 +50,15 @@
         "package": "hierarchy-down",
         "activity": "flow-down",
         "statemachine": "flow-right",
-        "erd": "hierarchy-right"
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
       },
       "spacing": {
         "node": 50,
@@ -148,7 +156,15 @@
         "package": "hierarchy-down",
         "activity": "flow-down",
         "statemachine": "flow-right",
-        "erd": "hierarchy-right"
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
       },
       "spacing": {
         "node": 50,
@@ -293,7 +309,15 @@
         "package": "hierarchy-down",
         "activity": "flow-down",
         "statemachine": "flow-right",
-        "erd": "hierarchy-right"
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
       },
       "spacing": {
         "node": 70,
@@ -399,7 +423,15 @@
         "package": "hierarchy-down",
         "activity": "flow-down",
         "statemachine": "flow-right",
-        "erd": "hierarchy-right"
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
       },
       "spacing": {
         "node": 50,

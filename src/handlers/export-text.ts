@@ -33,18 +33,26 @@ import {
   NO_MERMAID,
   toMermaid,
 } from "../text/mermaid-writer.js";
+import { FAMILY_KINDS, type FamilyKind } from "../build/families.js";
+import { extractFamily } from "../text/families.js";
 import { extract, kindOf } from "../text/model.js";
+
+const isFamily = (kind: string): kind is FamilyKind =>
+  (FAMILY_KINDS as readonly string[]).includes(kind);
 import { toPlantUml } from "../text/plantuml-writer.js";
 
 export const exportText = defineEndpoint({
   path: "/export_text",
   description:
-    "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, and as PlantUML only package, component and deployment diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+    "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, as PlantUML only package, component and deployment diagrams, and every other diagram family (composite structure, object, communication, timing, interaction overview, information flow, profile, DFD, SysML block definition, internal block and parametric, BPMN, wireframe, AWS, Azure, GCP) as its /build_diagram spec in JSON (format spec). Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
   readOnly: true,
   destructive: false,
   request: z.object({
     diagram: ref("Diagram."),
-    format: doc(z.enum(["mermaid", "plantuml"]), "Text format."),
+    format: doc(
+      z.enum(["mermaid", "plantuml", "spec"]),
+      "Text format. spec: the /build_diagram spec as JSON, the text form of the kinds no Mermaid or PlantUML diagram holds (composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp); build it again with that kind.",
+    ),
   }),
   aliases: { diagramId: "diagram" },
   response: z.object({
@@ -73,6 +81,29 @@ export const exportText = defineEndpoint({
         `${diagram.constructor.name} cannot be written as text; supported: ${KINDS.join(", ")} diagrams`,
       );
     }
+    const { _id, _type, name } = summarize(diagram);
+    if (isFamily(kind)) {
+      if (input.format !== "spec") {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `Neither Mermaid nor PlantUML has a ${kind} diagram; export it as spec`,
+        );
+      }
+      const { spec, warnings } = extractFamily(diagram, kind);
+      return {
+        diagram: { _id, _type, name },
+        kind,
+        format: input.format,
+        text: `${JSON.stringify(spec, null, 2)}\n`,
+        warnings,
+      };
+    }
+    if (input.format === "spec") {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec is the text of the diagram families (${FAMILY_KINDS.join(", ")}); export a ${kind} diagram as mermaid or plantuml`,
+      );
+    }
     if (
       input.format === "mermaid" &&
       (NO_MERMAID as readonly string[]).includes(kind)
@@ -83,7 +114,6 @@ export const exportText = defineEndpoint({
       );
     }
     const { extracted, warnings } = extract(diagram, kind);
-    const { _id, _type, name } = summarize(diagram);
     // Every diagram has a name, "" when unnamed (core/core.js).
     const out =
       input.format === "mermaid"

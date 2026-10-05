@@ -495,7 +495,7 @@ export const createElementWithView = defineEndpoint({
         ? diagram._parent!
         : requireElement(input.parent, "Parent");
     const { id: createId, preset } = resolveCreateType(input.type);
-    const values = valuesFor(createId, input.name, input.properties);
+    const values = customValues(createId, input.name, input.properties);
     const modelType = modelTypeOf(createId);
     // A view hosted by another (a port, a pin) is filed under the host's
     // model by StarUML, so its siblings are not the parent's.
@@ -527,13 +527,62 @@ export const createElementWithView = defineEndpoint({
         tailView: container,
         tailModel: container.model,
       }),
-      modelInitializer: (m: Element) => {
-        Object.assign(m, values);
-      },
+      modelInitializer: values.initialize,
     });
+    if (!values.applied()) {
+      // A custom factory function that made no model: the view goes too.
+      inStarUML(() => app.engine.deleteElements([], [view]));
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${createId} creates only a view; name and properties do not apply`,
+      );
+    }
+    values.settle(view.model);
     return created(view, input);
   },
 });
+
+/**
+ * The model initializer of a node creation. An id StarUML registered with
+ * a factory function of its own and no model type (UMLPart,
+ * UMLTimingState, UMLTimeSegment, SysMLConstraintParameter, the interaction
+ * overview's nodes in 7.1.1) makes a model only that function knows, so
+ * its values are converted for the model it hands the initializer.
+ */
+export function customValues(
+  id: string,
+  name: string | undefined,
+  props: Record<string, unknown> | undefined,
+): {
+  initialize: (m: Element) => void;
+  applied: () => boolean;
+  settle: (m: Element | null) => void;
+} {
+  const options = app.factory.modelAndViewOptions[id];
+  const wanted = name !== undefined || props !== undefined;
+  let values: Record<string, unknown> = {};
+  let applied = false;
+  const lazy = modelTypeOf(id) === null && !options?.viewType && wanted;
+  if (!lazy) values = valuesFor(id, name, props);
+  return {
+    initialize: (m) => {
+      if (lazy) values = initialValues(m.constructor.name, name, props);
+      Object.assign(m, values);
+      applied = true;
+    },
+    applied: () => applied || !lazy,
+    // A function registered with an initializer of its own runs it after
+    // the caller's, e.g. UMLMetaClass names every metaclass "UMLClass"
+    // (uml-factory.js in 7.1.1); what it overwrote is set again.
+    settle: (m) => {
+      for (const [field, value] of Object.entries(values)) {
+        if (m && m[field] !== value) {
+          inStarUML(() => app.engine.setProperty(m, field, value));
+        }
+      }
+    },
+  };
+}
 
 /** Initial values for the model a model-and-view id creates; view-only ids take none. */
 export function valuesFor(

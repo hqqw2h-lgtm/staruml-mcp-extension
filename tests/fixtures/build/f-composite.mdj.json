@@ -1,0 +1,209 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLCompositeStructureDiagram",
+   "name": "Car structure",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLClassView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 220,
+     "height": 240,
+     "showNamespace": false,
+     "suppressAttributes": true,
+     "suppressOperations": true
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLPartView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 80,
+     "width": 100,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLPartView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 200,
+     "width": 100,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLPortView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 250,
+     "top": 50,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLConnectorView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLClass",
+   "name": "Car",
+   "ownedElements": [
+    {
+     "_id": "#11",
+     "_type": "UMLPort",
+     "name": "power",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": null,
+     "multiplicity": "",
+     "defaultValue": "",
+     "aggregation": "none"
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [
+    {
+     "_id": "#14",
+     "_type": "UMLAttribute",
+     "name": "vin",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": "String",
+     "multiplicity": "",
+     "defaultValue": "",
+     "aggregation": "none"
+    },
+    {
+     "_id": "#7",
+     "_type": "UMLAttribute",
+     "name": "engine",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": null,
+     "multiplicity": "",
+     "defaultValue": "",
+     "aggregation": "none"
+    },
+    {
+     "_id": "#9",
+     "_type": "UMLAttribute",
+     "name": "wheels",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": null,
+     "multiplicity": "",
+     "defaultValue": "",
+     "aggregation": "none"
+    }
+   ],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLConnector",
+   "name": "drives",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#15",
+    "_type": "UMLConnectorEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#16",
+    "_type": "UMLConnectorEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#9"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "type": null,
+   "kind": "assembly"
+  }
+ ]
+}

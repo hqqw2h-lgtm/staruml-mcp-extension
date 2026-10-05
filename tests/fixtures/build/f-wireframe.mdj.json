@@ -1,0 +1,130 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "WFWireframeDiagram",
+   "name": "Login screen",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "WFWebFrameView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 400,
+     "height": 360
+    },
+    {
+     "_id": "#6",
+     "_type": "WFInputView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 80,
+     "width": 160,
+     "height": 30
+    },
+    {
+     "_id": "#8",
+     "_type": "WFInputView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 170,
+     "width": 160,
+     "height": 30
+    },
+    {
+     "_id": "#10",
+     "_type": "WFCheckboxView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 260,
+     "width": 160,
+     "height": 30
+    },
+    {
+     "_id": "#12",
+     "_type": "WFButtonView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 80,
+     "top": 350,
+     "width": 120,
+     "height": 30
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "WFWebFrame",
+   "name": "Login",
+   "ownedElements": [
+    {
+     "_id": "#7",
+     "_type": "WFInput",
+     "name": "Email",
+     "ownedElements": []
+    },
+    {
+     "_id": "#9",
+     "_type": "WFInput",
+     "name": "Password",
+     "ownedElements": []
+    },
+    {
+     "_id": "#11",
+     "_type": "WFCheckbox",
+     "name": "Remember me",
+     "ownedElements": []
+    },
+    {
+     "_id": "#13",
+     "_type": "WFButton",
+     "name": "Sign in",
+     "ownedElements": []
+    }
+   ]
+  }
+ ]
+}

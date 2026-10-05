@@ -23,6 +23,7 @@
 
 import { ApiError } from "../errors.js";
 import { readC4, type TextLine } from "./c4.js";
+import { readStructure } from "./plantuml-structure.js";
 import { isOperation, multiline } from "./members.js";
 import {
   CLASS_ARROWS,
@@ -59,8 +60,9 @@ import type { Direction, Kind, ViewStyle } from "./spec.js";
  * - erd: entity blocks of columns (* mandatory, <<PK>>, <<FK>>, <<UK>>)
  *   joined by crow's foot relations, as /export_text writes them;
  * - mindmap: @startmindmap with * or OrgMode +/- levels;
+ * - package, component and deployment: plantuml-structure.ts;
  * - c4: the C4-PlantUML macros.
- * Other PlantUML diagrams (component, deployment, object, timing, gantt,
+ * Other PlantUML diagrams (object, timing, gantt,
  * wireframe, ...) and constructs StarUML cannot hold (found and lost
  * messages, ref, history states, concurrent regions, goto) are refused as
  * UNSUPPORTED_SYNTAX; skinparam, hide, show, scale and similar styling are
@@ -1222,6 +1224,10 @@ function detect(src: Source): Kind | "legacy" {
     return "erd";
   }
   if (has(/\(\*(top)?\)|^===/)) return "legacy";
+  if (has(/^(node|artifact)\s/)) return "deployment";
+  if (has(/^(component|port|portin|portout)\s|^\[(?!\*\])[^\]]+\]|^\(\)\s/)) {
+    return "component";
+  }
   if (
     has(
       /^(start|stop|kill|detach|repeat|fork|split)$|^:.*[;|<>\]}/]$|^if\s*\(|^while\s*\(|^\|(?:#\w+\|)?[^|]+\|$/,
@@ -1243,13 +1249,14 @@ function detect(src: Source): Kind | "legacy" {
   ) {
     return "class";
   }
+  if (has(/^package\s/)) return "package";
   const other =
-    /^(component|node|artifact|cloud|frame|folder|storage|card|agent|hexagon|object|map|json|robust|concise|clock|binary|analog)\s|^\[(?!\*\])[^\]]+\]/;
+    /^(cloud|frame|folder|storage|card|agent|hexagon|object|map|json|robust|concise|clock|binary|analog)\s/;
   const found = src.lines.find((l) => other.test(l.text));
   if (found) {
     refuse(
       found.no,
-      `${found.text.split(/\s/)[0]} diagrams are not built; class, sequence, use case, activity, state, IE entity and C4 diagrams are`,
+      `${found.text.split(/\s/)[0]} diagrams are not built; class, sequence, use case, activity, state, IE entity, package, component, deployment and C4 diagrams are`,
     );
   }
   if (has(PARTICIPANT) || has(/-{1,2}>|<-{1,2}/)) return "sequence";
@@ -1288,7 +1295,7 @@ export function parsePlantUml(source: string, as?: Kind): Parsed {
   if (src.type !== "uml") {
     refuse(
       src.no,
-      `@start${src.type} diagrams are not built; @startuml (class, sequence, use case, activity, state, IE entity, C4) and @startmindmap are`,
+      `@start${src.type} diagrams are not built; @startuml (class, sequence, use case, activity, state, IE entity, package, component, deployment, C4) and @startmindmap are`,
     );
   }
   const detected = detect(src);
@@ -1309,6 +1316,14 @@ export function parsePlantUml(source: string, as?: Kind): Parsed {
       detected === "activity"
         ? activityDiagram(src.lines)
         : legacyActivity(src.lines),
+    );
+  }
+  if (kind === "package" || kind === "component" || kind === "deployment") {
+    return done(
+      kind,
+      readStructure(src.lines, kind, (no, message, code) =>
+        fail(no, message, code),
+      ),
     );
   }
   const reader = READERS[kind as keyof typeof READERS];

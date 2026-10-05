@@ -1,0 +1,183 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "AWSDiagram",
+   "name": "Web tier",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "AWSGroupView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 360,
+     "height": 420
+    },
+    {
+     "_id": "#6",
+     "_type": "AWSGroupView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 80,
+     "width": 320,
+     "height": 360
+    },
+    {
+     "_id": "#8",
+     "_type": "AWSServiceView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 80,
+     "top": 120,
+     "width": 111,
+     "height": 60
+    },
+    {
+     "_id": "#10",
+     "_type": "AWSServiceView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 80,
+     "top": 240,
+     "width": 90,
+     "height": 60
+    },
+    {
+     "_id": "#12",
+     "_type": "AWSResourceView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 80,
+     "top": 360,
+     "width": 76,
+     "height": 60
+    },
+    {
+     "_id": "#14",
+     "_type": "AWSArrowView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#16",
+     "_type": "AWSArrowView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "AWSGroup",
+   "name": "AWS Cloud",
+   "ownedElements": [
+    {
+     "_id": "#7",
+     "_type": "AWSGroup",
+     "name": "VPC",
+     "ownedElements": [
+      {
+       "_id": "#9",
+       "_type": "AWSService",
+       "name": "Load balancer",
+       "ownedElements": []
+      },
+      {
+       "_id": "#11",
+       "_type": "AWSService",
+       "name": "Web server",
+       "ownedElements": []
+      },
+      {
+       "_id": "#13",
+       "_type": "AWSResource",
+       "name": "Database",
+       "ownedElements": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "_id": "#15",
+   "_type": "AWSArrow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#11"
+   }
+  },
+  {
+   "_id": "#17",
+   "_type": "AWSArrow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#13"
+   }
+  }
+ ]
+}

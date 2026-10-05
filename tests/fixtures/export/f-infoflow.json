@@ -1,0 +1,24 @@
+{
+  "nodes": [
+    {
+      "name": "Shop",
+      "type": "class"
+    },
+    {
+      "name": "Customer",
+      "type": "actor"
+    },
+    {
+      "name": "Invoice",
+      "type": "item"
+    }
+  ],
+  "edges": [
+    {
+      "from": "Shop",
+      "to": "Customer",
+      "type": "flow",
+      "name": "invoices"
+    }
+  ]
+}

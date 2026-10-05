@@ -1,0 +1,33 @@
+{
+  "nodes": [
+    {
+      "name": "order1",
+      "type": "object",
+      "slots": [
+        "total = 42",
+        "status = PAID"
+      ]
+    },
+    {
+      "name": "alice",
+      "type": "object"
+    },
+    {
+      "name": "item7",
+      "type": "object"
+    }
+  ],
+  "edges": [
+    {
+      "from": "order1",
+      "to": "alice",
+      "type": "link",
+      "name": "placedBy"
+    },
+    {
+      "from": "order1",
+      "to": "item7",
+      "type": "directedLink"
+    }
+  ]
+}

@@ -99,11 +99,11 @@ describe("kinds", () => {
     expect(refused(puml("A"))).toBe(
       "INVALID_ARGUMENT plantuml line 1: cannot tell which kind of diagram this is; pass kind",
     );
-    expect(refused(puml("component C\nC --> D"))).toMatch(
-      /^UNSUPPORTED_SYNTAX plantuml line 2: component diagrams are not built/,
+    expect(refused(puml("component C\nC --> D"))).toBe(
+      "INVALID_ARGUMENT plantuml line 3: D is not declared",
     );
-    expect(refused(puml("[Comp] --> D"))).toMatch(
-      /^UNSUPPORTED_SYNTAX plantuml line 2: \[Comp\]/,
+    expect(refused(puml("object o\no --> p"))).toMatch(
+      /^UNSUPPORTED_SYNTAX plantuml line 2: object diagrams are not built/,
     );
     expect(refused(puml("A -> B"), "flowchart")).toBe(
       "UNSUPPORTED_SYNTAX plantuml line 1: PlantUML is not read as flowchart",

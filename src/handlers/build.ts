@@ -36,6 +36,8 @@ import {
   type PlanNode,
   planFor,
 } from "../build/spec.js";
+import { type Box, FRAME } from "../build/plan.js";
+import { familyGrammar } from "../build/families.js";
 import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError } from "../errors.js";
 import {
@@ -165,6 +167,10 @@ function existing(diagram: Element) {
       } else {
         continue;
       }
+    } else if (view.hostEdge) {
+      // A communication message is drawn on its connector, not between
+      // two ends of its own (UMLCommMessageView, uml/elements.js).
+      edges.add(`id|${model._id}`, view);
     } else if (isEdge(view)) {
       const tail = (view.tail as View).model;
       const head = (view.head as View).model;
@@ -219,6 +225,10 @@ function memberOps(node: PlanNode, owner: string, model?: Element): Op[] {
       body: { ref: owner, name },
     }),
   );
+  add("slots", node.slots, (slot) => ({
+    path: "/add_slot",
+    body: { ref: owner, ...slot },
+  }));
   add("columns", node.columns, (c) => {
     const { name, ...properties } = c as ColumnSpec;
     return {
@@ -286,6 +296,12 @@ const SHARED_KINDS = new Set<Kind>([
   "package",
   "component",
   "deployment",
+  "composite",
+  "object",
+  "infoflow",
+  "profile",
+  "bdd",
+  "dfd",
 ]);
 
 /**
@@ -314,6 +330,9 @@ function findModel(
   warnings: string[],
 ): Element | null {
   if (node.type === "Note") return null;
+  // What sits in or on another node is that node's: a part, a port.
+  if (node.host !== undefined) return null;
+  // Every node type of a kind that reuses makes a model of a known type.
   const modelType = modelTypeOf(resolveCreateType(node.type).id)!;
   const signature = signatureOf(node.type);
   // A path ("Model/Billing/Invoice") names one element as every endpoint
@@ -454,16 +473,20 @@ export function opsFor(
   const ops: Op[] = [];
   const diagramRef = target.diagram?._id ?? "$diagram";
   if (!target.diagram) {
+    const owner = ownerOps(plan, target.parent);
+    ops.push(...owner.ops);
     ops.push({
       path: "/create_diagram",
       as: "diagram",
       body: {
         type: DIAGRAM_TYPES[plan.kind],
-        parent: target.parent._id,
+        parent: owner.parent,
         ...(target.name !== undefined && { name: target.name }),
         ...(options.allowDuplicateNames && { allowDuplicateNames: true }),
         // The frame StarUML adds to a sequence diagram is its first view.
-        ...(plan.frame && { fields: ["_parent", "ownedViews"] }),
+        ...((plan.frame || plan.framed) && {
+          fields: ["_parent", "ownedViews"],
+        }),
       },
     });
   }
@@ -484,6 +507,14 @@ export function opsFor(
   const pools = target.diagram ? existing(target.diagram) : null;
   const boxes = place(plan, direction);
   const refs = new Map<string, Ref>();
+  if (plan.framed) {
+    refs.set(FRAME, {
+      model: null,
+      view: target.diagram
+        ? frameOf(target.diagram)._id
+        : "$diagram.ownedViews.0",
+    });
+  }
   const created = new Map<string, string>();
   const reused = new Map<string, Ref>();
   const kept = new Set<View>();
@@ -688,11 +719,25 @@ export function opsFor(
     });
   }
   const edgeOps: { key: string; as: string }[] = [];
+  /** Each edge's view, by plan index, for the edges drawn along it. */
+  const edgeViews: string[] = [];
+  const boundOf = (edge: PlanEdge, i: number) =>
+    options.bindEdges?.get(edge.source ?? i);
+  // A connector made for messages that are all shown from the model is
+  // StarUML's to make: viewForCommunicationDiagramFn draws a message's
+  // connector with it (uml-factory.js, 7.1.1).
+  const carried = (i: number) =>
+    plan.edges.flatMap((r, k) => (r.along === i ? [boundOf(r, k)] : []));
   plan.edges.forEach((edge, i) => {
+    if (edge.implicit && carried(i).every((b) => b !== undefined)) {
+      edgeViews.push("");
+      return;
+    }
     const tail = refs.get(edge.from)!;
     const head = refs.get(edge.to)!;
+    edgeViews.push(`$e${i}.view`);
     const noteLink = viewOnly(edge.type);
-    const boundEdge = options.bindEdges?.get(i);
+    const boundEdge = boundOf(edge, i);
     const found = pools?.edges.take(
       boundEdge
         ? `id|${boundEdge._id}`
@@ -703,6 +748,7 @@ export function opsFor(
     const key = `${edge.from} -> ${edge.to}`;
     if (found) {
       kept.add(found);
+      edgeViews[i] = found._id;
       unchanged++;
       return;
     }
@@ -748,13 +794,16 @@ export function opsFor(
       });
       return;
     }
+    // A message on a communication diagram is drawn along its connector,
+    // which is both its ends (messageFn in uml-factory.js, 7.1.1).
+    const along = edge.along === undefined ? null : edgeViews[edge.along]!;
     ops.push({
       path: "/create_relationship",
       as,
       body: {
         type: edge.type,
-        tail: tail.view,
-        head: head.view,
+        tail: along ?? tail.view,
+        head: along ?? head.view,
         diagram: diagramRef,
         ...(edge.name !== undefined && { name: edge.name }),
         ...(edge.properties && { properties: edge.properties }),
@@ -764,7 +813,9 @@ export function opsFor(
       },
     });
   });
-  ops.push(...frameOps(plan, target.diagram));
+  // A kept message keeps the connector it is drawn on.
+  for (const v of [...kept]) if (v.hostEdge) kept.add(v.hostEdge as View);
+  ops.push(...frameOps(plan, target.diagram, boxes.get(FRAME)));
   let deleted = 0;
   if (options.prune && pools) {
     // Edges first: deleting a node takes its edges along, and an op on an
@@ -851,16 +902,68 @@ function labelRoom(
       };
 }
 
-/** Sizes a sequence diagram's frame to the plan's, if it differs. */
-function frameOps(plan: Plan, diagram: Element | null): Op[] {
-  if (!plan.frame) return [];
+/**
+ * The frame StarUML draws on a diagram showing the diagram itself
+ * (sequence, timing, internal block and parametric diagrams): a view whose
+ * model is the diagram.
+ */
+function frameOf(diagram: Element): View {
+  const frame = (diagram.ownedViews as View[]).find((v) => v.model === diagram);
+  if (!frame) {
+    throw new ApiError(
+      "STARUML_ERROR",
+      `${diagram.constructor.name} ${diagram._id} has lost its frame; nodes that sit in it cannot be added`,
+    );
+  }
+  return frame;
+}
+
+/**
+ * Finds the element the diagram is drawn for by name under the parent, or
+ * makes it, unless the parent is one (plan.owner).
+ */
+function ownerOps(plan: Plan, parent: Element): { ops: Op[]; parent: string } {
+  const owner = plan.owner;
+  if (!owner || app.metamodels.isKindOf(parent.constructor.name, owner.type)) {
+    return { ops: [], parent: parent._id };
+  }
+  if (owner.name === undefined) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `spec.block: a ${plan.kind} diagram shows the inside of a ${owner.type}; name it in spec.block, or pass one as parent`,
+    );
+  }
+  // The block is where the diagram goes, as a parent is, so one of that
+  // name is used whatever reuse says.
+  const found = app.repository
+    .getInstancesOf(owner.type)
+    .find((e) => e.name === owner.name && within(e, parent));
+  if (found) return { ops: [], parent: found._id };
+  return {
+    ops: [
+      {
+        path: "/create_element",
+        as: "owner",
+        body: { type: owner.type, parent: parent._id, name: owner.name },
+      },
+    ],
+    parent: "$owner",
+  };
+}
+
+/** Sizes the frame of a diagram that has one to the plan's, if it differs. */
+function frameOps(
+  plan: Plan,
+  diagram: Element | null,
+  placed: Box | undefined,
+): Op[] {
+  const planned = plan.frame ?? placed;
+  if (!planned) return [];
   const frame = diagram
-    ? (diagram.ownedViews as View[]).find(
-        (v) => v.model === diagram && v instanceof type.UMLFrameView,
-      )
+    ? (diagram.ownedViews as View[]).find((v) => v.model === diagram)
     : undefined;
   if (diagram && !frame) return [];
-  const { x, y, width, height } = plan.frame;
+  const { x, y, width, height } = planned;
   const bounds = { left: x, top: y, width, height };
   if (
     frame &&
@@ -895,7 +998,7 @@ export function defaultPreset(kind: Kind, direction: Direction) {
  * lands in one row (14740 px wide for the ThingsBoard map, issue #35).
  */
 export const defaultDirection = (kind: Kind): Direction =>
-  kind === "mindmap" ? "LR" : "TB";
+  kind === "mindmap" || kind === "communication" ? "LR" : "TB";
 
 /** The diagram an upsert updates: same type and name, under the parent. */
 function findDiagram(kind: Kind, name: string | undefined, parent: Element) {
@@ -1157,7 +1260,9 @@ const buildRequest = () =>
     spec: z.optional(
       doc(
         z.record(z.string(), z.unknown()),
-        "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
+        "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}] (an aggregation or composition's from is the whole, which gets the diamond)}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. requirement: {requirements: [{name, type: requirement|functional|interface|performance|physical|design, id, text, risk, verifyMethod}], elements: [{name, type, docRef}], relations: [{from, to, type: contains|copies|derives|satisfies|verifies|refines|traces}]}. c4: {elements: [{id, name, type: person|system|container|component, kind (container kind, e.g. database), technology, description, external}], relations: [{from, to, label, technology, description}]}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one. " +
+          familyGrammar() +
+          ".",
       ),
     ),
     mermaid: z.optional(
@@ -1298,7 +1403,7 @@ export function buildDiagramEndpoint(
   return defineEndpoint({
     path: "/build_diagram",
     description:
-      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
+      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4, package, component, deployment, and the families composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: buildRequest(),

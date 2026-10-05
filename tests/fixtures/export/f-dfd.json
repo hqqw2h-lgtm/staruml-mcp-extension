@@ -1,0 +1,46 @@
+{
+  "nodes": [
+    {
+      "name": "Customer",
+      "type": "external"
+    },
+    {
+      "name": "Place order",
+      "type": "process"
+    },
+    {
+      "name": "Ship order",
+      "type": "process"
+    },
+    {
+      "name": "Orders",
+      "type": "store"
+    }
+  ],
+  "edges": [
+    {
+      "from": "Customer",
+      "to": "Place order",
+      "type": "flow",
+      "name": "order"
+    },
+    {
+      "from": "Place order",
+      "to": "Orders",
+      "type": "flow",
+      "name": "order record"
+    },
+    {
+      "from": "Orders",
+      "to": "Ship order",
+      "type": "flow",
+      "name": "pending order"
+    },
+    {
+      "from": "Ship order",
+      "to": "Customer",
+      "type": "flow",
+      "name": "parcel"
+    }
+  ]
+}

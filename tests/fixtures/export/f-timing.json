@@ -1,0 +1,65 @@
+{
+  "nodes": [
+    {
+      "name": "client",
+      "type": "lifeline"
+    },
+    {
+      "name": "idle",
+      "type": "state",
+      "in": "client"
+    },
+    {
+      "name": "waiting",
+      "type": "state",
+      "in": "client"
+    },
+    {
+      "name": "t1",
+      "type": "segment",
+      "in": "idle",
+      "width": 120
+    },
+    {
+      "name": "t2",
+      "type": "segment",
+      "in": "waiting",
+      "width": 200
+    },
+    {
+      "name": "server",
+      "type": "lifeline"
+    },
+    {
+      "name": "idle",
+      "id": "idle#2",
+      "type": "state",
+      "in": "server"
+    },
+    {
+      "name": "busy",
+      "type": "state",
+      "in": "server"
+    },
+    {
+      "name": "t3",
+      "type": "segment",
+      "in": "idle#2",
+      "width": 160
+    },
+    {
+      "name": "t4",
+      "type": "segment",
+      "in": "busy",
+      "width": 160
+    }
+  ],
+  "edges": [
+    {
+      "from": "t1",
+      "to": "t4",
+      "type": "message",
+      "name": "request"
+    }
+  ]
+}

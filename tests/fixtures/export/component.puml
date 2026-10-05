@@ -8,7 +8,9 @@ component "RuleEngine" as C1 {
   port "in" as C1_0
 }
 component "Core" as C2
-interface "TransportService" as C3
+interface "TransportService" as C3 {
+  +process(msg: TbMsg): void
+}
 interface "DeviceAuth" as C4
 interface "RuleEngineApi" as C5
 C0 - C3

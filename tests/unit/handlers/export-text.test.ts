@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import cases from "../../fixtures/build/cases.json";
+import { FAMILY_KINDS } from "../../../src/build/families.js";
 import { NO_MERMAID } from "../../../src/text/mermaid-writer.js";
 import { exportText } from "../../../src/handlers/export-text.js";
 import { endpoints } from "../../../src/routes.js";
 import {
+  create,
   installMockApp,
   type MockElement,
   type MockEnvironment,
@@ -50,6 +52,35 @@ describe("/export_text per kind", () => {
     "%s round-trips through Mermaid and writes PlantUML",
     async (label, body) => {
       const built = await ok<Built>(build, body as Record<string, unknown>);
+      if ((FAMILY_KINDS as readonly string[]).includes(built.kind)) {
+        // Issue #25: no Mermaid or PlantUML form; the spec is the text.
+        for (const format of ["mermaid", "plantuml"]) {
+          await fails(
+            exportText,
+            { diagram: built.diagram._id, format },
+            "INVALID_ARGUMENT",
+            `Neither Mermaid nor PlantUML has a ${built.kind} diagram; export it as spec`,
+          );
+        }
+        const spec = await ok<Exported>(exportText, {
+          diagram: built.diagram._id,
+          format: "spec",
+        });
+        expect(spec.warnings).toEqual([]);
+        await expect(spec.text).toMatchFileSnapshot(
+          `../../fixtures/export/${label}.json`,
+        );
+        const again = await ok<Built>(build, {
+          kind: spec.kind,
+          spec: JSON.parse(spec.text) as Record<string, unknown>,
+          // The frame some kinds draw shows the diagram's name.
+          name: (body as { name: string }).name,
+          allowDuplicateNames: true,
+          reuse: false,
+        });
+        expect(shown(again.diagram._id)).toEqual(shown(built.diagram._id));
+        return;
+      }
       if ((NO_MERMAID as readonly string[]).includes(built.kind)) {
         // PlantUML only: Mermaid has no package, component or deployment
         // diagram.
@@ -66,6 +97,14 @@ describe("/export_text per kind", () => {
         await expect(plantuml.text).toMatchFileSnapshot(
           `../../fixtures/export/${label}.puml`,
         );
+        // Read back (deferred from issue #35 to #25): the same diagram.
+        const again = await ok<Built>(build, {
+          text: plantuml.text,
+          allowDuplicateNames: true,
+          reuse: false,
+        });
+        expect(again.kind).toBe(built.kind);
+        expect(shown(again.diagram._id)).toEqual(shown(built.diagram._id));
         return;
       }
       const mermaid = await ok<Exported>(exportText, {
@@ -389,15 +428,22 @@ describe("/export_text details", () => {
   });
 
   it("refuses diagrams it has no text form for", async () => {
-    const d = await ok<{ _id: string }>(
-      endpoints.find((e) => e.path === "/create_diagram")!,
-      { type: "UMLObjectDiagram", parentId: env.model._id },
-    );
+    // Every 7.1.1 diagram type has a kind; an extension's may not.
+    const d = create("UMLDiagram");
+    d._parent = env.model;
+    (env.model.ownedElements as MockElement[]).push(d);
+    env.app.repository.index(d);
     await fails(
       exportText,
       { diagramId: d._id, format: "mermaid" },
       "INVALID_ARGUMENT",
-      /^UMLObjectDiagram cannot be written as text; supported: class, /,
+      /^UMLDiagram cannot be written as text; supported: class, /,
+    );
+    await fails(
+      exportText,
+      { diagramId: env.mainDiagram._id, format: "spec" },
+      "INVALID_ARGUMENT",
+      /^spec is the text of the diagram families \(composite, .*\); export a class diagram as mermaid or plantuml$/,
     );
     const component = await ok<{ _id: string }>(
       endpoints.find((e) => e.path === "/create_diagram")!,

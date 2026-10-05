@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "name": "Vehicle",
+      "type": "block",
+      "attributes": [
+        "+mass: Kilogram"
+      ],
+      "operations": [
+        "+accelerate(by: Real)"
+      ]
+    },
+    {
+      "name": "Car",
+      "type": "block",
+      "stereotype": "system"
+    },
+    {
+      "name": "Engine",
+      "type": "block"
+    },
+    {
+      "name": "Wheel",
+      "type": "block"
+    },
+    {
+      "name": "Kilogram",
+      "type": "valueType"
+    },
+    {
+      "name": "Newton",
+      "type": "constraintBlock"
+    }
+  ],
+  "edges": [
+    {
+      "from": "Car",
+      "to": "Vehicle",
+      "type": "generalization"
+    },
+    {
+      "from": "Car",
+      "to": "Engine",
+      "type": "composition"
+    },
+    {
+      "from": "Car",
+      "to": "Wheel",
+      "type": "composition"
+    }
+  ]
+}

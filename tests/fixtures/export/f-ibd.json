@@ -1,0 +1,38 @@
+{
+  "block": "Car",
+  "nodes": [
+    {
+      "name": "engine",
+      "type": "part"
+    },
+    {
+      "name": "gearbox",
+      "type": "part"
+    },
+    {
+      "name": "wheels",
+      "type": "part"
+    },
+    {
+      "name": "fuel",
+      "type": "port"
+    }
+  ],
+  "edges": [
+    {
+      "from": "fuel",
+      "to": "engine",
+      "type": "connector"
+    },
+    {
+      "from": "engine",
+      "to": "gearbox",
+      "type": "connector"
+    },
+    {
+      "from": "gearbox",
+      "to": "wheels",
+      "type": "connector"
+    }
+  ]
+}

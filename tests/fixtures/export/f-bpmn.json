@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "name": "Shop",
+      "type": "pool"
+    },
+    {
+      "name": "Sales",
+      "type": "lane",
+      "in": "Shop"
+    },
+    {
+      "name": "Warehouse",
+      "type": "lane",
+      "in": "Shop"
+    },
+    {
+      "name": "Order received",
+      "type": "start",
+      "in": "Sales"
+    },
+    {
+      "name": "Check order",
+      "type": "userTask",
+      "in": "Sales"
+    },
+    {
+      "name": "In stock?",
+      "type": "exclusive",
+      "in": "Sales"
+    },
+    {
+      "name": "Pack",
+      "type": "task",
+      "in": "Warehouse"
+    },
+    {
+      "name": "Done",
+      "type": "end",
+      "in": "Warehouse"
+    }
+  ],
+  "edges": [
+    {
+      "from": "Order received",
+      "to": "Check order",
+      "type": "sequence"
+    },
+    {
+      "from": "Check order",
+      "to": "In stock?",
+      "type": "sequence"
+    },
+    {
+      "from": "In stock?",
+      "to": "Pack",
+      "type": "sequence",
+      "name": "yes"
+    },
+    {
+      "from": "Pack",
+      "to": "Done",
+      "type": "sequence"
+    }
+  ]
+}

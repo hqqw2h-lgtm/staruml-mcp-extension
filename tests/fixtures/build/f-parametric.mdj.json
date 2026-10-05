@@ -1,0 +1,203 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "SysMLBlock",
+   "name": "Car",
+   "ownedElements": [
+    {
+     "_id": "#4",
+     "_type": "SysMLParametricDiagram",
+     "name": "Car dynamics",
+     "ownedElements": [],
+     "ownedViews": [
+      {
+       "_id": "#5",
+       "_type": "UMLFrameView",
+       "model": {
+        "$ref": "#4"
+       },
+       "containerView": null,
+       "left": 20,
+       "top": 20,
+       "width": 440,
+       "height": 280,
+       "showNamespace": false
+      },
+      {
+       "_id": "#6",
+       "_type": "SysMLConstraintPropertyView",
+       "model": {
+        "$ref": "#7"
+       },
+       "containerView": null,
+       "left": 40,
+       "top": 70,
+       "width": 180,
+       "height": 80,
+       "showNamespace": false
+      },
+      {
+       "_id": "#8",
+       "_type": "SysMLPartView",
+       "model": {
+        "$ref": "#9"
+       },
+       "containerView": null,
+       "left": 60,
+       "top": 220,
+       "width": 140,
+       "height": 60,
+       "showNamespace": false
+      },
+      {
+       "_id": "#10",
+       "_type": "SysMLPartView",
+       "model": {
+        "$ref": "#11"
+       },
+       "containerView": null,
+       "left": 300,
+       "top": 220,
+       "width": 140,
+       "height": 60,
+       "showNamespace": false
+      },
+      {
+       "_id": "#12",
+       "_type": "SysMLConnectorView",
+       "model": {
+        "$ref": "#13"
+       },
+       "containerView": null,
+       "head": {
+        "$ref": "#8"
+       },
+       "tail": {
+        "$ref": "#6"
+       }
+      },
+      {
+       "_id": "#14",
+       "_type": "SysMLConnectorView",
+       "model": {
+        "$ref": "#15"
+       },
+       "containerView": null,
+       "head": {
+        "$ref": "#10"
+       },
+       "tail": {
+        "$ref": "#6"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#13",
+     "_type": "SysMLConnector",
+     "name": "",
+     "ownedElements": [],
+     "end1": {
+      "_id": "#16",
+      "_type": "UMLConnectorEnd",
+      "name": "",
+      "ownedElements": [],
+      "reference": {
+       "$ref": "#7"
+      },
+      "stereotype": "",
+      "visibility": "public",
+      "navigable": "unspecified",
+      "aggregation": "none",
+      "multiplicity": "",
+      "defaultValue": ""
+     },
+     "end2": {
+      "_id": "#17",
+      "_type": "UMLConnectorEnd",
+      "name": "",
+      "ownedElements": [],
+      "reference": {
+       "$ref": "#9"
+      },
+      "stereotype": "",
+      "visibility": "public",
+      "navigable": "unspecified",
+      "aggregation": "none",
+      "multiplicity": "",
+      "defaultValue": ""
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "type": null,
+     "kind": "assembly"
+    },
+    {
+     "_id": "#15",
+     "_type": "SysMLConnector",
+     "name": "",
+     "ownedElements": [],
+     "end1": {
+      "_id": "#18",
+      "_type": "UMLConnectorEnd",
+      "name": "",
+      "ownedElements": [],
+      "reference": {
+       "$ref": "#7"
+      },
+      "stereotype": "",
+      "visibility": "public",
+      "navigable": "unspecified",
+      "aggregation": "none",
+      "multiplicity": "",
+      "defaultValue": ""
+     },
+     "end2": {
+      "_id": "#19",
+      "_type": "UMLConnectorEnd",
+      "name": "",
+      "ownedElements": [],
+      "reference": {
+       "$ref": "#11"
+      },
+      "stereotype": "",
+      "visibility": "public",
+      "navigable": "unspecified",
+      "aggregation": "none",
+      "multiplicity": "",
+      "defaultValue": ""
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "type": null,
+     "kind": "assembly"
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  }
+ ]
+}

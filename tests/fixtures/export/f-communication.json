@@ -1,0 +1,36 @@
+{
+  "nodes": [
+    {
+      "name": "client",
+      "type": "lifeline"
+    },
+    {
+      "name": "server",
+      "type": "lifeline"
+    },
+    {
+      "name": "db",
+      "type": "lifeline"
+    }
+  ],
+  "edges": [
+    {
+      "from": "client",
+      "to": "server",
+      "type": "message",
+      "name": "checkout()"
+    },
+    {
+      "from": "server",
+      "to": "db",
+      "type": "message",
+      "name": "save(order)"
+    },
+    {
+      "from": "server",
+      "to": "client",
+      "type": "message",
+      "name": "done"
+    }
+  ]
+}

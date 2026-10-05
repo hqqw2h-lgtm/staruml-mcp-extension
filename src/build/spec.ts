@@ -47,6 +47,13 @@ import {
 } from "./plan.js";
 
 import {
+  FAMILIES,
+  FAMILY_KINDS,
+  type FamilyKind,
+  familyPlan,
+  familySpec,
+} from "./families.js";
+import {
   componentPlan,
   componentSpec,
   deploymentPlan,
@@ -87,6 +94,22 @@ export const KINDS = [
   "package",
   "component",
   "deployment",
+  "composite",
+  "object",
+  "communication",
+  "timing",
+  "overview",
+  "infoflow",
+  "profile",
+  "dfd",
+  "bdd",
+  "ibd",
+  "parametric",
+  "bpmn",
+  "wireframe",
+  "aws",
+  "azure",
+  "gcp",
 ] as const;
 export type Kind = (typeof KINDS)[number];
 
@@ -104,6 +127,9 @@ export const DIAGRAM_TYPES: Record<Kind, string> = {
   package: "UMLPackageDiagram",
   component: "UMLComponentDiagram",
   deployment: "UMLDeploymentDiagram",
+  ...(Object.fromEntries(
+    FAMILY_KINDS.map((k) => [k, FAMILIES[k].diagram]),
+  ) as Record<FamilyKind, string>),
 };
 
 // ---------------------------------------------------------------- schemas
@@ -592,6 +618,22 @@ export const SPEC_SCHEMAS = {
   package: packageSpec,
   component: componentSpec,
   deployment: deploymentSpec,
+  composite: () => familySpec("composite"),
+  object: () => familySpec("object"),
+  communication: () => familySpec("communication"),
+  timing: () => familySpec("timing"),
+  overview: () => familySpec("overview"),
+  infoflow: () => familySpec("infoflow"),
+  profile: () => familySpec("profile"),
+  dfd: () => familySpec("dfd"),
+  bdd: () => familySpec("bdd"),
+  ibd: () => familySpec("ibd"),
+  parametric: () => familySpec("parametric"),
+  bpmn: () => familySpec("bpmn"),
+  wireframe: () => familySpec("wireframe"),
+  aws: () => familySpec("aws"),
+  azure: () => familySpec("azure"),
+  gcp: () => familySpec("gcp"),
 } as const;
 
 export type Spec<K extends Kind> = z.output<
@@ -1560,6 +1602,22 @@ const PLANNERS: { [K in Kind]: (spec: Spec<K>) => Plan } = {
   package: packagePlan,
   component: componentPlan,
   deployment: deploymentPlan,
+  composite: (spec) => familyPlan("composite", spec),
+  object: (spec) => familyPlan("object", spec),
+  communication: (spec) => familyPlan("communication", spec),
+  timing: (spec) => familyPlan("timing", spec),
+  overview: (spec) => familyPlan("overview", spec),
+  infoflow: (spec) => familyPlan("infoflow", spec),
+  profile: (spec) => familyPlan("profile", spec),
+  dfd: (spec) => familyPlan("dfd", spec),
+  bdd: (spec) => familyPlan("bdd", spec),
+  ibd: (spec) => familyPlan("ibd", spec),
+  parametric: (spec) => familyPlan("parametric", spec),
+  bpmn: (spec) => familyPlan("bpmn", spec),
+  wireframe: (spec) => familyPlan("wireframe", spec),
+  aws: (spec) => familyPlan("aws", spec),
+  azure: (spec) => familyPlan("azure", spec),
+  gcp: (spec) => familyPlan("gcp", spec),
 };
 
 const longHex = (color: string) =>

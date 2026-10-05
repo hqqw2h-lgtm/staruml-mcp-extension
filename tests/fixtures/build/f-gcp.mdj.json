@@ -1,0 +1,160 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "GCPDiagram",
+   "name": "Serverless app",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "GCPUserView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 170,
+     "top": 130,
+     "width": 60,
+     "height": 60
+    },
+    {
+     "_id": "#6",
+     "_type": "GCPZoneView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 420,
+     "top": 40,
+     "width": 320,
+     "height": 240
+    },
+    {
+     "_id": "#8",
+     "_type": "GCPProductView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 440,
+     "top": 80,
+     "width": 160,
+     "height": 60
+    },
+    {
+     "_id": "#10",
+     "_type": "GCPServiceView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 440,
+     "top": 200,
+     "width": 160,
+     "height": 60
+    },
+    {
+     "_id": "#12",
+     "_type": "GCPPathView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#14",
+     "_type": "GCPPathView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "GCPUser",
+   "name": "User",
+   "ownedElements": []
+  },
+  {
+   "_id": "#7",
+   "_type": "GCPZone",
+   "name": "Project",
+   "ownedElements": [
+    {
+     "_id": "#9",
+     "_type": "GCPProduct",
+     "name": "Cloud Run",
+     "ownedElements": []
+    },
+    {
+     "_id": "#11",
+     "_type": "GCPService",
+     "name": "Cloud SQL",
+     "ownedElements": []
+    }
+   ]
+  },
+  {
+   "_id": "#13",
+   "_type": "GCPPath",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#9"
+   }
+  },
+  {
+   "_id": "#15",
+   "_type": "GCPPath",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#11"
+   }
+  }
+ ]
+}

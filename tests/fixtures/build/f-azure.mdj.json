@@ -1,0 +1,116 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "AzureDiagram",
+   "name": "App platform",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "AzureGroupView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 320,
+     "height": 240
+    },
+    {
+     "_id": "#6",
+     "_type": "AzureServiceView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 80,
+     "width": 97,
+     "height": 60
+    },
+    {
+     "_id": "#8",
+     "_type": "AzureServiceView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 60,
+     "top": 200,
+     "width": 104,
+     "height": 60
+    },
+    {
+     "_id": "#10",
+     "_type": "AzureConnectorView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "AzureGroup",
+   "name": "Resource group",
+   "ownedElements": [
+    {
+     "_id": "#7",
+     "_type": "AzureService",
+     "name": "App Service",
+     "ownedElements": []
+    },
+    {
+     "_id": "#9",
+     "_type": "AzureService",
+     "name": "SQL Database",
+     "ownedElements": []
+    }
+   ]
+  },
+  {
+   "_id": "#11",
+   "_type": "AzureConnector",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   }
+  }
+ ]
+}

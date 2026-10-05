@@ -119,14 +119,28 @@ class Mover {
 }
 
 /** Kinds whose placement is the build's own: dagre would undo it. */
-const PLACED_KINDS = new Set<Kind | null>(["sequence", "usecase", "mindmap"]);
+const PLACED_KINDS = new Set<Kind | null>([
+  "sequence",
+  "usecase",
+  "mindmap",
+  "timing",
+  "ibd",
+  "parametric",
+  "communication",
+  "overview",
+  "bdd",
+]);
 
 /** Whether engine layout would scatter what holds the picture together: lanes, a boundary, a frame. */
 export function placedByBuild(diagram: Element, kind: Kind | null): boolean {
   return (
     PLACED_KINDS.has(kind) ||
     nodeViews(diagram).some((v) =>
-      /Swimlane|Partition|Subject/.test(v.constructor.name),
+      // BPMN pools and lanes, cloud groups and zones and wireframe frames
+      // hold their nodes as lanes do.
+      /Swimlane|Partition|Subject|Pool|Lane|Group|Zone|WF\w*Frame/.test(
+        v.constructor.name,
+      ),
     )
   );
 }

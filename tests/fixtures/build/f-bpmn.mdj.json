@@ -1,0 +1,296 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "BPMNDiagram",
+   "name": "Order fulfilment",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "BPMNPoolView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 910,
+     "height": 220
+    },
+    {
+     "_id": "#6",
+     "_type": "BPMNLaneView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 70,
+     "top": 40,
+     "width": 880,
+     "height": 110
+    },
+    {
+     "_id": "#8",
+     "_type": "BPMNLaneView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 70,
+     "top": 150,
+     "width": 880,
+     "height": 110
+    },
+    {
+     "_id": "#10",
+     "_type": "BPMNEventView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 170,
+     "top": 80,
+     "width": 118,
+     "height": 30
+    },
+    {
+     "_id": "#12",
+     "_type": "BPMNTaskView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 295,
+     "top": 65,
+     "width": 120,
+     "height": 60
+    },
+    {
+     "_id": "#14",
+     "_type": "BPMNGatewayView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 505,
+     "top": 75,
+     "width": 83,
+     "height": 40
+    },
+    {
+     "_id": "#16",
+     "_type": "BPMNTaskView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": {
+      "$ref": "#8"
+     },
+     "left": 635,
+     "top": 175,
+     "width": 120,
+     "height": 60
+    },
+    {
+     "_id": "#18",
+     "_type": "BPMNEventView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": {
+      "$ref": "#8"
+     },
+     "left": 850,
+     "top": 190,
+     "width": 48,
+     "height": 30
+    },
+    {
+     "_id": "#20",
+     "_type": "BPMNSequenceFlowView",
+     "model": {
+      "$ref": "#21"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "BPMNSequenceFlowView",
+     "model": {
+      "$ref": "#23"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "BPMNSequenceFlowView",
+     "model": {
+      "$ref": "#25"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#16"
+     },
+     "tail": {
+      "$ref": "#14"
+     }
+    },
+    {
+     "_id": "#26",
+     "_type": "BPMNSequenceFlowView",
+     "model": {
+      "$ref": "#27"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#18"
+     },
+     "tail": {
+      "$ref": "#16"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "BPMNParticipant",
+   "name": "Shop",
+   "ownedElements": [
+    {
+     "_id": "#7",
+     "_type": "BPMNLane",
+     "name": "Sales",
+     "ownedElements": [
+      {
+       "_id": "#11",
+       "_type": "BPMNStartEvent",
+       "name": "Order received",
+       "ownedElements": []
+      },
+      {
+       "_id": "#13",
+       "_type": "BPMNUserTask",
+       "name": "Check order",
+       "ownedElements": []
+      },
+      {
+       "_id": "#15",
+       "_type": "BPMNExclusiveGateway",
+       "name": "In stock?",
+       "ownedElements": []
+      }
+     ]
+    },
+    {
+     "_id": "#9",
+     "_type": "BPMNLane",
+     "name": "Warehouse",
+     "ownedElements": [
+      {
+       "_id": "#17",
+       "_type": "BPMNTask",
+       "name": "Pack",
+       "ownedElements": []
+      },
+      {
+       "_id": "#19",
+       "_type": "BPMNEndEvent",
+       "name": "Done",
+       "ownedElements": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "_id": "#21",
+   "_type": "BPMNSequenceFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#13"
+   }
+  },
+  {
+   "_id": "#23",
+   "_type": "BPMNSequenceFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#15"
+   }
+  },
+  {
+   "_id": "#25",
+   "_type": "BPMNSequenceFlow",
+   "name": "yes",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#15"
+   },
+   "target": {
+    "$ref": "#17"
+   }
+  },
+  {
+   "_id": "#27",
+   "_type": "BPMNSequenceFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#17"
+   },
+   "target": {
+    "$ref": "#19"
+   }
+  }
+ ]
+}

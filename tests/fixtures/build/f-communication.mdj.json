@@ -1,0 +1,299 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLCommunicationDiagram",
+   "name": "Checkout talk",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLFrameView",
+     "model": {
+      "$ref": "#3"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 20,
+     "width": 520,
+     "height": 110,
+     "showNamespace": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLCommLifelineView",
+     "model": {
+      "$ref": "#6"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 70,
+     "width": 120,
+     "height": 40,
+     "showNamespace": false
+    },
+    {
+     "_id": "#7",
+     "_type": "UMLCommLifelineView",
+     "model": {
+      "$ref": "#8"
+     },
+     "containerView": null,
+     "left": 220,
+     "top": 70,
+     "width": 120,
+     "height": 40,
+     "showNamespace": false
+    },
+    {
+     "_id": "#9",
+     "_type": "UMLCommLifelineView",
+     "model": {
+      "$ref": "#10"
+     },
+     "containerView": null,
+     "left": 400,
+     "top": 70,
+     "width": 120,
+     "height": 40,
+     "showNamespace": false
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLConnectorView",
+     "model": {
+      "$ref": "#12"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#7"
+     },
+     "tail": {
+      "$ref": "#5"
+     }
+    },
+    {
+     "_id": "#13",
+     "_type": "UMLCommMessageView",
+     "model": {
+      "$ref": "#14"
+     },
+     "containerView": null,
+     "left": 0,
+     "top": 0,
+     "width": 90,
+     "height": 0
+    },
+    {
+     "_id": "#15",
+     "_type": "UMLConnectorView",
+     "model": {
+      "$ref": "#16"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#9"
+     },
+     "tail": {
+      "$ref": "#7"
+     }
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLCommMessageView",
+     "model": {
+      "$ref": "#18"
+     },
+     "containerView": null,
+     "left": 0,
+     "top": 0,
+     "width": 97,
+     "height": 0
+    },
+    {
+     "_id": "#19",
+     "_type": "UMLCommMessageView",
+     "model": {
+      "$ref": "#20"
+     },
+     "containerView": null,
+     "left": 0,
+     "top": 0,
+     "width": 48,
+     "height": 0
+    }
+   ]
+  },
+  {
+   "_id": "#6",
+   "_type": "UMLLifeline",
+   "name": "client",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#8",
+   "_type": "UMLLifeline",
+   "name": "server",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#10",
+   "_type": "UMLLifeline",
+   "name": "db",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#12",
+   "_type": "UMLConnector",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#21",
+    "_type": "UMLConnectorEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#6"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#22",
+    "_type": "UMLConnectorEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#8"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "type": null,
+   "kind": "assembly"
+  },
+  {
+   "_id": "#14",
+   "_type": "UMLMessage",
+   "name": "checkout()",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#6"
+   },
+   "target": {
+    "$ref": "#8"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#16",
+   "_type": "UMLConnector",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#23",
+    "_type": "UMLConnectorEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#8"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#24",
+    "_type": "UMLConnectorEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#10"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "type": null,
+   "kind": "assembly"
+  },
+  {
+   "_id": "#18",
+   "_type": "UMLMessage",
+   "name": "save(order)",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#8"
+   },
+   "target": {
+    "$ref": "#10"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#20",
+   "_type": "UMLMessage",
+   "name": "done",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#8"
+   },
+   "target": {
+    "$ref": "#6"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  }
+ ]
+}

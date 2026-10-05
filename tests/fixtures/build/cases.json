@@ -873,5 +873,651 @@
         }
       ]
     }
+  },
+  "f-composite": {
+    "kind": "composite",
+    "name": "Car structure",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Car",
+          "type": "class",
+          "attributes": ["+vin: String"]
+        },
+        {
+          "name": "engine",
+          "type": "part",
+          "in": "Car"
+        },
+        {
+          "name": "wheels",
+          "type": "part",
+          "in": "Car"
+        },
+        {
+          "name": "power",
+          "type": "port",
+          "in": "Car"
+        }
+      ],
+      "edges": [
+        {
+          "from": "engine",
+          "to": "wheels",
+          "name": "drives"
+        }
+      ]
+    }
+  },
+  "f-object": {
+    "kind": "object",
+    "name": "Order snapshot",
+    "spec": {
+      "nodes": [
+        {
+          "name": "order1",
+          "slots": ["total = 42", "status = PAID"]
+        },
+        {
+          "name": "alice"
+        },
+        {
+          "name": "item7"
+        }
+      ],
+      "edges": [
+        {
+          "from": "order1",
+          "to": "alice",
+          "name": "placedBy"
+        },
+        {
+          "from": "order1",
+          "to": "item7",
+          "type": "directedLink"
+        }
+      ]
+    }
+  },
+  "f-communication": {
+    "kind": "communication",
+    "name": "Checkout talk",
+    "spec": {
+      "nodes": ["client", "server", "db"],
+      "edges": [
+        {
+          "from": "client",
+          "to": "server",
+          "name": "checkout()"
+        },
+        {
+          "from": "server",
+          "to": "db",
+          "name": "save(order)"
+        },
+        {
+          "from": "server",
+          "to": "client",
+          "name": "done"
+        }
+      ]
+    }
+  },
+  "f-timing": {
+    "kind": "timing",
+    "name": "Request timing",
+    "spec": {
+      "nodes": [
+        {
+          "name": "client",
+          "type": "lifeline"
+        },
+        {
+          "id": "client.idle",
+          "name": "idle",
+          "type": "state",
+          "in": "client"
+        },
+        {
+          "id": "client.waiting",
+          "name": "waiting",
+          "type": "state",
+          "in": "client"
+        },
+        {
+          "id": "c1",
+          "name": "t1",
+          "type": "segment",
+          "in": "client.idle",
+          "width": 120
+        },
+        {
+          "id": "c2",
+          "name": "t2",
+          "type": "segment",
+          "in": "client.waiting",
+          "width": 200
+        },
+        {
+          "name": "server",
+          "type": "lifeline"
+        },
+        {
+          "id": "server.idle",
+          "name": "idle",
+          "type": "state",
+          "in": "server"
+        },
+        {
+          "id": "server.busy",
+          "name": "busy",
+          "type": "state",
+          "in": "server"
+        },
+        {
+          "id": "s1",
+          "name": "t3",
+          "type": "segment",
+          "in": "server.idle",
+          "width": 160
+        },
+        {
+          "id": "s2",
+          "name": "t4",
+          "type": "segment",
+          "in": "server.busy",
+          "width": 160
+        }
+      ],
+      "edges": [
+        {
+          "from": "c1",
+          "to": "s2",
+          "name": "request"
+        }
+      ]
+    }
+  },
+  "f-overview": {
+    "kind": "overview",
+    "name": "Shopping overview",
+    "spec": {
+      "nodes": [
+        {
+          "id": "start",
+          "type": "initial"
+        },
+        {
+          "name": "Log in",
+          "type": "interactionUse"
+        },
+        {
+          "id": "ok",
+          "type": "decision"
+        },
+        {
+          "name": "Browse",
+          "type": "interaction"
+        },
+        {
+          "id": "end",
+          "type": "final"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "Log in"
+        },
+        {
+          "from": "Log in",
+          "to": "ok"
+        },
+        {
+          "from": "ok",
+          "to": "Browse",
+          "name": "[ok]"
+        },
+        {
+          "from": "ok",
+          "to": "end",
+          "name": "[failed]"
+        },
+        {
+          "from": "Browse",
+          "to": "end"
+        }
+      ]
+    }
+  },
+  "f-infoflow": {
+    "kind": "infoflow",
+    "name": "Billing information",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Shop"
+        },
+        {
+          "name": "Customer",
+          "type": "actor"
+        },
+        {
+          "name": "Invoice",
+          "type": "item"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Shop",
+          "to": "Customer",
+          "name": "invoices"
+        }
+      ]
+    }
+  },
+  "f-profile": {
+    "kind": "profile",
+    "name": "Persistence profile",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Entity",
+          "attributes": ["table: String"]
+        },
+        {
+          "name": "Id"
+        },
+        {
+          "name": "Class",
+          "type": "metaclass"
+        },
+        {
+          "name": "Property",
+          "type": "metaclass"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Entity",
+          "to": "Class"
+        },
+        {
+          "from": "Id",
+          "to": "Property"
+        }
+      ]
+    }
+  },
+  "f-dfd": {
+    "kind": "dfd",
+    "name": "Order processing",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Customer",
+          "type": "external",
+          "documentation": "Places and receives orders."
+        },
+        {
+          "name": "Place order",
+          "properties": {
+            "id": "1"
+          }
+        },
+        {
+          "name": "Ship order",
+          "properties": {
+            "id": "2"
+          }
+        },
+        {
+          "name": "Orders",
+          "type": "store",
+          "properties": {
+            "id": "D1"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "Customer",
+          "to": "Place order",
+          "name": "order"
+        },
+        {
+          "from": "Place order",
+          "to": "Orders",
+          "name": "order record"
+        },
+        {
+          "from": "Orders",
+          "to": "Ship order",
+          "name": "pending order"
+        },
+        {
+          "from": "Ship order",
+          "to": "Customer",
+          "name": "parcel"
+        }
+      ]
+    }
+  },
+  "f-bdd": {
+    "kind": "bdd",
+    "name": "Vehicle blocks",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Vehicle",
+          "attributes": ["mass: Kilogram"],
+          "operations": ["accelerate(by: Real)"]
+        },
+        {
+          "name": "Car",
+          "stereotype": "system"
+        },
+        {
+          "name": "Engine"
+        },
+        {
+          "name": "Wheel"
+        },
+        {
+          "name": "Kilogram",
+          "type": "valueType"
+        },
+        {
+          "name": "Newton",
+          "type": "constraintBlock"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Car",
+          "to": "Vehicle",
+          "type": "generalization"
+        },
+        {
+          "from": "Car",
+          "to": "Engine"
+        },
+        {
+          "from": "Car",
+          "to": "Wheel"
+        }
+      ]
+    }
+  },
+  "f-ibd": {
+    "kind": "ibd",
+    "name": "Car internals",
+    "spec": {
+      "block": "Car",
+      "nodes": [
+        {
+          "name": "engine"
+        },
+        {
+          "name": "gearbox"
+        },
+        {
+          "name": "wheels"
+        },
+        {
+          "name": "fuel",
+          "type": "port"
+        }
+      ],
+      "edges": [
+        {
+          "from": "fuel",
+          "to": "engine"
+        },
+        {
+          "from": "engine",
+          "to": "gearbox"
+        },
+        {
+          "from": "gearbox",
+          "to": "wheels"
+        }
+      ]
+    }
+  },
+  "f-parametric": {
+    "kind": "parametric",
+    "name": "Car dynamics",
+    "spec": {
+      "block": "Car",
+      "nodes": [
+        {
+          "name": "newton"
+        },
+        {
+          "name": "mass",
+          "type": "value"
+        },
+        {
+          "name": "acceleration",
+          "type": "value"
+        }
+      ],
+      "edges": [
+        {
+          "from": "newton",
+          "to": "mass"
+        },
+        {
+          "from": "newton",
+          "to": "acceleration"
+        }
+      ]
+    }
+  },
+  "f-bpmn": {
+    "kind": "bpmn",
+    "name": "Order fulfilment",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Shop",
+          "type": "pool"
+        },
+        {
+          "name": "Sales",
+          "type": "lane",
+          "in": "Shop"
+        },
+        {
+          "name": "Warehouse",
+          "type": "lane",
+          "in": "Shop"
+        },
+        {
+          "name": "Order received",
+          "type": "start",
+          "in": "Sales"
+        },
+        {
+          "name": "Check order",
+          "type": "userTask",
+          "in": "Sales"
+        },
+        {
+          "id": "ok",
+          "name": "In stock?",
+          "type": "exclusive",
+          "in": "Sales"
+        },
+        {
+          "name": "Pack",
+          "in": "Warehouse"
+        },
+        {
+          "name": "Done",
+          "type": "end",
+          "in": "Warehouse"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Order received",
+          "to": "Check order"
+        },
+        {
+          "from": "Check order",
+          "to": "ok"
+        },
+        {
+          "from": "ok",
+          "to": "Pack",
+          "name": "yes"
+        },
+        {
+          "from": "Pack",
+          "to": "Done"
+        }
+      ]
+    }
+  },
+  "f-wireframe": {
+    "kind": "wireframe",
+    "name": "Login screen",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Login",
+          "type": "webFrame"
+        },
+        {
+          "name": "Email",
+          "type": "input",
+          "in": "Login"
+        },
+        {
+          "name": "Password",
+          "type": "input",
+          "in": "Login"
+        },
+        {
+          "name": "Remember me",
+          "type": "checkbox",
+          "in": "Login",
+          "properties": {
+            "checked": true
+          }
+        },
+        {
+          "name": "Sign in",
+          "type": "button",
+          "in": "Login"
+        }
+      ]
+    }
+  },
+  "f-aws": {
+    "kind": "aws",
+    "name": "Web tier",
+    "spec": {
+      "nodes": [
+        {
+          "name": "AWS Cloud",
+          "type": "group"
+        },
+        {
+          "name": "VPC",
+          "type": "group",
+          "in": "AWS Cloud"
+        },
+        {
+          "name": "Load balancer",
+          "in": "VPC"
+        },
+        {
+          "name": "Web server",
+          "in": "VPC"
+        },
+        {
+          "name": "Database",
+          "type": "resource",
+          "in": "VPC"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Load balancer",
+          "to": "Web server"
+        },
+        {
+          "from": "Web server",
+          "to": "Database"
+        }
+      ]
+    }
+  },
+  "f-azure": {
+    "kind": "azure",
+    "name": "App platform",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Resource group",
+          "type": "group"
+        },
+        {
+          "name": "App Service",
+          "in": "Resource group"
+        },
+        {
+          "name": "SQL Database",
+          "in": "Resource group"
+        }
+      ],
+      "edges": [
+        {
+          "from": "App Service",
+          "to": "SQL Database",
+          "properties": {
+            "dashed": true
+          }
+        }
+      ]
+    }
+  },
+  "f-gcp": {
+    "kind": "gcp",
+    "name": "Serverless app",
+    "spec": {
+      "nodes": [
+        {
+          "name": "User",
+          "type": "user"
+        },
+        {
+          "name": "Project",
+          "type": "zone"
+        },
+        {
+          "name": "Cloud Run",
+          "in": "Project"
+        },
+        {
+          "name": "Cloud SQL",
+          "type": "service",
+          "in": "Project"
+        }
+      ],
+      "edges": [
+        {
+          "from": "User",
+          "to": "Cloud Run"
+        },
+        {
+          "from": "Cloud Run",
+          "to": "Cloud SQL"
+        }
+      ]
+    }
   }
 }

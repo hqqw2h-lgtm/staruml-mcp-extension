@@ -34,6 +34,7 @@ import {
   REQUIREMENT_RELATIONS,
   REQUIREMENT_TYPES,
 } from "../build/spec.js";
+import type { FamilyKind } from "../build/families.js";
 import { edgeViews, list, nodeViews } from "../handlers/describe.js";
 import type { Element, View } from "../types.js";
 
@@ -197,7 +198,7 @@ export interface ComponentSpec {
     provides: string[];
     requires: string[];
   }[];
-  interfaces: string[];
+  interfaces: { name: string; operations: string[] }[];
   connectors: { from: string; to: string; name?: string }[];
   dependencies: { from: string; to: string; name?: string }[];
 }
@@ -213,6 +214,9 @@ export interface DeploymentSpec {
   components: string[];
   paths: { from: string; to: string; name?: string }[];
 }
+
+/** The kinds Mermaid or PlantUML write; the family kinds are written as their spec. */
+export type TextKind = Exclude<Kind, FamilyKind>;
 
 export type Extracted =
   | { kind: "class"; spec: ClassSpec; notes?: NoteSpec[] }
@@ -964,7 +968,7 @@ function packageSpec(v: Views): PackageSpec {
 
 function componentSpec(v: Views): ComponentSpec {
   const components = new Map<Element, ComponentSpec["components"][number]>();
-  const interfaces: string[] = [];
+  const interfaces: ComponentSpec["interfaces"] = [];
   for (const view of v.nodes) {
     const m = view.model!;
     const t = typeOf(m);
@@ -977,7 +981,10 @@ function componentSpec(v: Views): ComponentSpec {
         requires: [],
       });
     } else if (t === "UMLInterface") {
-      interfaces.push(nameOf(m));
+      interfaces.push({
+        name: nameOf(m),
+        operations: list(m.operations).map((o) => formatOperation(o)),
+      });
     } else if (t !== "UMLPort") {
       v.skip(view);
     }
@@ -1081,7 +1088,7 @@ function deploymentSpec(v: Views): DeploymentSpec {
 /** The spec of `diagram`'s kind with a warning per kind of view left out. */
 export function extract(
   diagram: Element,
-  kind: Kind,
+  kind: TextKind,
 ): { extracted: Extracted; warnings: string[] } {
   const nodes = nodeViews(diagram);
   const edges = edgeViews(diagram);
