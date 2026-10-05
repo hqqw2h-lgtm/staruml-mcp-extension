@@ -95,6 +95,8 @@ import {
   getViewsOf,
 } from "./handlers/queries.js";
 import {
+  createViewOf,
+  divideFragment,
   layoutDiagram,
   moveViews,
   resizeNode,
@@ -151,6 +153,8 @@ export const endpoints: readonly Endpoint[] = [
   resizeNode,
   setViewStyle,
   setZOrder,
+  divideFragment,
+  createViewOf,
 
   getSelection,
   setSelection,

@@ -7,13 +7,13 @@ sequenceDiagram
   participant C
   Alice->>Bob: Hello
   loop Every minute
-    Bob->>Alice: Fine
+    Bob-->>Alice: Fine
   end
   alt sick
     opt really
-      Bob->>Alice: cough
+      Bob-)Alice: cough
     end
-    Bob->>C: great
   else well
+    Bob->>C: great
   end
   C->>C: self

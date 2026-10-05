@@ -17,4 +17,4 @@ classDiagram
   class Egg
   Animal <|-- Duck
   Animal <|-- Fish
-  Egg "many" -- "1" Duck : lays
+  Duck "1" *-- "many" Egg : lays

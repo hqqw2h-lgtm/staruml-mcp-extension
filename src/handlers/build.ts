@@ -32,6 +32,7 @@ import {
   type Kind,
   type ColumnSpec,
   type Plan,
+  type PlanEdge,
   type PlanNode,
   planFor,
 } from "../build/spec.js";
@@ -40,6 +41,7 @@ import { ApiError, type ErrorCode } from "../errors.js";
 import { requireElement, requireProject } from "../lookup.js";
 import { id } from "../schemas.js";
 import { summarize } from "../serialize.js";
+import { diagramOf } from "../create.js";
 import { resolveCreateType } from "../toolbox.js";
 import type { Element, View } from "../types.js";
 import { modelTypeOf } from "./elements.js";
@@ -60,7 +62,7 @@ interface Op {
 }
 
 interface Ref {
-  model: string;
+  model: string | null;
   view: string;
 }
 
@@ -103,26 +105,42 @@ class Pool<T> {
 
 const isEdge = (v: View) => "tail" in v && "head" in v;
 
-/** Node and edge views already on `diagram`, keyed for upsert. */
+/**
+ * Views already on `diagram`, keyed for upsert: nodes and edges that show
+ * a model, notes by their text and note links by their ends. A frame
+ * showing the diagram itself (sequence and SysML diagrams) and other views
+ * without a model are not the spec's, so they are neither matched nor
+ * pruned.
+ */
 function existing(diagram: Element) {
   const nodes = new Pool<View>();
   const edges = new Pool<View>();
+  const all: View[] = [];
   for (const view of diagram.ownedViews as View[]) {
     const model = view.model;
-    if (!model) continue;
-    const name = model.name as string;
-    if (isEdge(view)) {
+    if (model instanceof type.Diagram) continue;
+    if (!model) {
+      if (view instanceof type.UMLNoteView) {
+        nodes.add(`Note|${String(view.text)}`, view);
+      } else if (view instanceof type.UMLNoteLinkView) {
+        const ends = [view.tail, view.head] as View[];
+        edges.add(`NoteLink|${ends[0]!._id}|${ends[1]!._id}`, view);
+      } else {
+        continue;
+      }
+    } else if (isEdge(view)) {
       const tail = (view.tail as View).model;
       const head = (view.head as View).model;
       edges.add(
-        `${modelSignature(model)}|${name}|${tail?._id}|${head?._id}`,
+        `${modelSignature(model)}|${model.name}|${tail?._id}|${head?._id}`,
         view,
       );
     } else {
-      nodes.add(`${modelSignature(model)}|${name}`, view);
+      nodes.add(`${modelSignature(model)}|${model.name}`, view);
     }
+    all.push(view);
   }
-  return { nodes, edges };
+  return { nodes, edges, all };
 }
 
 const names = (list: unknown) =>
@@ -182,6 +200,120 @@ function propertyOps(node: PlanNode, model: Element): Op[] {
     }));
 }
 
+/** The /set_view_style op giving `view` the node's style, if it differs. */
+function styleOps(node: PlanNode, view: string, current?: View): Op[] {
+  const changed = Object.entries(node.style ?? {}).filter(
+    ([field, value]) => current?.[field] !== value,
+  );
+  return changed.length === 0
+    ? []
+    : [
+        {
+          path: "/set_view_style",
+          body: { ids: [view], ...Object.fromEntries(changed) },
+        },
+      ];
+}
+
+/** Diagram kinds whose nodes show model elements other diagrams may show too. */
+const SHARED_KINDS = new Set<Kind>(["class", "usecase", "erd"]);
+
+/**
+ * Whether `model` sits at `path` (outermost first, the model's own name
+ * last), counting only the nearest owners.
+ */
+function atPath(model: Element, path: readonly string[]): boolean {
+  let e: Element | null | undefined = model;
+  for (let i = path.length - 1; i >= 0; i--) {
+    if (!e || e.name !== path[i]) return false;
+    e = e._parent;
+  }
+  return true;
+}
+
+/**
+ * An element elsewhere in the project that a node names, by name or by a
+ * path such as "Billing::Invoice": the one candidate, else the one under
+ * the diagram's owner. Several leave a warning and a new element; a path
+ * that names nothing is an error, since it cannot be created as written.
+ */
+function findModel(
+  node: PlanNode,
+  owner: Element,
+  claimed: Set<Element>,
+  warnings: string[],
+): Element | null {
+  if (node.type === "Note") return null;
+  const modelType = modelTypeOf(resolveCreateType(node.type).id)!;
+  const signature = signatureOf(node.type);
+  const path = node.name.split("::").map((p) => p.trim());
+  const candidates = app.repository
+    .getInstancesOf(modelType)
+    .filter(
+      (m) =>
+        modelSignature(m) === signature && !claimed.has(m) && atPath(m, path),
+    );
+  const near = candidates.filter((m) => within(m, owner));
+  const found =
+    candidates.length === 1
+      ? candidates[0]!
+      : near.length === 1
+        ? near[0]!
+        : null;
+  if (found) return found;
+  if (candidates.length > 1) {
+    warnings.push(
+      `${candidates.length} ${modelType} elements are named ${node.name}; made a new one (name it by its path, Owner::${path.at(-1)}, to show one of them)`,
+    );
+  } else if (path.length > 1) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `spec: no ${modelType} at ${node.name}`,
+    );
+  }
+  return null;
+}
+
+/** A relationship like `edge` between two existing models, if there is one. */
+function findRelationship(
+  edge: PlanEdge,
+  tail: Element,
+  head: Element,
+): Element | undefined {
+  const signature = signatureOf(edge.type);
+  return app.repository.getRelationshipsOf(tail).find((r) => {
+    const [from, to] =
+      "source" in r
+        ? [r.source, r.target]
+        : [(r.end1 as Element).reference, (r.end2 as Element).reference];
+    return (
+      modelSignature(r) === signature &&
+      r.name === (edge.name ?? "") &&
+      from === tail &&
+      to === head
+    );
+  });
+}
+
+/** Whether the spec-less view's model goes with it, or only the view. */
+function pruneTarget(
+  view: View,
+  diagram: Element,
+  keep: readonly Element[],
+): Element {
+  const model = view.model;
+  if (!model) return view;
+  const elsewhere = app.repository
+    .getViewsOf(model)
+    .some((v) => diagramOf(v) !== diagram);
+  // A model owning the diagram or one the spec keeps (a package holding a
+  // kept class) stays; only its view goes.
+  return elsewhere ||
+    within(diagram, model) ||
+    keep.some((k) => within(k, model))
+    ? view
+    : model;
+}
 export interface Built {
   ops: Op[];
   /** Node keys by op name, and the existing elements reused. */
@@ -190,8 +322,19 @@ export interface Built {
   edgeOps: { key: string; as: string }[];
   updated: number;
   unchanged: number;
+  /** Nodes shown from model elements that existed elsewhere. */
+  shown: number;
+  deleted: number;
+  warnings: string[];
   layout: "engine" | "placed";
   preset?: LayoutPresetName;
+}
+
+export interface BuildOptions {
+  /** Delete what the diagram shows that the plan does not. */
+  prune?: boolean;
+  /** Show existing model elements a node names instead of making new ones. */
+  reuse?: boolean;
 }
 
 export interface Target {
@@ -207,6 +350,7 @@ export function opsFor(
   direction: Direction,
   autoLayout: boolean,
   preset: LayoutPresetName = defaultPreset(plan.kind, direction),
+  options: BuildOptions = {},
 ): Built {
   const ops: Op[] = [];
   const diagramRef = target.diagram?._id ?? "$diagram";
@@ -238,18 +382,33 @@ export function opsFor(
   const refs = new Map<string, Ref>();
   const created = new Map<string, string>();
   const reused = new Map<string, Ref>();
+  const kept = new Set<View>();
+  const claimed = new Set<Element>();
+  const warnings: string[] = [];
+  const reuse = options.reuse === true && SHARED_KINDS.has(plan.kind);
   let updated = 0;
   let unchanged = 0;
+  let shown = 0;
+  /** Nodes whose view is new, so containment and dividers apply to them. */
+  const fresh = new Set<string>();
   plan.nodes.forEach((node, i) => {
-    const found = pools?.nodes.take(`${signatureOf(node.type)}|${node.name}`);
+    const found = pools?.nodes.take(
+      node.type === "Note"
+        ? `Note|${node.text}`
+        : `${signatureOf(node.type)}|${node.name}`,
+    );
     if (found) {
-      const model = found.model!;
-      const ref = { model: model._id, view: found._id };
+      kept.add(found);
+      const model = found.model;
+      const ref = { model: model?._id ?? null, view: found._id };
       refs.set(node.key, ref);
       reused.set(node.key, ref);
+      if (model) claimed.add(model);
       const more = [
-        ...propertyOps(node, model),
-        ...memberOps(node, model._id, model),
+        ...(model
+          ? [...propertyOps(node, model), ...memberOps(node, model._id, model)]
+          : []),
+        ...styleOps(node, found._id, found),
       ];
       if (more.length > 0) updated++;
       else unchanged++;
@@ -258,8 +417,53 @@ export function opsFor(
     }
     const as = `n${i}`;
     const box = boxes.get(node.key)!;
-    refs.set(node.key, { model: `$${as}.model`, view: `$${as}.view` });
     created.set(as, node.key);
+    fresh.add(node.key);
+    const model = reuse
+      ? findModel(
+          node,
+          target.diagram?._parent ?? target.parent,
+          claimed,
+          warnings,
+        )
+      : null;
+    if (model) {
+      claimed.add(model);
+      shown++;
+      refs.set(node.key, { model: model._id, view: `$${as}.view` });
+      ops.push({
+        path: "/create_view_of",
+        as,
+        body: {
+          modelId: model._id,
+          diagramId: diagramRef,
+          x: Math.round(box.x),
+          y: Math.round(box.y),
+        },
+      });
+      // A view of an existing model starts at its minimum size; a placed
+      // diagram needs the planned one, e.g. a system boundary holding its
+      // use cases.
+      ops.push({
+        path: "/resize_node",
+        body: {
+          id: `$${as}.view`,
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+        },
+      });
+      ops.push(
+        ...propertyOps(node, model),
+        ...memberOps(node, model._id, model),
+      );
+      ops.push(...styleOps(node, `$${as}.view`));
+      return;
+    }
+    const note = node.type === "Note";
+    refs.set(node.key, {
+      model: note ? null : `$${as}.model`,
+      view: `$${as}.view`,
+    });
     ops.push({
       path: "/create_element_with_view",
       as,
@@ -269,7 +473,8 @@ export function opsFor(
         ...(node.owner !== undefined && {
           parentId: refs.get(node.owner)!.model,
         }),
-        name: node.name,
+        // A note is a view without a model, so it takes neither.
+        ...(!note && { name: node.name }),
         ...(node.properties && { properties: node.properties }),
         x: Math.round(box.x),
         y: Math.round(box.y),
@@ -278,13 +483,14 @@ export function opsFor(
         ...(node.guard !== undefined && { fields: ["operands"] }),
       },
     });
-    ops.push(...memberOps(node, `$${as}.model`));
-    if (node.style) {
+    if (note) {
       ops.push({
-        path: "/set_view_style",
-        body: { ids: [`$${as}.view`], ...node.style },
+        path: "/update_element",
+        body: { id: `$${as}.view`, field: "text", value: node.text },
       });
     }
+    ops.push(...memberOps(node, `$${as}.model`));
+    ops.push(...styleOps(node, `$${as}.view`));
     for (const guard of node.operands ?? []) {
       ops.push({
         path: "/create_element",
@@ -306,21 +512,82 @@ export function opsFor(
         },
       });
     }
+    if (node.operandAt) {
+      ops.push({
+        path: "/divide_fragment",
+        body: { id: `$${as}.view`, at: node.operandAt },
+      });
+    }
   });
+  // Nested nodes go into their container's view once both exist.
+  const nested = new Map<string, string[]>();
+  for (const node of plan.nodes) {
+    if (node.container === undefined) continue;
+    if (!fresh.has(node.key) && !fresh.has(node.container)) continue;
+    nested.set(node.container, [
+      ...(nested.get(node.container) ?? []),
+      refs.get(node.key)!.view,
+    ]);
+  }
+  for (const [container, views] of nested) {
+    ops.push({
+      path: "/move_views",
+      body: {
+        ids: views,
+        dx: 0,
+        dy: 0,
+        containerViewId: refs.get(container)!.view,
+      },
+    });
+  }
   const edgeOps: { key: string; as: string }[] = [];
   plan.edges.forEach((edge, i) => {
     const tail = refs.get(edge.from)!;
     const head = refs.get(edge.to)!;
+    const noteLink = edge.type === "NoteLink";
     const found = pools?.edges.take(
-      `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`,
+      noteLink
+        ? `NoteLink|${tail.view}|${head.view}`
+        : `${signatureOf(edge.type)}|${edge.name ?? ""}|${tail.model}|${head.model}`,
     );
     const key = `${edge.from} -> ${edge.to}`;
     if (found) {
+      kept.add(found);
       unchanged++;
       return;
     }
     const as = `e${i}`;
     edgeOps.push({ key, as });
+    if (noteLink) {
+      ops.push({
+        path: "/create_edge_with_view",
+        as,
+        body: {
+          type: "NoteLink",
+          diagramId: diagramRef,
+          tailViewId: tail.view,
+          headViewId: head.view,
+        },
+      });
+      return;
+    }
+    const existingEnds =
+      reuse && !tail.model!.startsWith("$") && !head.model!.startsWith("$");
+    const relationship = existingEnds
+      ? findRelationship(
+          edge,
+          app.repository.get(tail.model!)!,
+          app.repository.get(head.model!)!,
+        )
+      : undefined;
+    if (relationship) {
+      ops.push({
+        path: "/create_view_of",
+        as,
+        body: { modelId: relationship._id, diagramId: diagramRef },
+      });
+      return;
+    }
     ops.push({
       path: "/create_relationship",
       as,
@@ -337,6 +604,26 @@ export function opsFor(
       },
     });
   });
+  let deleted = 0;
+  if (options.prune && pools) {
+    // Edges first: deleting a node takes its edges along, and an op on an
+    // edge already gone would fail the batch.
+    const gone = pools.all
+      .filter((v) => !kept.has(v))
+      .sort((a, b) => Number(isEdge(b)) - Number(isEdge(a)));
+    const keep = [...kept].flatMap((v) => (v.model ? [v.model] : []));
+    const targets = gone.map((v) => pruneTarget(v, target.diagram!, keep));
+    const models = targets.filter((t) => !(t instanceof type.View));
+    for (const [i, t] of targets.entries()) {
+      // What a pruned model owns, and the views showing it, go with it.
+      const owned = t instanceof type.View ? (t as View).model : t;
+      const covered =
+        owned !== null && models.some((m) => m !== owned && within(owned, m));
+      if (covered || targets.indexOf(t) !== i) continue;
+      deleted++;
+      ops.push({ path: "/delete_element", body: { id: t._id } });
+    }
+  }
   // Engine layout rearranges every node; on an upsert that added nothing it
   // would only undo the user's own arrangement.
   const engine =
@@ -357,6 +644,9 @@ export function opsFor(
     edgeOps,
     updated,
     unchanged,
+    shown,
+    deleted,
+    warnings,
     layout: engine ? "engine" : "placed",
     ...(engine && { preset }),
   };
@@ -400,7 +690,7 @@ export function buildDiagramEndpoint(
   return defineEndpoint({
     path: "/build_diagram",
     description:
-      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
+      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: z.object({
@@ -413,7 +703,7 @@ export function buildDiagramEndpoint(
       spec: z.optional(
         doc(
           z.record(z.string(), z.unknown()),
-          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
+          "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one.",
         ),
       ),
       mermaid: z.optional(
@@ -446,7 +736,19 @@ export function buildDiagramEndpoint(
       upsert: z.optional(
         doc(
           z.boolean(),
-          "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members and changed properties, missing nodes and edges are added, nothing is removed.",
+          "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members, changed properties and colours, missing nodes and edges are added, and nothing is removed unless prune is set.",
+        ),
+      ),
+      prune: z.optional(
+        doc(
+          z.boolean(),
+          "With upsert: delete the nodes, notes and edges on the diagram that the spec does not have, in the same undo step. An element shown on other diagrams too, or owning one the spec keeps, loses only its view here.",
+        ),
+      ),
+      reuse: z.optional(
+        doc(
+          z.boolean(),
+          "Default true: a class, interface, enum, package, actor, use case or entity named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements.",
         ),
       ),
     }),
@@ -464,6 +766,18 @@ export function buildDiagramEndpoint(
       created: doc(z.int(), "Nodes and edges added."),
       updated: doc(z.int(), "Existing nodes given members or properties."),
       unchanged: doc(z.int(), "Existing nodes and edges left as they were."),
+      shown: z.optional(
+        doc(
+          z.int(),
+          "Nodes among created that show elements which existed elsewhere in the project.",
+        ),
+      ),
+      deleted: z.optional(
+        doc(z.int(), "With prune: elements and views deleted."),
+      ),
+      warnings: z.optional(
+        doc(z.array(z.string()), "What was built differently than written."),
+      ),
       layout: doc(
         z.enum(["engine", "placed"]),
         "engine: Format > Layout arranged it; placed: the computed placement stands.",
@@ -511,6 +825,9 @@ export function buildDiagramEndpoint(
           : requireElement(input.parentId, "Parent");
       const raw = input.name ?? title;
       const name = raw === undefined ? undefined : multiline(raw);
+      if (input.prune && !input.upsert) {
+        throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
+      }
       const diagram = input.upsert ? findDiagram(kind, name, parent) : null;
       const built = opsFor(
         plan,
@@ -518,6 +835,7 @@ export function buildDiagramEndpoint(
         direction ?? "TB",
         input.autoLayout ?? true,
         input.layout,
+        { prune: input.prune, reuse: input.reuse ?? true },
       );
       const batch = endpoints().find((e) => e.path === "/batch")!;
       let data: BatchData = { results: [] };
@@ -542,11 +860,11 @@ export function buildDiagramEndpoint(
       for (const [key, ref] of built.reused) ids[key] = ref;
       for (const [as, key] of built.created) {
         const r = byName.get(as)!;
-        ids[key] = { model: r.model!._id, view: r.view!._id };
+        ids[key] = { model: r.model?._id ?? null, view: r.view!._id };
       }
       const edges = built.edgeOps.map(({ key, as }) => {
         const r = byName.get(as)!;
-        return { key, model: r.model!._id, view: r.view!._id };
+        return { key, model: r.model?._id ?? null, view: r.view!._id };
       });
       const target = diagram ?? requireElement(byName.get("diagram")!._id!);
       const { _id, _type, name: diagramName } = summarize(target);
@@ -559,6 +877,9 @@ export function buildDiagramEndpoint(
         unchanged: built.unchanged,
         layout: built.layout,
         ...(built.preset && { preset: built.preset }),
+        ...(built.shown > 0 && { shown: built.shown }),
+        ...(input.prune && { deleted: built.deleted }),
+        ...(built.warnings.length > 0 && { warnings: built.warnings }),
         ids,
         edges,
       };

@@ -387,3 +387,85 @@ describe("/export_text details", () => {
     );
   });
 });
+
+describe("/export_text notes", () => {
+  it("reports notes on kinds whose text has none", async () => {
+    const built = await ok<Built>(build, {
+      kind: "flowchart",
+      spec: { nodes: ["a"], notes: [{ text: "n", on: "a" }] },
+    });
+    const out = await text(built.diagram._id);
+    expect(out.warnings).toContain("1 UMLNote view is not written");
+  });
+});
+
+describe("/export_text notes and operands as drawn", () => {
+  const ownedViews = (id: string) =>
+    env.app.repository.get(id)!.ownedViews as MockElement[];
+
+  it("reads links drawn towards a note and notes on non-classes", async () => {
+    const built = await ok<Built & { ids: Record<string, { view: string }> }>(
+      build,
+      {
+        kind: "class",
+        spec: {
+          packages: ["p"],
+          classes: [{ name: "A" }],
+          notes: [{ text: "on p", on: "p" }, { text: "free" }],
+        },
+      },
+    );
+    const link = await ok<{ view: { _id: string } }>(
+      endpoints.find((e) => e.path === "/create_edge_with_view")!,
+      {
+        type: "NoteLink",
+        diagramId: built.diagram._id,
+        tailViewId: built.ids.A!.view,
+        headViewId: built.ids["note 1"]!.view,
+      },
+    );
+    expect(link.view._id).toBeTruthy();
+    const out = await text(built.diagram._id);
+    expect(out.text).toContain('  note "on p"');
+    expect(out.text).toContain('  note for A "free"');
+  });
+
+  it("writes else at each operand's first message", async () => {
+    const source =
+      "sequenceDiagram\n  participant A\n  participant B\n  alt a\n    A->>B: 1\n  else b\n    A->>B: 2\n  else c\n    A->>B: 3\n  end";
+    const built = await ok<Built>(build, { mermaid: source });
+    expect((await text(built.diagram._id)).text).toBe(`${source}\n`);
+  });
+
+  it("leaves operands undivided when one starts below every message", async () => {
+    const built = await ok<Built & { ids: Record<string, { view: string }> }>(
+      build,
+      {
+        mermaid:
+          "sequenceDiagram\n  alt a\n  A->>B: 1\n  else b\n  A->>B: 2\n  end",
+      },
+    );
+    const fragment = view(built.ids["fragment 0"]!.view);
+    const first = (fragment.operandCompartment as MockElement)
+      .subViews as MockElement[];
+    first[0]!.height = 1000;
+    const out = await text(built.diagram._id);
+    expect(out.text).toContain("    A->>B: 2\n  else b\n  end");
+  });
+
+  it("writes a sequence note with no lifeline to stand by as a warning", async () => {
+    const built = await ok<Built>(build, {
+      kind: "sequence",
+      spec: { participants: ["A"] },
+    });
+    const diagram = env.app.repository.get(built.diagram._id)!;
+    diagram.ownedViews = ownedViews(built.diagram._id).filter((v) => !v.model);
+    env.app.factory.createModelAndView({
+      id: "Note",
+      parent: diagram._parent as MockElement,
+      diagram,
+    } as never);
+    const out = await text(built.diagram._id);
+    expect(out.warnings).toContain("a note on no lifeline is not written");
+  });
+});

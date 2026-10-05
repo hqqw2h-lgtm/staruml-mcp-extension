@@ -235,6 +235,7 @@ sequenceDiagram
         operator: "alt",
         guard: "x",
         operands: ["y", "else"],
+        operandStarts: [11, 12],
         from: 10,
         to: 12,
       },
@@ -620,5 +621,194 @@ describe("stateDiagram", () => {
     expect(refused("stateDiagram\n  A -> B")).toBe(
       'mermaid line 2: cannot read "A -> B"',
     );
+  });
+});
+
+// Issue #19: notes, colours, composite states and operand boundaries.
+describe("notes and colours", () => {
+  const spec = (source: string, as?: Parameters<typeof parseMermaid>[1]) =>
+    parseMermaid(source, as).spec as Record<string, unknown>;
+
+  it("reads class notes and classDef, cssClass, ::: and style colours", () => {
+    const s = spec(
+      [
+        "classDiagram",
+        '  class A["Alpha"]:::hot',
+        "  class B",
+        "  class C",
+        '  note for A "about A"',
+        '  note "free"',
+        '  note for D "makes D"',
+        "  classDef hot fill:#f96,stroke:#333,stroke-width:4px",
+        "  classDef cool color:#00f;",
+        "  classDef bare fill",
+        '  cssClass "B,C" cool',
+        "  style C fill:red,stroke:#123456",
+      ].join("\n"),
+    );
+    expect(s.notes).toEqual([
+      { text: "about A", on: ["Alpha"] },
+      { text: "free" },
+      { text: "makes D", on: ["D"] },
+    ]);
+    expect(s.styles).toEqual({
+      Alpha: { fillColor: "#f96", lineColor: "#333" },
+      B: { fontColor: "#00f" },
+      C: { fontColor: "#00f", lineColor: "#123456" },
+    });
+    expect(spec("classDiagram\n  class A").styles).toBeUndefined();
+  });
+
+  it("reads sequence notes beside, over and between lifelines", () => {
+    const s = spec(
+      [
+        "sequenceDiagram",
+        "  participant A as Alice",
+        "  Note right of A: one",
+        "  A->>B: hi",
+        "  note LEFT OF B: two",
+        "  Note over A,B: three",
+        "  rect rgb(1, 2, 3)",
+        "    box Aqua",
+        "      B->>A: back",
+        "    end",
+        "  end",
+      ].join("\n"),
+    );
+    expect(s.notes).toEqual([
+      { text: "one", on: ["Alice"], side: "right", at: 0 },
+      { text: "two", on: ["B"], side: "left", at: 1 },
+      { text: "three", on: ["Alice", "B"], side: "over", at: 1 },
+    ]);
+    expect(s.fragments).toEqual([]);
+    expect(refused("sequenceDiagram\n  rect rgb(0,0,0)")).toBe(
+      "mermaid line 2: rect is never closed with end",
+    );
+  });
+
+  it("gives operands their first message, unless one has none", () => {
+    const fragments = (body: string) =>
+      spec(`sequenceDiagram\n${body}`).fragments as Record<string, unknown>[];
+    expect(
+      fragments("  par a\n  A->>B: 1\n  and b\n  A->>B: 2\n  end")[0],
+    ).toMatchObject({ operands: ["b"], operandStarts: [1] });
+    expect(
+      fragments("  alt a\n  A->>B: 1\n  else b\n  end")[0],
+    ).not.toHaveProperty("operandStarts");
+    expect(
+      fragments("  alt a\n  else b\n  A->>B: 1\n  end")[0],
+    ).not.toHaveProperty("operandStarts");
+  });
+
+  it("reads flowchart colours for every reading of a flowchart", () => {
+    const source = [
+      "flowchart TD",
+      "  classDef default fill:#eee",
+      "  classDef warn fill:#fcc,color:#300",
+      "  A([Start]):::warn --> B{Check}",
+      "  B --> C([End])",
+      "  class C warn",
+      "  style B stroke:#0f0",
+      "  linkStyle 0 stroke:#f00",
+    ].join("\n");
+    expect(spec(source).styles).toEqual({
+      A: { fillColor: "#fcc", fontColor: "#300" },
+      B: { fillColor: "#eee", lineColor: "#0f0" },
+      C: { fillColor: "#fcc", fontColor: "#300" },
+    });
+    expect(spec(source, "activity").styles).toEqual(spec(source).styles);
+    expect(Object.keys(spec(source, "usecase").styles as object)).toEqual([
+      "Start",
+      "Check",
+      "End",
+    ]);
+    expect(spec("flowchart\n  A --> B").styles).toBeUndefined();
+    expect(spec("flowchart\n  A --> B", "activity").styles).toBeUndefined();
+    expect(spec("flowchart\n  A --> B", "usecase").styles).toBeUndefined();
+  });
+});
+
+describe("composite states", () => {
+  const spec = (source: string) =>
+    parseMermaid(`stateDiagram-v2\n${source}`).spec as {
+      states: Record<string, unknown>[];
+      transitions: unknown[];
+      notes?: unknown[];
+      styles?: unknown;
+    };
+
+  it("nests the states first named in a block, with the block's own [*]", () => {
+    const s = spec(
+      [
+        "  [*] --> Idle",
+        '  state "Working hard" as Busy',
+        "  state Busy {",
+        "    [*] --> Run",
+        "    state Inner {",
+        "      Deep",
+        "    }",
+        "    Idle --> Run",
+        "  }",
+        '  state "Other" as O {',
+        "    X",
+        "  }",
+        "  Busy --> [*]",
+      ].join("\n"),
+    );
+    expect(s.states).toEqual([
+      { id: "[*] start 1", type: "initial" },
+      { id: "Idle", name: "Idle" },
+      { id: "Busy", name: "Working hard" },
+      { id: "[*] start 2", type: "initial", parent: "Busy" },
+      { id: "Run", name: "Run", parent: "Busy" },
+      { id: "Inner", name: "Inner", parent: "Busy" },
+      { id: "Deep", name: "Deep", parent: "Inner" },
+      { id: "O", name: "Other" },
+      { id: "X", name: "X", parent: "O" },
+      { id: "[*] end 1", type: "final" },
+    ]);
+  });
+
+  it("refuses unbalanced blocks and unclosed notes", () => {
+    expect(refused("stateDiagram\n  }")).toBe(
+      "mermaid line 2: } without a state block",
+    );
+    expect(refused("stateDiagram\n  state A {\n  B")).toBe(
+      "mermaid line 3: state A is never closed with }",
+    );
+    expect(refused("stateDiagram\n  note left of A\n  text")).toBe(
+      "mermaid line 2: note is never closed with end note",
+    );
+  });
+
+  it("reads notes, ::: classes and descriptions apart", () => {
+    const s = spec(
+      [
+        "  A:::hot --> B",
+        "  C:::hot",
+        "  B : Bee",
+        "  note right of A : one",
+        "  note left of B",
+        "    two",
+        "    lines",
+        "  end note",
+        "  classDef hot fill:#f00",
+        "  class B hot",
+      ].join("\n"),
+    );
+    expect(s.states).toEqual([
+      { id: "A", name: "A" },
+      { id: "B", name: "Bee" },
+      { id: "C", name: "C" },
+    ]);
+    expect(s.notes).toEqual([
+      { text: "one", on: ["A"] },
+      { text: "two\nlines", on: ["B"] },
+    ]);
+    expect(s.styles).toEqual({
+      A: { fillColor: "#f00" },
+      B: { fillColor: "#f00" },
+      C: { fillColor: "#f00" },
+    });
   });
 });

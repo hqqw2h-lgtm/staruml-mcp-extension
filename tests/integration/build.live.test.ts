@@ -4,6 +4,9 @@ import { call, describeLive } from "./support.js";
 
 interface Built {
   diagram: { _id: string; name: string | null };
+  shown?: number;
+  deleted?: number;
+  warnings?: string[];
   kind: string;
   upserted: boolean;
   created: number;
@@ -40,6 +43,11 @@ const EXPECTED: Record<string, [nodes: number, edges: number, kind: string]> = {
   "m-usecase": [5, 3, "usecase"],
   "m-erd": [3, 2, "erd"],
   "m-state": [8, 8, "statemachine"],
+  "m-state-nested": [11, 9, "statemachine"],
+  "m-class-notes": [4, 2, "class"],
+  "m-seq-notes": [6, 4, "sequence"],
+  "m-flow-styles": [3, 2, "flowchart"],
+  "statemachine-nested": [7, 7, "statemachine"],
 };
 
 // Issue #9: /build_diagram against StarUML 7.1.1, every kind from a spec and
@@ -191,3 +199,199 @@ describeLive("/build_diagram", () => {
     expect(bad).toMatchObject({ status: 400, code: "INVALID_ARGUMENT" });
   });
 });
+
+// Issue #19 against StarUML 7.1.1: composite states, notes, colours,
+// operand boundaries, showing existing elements and prune.
+describeLive("/build_diagram upsert, prune and reuse (#19)", () => {
+  beforeAll(async () => {
+    await call("/new_project");
+  });
+
+  afterAll(async () => {
+    await call("/new_project");
+  });
+
+  const get = <T = Record<string, unknown>>(id: string, fields?: string[]) =>
+    call<T>("/get_element_by_id", { id, ...(fields && { fields }) });
+
+  it("nests states in the composite's region, with notes and colours", async () => {
+    const res = await call<Built>("/build_diagram", {
+      mermaid:
+        "stateDiagram-v2\n  [*] --> Idle\n  state Active {\n    [*] --> Run\n  }\n  Idle --> Active\n  note right of Idle : wait\n  classDef hot fill:#ff9966\n  class Active hot",
+    });
+    expect(res.success, JSON.stringify(res)).toBe(true);
+    const run = await get<{ containerView: { $ref: string } }>(
+      res.data.ids.Run!.view,
+      ["containerView"],
+    );
+    const region = await get<{ _type: string; model: { $ref: string } }>(
+      run.data.containerView.$ref,
+      ["model"],
+    );
+    expect(region.data._type).toBe("UMLRegionView");
+    const model = await get<{ _parent: string }>(res.data.ids.Run!.model!);
+    expect(model.data._parent).toBe(region.data.model.$ref);
+    const active = await get<{ fillColor: string }>(res.data.ids.Active!.view, [
+      "fillColor",
+    ]);
+    expect(active.data.fillColor).toBe("#ff9966");
+    const note = await get<{ text: string; _type: string }>(
+      res.data.ids["note 0"]!.view,
+      ["text"],
+    );
+    expect(note.data).toMatchObject({ _type: "UMLNoteView", text: "wait" });
+    const text = await call<{ text: string }>("/export_text", {
+      diagramId: res.data.diagram._id,
+      format: "mermaid",
+    });
+    expect(text.data.text).toMatch(/state N\d+ \{\n {4}state "Run"/);
+    expect(text.data.text).toContain("note right of");
+  });
+
+  it("divides fragments where each operand begins, and exports them so", async () => {
+    const source =
+      "sequenceDiagram\n  participant A\n  participant B\n  alt a\n    A->>B: 1\n    A->>B: 2\n  else b\n    A->>B: 3\n  end";
+    const res = await call<Built>("/build_diagram", { mermaid: source });
+    expect(res.success, JSON.stringify(res)).toBe(true);
+    const text = await call<{ text: string }>("/export_text", {
+      diagramId: res.data.diagram._id,
+      format: "mermaid",
+    });
+    expect(text.data.text).toContain(source);
+  });
+
+  it("shows existing elements again, and prunes in one undo step", async () => {
+    const first = await call<Built>("/build_diagram", {
+      kind: "class",
+      name: "First",
+      spec: {
+        classes: [{ name: "Order" }, { name: "Line" }],
+        relations: [{ from: "Order", to: "Line", type: "composition" }],
+      },
+    });
+    const second = await call<Built>("/build_diagram", {
+      kind: "class",
+      name: "Second",
+      spec: {
+        classes: [{ name: "Order" }, { name: "Line" }, { name: "Customer" }],
+        relations: [
+          { from: "Order", to: "Line", type: "composition" },
+          { from: "Customer", to: "Order" },
+        ],
+      },
+    });
+    expect(second.data).toMatchObject({ created: 5, shown: 2 });
+    expect(second.data.ids.Order!.model).toBe(first.data.ids.Order!.model);
+    expect(second.data.edges[0]!.model).toBe(first.data.edges[0]!.model);
+    const found = await call<{ count: number }>("/find_elements", {
+      type: "UMLClass",
+      name: "Order",
+    });
+    expect(found.data.count).toBe(1);
+    // Line is on Second too, so pruning it from First removes only views.
+    const pruned = await call<Built>("/build_diagram", {
+      kind: "class",
+      name: "First",
+      upsert: true,
+      prune: true,
+      spec: { classes: [{ name: "Order" }] },
+    });
+    expect(pruned.data).toMatchObject({ deleted: 2, unchanged: 1 });
+    expect((await get(first.data.ids.Line!.model!)).success).toBe(true);
+    expect((await get(first.data.ids.Line!.view)).code).toBe("NOT_FOUND");
+    const last = await call<Built>("/build_diagram", {
+      kind: "class",
+      name: "Second",
+      upsert: true,
+      prune: true,
+      spec: { classes: [{ name: "Order" }, { name: "Customer" }] },
+    });
+    expect(last.data.deleted).toBe(3);
+    expect((await get(first.data.ids.Line!.model!)).code).toBe("NOT_FOUND");
+    expect((await call("/undo")).success).toBe(true);
+    expect((await get(first.data.ids.Line!.model!)).success).toBe(true);
+    expect((await get(second.data.edges[1]!.view)).success).toBe(true);
+  });
+});
+
+describeLive(
+  "/create_view_of, /move_views into containers, /divide_fragment",
+  () => {
+    beforeAll(async () => {
+      await call("/new_project");
+    });
+
+    afterAll(async () => {
+      await call("/new_project");
+    });
+
+    it("refuses views, and relationships without their ends", async () => {
+      const built = await call<Built>("/build_diagram", {
+        kind: "class",
+        spec: {
+          classes: [{ name: "A" }, { name: "B" }],
+          relations: [{ from: "A", to: "B", type: "dependency" }],
+        },
+      });
+      const view = await call("/create_view_of", {
+        modelId: built.data.ids.A!.view,
+        diagramId: built.data.diagram._id,
+      });
+      expect(view.code).toBe("INVALID_ARGUMENT");
+      const empty = await call<Built>("/build_diagram", {
+        kind: "class",
+        reuse: false,
+        spec: {},
+      });
+      const other = { data: empty.data.diagram };
+      const early = await call("/create_view_of", {
+        modelId: built.data.edges[0]!.model,
+        diagramId: other.data._id,
+      });
+      expect(early.code).toBe("INVALID_ARGUMENT");
+      for (const key of ["A", "B"]) {
+        const shown = await call("/create_view_of", {
+          modelId: built.data.ids[key]!.model,
+          diagramId: other.data._id,
+        });
+        expect(shown.success).toBe(true);
+      }
+      const edge = await call<{ view: { _id: string } }>("/create_view_of", {
+        modelId: built.data.edges[0]!.model,
+        diagramId: other.data._id,
+      });
+      expect(edge.success).toBe(true);
+      const views = await call<{ ownedViews: unknown[] }>(
+        "/get_element_by_id",
+        {
+          id: other.data._id,
+          fields: ["ownedViews"],
+        },
+      );
+      expect(views.data.ownedViews).toHaveLength(3);
+    });
+
+    it("refuses a container that cannot hold the views and boundaries out of order", async () => {
+      const states = await call<Built>("/build_diagram", {
+        kind: "statemachine",
+        spec: { states: ["S", "T"] },
+      });
+      const bad = await call("/move_views", {
+        ids: [states.data.ids.S!.view],
+        dx: 0,
+        dy: 0,
+        containerViewId: states.data.ids.T!.view,
+      });
+      expect(bad.code).toBe("INVALID_ARGUMENT");
+      const seq = await call<Built>("/build_diagram", {
+        mermaid:
+          "sequenceDiagram\n  alt a\n  A->>B: 1\n  else b\n  A->>B: 2\n  end",
+      });
+      const wrong = await call("/divide_fragment", {
+        id: seq.data.ids["fragment 0"]!.view,
+        at: [1, 2],
+      });
+      expect(wrong.code).toBe("INVALID_ARGUMENT");
+    });
+  },
+);

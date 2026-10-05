@@ -34,7 +34,7 @@
      "left": 40,
      "top": 20,
      "width": 120,
-     "height": 615
+     "height": 645
     },
     {
      "_id": "#6",
@@ -45,7 +45,7 @@
      "left": 240,
      "top": 20,
      "width": 120,
-     "height": 615
+     "height": 645
     },
     {
      "_id": "#8",
@@ -56,7 +56,7 @@
      "left": 440,
      "top": 20,
      "width": 120,
-     "height": 615
+     "height": 645
     },
     {
      "_id": "#10",
@@ -89,7 +89,7 @@
      "left": 10,
      "top": 290,
      "width": 580,
-     "height": 200
+     "height": 230
     },
     {
      "_id": "#16",
@@ -287,7 +287,7 @@
    },
    "stereotype": null,
    "visibility": "public",
-   "messageSort": "synchCall",
+   "messageSort": "reply",
    "guard": ""
   },
   {
@@ -303,7 +303,7 @@
    },
    "stereotype": null,
    "visibility": "public",
-   "messageSort": "synchCall",
+   "messageSort": "asynchCall",
    "guard": ""
   },
   {

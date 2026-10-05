@@ -7,10 +7,10 @@ sequenceDiagram
   participant Bank
   User->>Shop: order()
   alt funds ok
-    Shop->>Bank: charge()
-    Bank->>Shop: ok
+    Shop-)Bank: charge()
+    Bank-->>Shop: ok
   end
   loop
     Shop->>Shop: log()
   end
-  Shop->>User: done
+  Shop-->>User: done

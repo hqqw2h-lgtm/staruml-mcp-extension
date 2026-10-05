@@ -19803,6 +19803,11 @@
             "type": "number",
             "description": "Vertical offset in diagram units."
           },
+          "containerViewId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Also put the views inside this view and their models inside its model, as dropping them on it does: states in a composite state (its region), classes in a package."
+          },
           "summary": {
             "type": "boolean",
             "description": "Default true: each element is {_id, _type, name, _parent}. False returns every saved attribute. Ignored when 'fields' is given."
@@ -20070,6 +20075,168 @@
           }
         },
         "required": ["diagram", "order"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/divide_fragment",
+      "description": "Set where each operand of a combined fragment (alt, par, ...) begins, instead of the equal split StarUML gives operands, as one undoable operation.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Combined fragment view id."
+          },
+          "at": {
+            "minItems": 1,
+            "type": "array",
+            "items": { "type": "number" },
+            "description": "Diagram y of the top of each operand after the first, increasing, inside the fragment."
+          },
+          "summary": {
+            "type": "boolean",
+            "description": "Default true: each element is {_id, _type, name, _parent}. False returns every saved attribute. Ignored when 'fields' is given."
+          },
+          "fields": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Attribute names to return besides _id and _type, e.g. ['name', 'attributes']; '_parent' is accepted. Names an element lacks are omitted."
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8,
+            "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
+          }
+        },
+        "required": ["id", "at"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "string",
+            "description": "Id of the diagram the views are on."
+          },
+          "views": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "_type": {
+                  "type": "string",
+                  "description": "Metamodel class name."
+                },
+                "name": { "type": ["string", "null"] },
+                "_parent": {
+                  "description": "Owner id; null for the project.",
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["_id", "_type"],
+              "additionalProperties": {},
+              "description": "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
+            }
+          }
+        },
+        "required": ["diagram", "views"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/create_view_of",
+      "description": "Show an existing model element on a diagram, as dragging it from the model explorer does: StarUML also draws its relationships to elements already shown there. An element already on the diagram answers its view unchanged; a relationship needs both ends shown.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Model element id."
+          },
+          "diagramId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram to show it on."
+          },
+          "x": { "type": "number", "description": "Left edge, default 100." },
+          "y": { "type": "number", "description": "Top edge, default 100." },
+          "summary": {
+            "type": "boolean",
+            "description": "Default true: each element is {_id, _type, name, _parent}. False returns every saved attribute. Ignored when 'fields' is given."
+          },
+          "fields": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Attribute names to return besides _id and _type, e.g. ['name', 'attributes']; '_parent' is accepted. Names an element lacks are omitted."
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8,
+            "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
+          }
+        },
+        "required": ["modelId", "diagramId"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "_type": {
+                "type": "string",
+                "description": "Metamodel class name."
+              },
+              "name": { "type": ["string", "null"] },
+              "_parent": {
+                "description": "Owner id; null for the project.",
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["_id", "_type"],
+            "additionalProperties": {},
+            "description": "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "_id": { "type": "string" },
+                  "_type": {
+                    "type": "string",
+                    "description": "Metamodel class name."
+                  },
+                  "name": { "type": ["string", "null"] },
+                  "_parent": {
+                    "description": "Owner id; null for the project.",
+                    "type": ["string", "null"]
+                  }
+                },
+                "required": ["_id", "_type"],
+                "additionalProperties": {},
+                "description": "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
+              },
+              { "type": "null" }
+            ],
+            "description": "Null for view-only ids such as Note or NoteLink."
+          }
+        },
+        "required": ["view", "model"],
         "additionalProperties": false
       }
     },
@@ -20977,7 +21144,7 @@
     },
     {
       "path": "/build_diagram",
-      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
+      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -21002,7 +21169,7 @@
             "type": "object",
             "propertyNames": { "type": "string" },
             "additionalProperties": {},
-            "description": "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
+            "description": "class: {packages, classes: [{name, kind: class|interface|enum|abstract, package, stereotype, attributes: ['+id: long'], operations: ['+total(): double'], literals}], relations: [{from, to, type: association|directed|aggregation|composition|generalization|realization|dependency, name, fromMultiplicity, toMultiplicity}]}. sequence: {participants, messages: [{from, to, text, kind: sync|async|reply|create|delete}], fragments: [{operator: alt|opt|loop|..., guard, operands: ['else'], operandStarts, from, to}] (message indices)}. usecase: {system, actors, useCases, relations: [{from, to, type: association|include|extend|generalization}]}. activity: {lanes, nodes: [{id, name, type: action|initial|final|flowFinal|decision|merge|fork|join|object, lane}], flows: [{from, to, guard}]}. statemachine: {states: [{id, name, type: state|initial|final|choice|fork|join, parent: composite state}], transitions: [{from, to, trigger, guard, effect}]}. erd: {entities: [{name, columns: ['id int PK', ...]}], relationships: [{from, to, fromCardinality, toCardinality: '0..1'|'1'|'0..*'|'1..*', name, identifying}]}. flowchart: {nodes: [{id, name, shape: process|decision|terminator|data|document|predefined|alternate|database|manualInput|preparation|connector|delay|display}], flows: [{from, to, label}]}. mindmap: {root: {name, children: [...]}}. Every kind also takes notes: [{text, on: node(s); sequence: side: left|right|over, at: message index}] and styles: {node: {fillColor, lineColor, fontColor}}. Names may contain '\\n' or '<br/>' for line breaks; edges name nodes by name, or by id where nodes have one."
           },
           "mermaid": {
             "type": "string",
@@ -21040,7 +21207,15 @@
           },
           "upsert": {
             "type": "boolean",
-            "description": "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members and changed properties, missing nodes and edges are added, nothing is removed."
+            "description": "Update the diagram with this name and kind under the parent if there is one: nodes already on it (same type and name) gain missing members, changed properties and colours, missing nodes and edges are added, and nothing is removed unless prune is set."
+          },
+          "prune": {
+            "type": "boolean",
+            "description": "With upsert: delete the nodes, notes and edges on the diagram that the spec does not have, in the same undo step. An element shown on other diagrams too, or owning one the spec keeps, loses only its view here."
+          },
+          "reuse": {
+            "type": "boolean",
+            "description": "Default true: a class, interface, enum, package, actor, use case or entity named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; 'Owner::Name' picks one by its owners. false always makes new elements."
           }
         }
       },
@@ -21081,6 +21256,23 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
             "description": "Existing nodes and edges left as they were."
+          },
+          "shown": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Nodes among created that show elements which existed elsewhere in the project."
+          },
+          "deleted": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "With prune: elements and views deleted."
+          },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "What was built differently than written."
           },
           "layout": {
             "type": "string",

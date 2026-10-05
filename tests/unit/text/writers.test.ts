@@ -533,3 +533,137 @@ describe("PlantUML aliases", () => {
     );
   });
 });
+
+// Issue #19: notes, composite states and operand boundaries.
+describe("notes and nesting", () => {
+  it("writes a class note on its first class only in Mermaid", () => {
+    const x: Extracted = {
+      kind: "class",
+      spec: { packages: [], classes: [cls("A"), cls("B")], relations: [] },
+      notes: [{ text: "both\nlines", on: ["A", "B"] }],
+    };
+    const { mermaid, plantuml } = both(x);
+    expect(mermaid.warnings).toEqual([
+      "a note on 2 classes is written on the first",
+    ]);
+    expect(mermaid.text).toContain('  note for A "both<br/>lines"');
+    expect(plantuml.text).toContain(
+      "note as N0\n  both\n  lines\nend note\nN0 .. C0\nN0 .. C1",
+    );
+  });
+
+  it("writes sequence notes in time, and skips one on no lifeline", () => {
+    const x: Extracted = {
+      kind: "sequence",
+      spec: {
+        participants: ["A", "B"],
+        messages: [{ from: "A", to: "B", text: "m", kind: "sync" }],
+        fragments: [],
+      },
+      notes: [
+        { text: "first", on: ["A"], side: "left", at: 0 },
+        { text: "loose", on: [] },
+        { text: "last", on: ["A", "B"], side: "over" },
+      ],
+    };
+    const { mermaid, plantuml } = both(x);
+    expect(mermaid.warnings).toEqual(["a note on no lifeline is not written"]);
+    expect(mermaid.text.split("\n").slice(3)).toEqual([
+      "  Note left of A: first",
+      "  A->>B: m",
+      "  Note over A,B: last",
+      "",
+    ]);
+    expect(plantuml.text).toContain("note left of P0\n  first\nend note");
+    expect(plantuml.text).toContain("P0 -> P1 : m\nnote over P0, P1");
+    expect(plantuml.text).not.toContain("loose");
+  });
+
+  it("writes else where each recorded operand starts", () => {
+    const x: Extracted = {
+      kind: "sequence",
+      spec: {
+        participants: ["A", "B"],
+        messages: [
+          { from: "A", to: "B", text: "1", kind: "sync" },
+          { from: "A", to: "B", text: "2", kind: "sync" },
+        ],
+        fragments: [
+          {
+            operator: "alt",
+            guard: "x",
+            operands: ["y"],
+            operandStarts: [1],
+            from: 0,
+            to: 1,
+          },
+        ],
+      },
+    };
+    const { mermaid, plantuml } = both(x);
+    expect(mermaid.text).toContain(
+      "  alt x\n    A->>B: 1\n  else y\n    A->>B: 2\n  end",
+    );
+    expect(plantuml.text).toContain(
+      "alt x\nP0 -> P1 : 1\nelse y\nP0 -> P1 : 2\nend",
+    );
+  });
+
+  it("writes composite states as blocks holding their transitions", () => {
+    const x: Extracted = {
+      kind: "statemachine",
+      direction: "TD",
+      spec: {
+        states: [
+          { id: "S", name: "S", type: "state" },
+          { id: "I", name: "", type: "initial", parent: "S" },
+          { id: "T", name: "T", type: "state", parent: "S" },
+          { id: "C", name: "", type: "choice", parent: "S" },
+          { id: "U", name: "", type: "state" },
+        ],
+        transitions: [
+          { from: "I", to: "T" },
+          { from: "T", to: "C" },
+          { from: "S", to: "U" },
+          { from: "T", to: "U" },
+        ],
+      },
+      notes: [
+        { text: "a\nb", on: ["T"] },
+        { text: "loose", on: [] },
+      ],
+    };
+    const { mermaid, plantuml } = both(x);
+    expect(mermaid.text.split("\n").slice(1)).toEqual([
+      '  state "S" as S',
+      "  state S {",
+      '    state "T" as T',
+      "    state C <<choice>>",
+      "    [*] --> T",
+      "    T --> C",
+      "  }",
+      '  state "U" as U',
+      "  S --> U",
+      "  T --> U",
+      "  note right of T : a<br/>b",
+      "",
+    ]);
+    expect(plantuml.text.split("\n").slice(1)).toEqual([
+      'state "S" as S {',
+      '  state "T" as T',
+      "  state C <<choice>>",
+      "  [*] --> T",
+      "  T --> C",
+      "}",
+      'state "U" as U',
+      "S --> U",
+      "T --> U",
+      "note right of T",
+      "  a",
+      "  b",
+      "end note",
+      "@enduml",
+      "",
+    ]);
+  });
+});

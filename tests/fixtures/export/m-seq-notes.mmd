@@ -1,0 +1,13 @@
+sequenceDiagram
+  participant Alice
+  participant Bob
+  Note right of Alice: thinking
+  Alice->>Bob: ask
+  par first
+    Bob->>Alice: one
+  and second
+    Bob->>Alice: two
+    Bob->>Alice: three
+  end
+  Note over Alice,Bob: done
+  Note left of Bob: bye

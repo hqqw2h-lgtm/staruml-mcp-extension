@@ -40,6 +40,10 @@ export interface Element {
 
 export interface View extends Element {
   model: Element | null;
+  /** Views drawn as parts of this one, e.g. compartments (core/core.js). */
+  subViews: View[];
+  /** Whether `view` may be put inside this one (View.canContainView, core/core.js). */
+  canContainView(view: View): boolean;
 }
 
 /** engine/command-manager.js */
@@ -179,6 +183,20 @@ export interface Factory {
   }): Element | null;
   /** Returns the created view; the created model is its `model`. */
   createModelAndView(options: ModelAndViewOptions): View | null;
+  /**
+   * A view of an existing model on `diagram`, through the function the
+   * diagram type registered with registerViewOfFn; null after a
+   * console.error when it registered none. The default one draws the views
+   * of the model's relationships to models already on the diagram, and for
+   * a relationship whose end is not shown it adds that end instead.
+   */
+  createViewOf(options: {
+    model: Element;
+    diagram: Element;
+    x?: number;
+    y?: number;
+    editor?: unknown;
+  }): View | null;
   getModelIds(): string[];
   getModelAndViewIds(): string[];
   getDiagramIds(): string[];
@@ -220,6 +238,18 @@ export interface Engine {
     edgeLineStyle?: number,
   ): unknown;
   moveViews(editor: unknown, views: View[], dx: number, dy: number): unknown;
+  /**
+   * moveViews that also puts the views in `containerView` and their models
+   * in `containerModel`, as dropping views on a container does.
+   */
+  moveViewsChangingContainer(
+    editor: unknown,
+    views: View[],
+    dx: number,
+    dy: number,
+    containerView: View | null,
+    containerModel: Element | null,
+  ): unknown;
   /** Absolute diagram coordinates of the new bounds. */
   resizeNode(
     editor: unknown,

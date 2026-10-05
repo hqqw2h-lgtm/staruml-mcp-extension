@@ -14,5 +14,5 @@ interface "Fish" as C2 {
 class "Egg" as C3
 C0 <|-- C1
 C0 <|-- C2
-C3 "many" -- "1" C1 : lays
+C1 "1" *-- "many" C3 : lays
 @enduml

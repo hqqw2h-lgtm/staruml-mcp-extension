@@ -98,6 +98,12 @@ export interface PlanNode {
   operands?: string[];
   /** /set_view_style options for the new view. */
   style?: Record<string, unknown>;
+  /** Key of the node whose view contains this one's, e.g. a composite state. */
+  container?: string;
+  /** Text of a note, which is a view without a model. */
+  text?: string;
+  /** Diagram y where each operand after a fragment's first begins. */
+  operandAt?: number[];
   width: number;
   height: number;
   /** Fixed geometry; otherwise placement decides. */
@@ -132,6 +138,65 @@ const name = () => z.string().check(z.minLength(1));
 const strings = () => z.array(name());
 const nameOr = <T extends z.ZodMiniType>(object: T) =>
   z.union([name(), object]);
+
+const hex = (what: string) =>
+  z.optional(
+    doc(
+      z.string().check(z.regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i)),
+      `${what}, CSS hex such as '#ffcc00'.`,
+    ),
+  );
+
+export interface ViewStyle {
+  fillColor?: string;
+  lineColor?: string;
+  fontColor?: string;
+}
+
+/** Notes and colours, which every kind takes. */
+const common = () => ({
+  notes: z.optional(
+    doc(
+      z.array(
+        z.object({
+          text: z.string().check(z.minLength(1)),
+          on: z.optional(
+            doc(
+              z.union([name(), strings()]),
+              "Nodes the note is linked to; on a sequence diagram, the lifelines it is drawn at.",
+            ),
+          ),
+          side: z.optional(
+            doc(
+              z.enum(["left", "right", "over"]),
+              "sequence: where the note sits against its one lifeline; default right, over for several.",
+            ),
+          ),
+          at: z.optional(
+            doc(
+              z.int().check(z.minimum(0)),
+              "sequence: the number of messages above the note; default all of them.",
+            ),
+          ),
+        }),
+      ),
+      "Notes (UMLNote), each linked to the nodes it is on.",
+    ),
+  ),
+  styles: z.optional(
+    doc(
+      z.record(
+        name(),
+        z.object({
+          fillColor: hex("Fill colour"),
+          lineColor: hex("Line colour"),
+          fontColor: hex("Text colour"),
+        }),
+      ),
+      "Colours of node views by node name (or id).",
+    ),
+  ),
+});
 
 const attributeObject = () =>
   z.object({
@@ -171,6 +236,7 @@ const relationTypes = [
 
 const classSpec = () =>
   z.object({
+    ...common(),
     packages: z.optional(
       z.array(
         nameOr(z.object({ name: name(), stereotype: z.optional(z.string()) })),
@@ -208,6 +274,7 @@ const MESSAGE_KINDS = ["sync", "async", "reply", "create", "delete"] as const;
 
 const sequenceSpec = () =>
   z.object({
+    ...common(),
     participants: z.optional(
       z.array(
         nameOr(
@@ -249,7 +316,13 @@ const sequenceSpec = () =>
           operands: z.optional(
             doc(
               z.array(z.string()),
-              "Guards of further operands, e.g. ['else'] for an alt; StarUML divides the fragment evenly between operands.",
+              "Guards of further operands, e.g. ['else'] for an alt; StarUML divides the fragment evenly between operands unless operandStarts says where each begins.",
+            ),
+          ),
+          operandStarts: z.optional(
+            doc(
+              z.array(z.int().check(z.minimum(0))),
+              "Index of the first message of each further operand, one per operands entry, increasing, within from+1..to.",
             ),
           ),
           from: doc(
@@ -267,6 +340,7 @@ const sequenceSpec = () =>
 
 const usecaseSpec = () =>
   z.object({
+    ...common(),
     system: z.optional(
       doc(name(), "System boundary drawn around the use cases."),
     ),
@@ -300,6 +374,7 @@ const ACTIVITY_NODES = [
 
 const activitySpec = () =>
   z.object({
+    ...common(),
     lanes: z.optional(strings()),
     nodes: z.optional(
       z.array(
@@ -336,6 +411,7 @@ const STATE_TYPES = [
 
 const statemachineSpec = () =>
   z.object({
+    ...common(),
     states: z.optional(
       z.array(
         nameOr(
@@ -343,6 +419,12 @@ const statemachineSpec = () =>
             id: z.optional(name()),
             name: z.optional(z.string()),
             type: z.optional(z.enum(STATE_TYPES)),
+            parent: z.optional(
+              doc(
+                name(),
+                "Composite state this one is nested in, by name or id.",
+              ),
+            ),
           }),
         ),
       ),
@@ -364,6 +446,7 @@ const CARDINALITIES = ["0..1", "1", "0..*", "1..*"] as const;
 
 const erdSpec = () =>
   z.object({
+    ...common(),
     entities: z.optional(
       z.array(
         z.object({
@@ -418,6 +501,7 @@ export const FLOWCHART_SHAPES = {
 
 const flowchartSpec = () =>
   z.object({
+    ...common(),
     nodes: z.optional(
       z.array(
         nameOr(
@@ -454,7 +538,7 @@ const mindNode: z.ZodMiniType<MindNode> = z.object({
   },
 });
 
-const mindmapSpec = () => z.object({ root: mindNode });
+const mindmapSpec = () => z.object({ ...common(), root: mindNode });
 
 export const SPEC_SCHEMAS = {
   class: classSpec,
@@ -513,6 +597,10 @@ class Builder {
 
   has(key: string): boolean {
     return this.byKey.has(key);
+  }
+
+  get(key: string): PlanNode | undefined {
+    return this.byKey.get(key);
   }
 
   /** Ends are names as nodes are, so "a<br/>b" finds the node named "a\nb". */
@@ -655,7 +743,15 @@ export const SEQUENCE = {
   /** Room for a fragment's operator tab and guard above its first message. */
   header: 55,
   footer: 20,
+  /** Room above an operand's first message for the operand's guard. */
+  operand: 30,
+  /** A note's row between messages. */
+  note: 50,
 };
+
+/** Height of a note box holding `text`. */
+export const noteHeight = (text: string) =>
+  Math.max(40, 16 + 16 * multiline(text).split("\n").length);
 
 function sequencePlan(spec: Spec<"sequence">): Plan {
   const b = new Builder("sequence");
@@ -672,18 +768,71 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
       if (!participants.includes(end)) participants.push(end);
     }
   }
-  // Each fragment opening at a message pushes it down to clear the
-  // fragment's header, and each one closing after it leaves a gap below.
   const fragments = spec.fragments ?? [];
+  fragments.forEach((f, i) => {
+    if (f.from > f.to || f.to >= messages.length) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.fragments.${i}: from and to must be message indices with from <= to < ${messages.length}`,
+      );
+    }
+    const starts = f.operandStarts;
+    if (
+      starts &&
+      (starts.length !== (f.operands?.length ?? 0) ||
+        starts.some(
+          (s, k) => s <= (k === 0 ? f.from : starts[k - 1]!) || s > f.to,
+        ))
+    ) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.fragments.${i}.operandStarts: one increasing message index per operand, each within ${f.from + 1}..${f.to}`,
+      );
+    }
+  });
+  const notes = (spec.notes ?? []).map((n, i) => {
+    const on = (
+      n.on === undefined ? [] : typeof n.on === "string" ? [n.on] : n.on
+    ).map(multiline);
+    for (const p of on) {
+      if (!participants.includes(p)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.notes.${i}.on: no participant named ${p}`,
+        );
+      }
+    }
+    if (participants.length === 0) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.notes.${i}: a sequence note stands by a participant, and there is none`,
+      );
+    }
+    return { ...n, on, at: Math.min(n.at ?? messages.length, messages.length) };
+  });
+  // Each fragment opening at a message pushes it down to clear the
+  // fragment's header, each operand starting at it to clear the guard, and
+  // each fragment closing after it leaves a gap below. A note takes a row of
+  // its own above the message it precedes.
+  const openingAt = (i: number) => fragments.filter((f) => f.from === i).length;
+  const startsAt = (i: number) =>
+    fragments.filter((f) => f.operandStarts?.includes(i)).length;
   const ys: number[] = [];
+  const noteTops = new Map<number, number>();
   let at = SEQUENCE.firstMessage;
-  messages.forEach((_, i) => {
-    at += SEQUENCE.header * fragments.filter((f) => f.from === i).length;
+  for (let i = 0; i <= messages.length; i++) {
+    notes.forEach((n, j) => {
+      if (n.at !== i) return;
+      noteTops.set(j, at - 25);
+      at += Math.max(SEQUENCE.note, noteHeight(n.text) + 10);
+    });
+    if (i === messages.length) break;
+    at += SEQUENCE.header * openingAt(i) + SEQUENCE.operand * startsAt(i);
     ys.push(at);
     at +=
       SEQUENCE.step +
       SEQUENCE.footer * fragments.filter((f) => f.to === i).length;
-  });
+  }
   const height = at + SEQUENCE.step - SEQUENCE.top;
   const center = (key: string) =>
     SEQUENCE.left +
@@ -736,12 +885,6 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
     );
   });
   fragments.forEach((f, i) => {
-    if (f.from > f.to || f.to >= messages.length) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `spec.fragments.${i}: from and to must be message indices with from <= to < ${messages.length}`,
-      );
-    }
     const inside = messages.slice(f.from, f.to + 1);
     const columns = inside
       .flatMap((m) => [m.from, m.to])
@@ -784,9 +927,38 @@ function sequencePlan(spec: Spec<"sequence">): Plan {
       properties: { interactionOperator: f.operator },
       ...(f.guard !== undefined && { guard: f.guard }),
       ...(f.operands && { operands: f.operands }),
+      ...(f.operandStarts && {
+        operandAt: f.operandStarts.map(
+          (s) => y(s) - SEQUENCE.header * openingAt(s) - 35,
+        ),
+      }),
       width: x2 - x,
       height: bottom - top,
       box: { x, y: top, width: x2 - x, height: bottom - top },
+    });
+  });
+  notes.forEach((n, j) => {
+    const centers = (n.on.length > 0 ? n.on : participants).map(center);
+    const side = n.side ?? (centers.length === 1 ? "right" : "over");
+    const left =
+      centers.length > 1 || side === "over"
+        ? Math.min(...centers) - 70
+        : side === "right"
+          ? centers[0]! + 10
+          : centers[0]! - 130;
+    const width =
+      centers.length > 1 || side === "over"
+        ? Math.max(...centers) - Math.min(...centers) + 140
+        : 120;
+    const h = noteHeight(n.text);
+    b.node({
+      key: `note ${j}`,
+      type: "Note",
+      name: "",
+      text: multiline(n.text),
+      width,
+      height: h,
+      box: { x: left, y: noteTops.get(j)!, width, height: h },
     });
   });
   return b.plan(true);
@@ -934,6 +1106,7 @@ const STATE_CREATE: Record<
 
 function statemachinePlan(spec: Spec<"statemachine">): Plan {
   const b = new Builder("statemachine");
+  const nested: [key: string, parent: string, index: number][] = [];
   (spec.states ?? []).forEach((s, i) => {
     const o = typeof s === "string" ? { name: s } : s;
     const type = o.type ?? "state";
@@ -952,7 +1125,33 @@ function statemachinePlan(spec: Spec<"statemachine">): Plan {
       width,
       height,
     });
+    if (o.parent !== undefined) nested.push([key, multiline(o.parent), i]);
   });
+  for (const [key, parent, i] of nested) {
+    const outer = b.get(parent);
+    if (outer?.type !== "UMLState" && outer?.type !== "UMLCompositeState") {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `spec.states.${i}.parent: no state named ${parent}`,
+      );
+    }
+    // The toolbox's Composite State: a UMLState with one region, whose
+    // view holds the nested states' views.
+    outer.type = "UMLCompositeState";
+    b.get(key)!.container = parent;
+  }
+  for (const [key, , i] of nested) {
+    const seen = new Set<string>();
+    for (let k: string | undefined = key; k; k = b.get(k)!.container) {
+      if (seen.has(k)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec.states.${i}.parent: ${key} would be nested in itself`,
+        );
+      }
+      seen.add(k);
+    }
+  }
   (spec.transitions ?? []).forEach((t, i) => {
     const label = [
       t.trigger ?? "",
@@ -971,7 +1170,7 @@ function statemachinePlan(spec: Spec<"statemachine">): Plan {
       `transitions.${i}`,
     );
   });
-  return b.plan();
+  return b.plan(nested.length > 0);
 }
 
 /** "id int PK", "name varchar(40) NOT NULL", "customer_id int FK". */
@@ -1097,6 +1296,66 @@ const PLANNERS: { [K in Kind]: (spec: Spec<K>) => Plan } = {
   mindmap: mindmapPlan,
 };
 
+const longHex = (color: string) =>
+  color.length === 4
+    ? `#${[...color.slice(1)].map((c) => c + c).join("")}`.toLowerCase()
+    : color.toLowerCase();
+
+/**
+ * Adds what every kind shares: notes, linked to the nodes they are on (a
+ * sequence diagram draws its notes at their place in time instead), and
+ * view colours.
+ */
+function decorate(
+  plan: Plan,
+  spec: z.output<z.ZodMiniObject<ReturnType<typeof common>>>,
+): Plan {
+  const byKey = new Map(plan.nodes.map((n) => [n.key, n]));
+  const fail = (where: string, key: string): never => {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `spec.${where}: no node named ${key}`,
+    );
+  };
+  if (plan.kind !== "sequence") {
+    (spec.notes ?? []).forEach((n, i) => {
+      const key = `note ${i}`;
+      if (byKey.has(key)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `spec: ${key} is defined twice; give the node another name or id`,
+        );
+      }
+      const text = multiline(n.text);
+      const node: PlanNode = {
+        key,
+        type: "Note",
+        name: "",
+        text,
+        width: 140,
+        height: noteHeight(text),
+      };
+      plan.nodes.push(node);
+      byKey.set(key, node);
+      const on =
+        n.on === undefined ? [] : typeof n.on === "string" ? [n.on] : n.on;
+      for (const target of on.map(multiline)) {
+        if (!byKey.has(target)) fail(`notes.${i}.on`, target);
+        plan.edges.push({ type: "NoteLink", from: key, to: target });
+      }
+    });
+  }
+  for (const [key, style] of Object.entries(spec.styles ?? {})) {
+    const node = byKey.get(multiline(key)) ?? fail(`styles.${key}`, key);
+    const colors = Object.fromEntries(
+      Object.entries(style).map(([k, v]) => [k, longHex(v)]),
+    );
+    node.style = { ...node.style, ...colors };
+  }
+  return plan;
+}
+
 export function planFor<K extends Kind>(kind: K, spec: unknown): Plan {
-  return PLANNERS[kind](parseSpec(kind, spec));
+  const parsed = parseSpec(kind, spec);
+  return decorate(PLANNERS[kind](parsed), parsed);
 }

@@ -5,14 +5,14 @@ participant "Bob" as P1
 participant "C" as P2
 P0 -> P1 : Hello
 loop Every minute
-P1 -> P0 : Fine
+P1 --> P0 : Fine
 end
 alt sick
 opt really
-P1 -> P0 : cough
+P1 ->> P0 : cough
 end
-P1 -> P2 : great
 else well
+P1 -> P2 : great
 end
 P2 -> P2 : self
 @enduml

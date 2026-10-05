@@ -423,5 +423,82 @@
   },
   "m-state": {
     "mermaid": "stateDiagram-v2\n  [*] --> Still\n  Still --> [*]\n  Still --> Moving : push\n  Moving --> Still\n  Moving --> Crash : hit [fast]\n  state check <<choice>>\n  Crash --> check\n  check --> [*]\n  state \"Long<br/>name\" as LN\n  Crash --> LN"
+  },
+  "m-state-nested": {
+    "mermaid": "stateDiagram-v2\n  [*] --> Idle\n  state \"Working hard\" as Active\n  state Active {\n    [*] --> Running\n    Running --> Paused : pause\n    Paused --> Running : resume\n    state Paused {\n      [*] --> Frozen\n    }\n  }\n  Idle --> Active : start\n  Active --> [*] : stop [done]\n  note right of Idle : waiting<br/>for work\n  note left of Running\n    busy\n    here\n  end note\n  classDef hot fill:#f96,stroke:#333,color:#000\n  class Active hot\n  Idle:::cold\n  classDef cold fill:#9cf"
+  },
+  "m-class-notes": {
+    "mermaid": "classDiagram\n  class Order:::money {\n    +id: long\n  }\n  class Line\n  Order *-- Line\n  note for Order \"the aggregate root\"\n  note \"free text\"\n  classDef money fill:#ffeeaa\n  style Line stroke:#ff0000,stroke-width:2px"
+  },
+  "m-seq-notes": {
+    "mermaid": "sequenceDiagram\n  participant A as Alice\n  participant B as Bob\n  Note right of A: thinking\n  A->>B: ask\n  par first\n    B->>A: one\n  and second\n    B->>A: two\n    B->>A: three\n  end\n  Note over A,B: done\n  Note left of B: bye"
+  },
+  "m-flow-styles": {
+    "mermaid": "flowchart LR\n  classDef default fill:#eeeeee\n  classDef warn fill:#ffcccc,stroke:#cc0000,color:#330000\n  A[Start]:::warn --> B{Check}\n  B -->|yes| C[Done]\n  class C warn\n  style B fill:#ccffcc"
+  },
+  "statemachine-nested": {
+    "kind": "statemachine",
+    "name": "Nested spec",
+    "spec": {
+      "states": [
+        {
+          "id": "i",
+          "type": "initial"
+        },
+        "Off",
+        {
+          "name": "On"
+        },
+        {
+          "id": "oi",
+          "type": "initial",
+          "parent": "On"
+        },
+        {
+          "name": "Low",
+          "parent": "On"
+        },
+        {
+          "name": "High",
+          "parent": "On"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "i",
+          "to": "Off"
+        },
+        {
+          "from": "Off",
+          "to": "On",
+          "trigger": "switch"
+        },
+        {
+          "from": "oi",
+          "to": "Low"
+        },
+        {
+          "from": "Low",
+          "to": "High",
+          "trigger": "up"
+        },
+        {
+          "from": "On",
+          "to": "Off",
+          "trigger": "switch"
+        }
+      ],
+      "notes": [
+        {
+          "text": "two speeds",
+          "on": ["Low", "High"]
+        }
+      ],
+      "styles": {
+        "On": {
+          "fillColor": "#ddf"
+        }
+      }
+    }
   }
 }

@@ -187,12 +187,75 @@ function activityBoxes(plan: Plan): Map<string, Box> {
   return boxes;
 }
 
+const INSET = 20;
+const HEADER = 40;
+
+/**
+ * Nodes nested in container nodes (composite states): each container's
+ * nodes in a grid of their own, the container grown to hold it below its
+ * name, and every level placed like a flat diagram.
+ */
+function nestedBoxes(plan: Plan, direction: Direction): Map<string, Box> {
+  const relative = new Map<string, Box>();
+  const level = (container?: string) => {
+    const members = plan.nodes
+      .filter((n) => n.container === container)
+      .map((n) => {
+        if (!plan.nodes.some((c) => c.container === n.key)) return n;
+        const inner = level(n.key);
+        return {
+          ...n,
+          width: Math.max(n.width, inner.width + 2 * INSET),
+          height: Math.max(n.height, inner.height + HEADER + INSET),
+        };
+      });
+    const keys = new Set(members.map((n) => n.key));
+    const local = grid(
+      members,
+      plan.edges.filter((e) => keys.has(e.from) && keys.has(e.to)),
+      direction,
+      { x: 0, y: 0 },
+    );
+    let width = 0;
+    let height = 0;
+    for (const [key, box] of local) {
+      relative.set(key, box);
+      width = Math.max(width, box.x + box.width);
+      height = Math.max(height, box.y + box.height);
+    }
+    return { width, height };
+  };
+  level();
+  const byKey = new Map(plan.nodes.map((n) => [n.key, n]));
+  const boxes = new Map<string, Box>();
+  const absolute = (key: string): Box => {
+    const known = boxes.get(key);
+    if (known) return known;
+    const box = relative.get(key)!;
+    const container = byKey.get(key)!.container;
+    const origin =
+      container === undefined
+        ? { x: MARGIN, y: MARGIN }
+        : {
+            x: absolute(container).x + INSET,
+            y: absolute(container).y + HEADER,
+          };
+    const placed = { ...box, x: box.x + origin.x, y: box.y + origin.y };
+    boxes.set(key, placed);
+    return placed;
+  };
+  for (const n of plan.nodes) absolute(n.key);
+  return boxes;
+}
+
 /** Where each node's view goes, by node key. */
 export function place(plan: Plan, direction: Direction): Map<string, Box> {
   let boxes: Map<string, Box>;
   if (plan.kind === "usecase" && plan.fixed) boxes = usecaseBoxes(plan);
   else if (plan.kind === "activity" && plan.fixed) boxes = activityBoxes(plan);
-  else {
+  else if (plan.nodes.some((n) => n.container !== undefined)) {
+    boxes = nestedBoxes(plan, direction);
+  } else {
     const free = plan.nodes.filter((n) => n.box === undefined);
     boxes =
       free.length === 0

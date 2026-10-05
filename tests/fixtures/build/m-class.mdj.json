@@ -291,7 +291,7 @@
     "stereotype": "",
     "visibility": "public",
     "navigable": "unspecified",
-    "aggregation": "none",
+    "aggregation": "composite",
     "multiplicity": "1",
     "defaultValue": ""
    },

@@ -1,0 +1,20 @@
+@startuml
+participant "Alice" as P0
+participant "Bob" as P1
+note right of P0
+  thinking
+end note
+P0 -> P1 : ask
+par first
+P1 -> P0 : one
+else second
+P1 -> P0 : two
+P1 -> P0 : three
+end
+note over P0, P1
+  done
+end note
+note left of P1
+  bye
+end note
+@enduml

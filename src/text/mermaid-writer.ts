@@ -29,10 +29,12 @@ import type {
   Extracted,
   FlowchartSpec,
   MindNode,
+  NoteSpec,
   SequenceSpec,
   StateSpec,
   UsecaseSpec,
 } from "./model.js";
+import { scopeOf } from "./model.js";
 
 /*
  * Writes the specs read from a diagram as Mermaid that /build_diagram reads
@@ -63,8 +65,12 @@ class Ids {
   }
 }
 
-function classDiagram(spec: ClassSpec): string[] {
+function classDiagram(
+  spec: ClassSpec,
+  notes: readonly NoteSpec[],
+): { lines: string[]; warnings: string[] } {
   const ids = new Ids("C");
+  const warnings: string[] = [];
   const lines = ["classDiagram"];
   const write = (c: ClassSpec["classes"][number], indent: string) => {
     const id = ids.get(c.name);
@@ -115,7 +121,15 @@ function classDiagram(spec: ClassSpec): string[] {
       `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
     lines.push(`  ${line}${label}`);
   }
-  return lines;
+  for (const n of notes) {
+    // A Mermaid note is on one class at most.
+    if (n.on.length > 1)
+      warnings.push(`a note on ${n.on.length} classes is written on the first`);
+    lines.push(
+      `  note ${n.on[0] !== undefined ? `for ${ids.get(n.on[0])} ` : ""}"${text(n.text)}"`,
+    );
+  }
+  return { lines, warnings };
 }
 
 const ARROWS: Record<string, string> = {
@@ -136,7 +150,10 @@ const BLOCKS: Record<string, string> = {
   critical: "option",
 };
 
-function sequenceDiagram(spec: SequenceSpec): {
+function sequenceDiagram(
+  spec: SequenceSpec,
+  notes: readonly NoteSpec[],
+): {
   lines: string[];
   warnings: string[];
 } {
@@ -154,7 +171,27 @@ function sequenceDiagram(spec: SequenceSpec): {
   });
   const depth = () => "  ".repeat(1 + open.length);
   const open: number[] = [];
+  const note = (n: NoteSpec) => {
+    if (n.on.length === 0) {
+      warnings.push("a note on no lifeline is not written");
+      return;
+    }
+    const where = n.side === "over" ? "over" : `${n.side} of`;
+    lines.push(
+      `${depth()}Note ${where} ${n.on.map((p) => ids.get(p)).join(",")}: ${text(n.text)}`,
+    );
+  };
+  const operand = (f: (typeof fragments)[number], k: number, level: number) =>
+    lines.push(
+      `${"  ".repeat(level)}${BLOCKS[f.operator]} ${text(f.operands[k]!)}`.trimEnd(),
+    );
   spec.messages.forEach((m, i) => {
+    for (const n of notes) if (n.at === i) note(n);
+    open.forEach((j, level) => {
+      const f = fragments[j]!;
+      const k = f.operandStarts?.indexOf(i) ?? -1;
+      if (k >= 0) operand(f, k, level + 1);
+    });
     fragments.forEach((f, j) => {
       if (f.from !== i) return;
       lines.push(
@@ -167,14 +204,16 @@ function sequenceDiagram(spec: SequenceSpec): {
     );
     while (open.length > 0 && fragments[open.at(-1)!]!.to === i) {
       const f = fragments[open.pop()!]!;
-      // Further operands are written as empty sections closing the block,
-      // since StarUML does not record which messages each one covers.
-      for (const guard of f.operands) {
-        lines.push(`${depth()}${BLOCKS[f.operator]} ${text(guard)}`.trimEnd());
+      // Operands without a recorded start (a fragment never drawn has no
+      // operand views to read them from) close the block, empty.
+      if (!f.operandStarts) {
+        f.operands.forEach((_, k) => operand(f, k, open.length + 1));
       }
       lines.push(`${depth()}end`);
     }
   });
+  for (const n of notes)
+    if ((n.at ?? spec.messages.length) >= spec.messages.length) note(n);
   return { lines, warnings };
 }
 
@@ -255,33 +294,59 @@ function activity(spec: ActivitySpec, direction: Direction): string[] {
 
 const laneId = (lanes: string[], lane: string) => `L${lanes.indexOf(lane)}`;
 
-function stateDiagram(spec: StateSpec, direction: Direction): string[] {
+/**
+ * States nest in state X { } blocks, each transition in the innermost block
+ * holding both its ends, so a [*] in a block is that composite's own.
+ */
+function stateDiagram(
+  spec: StateSpec,
+  direction: Direction,
+  notes: readonly NoteSpec[],
+): string[] {
   const lines = ["stateDiagram-v2"];
   if (direction === "LR" || direction === "RL") {
     lines.push(`  direction ${direction}`);
   }
   const types = new Map(spec.states.map((s) => [s.id, s.type]));
-  for (const s of spec.states) {
-    if (s.type === "state") {
-      lines.push(`  state "${text(s.name || s.id)}" as ${s.id}`);
-    } else if (s.type !== "initial" && s.type !== "final") {
-      lines.push(`  state ${s.id} <<${s.type}>>`);
-    }
-  }
   const ref = (id: string) => {
     const t = types.get(id);
     return t === "initial" || t === "final" ? "[*]" : id;
   };
-  for (const t of spec.transitions) {
-    const label = [
-      t.trigger ? text(t.trigger) : "",
-      t.guard ? `[${text(t.guard)}]` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    lines.push(
-      `  ${ref(t.from)} --> ${ref(t.to)}${label ? ` : ${label}` : ""}`,
-    );
+  const scope = scopeOf(spec);
+  const block = (parent: string | undefined, indent: string) => {
+    for (const s of spec.states) {
+      if (s.parent !== parent) continue;
+      if (s.type === "state") {
+        lines.push(`${indent}state "${text(s.name || s.id)}" as ${s.id}`);
+      } else if (s.type !== "initial" && s.type !== "final") {
+        lines.push(`${indent}state ${s.id} <<${s.type}>>`);
+      }
+      if (spec.states.some((c) => c.parent === s.id)) {
+        lines.push(`${indent}state ${s.id} {`);
+        block(s.id, `${indent}  `);
+        lines.push(`${indent}}`);
+      }
+    }
+    for (const t of spec.transitions) {
+      if (scope(t) !== parent) continue;
+      const label = [
+        t.trigger ? text(t.trigger) : "",
+        t.guard ? `[${text(t.guard)}]` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      lines.push(
+        `${indent}${ref(t.from)} --> ${ref(t.to)}${label ? ` : ${label}` : ""}`,
+      );
+    }
+  };
+  block(undefined, "  ");
+  for (const n of notes) {
+    // Mermaid puts a note beside one state.
+    for (const id of n.on.slice(0, 1)) {
+      const body = text(n.text);
+      lines.push(`  note right of ${id} : ${body}`);
+    }
   }
   return lines;
 }
@@ -395,10 +460,12 @@ export function toMermaid(
     warnings,
   });
   switch (x.kind) {
-    case "class":
-      return done(classDiagram(x.spec));
+    case "class": {
+      const { lines, warnings } = classDiagram(x.spec, x.notes ?? []);
+      return done(lines, warnings);
+    }
     case "sequence": {
-      const { lines, warnings } = sequenceDiagram(x.spec);
+      const { lines, warnings } = sequenceDiagram(x.spec, x.notes ?? []);
       return done(lines, warnings);
     }
     case "usecase":
@@ -406,7 +473,7 @@ export function toMermaid(
     case "activity":
       return done(activity(x.spec, x.direction));
     case "statemachine":
-      return done(stateDiagram(x.spec, x.direction));
+      return done(stateDiagram(x.spec, x.direction, x.notes ?? []));
     case "erd":
       return done(erDiagram(x.spec));
     case "flowchart": {

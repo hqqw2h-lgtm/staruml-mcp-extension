@@ -1,0 +1,298 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLStatechartDiagram",
+   "name": "Nested spec",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLPseudostateView",
+     "model": {
+      "$ref": "#5"
+     },
+     "left": 110,
+     "top": 195,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLStateView",
+     "model": {
+      "$ref": "#7"
+     },
+     "left": 60,
+     "top": 1350,
+     "width": 120,
+     "height": 50
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLStateView",
+     "model": {
+      "$ref": "#9"
+     },
+     "left": 40,
+     "top": 820,
+     "width": 160,
+     "height": 330
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLPseudostateView",
+     "model": {
+      "$ref": "#11"
+     },
+     "left": 110,
+     "top": 875,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLStateView",
+     "model": {
+      "$ref": "#13"
+     },
+     "left": 60,
+     "top": 970,
+     "width": 120,
+     "height": 50
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLStateView",
+     "model": {
+      "$ref": "#15"
+     },
+     "left": 60,
+     "top": 1080,
+     "width": 120,
+     "height": 50
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLNoteView",
+     "model": null,
+     "left": 270,
+     "top": 185,
+     "width": 140,
+     "height": 40
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLTransitionView",
+     "model": {
+      "$ref": "#18"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#19",
+     "_type": "UMLTransitionView",
+     "model": {
+      "$ref": "#20"
+     },
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#21",
+     "_type": "UMLTransitionView",
+     "model": {
+      "$ref": "#22"
+     },
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#23",
+     "_type": "UMLTransitionView",
+     "model": {
+      "$ref": "#24"
+     },
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#25",
+     "_type": "UMLTransitionView",
+     "model": {
+      "$ref": "#26"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#27",
+     "_type": "UMLNoteLinkView",
+     "model": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#16"
+     }
+    },
+    {
+     "_id": "#28",
+     "_type": "UMLNoteLinkView",
+     "model": null,
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#16"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLPseudostate",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "initial"
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLState",
+   "name": "Off",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLState",
+   "name": "On",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#18",
+   "_type": "UMLTransition",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "external",
+   "guard": ""
+  },
+  {
+   "_id": "#20",
+   "_type": "UMLTransition",
+   "name": "switch",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "external",
+   "guard": ""
+  },
+  {
+   "_id": "#22",
+   "_type": "UMLTransition",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#13"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "external",
+   "guard": ""
+  },
+  {
+   "_id": "#24",
+   "_type": "UMLTransition",
+   "name": "up",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#15"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "external",
+   "guard": ""
+  },
+  {
+   "_id": "#26",
+   "_type": "UMLTransition",
+   "name": "switch",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "external",
+   "guard": ""
+  }
+ ]
+}

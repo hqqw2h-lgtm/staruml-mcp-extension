@@ -1,7 +1,7 @@
 {
  "_id": "#0",
  "_type": "Project",
- "name": "Checkout",
+ "name": "Untitled",
  "ownedElements": [
   {
    "_id": "#1",
@@ -22,7 +22,7 @@
   {
    "_id": "#3",
    "_type": "UMLSequenceDiagram",
-   "name": "Checkout",
+   "name": "",
    "ownedElements": [],
    "ownedViews": [
     {
@@ -34,7 +34,7 @@
      "left": 40,
      "top": 20,
      "width": 120,
-     "height": 540
+     "height": 595
     },
     {
      "_id": "#6",
@@ -45,46 +45,51 @@
      "left": 240,
      "top": 20,
      "width": 120,
-     "height": 540
+     "height": 595
     },
     {
      "_id": "#8",
-     "_type": "UMLSeqLifelineView",
+     "_type": "UMLCombinedFragmentView",
      "model": {
       "$ref": "#9"
      },
-     "left": 440,
-     "top": 20,
-     "width": 120,
-     "height": 540
+     "left": 10,
+     "top": 215,
+     "width": 380,
+     "height": 205
     },
     {
      "_id": "#10",
-     "_type": "UMLCombinedFragmentView",
-     "model": {
-      "$ref": "#11"
-     },
-     "left": 210,
-     "top": 165,
-     "width": 380,
-     "height": 125
+     "_type": "UMLNoteView",
+     "model": null,
+     "left": 110,
+     "top": 85,
+     "width": 120,
+     "height": 40
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLNoteView",
+     "model": null,
+     "left": 30,
+     "top": 440,
+     "width": 340,
+     "height": 40
     },
     {
      "_id": "#12",
-     "_type": "UMLCombinedFragmentView",
-     "model": {
-      "$ref": "#13"
-     },
-     "left": 210,
-     "top": 340,
-     "width": 180,
-     "height": 75
+     "_type": "UMLNoteView",
+     "model": null,
+     "left": 170,
+     "top": 490,
+     "width": 120,
+     "height": 40
     },
     {
-     "_id": "#14",
+     "_id": "#13",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#15"
+      "$ref": "#14"
      },
      "head": {
       "$ref": "#6"
@@ -94,49 +99,36 @@
      }
     },
     {
-     "_id": "#16",
+     "_id": "#15",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#17"
+      "$ref": "#16"
      },
      "head": {
-      "$ref": "#8"
+      "$ref": "#4"
      },
      "tail": {
       "$ref": "#6"
      }
     },
     {
-     "_id": "#18",
+     "_id": "#17",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#19"
+      "$ref": "#18"
      },
      "head": {
-      "$ref": "#6"
-     },
-     "tail": {
-      "$ref": "#8"
-     }
-    },
-    {
-     "_id": "#20",
-     "_type": "UMLSeqMessageView",
-     "model": {
-      "$ref": "#21"
-     },
-     "head": {
-      "$ref": "#6"
+      "$ref": "#4"
      },
      "tail": {
       "$ref": "#6"
      }
     },
     {
-     "_id": "#22",
+     "_id": "#19",
      "_type": "UMLSeqMessageView",
      "model": {
-      "$ref": "#23"
+      "$ref": "#20"
      },
      "head": {
       "$ref": "#4"
@@ -150,7 +142,7 @@
   {
    "_id": "#5",
    "_type": "UMLLifeline",
-   "name": "User",
+   "name": "Alice",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public"
@@ -158,67 +150,47 @@
   {
    "_id": "#7",
    "_type": "UMLLifeline",
-   "name": "Shop",
+   "name": "Bob",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public"
   },
   {
    "_id": "#9",
-   "_type": "UMLLifeline",
-   "name": "Bank",
-   "ownedElements": [],
-   "stereotype": null,
-   "visibility": "public"
-  },
-  {
-   "_id": "#11",
    "_type": "UMLCombinedFragment",
    "name": "",
    "ownedElements": [],
    "stereotype": null,
    "visibility": "public",
    "parameters": [],
-   "interactionOperator": "alt",
+   "interactionOperator": "par",
    "operands": [
     {
-     "_id": "#24",
+     "_id": "#21",
      "_type": "UMLInteractionOperand",
      "name": "",
      "ownedElements": [],
      "stereotype": null,
      "visibility": "public",
      "parameters": [],
-     "guard": "funds ok"
-    }
-   ]
-  },
-  {
-   "_id": "#13",
-   "_type": "UMLCombinedFragment",
-   "name": "",
-   "ownedElements": [],
-   "stereotype": null,
-   "visibility": "public",
-   "parameters": [],
-   "interactionOperator": "loop",
-   "operands": [
+     "guard": "first"
+    },
     {
-     "_id": "#25",
+     "_id": "#22",
      "_type": "UMLInteractionOperand",
      "name": "",
      "ownedElements": [],
      "stereotype": null,
      "visibility": "public",
      "parameters": [],
-     "guard": ""
+     "guard": "second"
     }
    ]
   },
   {
-   "_id": "#15",
+   "_id": "#14",
    "_type": "UMLMessage",
-   "name": "order()",
+   "name": "ask",
    "ownedElements": [],
    "source": {
     "$ref": "#5"
@@ -232,57 +204,9 @@
    "guard": ""
   },
   {
-   "_id": "#17",
+   "_id": "#16",
    "_type": "UMLMessage",
-   "name": "charge()",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#7"
-   },
-   "target": {
-    "$ref": "#9"
-   },
-   "stereotype": null,
-   "visibility": "public",
-   "messageSort": "asynchCall",
-   "guard": ""
-  },
-  {
-   "_id": "#19",
-   "_type": "UMLMessage",
-   "name": "ok",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#9"
-   },
-   "target": {
-    "$ref": "#7"
-   },
-   "stereotype": null,
-   "visibility": "public",
-   "messageSort": "reply",
-   "guard": ""
-  },
-  {
-   "_id": "#21",
-   "_type": "UMLMessage",
-   "name": "log()",
-   "ownedElements": [],
-   "source": {
-    "$ref": "#7"
-   },
-   "target": {
-    "$ref": "#7"
-   },
-   "stereotype": null,
-   "visibility": "public",
-   "messageSort": "synchCall",
-   "guard": ""
-  },
-  {
-   "_id": "#23",
-   "_type": "UMLMessage",
-   "name": "done",
+   "name": "one",
    "ownedElements": [],
    "source": {
     "$ref": "#7"
@@ -292,7 +216,39 @@
    },
    "stereotype": null,
    "visibility": "public",
-   "messageSort": "reply",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#18",
+   "_type": "UMLMessage",
+   "name": "two",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#20",
+   "_type": "UMLMessage",
+   "name": "three",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
    "guard": ""
   }
  ]

@@ -30,10 +30,12 @@ import type {
   FlowchartSpec,
   FlowNode,
   MindNode,
+  NoteSpec,
   SequenceSpec,
   StateSpec,
   UsecaseSpec,
 } from "./model.js";
+import { scopeOf } from "./model.js";
 
 /*
  * Writes the specs read from a diagram as PlantUML (plantuml.com, the
@@ -56,7 +58,14 @@ function aliases(names: readonly string[], prefix: string) {
   return (name: string) => ids.get(name)!;
 }
 
-function classDiagram(spec: ClassSpec): string[] {
+/** A note as PlantUML writes one over several lines. */
+const noteLines = (head: string, body: string, indent = "") => [
+  `${indent}${head}`,
+  ...body.split(/\r?\n/).map((l) => `${indent}  ${l}`),
+  `${indent}end note`,
+];
+
+function classDiagram(spec: ClassSpec, notes: readonly NoteSpec[]): string[] {
   const id = aliases(
     spec.classes.map((c) => c.name),
     "C",
@@ -103,6 +112,10 @@ function classDiagram(spec: ClassSpec): string[] {
       `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
     lines.push(`${line}${label}`);
   }
+  notes.forEach((n, i) => {
+    lines.push(...noteLines(`note as N${i}`, n.text));
+    for (const on of n.on) lines.push(`N${i} .. ${id(on)}`);
+  });
   return lines;
 }
 
@@ -117,11 +130,26 @@ const ARROWS: Record<string, string> = {
 /** PlantUML's group keywords; others become a labelled group. */
 const GROUPS = new Set(["alt", "opt", "loop", "par", "break", "critical"]);
 
-function sequenceDiagram(spec: SequenceSpec): string[] {
+function sequenceDiagram(
+  spec: SequenceSpec,
+  notes: readonly NoteSpec[],
+): string[] {
   const id = aliases(spec.participants, "P");
   const lines = spec.participants.map((p) => `participant ${q(p)} as ${id(p)}`);
   const open: SequenceSpec["fragments"] = [];
+  const note = (n: NoteSpec) => {
+    if (n.on.length === 0) return;
+    const where = n.side === "over" ? "over" : `${n.side} of`;
+    lines.push(
+      ...noteLines(`note ${where} ${n.on.map(id).join(", ")}`, n.text),
+    );
+  };
   spec.messages.forEach((m, i) => {
+    for (const n of notes) if (n.at === i) note(n);
+    for (const f of open) {
+      const k = f.operandStarts?.indexOf(i) ?? -1;
+      if (k >= 0) lines.push(`else ${one(f.operands[k]!)}`.trimEnd());
+    }
     for (const f of spec.fragments) {
       if (f.from !== i) continue;
       const head = GROUPS.has(f.operator) ? f.operator : `group ${f.operator}`;
@@ -135,11 +163,16 @@ function sequenceDiagram(spec: SequenceSpec): string[] {
     if (m.kind === "delete") lines.push(`destroy ${id(m.to)}`);
     while (open.length > 0 && open.at(-1)!.to === i) {
       const f = open.pop()!;
-      for (const guard of f.operands)
-        lines.push(`else ${one(guard)}`.trimEnd());
+      if (!f.operandStarts) {
+        for (const guard of f.operands)
+          lines.push(`else ${one(guard)}`.trimEnd());
+      }
       lines.push("end");
     }
   });
+  for (const n of notes) {
+    if ((n.at ?? spec.messages.length) >= spec.messages.length) note(n);
+  }
   return lines;
 }
 
@@ -241,25 +274,53 @@ function flowchart(spec: FlowchartSpec, direction: Direction) {
 
 const STEREOTYPES = new Set(["choice", "fork", "join"]);
 
-function stateDiagram(spec: StateSpec, direction: Direction): string[] {
+/** Composite states as state X { } blocks, as in the Mermaid writer. */
+function stateDiagram(
+  spec: StateSpec,
+  direction: Direction,
+  notes: readonly NoteSpec[],
+): string[] {
   const lines = [...LAYOUT[direction]];
   const types = new Map(spec.states.map((s) => [s.id, s.type]));
-  for (const s of spec.states) {
-    if (s.type === "state") lines.push(`state ${q(s.name || s.id)} as ${s.id}`);
-    else if (STEREOTYPES.has(s.type)) lines.push(`state ${s.id} <<${s.type}>>`);
-  }
   const ref = (id: string) => {
     const t = types.get(id);
     return t === "initial" || t === "final" ? "[*]" : id;
   };
-  for (const t of spec.transitions) {
-    const label = [
-      t.trigger ? one(t.trigger) : "",
-      t.guard ? `[${one(t.guard)}]` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    lines.push(`${ref(t.from)} --> ${ref(t.to)}${label ? ` : ${label}` : ""}`);
+  const scope = scopeOf(spec);
+  const block = (parent: string | undefined, indent: string) => {
+    for (const s of spec.states) {
+      if (s.parent !== parent) continue;
+      const nested = spec.states.some((c) => c.parent === s.id);
+      if (s.type === "state") {
+        lines.push(
+          `${indent}state ${q(s.name || s.id)} as ${s.id}${nested ? " {" : ""}`,
+        );
+      } else if (STEREOTYPES.has(s.type)) {
+        lines.push(`${indent}state ${s.id} <<${s.type}>>`);
+      }
+      if (nested) {
+        block(s.id, `${indent}  `);
+        lines.push(`${indent}}`);
+      }
+    }
+    for (const t of spec.transitions) {
+      if (scope(t) !== parent) continue;
+      const label = [
+        t.trigger ? one(t.trigger) : "",
+        t.guard ? `[${one(t.guard)}]` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      lines.push(
+        `${indent}${ref(t.from)} --> ${ref(t.to)}${label ? ` : ${label}` : ""}`,
+      );
+    }
+  };
+  block(undefined, "");
+  for (const n of notes) {
+    for (const on of n.on.slice(0, 1)) {
+      lines.push(...noteLines(`note right of ${on}`, n.text));
+    }
   }
   return lines;
 }
@@ -332,9 +393,9 @@ export function toPlantUml(
   });
   switch (x.kind) {
     case "class":
-      return done(classDiagram(x.spec));
+      return done(classDiagram(x.spec, x.notes ?? []));
     case "sequence":
-      return done(sequenceDiagram(x.spec));
+      return done(sequenceDiagram(x.spec, x.notes ?? []));
     case "usecase":
       return done(usecase(x.spec, x.direction));
     case "activity": {
@@ -347,7 +408,7 @@ export function toPlantUml(
       ]);
     }
     case "statemachine":
-      return done(stateDiagram(x.spec, x.direction));
+      return done(stateDiagram(x.spec, x.direction, x.notes ?? []));
     case "erd":
       return done(erDiagram(x.spec));
     case "flowchart": {

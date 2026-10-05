@@ -1,0 +1,14 @@
+@startuml
+class "Order" as C0 {
+  +id: long
+}
+class "Line" as C1
+C0 *-- C1
+note as N0
+  the aggregate root
+end note
+N0 .. C0
+note as N1
+  free text
+end note
+@enduml

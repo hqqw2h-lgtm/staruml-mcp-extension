@@ -372,3 +372,201 @@ describe("flowchart and mindmap", () => {
     ]);
   });
 });
+
+// Issue #19: notes, colours, composite states and operand boundaries.
+describe("notes and styles", () => {
+  it("adds notes linked to the nodes they are on, and colours by node", () => {
+    const plan = planFor("class", {
+      classes: [{ name: "A" }, { name: "B" }],
+      notes: [
+        { text: "on A", on: "A" },
+        { text: "two<br/>lines", on: ["A", "B"] },
+        { text: "free" },
+      ],
+      styles: { A: { fillColor: "#F9f", lineColor: "#333333" } },
+    });
+    const notes = plan.nodes.filter((n) => n.type === "Note");
+    expect(notes.map((n) => [n.key, n.text, n.height])).toEqual([
+      ["note 0", "on A", 40],
+      ["note 1", "two\nlines", 48],
+      ["note 2", "free", 40],
+    ]);
+    expect(plan.edges).toEqual([
+      { type: "NoteLink", from: "note 0", to: "A" },
+      { type: "NoteLink", from: "note 1", to: "A" },
+      { type: "NoteLink", from: "note 1", to: "B" },
+    ]);
+    expect(plan.nodes[0]!.style).toEqual({
+      fillColor: "#ff99ff",
+      lineColor: "#333333",
+    });
+  });
+
+  it("keeps an interface's stereotype display beside its colours", () => {
+    const plan = planFor("class", {
+      classes: [{ name: "I", kind: "interface" }],
+      styles: { I: { fontColor: "#000" } },
+    });
+    expect(plan.nodes[0]!.style).toEqual({
+      stereotypeDisplay: "label",
+      fontColor: "#000000",
+    });
+  });
+
+  it("refuses notes and styles on unknown nodes, and a node named like a note", () => {
+    expect(
+      refused("flowchart", { nodes: ["a"], notes: [{ text: "x", on: "b" }] }),
+    ).toBe("spec.notes.0.on: no node named b");
+    expect(
+      refused("flowchart", {
+        nodes: ["a"],
+        styles: { b: { fillColor: "#fff" } },
+      }),
+    ).toBe("spec.styles.b: no node named b");
+    expect(
+      refused("flowchart", { nodes: ["note 0"], notes: [{ text: "x" }] }),
+    ).toBe("spec: note 0 is defined twice; give the node another name or id");
+    expect(
+      refused("flowchart", {
+        nodes: ["a"],
+        styles: { a: { fillColor: "red" } },
+      }),
+    ).toMatch(/^spec\.styles\.a\.fillColor/);
+  });
+});
+
+describe("sequence notes and operands", () => {
+  const messages = [
+    { from: "A", to: "B" },
+    { from: "B", to: "A" },
+    { from: "A", to: "B" },
+  ];
+
+  it("draws notes at their place in time, beside or over lifelines", () => {
+    const plan = planFor("sequence", {
+      messages,
+      notes: [
+        { text: "first", on: "A", at: 0 },
+        { text: "left", on: "B", side: "left", at: 1 },
+        { text: "over one", on: "A", side: "over", at: 1 },
+        { text: "both", on: ["A", "B"] },
+        { text: "all", at: 99 },
+      ],
+    });
+    const boxes = Object.fromEntries(
+      plan.nodes.filter((n) => n.type === "Note").map((n) => [n.text, n.box]),
+    );
+    expect(boxes.first).toEqual({ x: 110, y: 85, width: 120, height: 40 });
+    expect(boxes.left).toEqual({ x: 170, y: 185, width: 120, height: 40 });
+    expect(boxes["over one"]).toEqual({
+      x: 30,
+      y: 235,
+      width: 140,
+      height: 40,
+    });
+    expect(boxes.both!.x).toBe(30);
+    expect(boxes.both!.width).toBe(340);
+    expect(boxes.all).toEqual({ ...boxes.both, y: boxes.all!.y });
+    expect(boxes.all!.y).toBeGreaterThan(boxes.both!.y);
+    // Notes are not linked on a sequence diagram.
+    expect(plan.edges.every((e) => e.type !== "NoteLink")).toBe(true);
+  });
+
+  it("refuses a note on an unknown participant, or with no participant", () => {
+    expect(
+      refused("sequence", { messages, notes: [{ text: "x", on: "C" }] }),
+    ).toBe("spec.notes.0.on: no participant named C");
+    expect(refused("sequence", { notes: [{ text: "x" }] })).toBe(
+      "spec.notes.0: a sequence note stands by a participant, and there is none",
+    );
+  });
+
+  it("places operand boundaries above each operand's first message", () => {
+    const plan = planFor("sequence", {
+      messages,
+      fragments: [
+        {
+          operator: "alt",
+          guard: "a",
+          operands: ["b", "c"],
+          operandStarts: [1, 2],
+          from: 0,
+          to: 2,
+        },
+      ],
+    });
+    const fragment = plan.nodes.find((n) => n.type === "UMLCombinedFragment")!;
+    const ys = plan.edges.map((e) => e.geometry!.y1);
+    expect(fragment.operandAt).toEqual([ys[1]! - 35, ys[2]! - 35]);
+    expect(ys[1]! - ys[0]!).toBe(80);
+  });
+
+  it("refuses operand starts that do not match the operands", () => {
+    const fragment = { operator: "alt", operands: ["b"], from: 0, to: 2 };
+    for (const operandStarts of [[0], [3], [1, 2], []]) {
+      expect(
+        refused("sequence", {
+          messages,
+          fragments: [{ ...fragment, operandStarts }],
+        }),
+      ).toBe(
+        "spec.fragments.0.operandStarts: one increasing message index per operand, each within 1..2",
+      );
+    }
+    expect(
+      refused("sequence", {
+        messages,
+        fragments: [
+          { ...fragment, operands: ["b", "c"], operandStarts: [2, 2] },
+        ],
+      }),
+    ).toMatch(/^spec\.fragments\.0\.operandStarts/);
+    expect(
+      refused("sequence", {
+        messages,
+        fragments: [{ operator: "alt", operandStarts: [1], from: 0, to: 2 }],
+      }),
+    ).toMatch(/^spec\.fragments\.0\.operandStarts/);
+  });
+});
+
+describe("composite states", () => {
+  it("makes a parent a composite state holding its nested states", () => {
+    const plan = planFor("statemachine", {
+      states: [
+        "Outer",
+        { name: "Inner", parent: "Outer" },
+        { id: "deep", name: "Deep", parent: "Inner" },
+      ],
+    });
+    expect(plan.fixed).toBe(true);
+    expect(plan.nodes.map((n) => [n.key, n.type, n.container])).toEqual([
+      ["Outer", "UMLCompositeState", undefined],
+      ["Inner", "UMLCompositeState", "Outer"],
+      ["deep", "UMLState", "Inner"],
+    ]);
+    expect(planFor("statemachine", { states: ["A"] }).fixed).toBe(false);
+  });
+
+  it("refuses unknown parents, pseudostate parents and cycles", () => {
+    expect(
+      refused("statemachine", { states: [{ name: "A", parent: "B" }] }),
+    ).toBe("spec.states.0.parent: no state named B");
+    expect(
+      refused("statemachine", {
+        states: [
+          { id: "i", type: "initial" },
+          { name: "A", parent: "i" },
+        ],
+      }),
+    ).toBe("spec.states.1.parent: no state named i");
+    expect(
+      refused("statemachine", {
+        states: [
+          { name: "A", parent: "B" },
+          { name: "B", parent: "A" },
+        ],
+      }),
+    ).toBe("spec.states.0.parent: A would be nested in itself");
+  });
+});

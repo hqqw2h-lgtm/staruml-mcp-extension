@@ -94,6 +94,7 @@ export type View = Element & {
   subViews: View[];
   tail?: View | null;
   head?: View | null;
+  canContainView(view: View): boolean;
 };
 type Ctor = new () => MockElement;
 
@@ -193,6 +194,22 @@ function generateClasses(): Record<string, Ctor> {
 
 /** The metamodel classes as exposed through the `type` global. */
 export const mockTypes: Record<string, Ctor> = generateClasses();
+
+/**
+ * View kinds a view can hold (canContainViewKind in the 7.1.1 elements.js
+ * files); View.canContainView in core/core.js refuses the view itself.
+ */
+const CONTAINS: Record<string, readonly string[]> = {
+  UMLRegionView: ["UMLStateView", "UMLPseudostateView", "UMLFinalStateView"],
+};
+Object.defineProperty(mockTypes.View!.prototype, "canContainView", {
+  value(this: MockElement, view: MockElement): boolean {
+    return (
+      view !== this &&
+      (CONTAINS[this.constructor.name] ?? []).some((k) => is(view, k))
+    );
+  },
+});
 
 export function create<T extends MockElement = Element>(typeName: string): T {
   const ctor = mockTypes[typeName];
@@ -512,6 +529,24 @@ export interface ModelAndViewOptions {
   viewInitializer?: (v: View) => void;
 }
 
+function place(view: MockElement, options: ModelAndViewOptions): void {
+  view.left = options.x1 ?? 0;
+  view.top = options.y1 ?? 0;
+  view.width = (options.x2 ?? 0) - (options.x1 ?? 0);
+  view.height = (options.y2 ?? 0) - (options.y1 ?? 0);
+}
+
+/** Factory.assignInitObject: nested objects assign into the element's fields. */
+function assignInit(elem: MockElement, init: object | undefined): void {
+  for (const [key, value] of Object.entries(init ?? {})) {
+    if (value !== null && typeof value === "object" && elem[key]) {
+      assignInit(elem[key] as MockElement, value as object);
+    } else {
+      elem[key] = value;
+    }
+  }
+}
+
 function attach(parent: MockElement, field: string, child: MockElement): void {
   const list = parent[field];
   if (!Array.isArray(list))
@@ -612,6 +647,13 @@ export class Factory {
     if (!entry.modelType) {
       if (!entry.viewType) notModeled("Factory", options.id);
       const only = create<View>(entry.viewType);
+      // defaultViewOnlyFn and defaultEdgeViewOnlyFn (engine/factory.js).
+      if (is(only, "EdgeView")) {
+        only.tail = options.tailView ?? null;
+        only.head = options.headView ?? null;
+      } else {
+        place(only, options);
+      }
       options.viewInitializer?.(only);
       attach(options.diagram, "ownedViews", only);
       this.repository.index(only);
@@ -650,20 +692,22 @@ export class Factory {
         };
       }
     }
-    if (is(view, "NodeView")) {
-      view.left = options.x1 ?? 0;
-      view.top = options.y1 ?? 0;
-      view.width = (options.x2 ?? 0) - (options.x1 ?? 0);
-      view.height = (options.y2 ?? 0) - (options.y1 ?? 0);
-    }
+    if (is(view, "NodeView")) place(view, options);
     // pseudostateFn (uml-factory.js) stores the toolbox item's kind.
     const kind = (options as { pseudostateKind?: string }).pseudostateKind;
     if (entry.modelType === "UMLPseudostate" && kind) model.kind = kind;
+    // stateFn (uml-factory.js) gives a composite state its regions.
+    const regions = (options as { regionCount?: number }).regionCount ?? 0;
+    for (let i = 0; i < regions; i++)
+      attach(model, "regions", create("UMLRegion"));
     if (entry.modelType === "UMLCombinedFragment") {
       // combinedFragmentFn (uml-factory.js) starts every fragment with one operand.
       const operand = create("UMLInteractionOperand");
       attach(model, "operands", operand);
     }
+    // Factory.assignInitObject: a toolbox item's model-init, e.g. the
+    // composite end2 of UMLComposition.
+    assignInit(model, (options as { "model-init"?: object })["model-init"]);
     options.modelInitializer?.(model);
     options.viewInitializer?.(view);
     attach(options.parent, "ownedElements", model);
@@ -674,6 +718,66 @@ export class Factory {
     }
     this.repository.index(model);
     this.repository.index(view);
+    this.repository.setModified(true);
+    return view;
+  }
+
+  /**
+   * defaultViewOnDiagramFn (engine/factory.js): a relationship joins the
+   * views of its ends; any other model gets a view at (x, y) and, through
+   * createViewAndRelationships, the views of its relationships to models
+   * already on the diagram.
+   */
+  createViewOf(options: {
+    model: MockElement;
+    diagram: MockElement;
+    x?: number;
+    y?: number;
+  }): View | null {
+    const { model, diagram } = options;
+    // Every 7.1.1 diagram type registers a registerViewOfFn function.
+    if (!DIAGRAM_IDS.includes(diagram.constructor.name)) return null;
+    const viewOf = (m: unknown) =>
+      (diagram.ownedViews as View[]).find((v) => v.model === m);
+    const add = (view: View) => {
+      attach(diagram, "ownedViews", view);
+      this.repository.index(view);
+      return view;
+    };
+    const edge = (rel: MockElement, tail: View, head: View) => {
+      const view = create<View>(META[rel.constructor.name]!.view!);
+      view.model = rel as Element;
+      view.tail = tail;
+      view.head = head;
+      return add(view);
+    };
+    const ends = (rel: MockElement): [unknown, unknown] =>
+      is(rel, "DirectedRelationship")
+        ? [rel.source, rel.target]
+        : [
+            (rel.end1 as MockElement).reference,
+            (rel.end2 as MockElement).reference,
+          ];
+    if (is(model, "Relationship")) {
+      const [a, b] = ends(model);
+      return edge(model, viewOf(a)!, viewOf(b)!);
+    }
+    const view = create<View>(META[model.constructor.name]!.view!);
+    view.model = model as Element;
+    view.left = options.x ?? 0;
+    view.top = options.y ?? 0;
+    view.width = 100;
+    view.height = 50;
+    add(view);
+    for (const rel of this.repository.getRelationshipsOf(model)) {
+      const [a, b] = ends(rel);
+      const other = a === model ? b : a;
+      const otherView = viewOf(other);
+      if (otherView && !viewOf(rel)) {
+        if (a === model) edge(rel, view, otherView);
+        else edge(rel, otherView, view);
+      }
+    }
     this.repository.setModified(true);
     return view;
   }
@@ -693,7 +797,6 @@ stub(Factory, [
   "assert",
   "assignInitObject",
   "createViewAndRelationships",
-  "createViewOf",
   "defaultDiagramFn",
   "defaultDirectedRelationshipFn",
   "defaultEdgeViewOnlyFn",
@@ -830,6 +933,33 @@ export class Engine {
     return undefined;
   }
 
+  /** moveViews, then the views into containerView and their models into containerModel. */
+  moveViewsChangingContainer(
+    editor: unknown,
+    views: MockElement[],
+    dx: number,
+    dy: number,
+    containerView: MockElement | null,
+    containerModel: MockElement | null,
+  ): null | undefined {
+    if (!editor || !views) return null;
+    this.moveViews(editor, views, dx, dy);
+    for (const v of views) {
+      v.containerView = containerView;
+      if (containerView)
+        (containerView.containedViews as MockElement[]).push(v);
+      const model = v.model as MockElement | null;
+      const owner = model?._parent;
+      const field = Object.keys(owner ?? {}).find(
+        (k) =>
+          Array.isArray(owner![k]) && (owner![k] as unknown[]).includes(model),
+      );
+      if (model && containerModel && field)
+        this.relocate(model, containerModel, field);
+    }
+    return undefined;
+  }
+
   resizeNode(
     editor: unknown,
     node: MockElement,
@@ -937,7 +1067,6 @@ stub(Engine, [
   "moveDown",
   "moveParasiticView",
   "moveUp",
-  "moveViewsChangingContainer",
   "reconnectEdge",
   "setElemsProperty",
   "setFont",
@@ -1030,8 +1159,54 @@ export class DiagramManager {
   getSnapToGrid(): boolean {
     return this.snap;
   }
+  /**
+   * Drawing the current diagram gives list compartments a view per item
+   * (UMLListCompartmentView.update in the 7.1.1 elements.js): an operand
+   * view per operand of a combined fragment, stacked below its operator tab
+   * at the default height of 30, and a region view per region of a state.
+   */
   repaint(): void {
     this.repaints++;
+    for (const view of (this.current?.ownedViews ?? []) as View[]) {
+      const items = is(view, "UMLCombinedFragmentView")
+        ? [
+            "operandCompartment",
+            "UMLInteractionOperandCompartmentView",
+            "UMLInteractionOperandView",
+            "operands",
+          ]
+        : is(view, "UMLStateView")
+          ? [
+              "decompositionCompartment",
+              "UMLDecompositionCompartmentView",
+              "UMLRegionView",
+              "regions",
+            ]
+          : null;
+      if (!items || view[items[0]!]) continue;
+      const [field, compartmentType, itemType, list] = items as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      const compartment = create<View>(compartmentType);
+      compartment._parent = view;
+      view[field] = compartment;
+      view.subViews.push(compartment);
+      let top = (view.top as number) + 25;
+      for (const item of (view.model![list] ?? []) as Element[]) {
+        const sub = create<View>(itemType);
+        sub._parent = compartment;
+        sub.model = item;
+        sub.left = view.left;
+        sub.top = top;
+        sub.width = view.width;
+        sub.height = 30;
+        top += 30;
+        compartment.subViews.push(sub);
+      }
+    }
   }
   deselectAll(): void {
     this.selections.deselectAll();

@@ -74,3 +74,36 @@ describe("place", () => {
     expect(boxes.get("out")!.x).toBeGreaterThan(boxes.get("L")!.x + 260);
   });
 });
+
+describe("nested placement", () => {
+  it("lays each container's nodes out inside it, below its name", () => {
+    const boxes = place(
+      {
+        kind: "statemachine",
+        fixed: true,
+        nodes: [
+          node("outer"),
+          node("a", { container: "outer" }),
+          node("b", { container: "outer" }),
+          node("inner", { container: "outer" }),
+          node("c", { container: "inner" }),
+          node("free"),
+        ],
+        edges: [edge("a", "b"), edge("outer", "free"), edge("a", "c")],
+      },
+      "TB",
+    );
+    const outer = boxes.get("outer")!;
+    for (const key of ["a", "b", "inner"]) {
+      const b = boxes.get(key)!;
+      expect(b.x).toBeGreaterThanOrEqual(outer.x + 20);
+      expect(b.y).toBeGreaterThanOrEqual(outer.y + 40);
+      expect(b.x + b.width).toBeLessThanOrEqual(outer.x + outer.width);
+      expect(b.y + b.height).toBeLessThanOrEqual(outer.y + outer.height);
+    }
+    const inner = boxes.get("inner")!;
+    expect(boxes.get("c")!.y).toBe(inner.y + 40);
+    expect(boxes.get("b")!.y).toBeGreaterThan(boxes.get("a")!.y);
+    expect(boxes.get("free")!.y).toBeGreaterThan(outer.y + outer.height);
+  });
+});

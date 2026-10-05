@@ -66,9 +66,21 @@ export interface SequenceSpec {
     operator: string;
     guard?: string;
     operands: string[];
+    /** First message of each further operand, where every one has one. */
+    operandStarts?: number[];
     from: number;
     to: number;
   }[];
+}
+
+/** A note and what it is on: class names, state ids or lifeline names. */
+export interface NoteSpec {
+  text: string;
+  on: string[];
+  /** sequence: against its one lifeline, or over several. */
+  side?: "left" | "right" | "over";
+  /** sequence: the number of messages above it. */
+  at?: number;
 }
 
 export interface UsecaseSpec {
@@ -84,6 +96,8 @@ export interface FlowNode {
   /** Activity node type, state type or flowchart shape. */
   type: string;
   lane?: string;
+  /** Id of the composite state this state is nested in. */
+  parent?: string;
 }
 
 export interface ActivitySpec {
@@ -128,11 +142,16 @@ export interface MindNode {
 }
 
 export type Extracted =
-  | { kind: "class"; spec: ClassSpec }
-  | { kind: "sequence"; spec: SequenceSpec }
+  | { kind: "class"; spec: ClassSpec; notes?: NoteSpec[] }
+  | { kind: "sequence"; spec: SequenceSpec; notes?: NoteSpec[] }
   | { kind: "usecase"; spec: UsecaseSpec; direction: Direction }
   | { kind: "activity"; spec: ActivitySpec; direction: Direction }
-  | { kind: "statemachine"; spec: StateSpec; direction: Direction }
+  | {
+      kind: "statemachine";
+      spec: StateSpec;
+      direction: Direction;
+      notes?: NoteSpec[];
+    }
   | { kind: "erd"; spec: ErdSpec }
   | { kind: "flowchart"; spec: FlowchartSpec; direction: Direction }
   | { kind: "mindmap"; spec: { roots: MindNode[] } };
@@ -196,6 +215,8 @@ class Views {
   constructor(
     readonly nodes: View[],
     readonly edges: View[],
+    readonly notes: View[] = [],
+    readonly links: View[] = [],
   ) {}
 
   skip(view: View): void {
@@ -208,6 +229,30 @@ class Views {
       ([t, n]) => `${n} ${t} ${n === 1 ? "view is" : "views are"} not written`,
     );
   }
+
+  /** Notes with what they are linked to, by `refOf` the linked models. */
+  linkedNotes(refOf: (model: Element) => string | undefined): NoteSpec[] {
+    return this.notes.map((note) => {
+      const on = this.links.flatMap((link) => {
+        const other =
+          link.tail === note
+            ? link.head
+            : link.head === note
+              ? link.tail
+              : null;
+        const ref = (other as View | null)?.model
+          ? refOf((other as View).model!)
+          : undefined;
+        return ref === undefined ? [] : [ref];
+      });
+      return { text: str(note.text), on };
+    });
+  }
+}
+
+/** The views in `view`'s compartments and theirs, depth first. */
+function subViews(view: View): View[] {
+  return view.subViews.flatMap((v) => [v, ...subViews(v)]);
 }
 
 const ends = (edge: View) => ({
@@ -269,6 +314,12 @@ function classSpec(v: Views): ClassSpec {
     }
   }
   return { packages: packages.map(nameOf), classes, relations };
+}
+
+function classNotes(v: Views): NoteSpec[] {
+  return v.linkedNotes((m) =>
+    m instanceof type.UMLClassifier ? nameOf(m) : undefined,
+  );
 }
 
 /** The relation build_diagram would make this association from. */
@@ -334,10 +385,36 @@ function sequenceSpec(v: Views): SequenceSpec {
       continue;
     }
     const operands = list(m.operands).map((o) => str(o.guard));
+    // Operand views exist once the fragment has been drawn. Drawing stacks
+    // them by height below the first (_carryOnOperandViews in the 7.1.1
+    // uml elements.js), so each top follows from the heights above it.
+    const operandViews = subViews(view)
+      .filter((s) => s instanceof type.UMLInteractionOperandView)
+      .sort((a, b) => box(a).top - box(b).top);
+    const tops = operandViews
+      .slice(1)
+      .map(
+        (_, k) =>
+          box(operandViews[0]!).top +
+          operandViews
+            .slice(0, k + 1)
+            .reduce((sum, o) => sum + box(o).height, 0),
+      );
+    const starts = tops.map((top) =>
+      covered.find((i) => edgeY(messages[i]!) >= top),
+    );
+    const divided =
+      tops.length === operands.length - 1 &&
+      tops.length > 0 &&
+      starts.every(
+        (s, k) =>
+          s !== undefined && s > (k === 0 ? covered[0]! : starts[k - 1]!),
+      );
     fragments.push({
       operator: str(m.interactionOperator),
       ...(operands[0] && { guard: operands[0] }),
       operands: operands.slice(1),
+      ...(divided && { operandStarts: starts as number[] }),
       from: covered[0]!,
       to: covered.at(-1)!,
     });
@@ -356,6 +433,33 @@ function sequenceSpec(v: Views): SequenceSpec {
     // Outer fragments open first.
     fragments: fragments.sort((a, b) => a.from - b.from || b.to - a.to),
   };
+}
+
+/**
+ * Notes on a sequence diagram belong to the lifelines they overlap, and sit
+ * after the messages above them.
+ */
+function sequenceNotes(v: Views): NoteSpec[] {
+  const lifelines = v.nodes.filter((n) => typeOf(n.model!) === "UMLLifeline");
+  return v.notes.map((note) => {
+    const b = box(note);
+    const x = centre(note).x;
+    const over = lifelines.filter(
+      (l) => centre(l).x >= b.left && centre(l).x <= b.left + b.width,
+    );
+    const near = [...lifelines].sort(
+      (p, q) => Math.abs(centre(p).x - x) - Math.abs(centre(q).x - x),
+    )[0];
+    const on = over.length > 0 ? over : near ? [near] : [];
+    const side =
+      over.length > 0 ? "over" : near && x < centre(near).x ? "left" : "right";
+    return {
+      text: str(note.text),
+      on: on.map((l) => nameOf(l.model)),
+      ...(on.length > 0 && { side }),
+      at: v.edges.filter((e) => edgeY(e) < b.top).length,
+    };
+  });
 }
 
 const USECASE_RELATIONS: Record<string, string> = {
@@ -454,7 +558,7 @@ function flowGraph(
     }
     edges.push({ from: ids.get(tail)!, to: ids.get(head)!, edge: view.model! });
   }
-  return { nodes, edges };
+  return { nodes, edges, ids };
 }
 
 function activitySpec(v: Views): ActivitySpec {
@@ -490,9 +594,17 @@ function stateType(model: Element): string | undefined {
   return PSEUDO_KINDS.includes(kind) ? kind : "choice";
 }
 
-function stateSpec(v: Views): StateSpec {
-  const { nodes, edges } = flowGraph(v, stateType, ["UMLTransition"]);
+function stateSpec(v: Views): StateSpec & { ids: Map<Element, string> } {
+  const { nodes, edges, ids } = flowGraph(v, stateType, ["UMLTransition"]);
+  const models = new Map([...ids].map(([m, id]) => [id, m]));
+  // A nested vertex belongs to a region of its composite state.
+  for (const n of nodes) {
+    const owner = models.get(n.id)!._parent?._parent;
+    const parent = owner ? ids.get(owner) : undefined;
+    if (parent !== undefined) n.parent = parent;
+  }
   return {
+    ids,
     states: nodes,
     transitions: edges.map(({ from, to, edge }) => ({
       from,
@@ -581,6 +693,24 @@ function mindmapSpec(v: Views): { roots: MindNode[] } {
   return { roots: models.filter((m) => !hasParent.has(m)).map(tree) };
 }
 
+/**
+ * The composite state a transition is written in: the innermost one holding
+ * both its ends, undefined for the top level.
+ */
+export function scopeOf(spec: StateSpec) {
+  const parent = new Map(spec.states.map((s) => [s.id, s.parent]));
+  const chain = (id: string) => {
+    const out: string[] = [];
+    for (let p = parent.get(id); p !== undefined; p = parent.get(p))
+      out.push(p);
+    return out;
+  };
+  return (t: { from: string; to: string }): string | undefined => {
+    const outer = new Set(chain(t.to));
+    return chain(t.from).find((p) => outer.has(p));
+  };
+}
+
 /** The spec of `diagram`'s kind with a warning per kind of view left out. */
 export function extract(
   diagram: Element,
@@ -588,20 +718,31 @@ export function extract(
 ): { extracted: Extracted; warnings: string[] } {
   const nodes = nodeViews(diagram);
   const edges = edgeViews(diagram);
-  const v = new Views(nodes, edges);
+  const owned = diagram.ownedViews as View[];
+  const notes = owned.filter((n) => n instanceof type.UMLNoteView);
+  const links = owned.filter((n) => n instanceof type.UMLNoteLinkView);
+  const noted =
+    kind === "class" || kind === "sequence" || kind === "statemachine";
+  const v = new Views(nodes, edges, noted ? notes : [], links);
+  if (!noted && notes.length > 0) {
+    v.skipped.set("UMLNote", notes.length);
+  }
   const direction = flowDirection(edges);
   const extracted: Extracted = (() => {
     switch (kind) {
       case "class":
-        return { kind, spec: classSpec(v) };
+        return { kind, spec: classSpec(v), notes: classNotes(v) };
       case "sequence":
-        return { kind, spec: sequenceSpec(v) };
+        return { kind, spec: sequenceSpec(v), notes: sequenceNotes(v) };
       case "usecase":
         return { kind, spec: usecaseSpec(v), direction };
       case "activity":
         return { kind, spec: activitySpec(v), direction };
-      case "statemachine":
-        return { kind, spec: stateSpec(v), direction };
+      case "statemachine": {
+        const { ids, ...spec } = stateSpec(v);
+        const notes = v.linkedNotes((m) => ids.get(m));
+        return { kind, spec, direction, notes };
+      }
       case "erd":
         return { kind, spec: erdSpec(v) };
       case "flowchart":

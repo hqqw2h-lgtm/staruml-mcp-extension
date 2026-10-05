@@ -23,15 +23,17 @@
 
 import { ApiError } from "../errors.js";
 import { isOperation, multiline } from "./members.js";
-import type { Direction, Kind } from "./spec.js";
+import type { Direction, Kind, ViewStyle } from "./spec.js";
 
 /*
  * A Mermaid front end for /build_diagram: each supported diagram type is
  * read into the JSON spec of a kind, so names, line breaks and layout are
  * ours rather than the built-in generate_diagram's. Syntax follows
  * mermaid.js.org/syntax (classDiagram, sequenceDiagram, flowchart,
- * erDiagram, stateDiagram, mindmap); what a StarUML diagram cannot show (styles,
- * notes, click handlers, activations) is skipped.
+ * erDiagram, stateDiagram, mindmap). Notes become UMLNotes, and the fill,
+ * stroke and color of classDef, class, ::: and style become view colours;
+ * what a StarUML diagram cannot show (other CSS, click handlers,
+ * activations) is skipped.
  */
 
 export interface Parsed {
@@ -79,6 +81,106 @@ export function preprocess(source: string): { title?: string; lines: Line[] } {
 }
 
 const unquote = (s: string) => s.trim().replace(/^"(.*)"$/, "$1");
+
+const CSS: Record<string, keyof ViewStyle> = {
+  fill: "fillColor",
+  stroke: "lineColor",
+  color: "fontColor",
+};
+
+/** The colours of a CSS list such as "fill:#f9f,stroke:#333,stroke-width:4px". */
+function cssColors(css: string): ViewStyle {
+  const style: ViewStyle = {};
+  for (const part of css.split(/[,;]/)) {
+    const [key, value] = part.split(":").map((p) => p.trim());
+    const field = CSS[key!];
+    if (field && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value ?? "")) {
+      style[field] = value!;
+    }
+  }
+  return style;
+}
+
+/**
+ * classDef, class, ::: and style statements, resolved at the end since a
+ * class may be defined after it is used. classDef default styles every node
+ * no class was given to, as in Mermaid.
+ */
+class Styles {
+  private readonly defs = new Map<string, ViewStyle>();
+  private readonly classes = new Map<string, string[]>();
+  private readonly inline = new Map<string, ViewStyle>();
+
+  /** Reads a classDef, class or style line; false for any other line. */
+  line(text: string): boolean {
+    let m: RegExpExecArray | null;
+    if ((m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text))) {
+      for (const name of m[1]!.split(","))
+        this.defs.set(name, cssColors(m[2]!));
+    } else if (
+      (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text))
+    ) {
+      for (const id of m[1]!.split(",")) this.use(id.trim(), m[2]!);
+    } else if ((m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text))) {
+      this.inline.set(m[1]!, {
+        ...this.inline.get(m[1]!),
+        ...cssColors(m[2]!),
+      });
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  use(id: string, cls: string): void {
+    this.classes.set(id, [...(this.classes.get(id) ?? []), cls]);
+  }
+
+  /** Strips a trailing :::class from `ref`, recording it for the id. */
+  suffix(ref: string): string {
+    const m = /^(.*?):::([\w-]+)$/.exec(ref.trim());
+    if (!m) return ref.trim();
+    this.use(m[1]!, m[2]!);
+    return m[1]!;
+  }
+
+  /** Colours by spec key, for the node ids `keyOf` knows. */
+  resolve(
+    ids: readonly string[],
+    keyOf: (id: string) => string,
+  ): Record<string, ViewStyle> | undefined {
+    const out: Record<string, ViewStyle> = {};
+    for (const id of ids) {
+      const classes = this.classes.get(id) ?? ["default"];
+      const style = Object.assign(
+        {},
+        ...classes.map((c) => this.defs.get(c)),
+        this.inline.get(id),
+      ) as ViewStyle;
+      if (Object.keys(style).length > 0) out[keyOf(id)] = style;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }
+}
+
+interface Note {
+  text: string;
+  on?: string[];
+  side?: "left" | "right" | "over";
+  at?: number;
+}
+
+/** A note's lines up to "end note", for the multi-line form. */
+function noteBody(lines: Line[], from: number): { text: string; next: number } {
+  const body: string[] = [];
+  let i = from;
+  for (; i < lines.length && !/^end\s*note$/i.test(lines[i]!.text); i++) {
+    body.push(lines[i]!.text);
+  }
+  if (i === lines.length)
+    fail(lines[from - 1]!.no, "note is never closed with end note");
+  return { text: body.join("\n"), next: i + 1 };
+}
 
 /** A `title ...` line, which several Mermaid diagram types accept. */
 function takeTitle(lines: Line[]): string | undefined {
@@ -129,6 +231,8 @@ function classDiagram(lines: Line[]): Record<string, unknown> {
   const classes = new Map<string, ClassEntry>();
   const packages: string[] = [];
   const relations: { from: string; to: string; [k: string]: unknown }[] = [];
+  const notes: Note[] = [];
+  const styles = new Styles();
   let namespace: string | undefined;
   const entry = (name: string) => {
     const key = name.replace(/~.*~$/, "");
@@ -161,11 +265,20 @@ function classDiagram(lines: Line[]): Record<string, unknown> {
     }
     let m: RegExpExecArray | null;
     if (
-      (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(\{)?\s*$/.exec(text))
+      (m =
+        /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(?::::([\w-]+))?\s*(\{)?\s*$/.exec(
+          text,
+        ))
     ) {
       const e = entry(m[1]!);
       if (m[2] !== undefined) e.name = multiline(m[2]);
-      if (m[3]) open = e;
+      if (m[3]) styles.use(m[1]!.replace(/~.*~$/, ""), m[3]);
+      if (m[4]) open = e;
+    } else if ((m = /^note\s+(?:for\s+([\w.]+)\s+)?"(.*)"$/.exec(text))) {
+      if (m[1] !== undefined) entry(m[1]);
+      notes.push({ text: m[2]!, ...(m[1] !== undefined && { on: [m[1]] }) });
+    } else if (styles.line(text)) {
+      // classDef, cssClass and style
     } else if ((m = /^namespace\s+([\w.]+)\s*\{$/.exec(text))) {
       namespace = m[1]!;
       if (!packages.includes(namespace)) packages.push(namespace);
@@ -191,17 +304,21 @@ function classDiagram(lines: Line[]): Record<string, unknown> {
       });
     } else if ((m = /^([\w.]+)\s*:\s*(.+)$/.exec(text))) {
       member(entry(m[1]!), m[2]!.trim());
-    } else if (
-      !/^(direction\s|note\b|style\b|classDef\b|cssClass\b|click\b|link\b|callback\b|})/.test(
-        text,
-      )
-    ) {
+    } else if (!/^(direction\s|click\b|link\b|callback\b|})/.test(text)) {
       fail(no, `cannot read "${text}"`);
     }
   }
   const nameOf = (key: string) => classes.get(key)!.name;
+  const colors = styles.resolve([...classes.keys()], nameOf);
   return {
     ...(packages.length > 0 && { packages }),
+    ...(notes.length > 0 && {
+      notes: notes.map((n) => ({
+        ...n,
+        ...(n.on && { on: n.on.map(nameOf) }),
+      })),
+    }),
+    ...(colors && { styles: colors }),
     classes: [...classes.values()].map((e) => ({
       name: e.name,
       ...(e.kind && { kind: e.kind }),
@@ -239,12 +356,16 @@ function sequenceDiagram(lines: Line[]): Record<string, unknown> {
   const aliases = new Map<string, string>();
   const messages: Record<string, unknown>[] = [];
   const fragments: Record<string, unknown>[] = [];
+  const notes: Note[] = [];
   const open: {
     operator: string;
+    /** rect or box, which group messages without a fragment. */
+    block?: string;
     guard?: string;
     from: number;
     no: number;
     operands: string[];
+    starts: number[];
   }[] = [];
   const who = (id: string) => aliases.get(id.trim()) ?? id.trim();
   for (const { no, text } of lines) {
@@ -268,21 +389,50 @@ function sequenceDiagram(lines: Line[]): Record<string, unknown> {
         from: messages.length,
         no,
         operands: [],
+        starts: [],
+      });
+    } else if ((m = /^(rect|box)\b/.exec(text))) {
+      // Highlighting and grouping; their end closes nothing StarUML draws.
+      open.push({
+        operator: "",
+        block: m[1]!,
+        from: 0,
+        no,
+        operands: [],
+        starts: [],
       });
     } else if ((m = /^(else|and|option)\b\s*(.*)$/.exec(text))) {
       const f = open.at(-1) ?? fail(no, `${m[1]} outside a block`);
       f.operands.push(m[2] || m[1]!);
+      f.starts.push(messages.length);
     } else if (text === "end") {
       const f = open.pop() ?? fail(no, "end without a block");
-      if (messages.length > f.from) {
+      const to = messages.length - 1;
+      if (f.operator && to >= f.from) {
+        // An operand without messages of its own has no place to start, and
+        // StarUML then divides the fragment evenly.
+        const divided = f.starts.every(
+          (s, i) => s > (i === 0 ? f.from : f.starts[i - 1]!) && s <= to,
+        );
         fragments.push({
           operator: f.operator,
           ...(f.guard && { guard: f.guard }),
           ...(f.operands.length > 0 && { operands: f.operands }),
+          ...(f.starts.length > 0 && divided && { operandStarts: f.starts }),
           from: f.from,
-          to: messages.length - 1,
+          to,
         });
       }
+    } else if (
+      (m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:\s*(.*)$/i.exec(text))
+    ) {
+      const side = m[1]!.toLowerCase().split(" ")[0] as Note["side"];
+      notes.push({
+        text: m[3]!,
+        on: m[2]!.split(",").map(who),
+        side,
+        at: messages.length,
+      });
     } else if ((m = MESSAGE.exec(text))) {
       const kind = MESSAGE_ARROWS.find(([a]) => a === m![2])![1];
       messages.push({
@@ -292,16 +442,22 @@ function sequenceDiagram(lines: Line[]): Record<string, unknown> {
         ...(m[5] !== undefined && { text: m[5].trim() }),
       });
     } else if (
-      !/^(autonumber|activate|deactivate|note\b|Note\b|rect\b|box\b|destroy\b|link\b|links\b)/.test(
-        text,
-      )
+      !/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text)
     ) {
       fail(no, `cannot read "${text}"`);
     }
   }
   if (open.length > 0)
-    fail(open.at(-1)!.no, `${open.at(-1)!.operator} is never closed with end`);
-  return { participants, messages, fragments };
+    fail(
+      open.at(-1)!.no,
+      `${open.at(-1)!.block ?? open.at(-1)!.operator} is never closed with end`,
+    );
+  return {
+    participants,
+    messages,
+    fragments,
+    ...(notes.length > 0 && { notes }),
+  };
 }
 
 // ---------------------------------------------------------------- flowchart
@@ -336,7 +492,9 @@ function flowchart(lines: Line[]): {
   direction?: Direction;
   nodes: FlowNode[];
   flows: { from: string; to: string; label?: string }[];
+  styles: Styles;
 } {
+  const styles = new Styles();
   const nodes = new Map<string, FlowNode>();
   const flows: { from: string; to: string; label?: string }[] = [];
   let direction: Direction | undefined;
@@ -347,7 +505,7 @@ function flowchart(lines: Line[]): {
 
   /** Reads one node reference at the start of `rest`; returns its id and the remainder. */
   const node = (rest: string, no: number): [string, string] => {
-    const id = /^[\w.][\w.-]*?(?=$|[\s[({>&]|--|==|-\.)/.exec(rest)?.[0];
+    const id = /^[\w.][\w.-]*?(?=$|[\s[({>&]|--|==|-\.|:::)/.exec(rest)?.[0];
     if (!id) return fail(no, `expected a node at "${rest}"`);
     let after = rest.slice(id.length);
     let shape: string | undefined;
@@ -361,6 +519,11 @@ function flowchart(lines: Line[]): {
         after = after.slice(end + close.length);
         break;
       }
+    }
+    const cls = /^:::([\w-]+)/.exec(after);
+    if (cls) {
+      styles.use(id, cls[1]!);
+      after = after.slice(cls[0].length);
     }
     const existing = nodes.get(id);
     if (!existing) {
@@ -387,9 +550,7 @@ function flowchart(lines: Line[]): {
       if (lanes.pop() === undefined) fail(no, "end without a subgraph");
       continue;
     }
-    if (
-      /^(direction\s|classDef\b|class\s|style\b|linkStyle\b|click\b)/.test(text)
-    )
+    if (styles.line(text) || /^(direction\s|linkStyle\b|click\b)/.test(text))
       continue;
     let [from, rest] = node(text, no);
     while (rest) {
@@ -404,16 +565,26 @@ function flowchart(lines: Line[]): {
   }
   if (lanes.length > 0)
     fail(lines.at(-1)!.no, "subgraph is never closed with end");
-  return { ...(direction && { direction }), nodes: [...nodes.values()], flows };
+  return {
+    ...(direction && { direction }),
+    nodes: [...nodes.values()],
+    flows,
+    styles,
+  };
 }
 
 function flowchartSpec(lines: Line[]) {
-  const { direction, nodes, flows } = flowchart(lines);
+  const { direction, nodes, flows, styles } = flowchart(lines);
+  const colors = styles.resolve(
+    nodes.map((n) => n.id),
+    (id) => id,
+  );
   return {
     ...(direction && { direction }),
     spec: {
       nodes: nodes.map((n) => ({ id: n.id, name: n.name, shape: n.shape })),
       flows,
+      ...(colors && { styles: colors }),
     },
   };
 }
@@ -427,7 +598,11 @@ function flowchartSpec(lines: Line[]) {
  * link labels guards.
  */
 function activitySpec(lines: Line[]) {
-  const { direction, nodes, flows } = flowchart(lines);
+  const { direction, nodes, flows, styles } = flowchart(lines);
+  const colors = styles.resolve(
+    nodes.map((n) => n.id),
+    (id) => id,
+  );
   const count = (id: string, end: "from" | "to") =>
     flows.filter((f) => f[end] === id).length;
   const type = (n: FlowNode) => {
@@ -466,6 +641,7 @@ function activitySpec(lines: Line[]) {
         to: f.to,
         ...(f.label && { guard: f.label }),
       })),
+      ...(colors && { styles: colors }),
     },
   };
 }
@@ -477,9 +653,13 @@ function activitySpec(lines: Line[]) {
  * relationship, other links associations.
  */
 function usecaseSpec(lines: Line[]) {
-  const { direction, nodes, flows } = flowchart(lines);
+  const { direction, nodes, flows, styles } = flowchart(lines);
   const round = new Set(["connector", "alternate", "terminator"]);
   const names = new Map(nodes.map((n) => [n.id, n.name]));
+  const colors = styles.resolve(
+    nodes.map((n) => n.id),
+    (id) => names.get(id)!,
+  );
   const system = nodes.find((n) => n.lane)?.lane;
   return {
     ...(direction && { direction }),
@@ -505,6 +685,7 @@ function usecaseSpec(lines: Line[]) {
           ...(type === "association" && f.label && { name: f.label }),
         };
       }),
+      ...(colors && { styles: colors }),
     },
   };
 }
@@ -587,31 +768,61 @@ function erDiagram(lines: Line[]): Record<string, unknown> {
 
 // ---------------------------------------------------------------- state
 
+/**
+ * States are keyed by their Mermaid id. A state X { ... } block makes X a
+ * composite state and every state first named inside it a nested one; [*]
+ * inside a block is that block's own initial or final state.
+ */
 function stateDiagram(lines: Line[]): Record<string, unknown> {
   const states = new Map<string, Record<string, unknown>>();
   const transitions: Record<string, unknown>[] = [];
+  const notes: Note[] = [];
+  const styles = new Styles();
+  const blocks: string[] = [];
   let starts = 0;
   let ends = 0;
-  const state = (id: string, side: "from" | "to") => {
+  const declare = (id: string, fields: Record<string, unknown>) => {
+    const known = states.get(id);
+    if (known) {
+      Object.assign(known, fields);
+      return;
+    }
+    states.set(id, {
+      id,
+      ...fields,
+      ...(blocks.length > 0 && { parent: blocks.at(-1)! }),
+    });
+  };
+  const state = (ref: string, side: "from" | "to") => {
+    const id = styles.suffix(ref);
     if (id === "[*]") {
       const key =
         side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends}`;
-      states.set(key, { id: key, type: side === "from" ? "initial" : "final" });
+      declare(key, { type: side === "from" ? "initial" : "final" });
       return key;
     }
-    if (!states.has(id)) states.set(id, { id, name: id });
+    if (!states.has(id)) declare(id, { name: id });
     return id;
   };
-  for (const { no, text } of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const { no, text } = lines[i]!;
     let m: RegExpExecArray | null;
-    if ((m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text))) {
-      states.set(m[2]!, { id: m[2]!, name: multiline(m[1]!) });
+    if ((m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text))) {
+      // state "Name" as X may come first, naming X before its block.
+      const named = m[1] !== undefined || !states.has(m[2]!);
+      declare(m[2]!, named ? { name: multiline(m[1] ?? m[2]!) } : {});
+      blocks.push(m[2]!);
+    } else if (text === "}") {
+      if (blocks.pop() === undefined) fail(no, "} without a state block");
+    } else if ((m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text))) {
+      declare(m[2]!, { name: multiline(m[1]!) });
     } else if ((m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text))) {
-      states.set(m[1]!, { id: m[1]!, type: m[2]! });
+      declare(m[1]!, { type: m[2]! });
     } else if (
-      (m = /^(\[\*\]|[\w-]+)\s*-->\s*(\[\*\]|[\w-]+)\s*(?::\s*(.*))?$/.exec(
-        text,
-      ))
+      (m =
+        /^(\[\*\]|[\w-]+(?::::[\w-]+)?)\s*-->\s*(\[\*\]|[\w-]+(?::::[\w-]+)?)\s*(?::\s*(.*))?$/.exec(
+          text,
+        ))
     ) {
       const from = state(m[1]!, "from");
       const to = state(m[2]!, "to");
@@ -624,19 +835,41 @@ function stateDiagram(lines: Line[]): Record<string, unknown> {
         ...(trigger && { trigger }),
         ...(guard && { guard: guard[1] }),
       });
-    } else if ((m = /^([\w-]+)\s*:\s*(.+)$/.exec(text))) {
+    } else if (
+      (m = /^note\s+(left|right)\s+of\s+([\w-]+)\s*(?::\s*(.*))?$/i.exec(text))
+    ) {
+      let body = m[3];
+      if (body === undefined) {
+        const read = noteBody(lines, i + 1);
+        body = read.text;
+        i = read.next - 1;
+      }
+      state(m[2]!, "to");
+      notes.push({ text: body, on: [m[2]!] });
+    } else if (styles.line(text)) {
+      // classDef, class and style
+    } else if ((m = /^([\w-]+)\s*:(?!::)\s*(.+)$/.exec(text))) {
       state(m[1]!, "to");
       states.get(m[1]!)!.name = multiline(m[2]!);
     } else if (
       (m = /^state\s+([\w-]+)$/.exec(text)) ||
-      (m = /^(\w[\w-]*)$/.exec(text))
+      (m = /^(\w[\w-]*(?::::[\w-]+)?)$/.exec(text))
     ) {
       state(m[1]!, "to");
-    } else if (!/^(direction\s|note\b|classDef\b|class\s|--$)/.test(text)) {
+    } else if (!/^(direction\s|--$)/.test(text)) {
       fail(no, `cannot read "${text}"`);
     }
   }
-  return { states: [...states.values()], transitions };
+  if (blocks.length > 0) {
+    fail(lines.at(-1)!.no, `state ${blocks.at(-1)} is never closed with }`);
+  }
+  const colors = styles.resolve([...states.keys()], (id) => id);
+  return {
+    states: [...states.values()],
+    transitions,
+    ...(notes.length > 0 && { notes }),
+    ...(colors && { styles: colors }),
+  };
 }
 
 // ---------------------------------------------------------------- mindmap

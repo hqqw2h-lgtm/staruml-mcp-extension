@@ -25,10 +25,11 @@ import * as z from "zod/mini";
 import { diagramOf } from "../create.js";
 import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
-import { requireDiagram, requireView } from "../lookup.js";
+import { requireDiagram, requireElement, requireView } from "../lookup.js";
 import { elementSchema, id, projectionShape } from "../schemas.js";
 import { serialize, type Projection } from "../serialize.js";
 import type { Element, View } from "../types.js";
+import { created, createdSchema } from "./elements.js";
 
 /** EdgeView.LS_* in core/core.js (7.1.1). */
 export const LINE_STYLES = {
@@ -382,14 +383,119 @@ export const moveViews = defineEndpoint({
     ids: viewIds(),
     dx: doc(z.number(), "Horizontal offset in diagram units."),
     dy: doc(z.number(), "Vertical offset in diagram units."),
+    containerViewId: z.optional(
+      id(
+        "Also put the views inside this view and their models inside its model, as dropping them on it does: states in a composite state (its region), classes in a package.",
+      ),
+    ),
     ...projectionShape(),
   }),
   response: viewsResult(),
   handle: (input) => {
     const { views, diagram } = requireViewsOnOneDiagram(input.ids);
     const editor = editorShowing(diagram);
-    inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
+    if (input.containerViewId === undefined) {
+      inStarUML(() => app.engine.moveViews(editor, views, input.dx, input.dy));
+    } else {
+      const container = requireView(input.containerViewId, "Container view");
+      if (diagramOf(container) !== diagram) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `View ${container._id} is not on diagram ${diagram._id}`,
+        );
+      }
+      // Compartments such as a composite state's regions get their views
+      // when the diagram is drawn (UMLListCompartmentView.update).
+      app.diagrams.repaint();
+      const target = containerFor(container, views);
+      if (!target) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${container.constructor.name} ${container._id} cannot contain ${[...new Set(views.map((v) => v.constructor.name))].join(", ")}`,
+        );
+      }
+      inStarUML(() =>
+        app.engine.moveViewsChangingContainer(
+          editor,
+          views,
+          input.dx,
+          input.dy,
+          target,
+          target.model,
+        ),
+      );
+    }
     return viewsResponse(diagram, views, projectionOr(input, GEOMETRY));
+  },
+});
+
+/**
+ * `view`, or the first of its sub views depth first, that can contain every
+ * one of `views`: a composite state holds states in its region's view.
+ */
+function containerFor(view: View, views: readonly View[]): View | null {
+  if (views.every((v) => view.canContainView(v))) return view;
+  for (const sub of view.subViews) {
+    const found = containerFor(sub, views);
+    if (found) return found;
+  }
+  return null;
+}
+
+function subViewsOf(view: View): View[] {
+  return view.subViews.flatMap((v) => [v, ...subViewsOf(v)]);
+}
+
+export const divideFragment = defineEndpoint({
+  path: "/divide_fragment",
+  description:
+    "Set where each operand of a combined fragment (alt, par, ...) begins, instead of the equal split StarUML gives operands, as one undoable operation.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    id: id("Combined fragment view id."),
+    at: doc(
+      z.array(z.number()).check(z.minLength(1)),
+      "Diagram y of the top of each operand after the first, increasing, inside the fragment.",
+    ),
+    ...projectionShape(),
+  }),
+  response: viewsResult(),
+  handle: (input) => {
+    const view = requireView(input.id);
+    const diagram = diagramOf(view)!;
+    editorShowing(diagram);
+    // Operand views are made when the fragment is drawn, and drawing places
+    // the first one below the operator tab.
+    app.diagrams.repaint();
+    const box = (v: View) => v as unknown as Record<string, number>;
+    const operands = subViewsOf(view)
+      .filter((v) => v instanceof type.UMLInteractionOperandView)
+      .sort((a, b) => box(a).top! - box(b).top!);
+    if (operands.length !== input.at.length + 1) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `at: ${view._id} has ${operands.length} operand views, so it takes ${Math.max(0, operands.length - 1)} boundaries`,
+      );
+    }
+    const bottom = box(view).top! + box(view).height!;
+    const tops = [box(operands[0]!).top!, ...input.at, bottom];
+    if (tops.some((t, i) => i > 0 && t <= tops[i - 1]!)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `at: boundaries must increase from ${tops[0]} to below ${bottom}`,
+      );
+    }
+    // UMLCombinedFragmentView stacks its operands by their heights and
+    // stretches the last one to its bottom (_carryOnOperandViews).
+    const builder = app.repository.getOperationBuilder();
+    builder.begin("divide fragment");
+    operands.forEach((v, i) =>
+      builder.fieldAssign(v, "height", tops[i + 1]! - tops[i]!),
+    );
+    builder.end();
+    inStarUML(() => app.repository.doOperation(builder.getOperation()));
+    return viewsResponse(diagram, operands, projectionOr(input, GEOMETRY));
   },
 });
 
@@ -535,5 +641,75 @@ export const setZOrder = defineEndpoint({
     builder.end();
     inStarUML(() => app.repository.doOperation(builder.getOperation()));
     return { diagram: diagram._id, order: owned.map((v) => v._id) };
+  },
+});
+
+/** The ends of a relationship, which must be shown before it can be. */
+function endsOf(model: Element): Element[] {
+  if (model instanceof type.DirectedRelationship) {
+    return [model.source as Element, model.target as Element];
+  }
+  if (model instanceof type.UndirectedRelationship) {
+    return [
+      (model.end1 as Element).reference as Element,
+      (model.end2 as Element).reference as Element,
+    ];
+  }
+  return [];
+}
+
+export const createViewOf = defineEndpoint({
+  path: "/create_view_of",
+  description:
+    "Show an existing model element on a diagram, as dragging it from the model explorer does: StarUML also draws its relationships to elements already shown there. An element already on the diagram answers its view unchanged; a relationship needs both ends shown.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    modelId: id("Model element id."),
+    diagramId: id("Diagram to show it on."),
+    x: z.optional(doc(z.number(), "Left edge, default 100.")),
+    y: z.optional(doc(z.number(), "Top edge, default 100.")),
+    ...projectionShape(),
+  }),
+  response: createdSchema(),
+  handle: (input) => {
+    const model = requireElement(input.modelId, "Model");
+    if (model instanceof type.View || model instanceof type.Diagram) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${input.modelId} is a ${model.constructor.name}, not a model element`,
+      );
+    }
+    const diagram = requireDiagram(input.diagramId);
+    const shown = (m: Element) =>
+      (diagram.ownedViews as View[]).find((v) => v.model === m);
+    const existing = shown(model);
+    if (existing) return created(existing, input);
+    for (const end of endsOf(model)) {
+      if (!shown(end)) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${end.constructor.name} ${end._id} at an end of ${input.modelId} is not on the diagram; show it first`,
+        );
+      }
+    }
+    const editor = editorShowing(diagram);
+    const view =
+      inStarUML(() =>
+        app.factory.createViewOf({
+          model,
+          diagram,
+          x: input.x ?? 100,
+          y: input.y ?? 100,
+          editor,
+        }),
+      ) ?? shown(model);
+    if (!view) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `StarUML cannot show a ${model.constructor.name} on a ${diagram.constructor.name}`,
+      );
+    }
+    return created(view, input);
   },
 });

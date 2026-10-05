@@ -3,6 +3,8 @@ import { createDiagram } from "../../../src/handlers/diagrams.js";
 import { createElementWithView } from "../../../src/handlers/elements.js";
 import { createEdgeWithView } from "../../../src/handlers/relationships.js";
 import {
+  createViewOf,
+  divideFragment,
   layoutDiagram,
   moveViews,
   resizeNode,
@@ -480,5 +482,224 @@ describe("/set_z_order", () => {
       position: "front",
     });
     expect(data.order[0]).toBe(a);
+  });
+});
+
+// Issue #19: containment, operand boundaries and views of existing models.
+describe("/move_views into a container", () => {
+  async function stateDiagram() {
+    const d = await ok<{ _id: string }>(createDiagram, {
+      type: "UMLStatechartDiagram",
+      parentId: env.model._id,
+    });
+    const state = (type: string, x: number) =>
+      ok<Created>(createElementWithView, {
+        type,
+        diagramId: d._id,
+        x,
+        y: 100,
+        x2: x + 200,
+        y2: 300,
+      });
+    return {
+      d,
+      outer: await state("UMLCompositeState", 0),
+      inner: await state("UMLState", 20),
+    };
+  }
+
+  it("puts views in the region of a composite state, and models in it", async () => {
+    const { outer, inner } = await stateDiagram();
+    const data = await ok<{ views: { _id: string }[] }>(moveViews, {
+      ids: [inner.view._id],
+      dx: 0,
+      dy: 0,
+      containerViewId: outer.view._id,
+    });
+    expect(data.views[0]!._id).toBe(inner.view._id);
+    const region = view(inner.view._id).containerView as MockElement;
+    expect(region.constructor.name).toBe("UMLRegionView");
+    expect(view(inner.model._id)._parent).toBe(region.model);
+  });
+
+  it("refuses a container on another diagram or one that cannot hold the views", async () => {
+    const { outer, inner } = await stateDiagram();
+    const a = await classView("A");
+    await fails(
+      moveViews,
+      { ids: [a.view._id], dx: 0, dy: 0, containerViewId: outer.view._id },
+      "INVALID_ARGUMENT",
+      `View ${outer.view._id} is not on diagram ${env.mainDiagram._id}`,
+    );
+    await fails(
+      moveViews,
+      { ids: [outer.view._id], dx: 0, dy: 0, containerViewId: inner.view._id },
+      "INVALID_ARGUMENT",
+      `UMLStateView ${inner.view._id} cannot contain UMLStateView`,
+    );
+    await fails(
+      moveViews,
+      { ids: [outer.view._id], dx: 0, dy: 0, containerViewId: "nope" },
+      "NOT_FOUND",
+    );
+  });
+});
+
+describe("/divide_fragment", () => {
+  async function fragment(operands: number) {
+    const d = await ok<{ _id: string }>(createDiagram, {
+      type: "UMLSequenceDiagram",
+      parentId: env.model._id,
+    });
+    const f = await ok<Created>(createElementWithView, {
+      type: "UMLCombinedFragment",
+      diagramId: d._id,
+      x: 0,
+      y: 100,
+      x2: 300,
+      y2: 400,
+    });
+    for (let i = 1; i < operands; i++) {
+      view(f.model._id).operands = [
+        ...(view(f.model._id).operands as MockElement[]),
+        create("UMLInteractionOperand"),
+      ];
+    }
+    return f;
+  }
+
+  it("sizes each operand to end where the next begins", async () => {
+    const f = await fragment(3);
+    const data = await ok<{ views: { top: number; height: number }[] }>(
+      divideFragment,
+      { id: f.view._id, at: [200, 300] },
+    );
+    expect(data.views.map((v) => v.height)).toEqual([75, 100, 100]);
+    expect(env.app.repository._undoStack.size()).toBeGreaterThan(0);
+  });
+
+  it("refuses a boundary count that does not match, or boundaries out of order", async () => {
+    const f = await fragment(2);
+    await fails(
+      divideFragment,
+      { id: f.view._id, at: [200, 250] },
+      "INVALID_ARGUMENT",
+      `at: ${f.view._id} has 2 operand views, so it takes 1 boundaries`,
+    );
+    await fails(
+      divideFragment,
+      { id: f.view._id, at: [450] },
+      "INVALID_ARGUMENT",
+      "at: boundaries must increase from 125 to below 400",
+    );
+    const a = await classView("A");
+    await fails(
+      divideFragment,
+      { id: a.view._id, at: [1] },
+      "INVALID_ARGUMENT",
+      `at: ${a.view._id} has 0 operand views, so it takes 0 boundaries`,
+    );
+  });
+});
+
+describe("/create_view_of", () => {
+  it("shows a model on another diagram with its relationships, once", async () => {
+    const a = await classView("A");
+    const b = await classView("B");
+    const rel = await ok<Created>(createEdgeWithView, {
+      type: "UMLDependency",
+      diagramId: env.mainDiagram._id,
+      tailViewId: a.view._id,
+      headViewId: b.view._id,
+    });
+    const other = await ok<{ _id: string }>(createDiagram, {
+      type: "UMLClassDiagram",
+      parentId: env.model._id,
+    });
+    const shownA = await ok<Created>(createViewOf, {
+      modelId: a.model._id,
+      diagramId: other._id,
+    });
+    expect(shownA.model._id).toBe(a.model._id);
+    await fails(
+      createViewOf,
+      { modelId: rel.model._id, diagramId: other._id },
+      "INVALID_ARGUMENT",
+      `UMLClass ${b.model._id} at an end of ${rel.model._id} is not on the diagram; show it first`,
+    );
+    const shownB = await ok<Created>(createViewOf, {
+      modelId: b.model._id,
+      diagramId: other._id,
+      x: 300,
+      y: 50,
+    });
+    expect(view(shownB.view._id)).toMatchObject({ left: 300, top: 50 });
+    // Showing B drew the dependency to A, which answers as already shown.
+    const edges = (view(other._id).ownedViews as MockElement[]).filter(
+      (v) => v.model === view(rel.model._id),
+    );
+    expect(edges).toHaveLength(1);
+    const again = await ok<Created>(createViewOf, {
+      modelId: rel.model._id,
+      diagramId: other._id,
+    });
+    expect(again.view._id).toBe(edges[0]!._id);
+  });
+
+  it("joins the ends of a relationship whose view is missing", async () => {
+    const a = await classView("A");
+    const b = await classView("B");
+    const rel = await ok<Created>(createEdgeWithView, {
+      type: "UMLAssociation",
+      diagramId: env.mainDiagram._id,
+      tailViewId: a.view._id,
+      headViewId: b.view._id,
+    });
+    const other = await ok<{ _id: string }>(createDiagram, {
+      type: "UMLClassDiagram",
+      parentId: env.model._id,
+    });
+    await ok(createViewOf, { modelId: a.model._id, diagramId: other._id });
+    // Drop the association StarUML drew with B, to show it again.
+    const shownB = await ok<Created>(createViewOf, {
+      modelId: b.model._id,
+      diagramId: other._id,
+    });
+    const diagram = view(other._id);
+    diagram.ownedViews = (diagram.ownedViews as MockElement[]).filter(
+      (v) => v.model !== view(rel.model._id),
+    );
+    const edge = await ok<Created>(createViewOf, {
+      modelId: rel.model._id,
+      diagramId: other._id,
+    });
+    expect(view(edge.view._id).head).toBe(view(shownB.view._id));
+  });
+
+  it("refuses views, diagrams and diagrams StarUML cannot show the model on", async () => {
+    const a = await classView("A");
+    await fails(
+      createViewOf,
+      { modelId: a.view._id, diagramId: env.mainDiagram._id },
+      "INVALID_ARGUMENT",
+      `${a.view._id} is a UMLClassView, not a model element`,
+    );
+    await fails(
+      createViewOf,
+      { modelId: env.mainDiagram._id, diagramId: env.mainDiagram._id },
+      "INVALID_ARGUMENT",
+    );
+    // Every 7.1.1 diagram type has a function; another extension's may not.
+    vi.spyOn(env.app.factory, "createViewOf").mockReturnValue(null);
+    const states = await ok<{ _id: string }>(createDiagram, {
+      type: "UMLStatechartDiagram",
+      parentId: env.model._id,
+    });
+    await fails(
+      createViewOf,
+      { modelId: a.model._id, diagramId: states._id },
+      "STARUML_ERROR",
+      "StarUML cannot show a UMLClass on a UMLStatechartDiagram",
+    );
   });
 });
