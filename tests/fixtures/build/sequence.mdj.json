@@ -1,0 +1,299 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Checkout",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLSequenceDiagram",
+   "name": "Checkout",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#5"
+     },
+     "left": 40,
+     "top": 20,
+     "width": 120,
+     "height": 540
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#7"
+     },
+     "left": 240,
+     "top": 20,
+     "width": 120,
+     "height": 540
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#9"
+     },
+     "left": 440,
+     "top": 20,
+     "width": 120,
+     "height": 540
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLCombinedFragmentView",
+     "model": {
+      "$ref": "#11"
+     },
+     "left": 210,
+     "top": 165,
+     "width": 380,
+     "height": 125
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLCombinedFragmentView",
+     "model": {
+      "$ref": "#13"
+     },
+     "left": 210,
+     "top": 340,
+     "width": 180,
+     "height": 75
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#15"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#17"
+     },
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#19"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#21"
+     },
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#23"
+     },
+     "head": {
+      "$ref": "#4"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLLifeline",
+   "name": "User",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLLifeline",
+   "name": "Shop",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLLifeline",
+   "name": "Bank",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLCombinedFragment",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "parameters": [],
+   "interactionOperator": "alt",
+   "operands": [
+    {
+     "_id": "#24",
+     "_type": "UMLInteractionOperand",
+     "name": "",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "funds ok"
+    }
+   ]
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLCombinedFragment",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "parameters": [],
+   "interactionOperator": "loop",
+   "operands": [
+    {
+     "_id": "#25",
+     "_type": "UMLInteractionOperand",
+     "name": "",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": ""
+    }
+   ]
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLMessage",
+   "name": "order()",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#17",
+   "_type": "UMLMessage",
+   "name": "charge()",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#19",
+   "_type": "UMLMessage",
+   "name": "ok",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#21",
+   "_type": "UMLMessage",
+   "name": "log()",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#23",
+   "_type": "UMLMessage",
+   "name": "done",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  }
+ ]
+}

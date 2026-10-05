@@ -1,0 +1,7 @@
+main.js
+main.js.map
+coverage/
+node_modules/
+package-lock.json
+# Golden files written by tests/unit/handlers/build.test.ts, compared byte for byte.
+tests/fixtures/build/*.mdj.json

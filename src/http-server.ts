@@ -1,125 +1,367 @@
+/*
+ * Copyright (c) 2026 Ezra Brilliant Konterliem
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+import { createHash, timingSafeEqual } from "node:crypto";
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { performance } from "node:perf_hooks";
+import { ERROR_STATUS, errorMessage, type ErrorBody } from "./errors.js";
+import { EXTENSION_NAME, EXTENSION_VERSION } from "./version.js";
 
-export type HandlerResult =
-  | { success: true; data?: unknown }
-  | { success: false; error: string };
+export type HandlerResult = { success: true; data?: unknown } | ErrorBody;
 
-export type Handler = (body: Record<string, unknown>) => Promise<HandlerResult> | HandlerResult;
+export type Handler = (
+  body: Record<string, unknown>,
+) => Promise<HandlerResult> | HandlerResult;
+
+export type LogLevel = "error" | "info" | "debug";
+export type Logger = (level: LogLevel, message: string) => void;
+
+/**
+ * Access rules and limits. Every member is called per request, so a
+ * preference change applies to the next request without a restart.
+ */
+export interface RequestPolicy {
+  maxBodyBytes(): number;
+  /** Bearer token every request must carry; empty for none. */
+  token(): string;
+  /** Origin header values let through; any other Origin is refused. */
+  allowedOrigins(): readonly string[];
+  /** How long a response may take before the client gets 504. */
+  timeoutMs(): number;
+  /** Seconds until `path` may be called again, or 0 when it may be now; counts the call when it is let through. */
+  throttle(path: string): number;
+}
+
+/** No access rules or limits; for tests and embedders that enforce their own. */
+export const UNLIMITED: RequestPolicy = {
+  maxBodyBytes: () => Number.POSITIVE_INFINITY,
+  token: () => "",
+  allowedOrigins: () => [],
+  timeoutMs: () => Number.POSITIVE_INFINITY,
+  throttle: () => 0,
+};
+
+/** Media types a body is accepted as: JSON, with parameters such as charset. */
+const JSON_TYPE = /^application\/json\s*(;|$)/i;
 
 export interface HttpServerOptions {
   port: number;
   host?: string;
-  handlers: Record<string, Handler>;
-  onLog?: (level: "info" | "error", message: string) => void;
+  handlers: Readonly<Record<string, Handler>>;
+  onLog?: Logger;
+  policy?: RequestPolicy;
+}
+
+type RequestListener = (
+  req: IncomingMessage,
+  res: ServerResponse,
+) => Promise<void>;
+
+/**
+ * Handlers and the JSON serialisation of their results run on the Electron
+ * renderer thread that also paints StarUML, so that span is reported as a
+ * Server-Timing metric (https://www.w3.org/TR/server-timing/) for the load test
+ * to hold against a budget. For an async handler it includes time spent awaiting.
+ */
+export function createRequestListener(
+  handlers: Readonly<Record<string, Handler>>,
+  log: Logger,
+  policy: RequestPolicy = UNLIMITED,
+): RequestListener {
+  return async (req, res) => {
+    // IncomingMessage.url is always set on requests produced by http.Server.
+    const path = req.url!.split("?")[0]!;
+    const received = performance.now();
+    res.on("finish", () =>
+      log(
+        "debug",
+        `[${EXTENSION_NAME}] ${req.method} ${path} ${res.statusCode} ${(performance.now() - received).toFixed(1)} ms`,
+      ),
+    );
+
+    // Browsers send Origin on cross-origin requests; scripts and the MCP
+    // server do not. A page on any site could otherwise reach this loopback
+    // port (the CORS simple-request rules let a text/plain POST through).
+    const origin = req.headers.origin;
+    if (origin !== undefined && !policy.allowedOrigins().includes(origin)) {
+      sendError(res, "FORBIDDEN_ORIGIN", `Origin ${origin} is not allowed`);
+      return;
+    }
+
+    const token = policy.token();
+    if (token && !bearerMatches(req.headers.authorization, token)) {
+      res.setHeader("WWW-Authenticate", 'Bearer realm="staruml"');
+      sendError(res, "UNAUTHORIZED", "Missing or wrong bearer token");
+      return;
+    }
+
+    if (req.method === "GET" && path === "/") {
+      sendJson(res, 200, {
+        name: EXTENSION_NAME,
+        version: EXTENSION_VERSION,
+        endpoints: Object.keys(handlers).sort(),
+      });
+      return;
+    }
+
+    if (req.method !== "POST") {
+      sendError(res, "METHOD_NOT_ALLOWED", `Method ${req.method} not allowed`);
+      return;
+    }
+
+    const handler = Object.hasOwn(handlers, path) ? handlers[path] : undefined;
+    if (!handler) {
+      sendError(res, "UNKNOWN_ENDPOINT", `No handler for ${path}`);
+      return;
+    }
+
+    // Also what makes a browser preflight a cross-origin POST, which the
+    // Origin check above then refuses.
+    if (!JSON_TYPE.test(req.headers["content-type"] ?? "")) {
+      sendError(
+        res,
+        "UNSUPPORTED_MEDIA_TYPE",
+        "Content-Type must be application/json",
+      );
+      return;
+    }
+
+    let raw: string;
+    try {
+      raw = await readBody(req, policy.maxBodyBytes());
+    } catch (err) {
+      if (err instanceof BodyTooLarge) {
+        // The rest of the body is drained, not read; closing keeps the
+        // client from reusing a connection with unread bytes on it.
+        res.setHeader("Connection", "close");
+        sendError(res, "PAYLOAD_TOO_LARGE", err.message);
+        return;
+      }
+      sendError(
+        res,
+        "BODY_READ_FAILED",
+        `Failed to read body: ${errorMessage(err)}`,
+      );
+      return;
+    }
+
+    let body: unknown;
+    try {
+      body = raw.length === 0 ? {} : JSON.parse(raw);
+    } catch (err) {
+      sendError(res, "INVALID_JSON", `Invalid JSON: ${errorMessage(err)}`);
+      return;
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      sendError(res, "INVALID_JSON", "Request body must be a JSON object");
+      return;
+    }
+
+    const retryAfter = policy.throttle(path);
+    if (retryAfter > 0) {
+      res.setHeader("Retry-After", String(retryAfter));
+      sendError(res, "RATE_LIMITED", `Too many calls to ${path}`);
+      return;
+    }
+
+    const started = performance.now();
+    try {
+      const result = await withTimeout(
+        Promise.resolve(handler(body as Record<string, unknown>)),
+        policy.timeoutMs(),
+      );
+      if (result === TIMED_OUT) {
+        sendError(
+          res,
+          "TIMEOUT",
+          `${path} did not answer within ${policy.timeoutMs()} ms; it may still complete`,
+        );
+        return;
+      }
+      const status = result.success ? 200 : ERROR_STATUS[result.code];
+      sendJson(res, status, result, started);
+    } catch (err) {
+      // The stack goes to StarUML's console only; responses never carry one.
+      log(
+        "error",
+        `[${EXTENSION_NAME}] handler ${path} threw: ${stackOf(err)}`,
+      );
+      const body: ErrorBody = {
+        success: false,
+        code: "INTERNAL",
+        error: errorMessage(err),
+      };
+      sendJson(res, 500, body, started);
+    }
+  };
+}
+
+/**
+ * Compares digests so the comparison takes the same time whatever the
+ * token's length or how much of it matches.
+ */
+function bearerMatches(header: string | undefined, token: string): boolean {
+  const match = /^Bearer (.+)$/i.exec(header ?? "");
+  if (!match) return false;
+  const digest = (text: string) => createHash("sha256").update(text).digest();
+  return timingSafeEqual(digest(match[1]!), digest(token));
+}
+
+const TIMED_OUT = Symbol("timed out");
+
+/**
+ * Handlers run on StarUML's renderer thread and cannot be cancelled; a
+ * timeout only answers the client. It can fire while a handler awaits
+ * (file export, commands), not during synchronous work.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+): Promise<T | typeof TIMED_OUT> {
+  if (!Number.isFinite(ms)) return promise;
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 export class ExtensionHttpServer {
   private server: http.Server | null = null;
   private readonly port: number;
   private readonly host: string;
-  private readonly handlers: Record<string, Handler>;
-  private readonly log: (level: "info" | "error", message: string) => void;
+  private readonly listener: RequestListener;
+  private readonly log: Logger;
 
   constructor(options: HttpServerOptions) {
     this.port = options.port;
+    // Loopback only: the endpoints mutate the open model and are unauthenticated.
     this.host = options.host ?? "127.0.0.1";
-    this.handlers = options.handlers;
     this.log = options.onLog ?? (() => {});
+    this.listener = createRequestListener(
+      options.handlers,
+      this.log,
+      options.policy,
+    );
+  }
+
+  /** Bound port, which differs from the configured one when that was 0. */
+  get address(): AddressInfo | null {
+    return this.server ? (this.server.address() as AddressInfo) : null;
   }
 
   start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const server = http.createServer((req, res) => this.handleRequest(req, res));
+      const server = http.createServer(
+        (req, res) => void this.listener(req, res),
+      );
       server.once("error", reject);
       server.listen(this.port, this.host, () => {
-        this.log("info", `[staruml-mcp-ext] HTTP server listening on http://${this.host}:${this.port}`);
+        server.off("error", reject);
         this.server = server;
+        const { port } = server.address() as AddressInfo;
+        this.log(
+          "info",
+          `[${EXTENSION_NAME}] listening on http://${this.host}:${port}`,
+        );
         resolve();
       });
     });
   }
 
   stop(): Promise<void> {
-    return new Promise((resolve) => {
-      if (!this.server) return resolve();
-      this.server.close(() => {
-        this.server = null;
-        resolve();
-      });
-    });
+    const server = this.server;
+    if (!server) return Promise.resolve();
+    this.server = null;
+    return new Promise((resolve) => server.close(() => resolve()));
   }
+}
 
-  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const url = req.url ?? "/";
+export class BodyTooLarge extends Error {
+  constructor(limit: number) {
+    super(
+      `Request body exceeds ${limit} bytes (preference mcp-ext.limits.maxBodyKiB)`,
+    );
+  }
+}
 
-    // GET / — health check
-    if (req.method === "GET" && url === "/") {
-      this.sendJson(res, 200, {
-        name: "staruml-mcp-extension",
-        version: "0.2.2",
-        endpoints: Object.keys(this.handlers).sort(),
-      });
+/** Counts bytes, not characters, so the limit means the same for any text. */
+function readBody(req: IncomingMessage, limit: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const declared = Number(req.headers["content-length"]);
+    if (declared > limit) {
+      req.resume();
+      reject(new BodyTooLarge(limit));
       return;
     }
+    const chunks: Buffer[] = [];
+    let size = 0;
+    const onData = (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > limit) {
+        req.off("data", onData);
+        req.resume();
+        reject(new BodyTooLarge(limit));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    req.on("data", onData);
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    req.on("error", reject);
+  });
+}
 
-    if (req.method !== "POST") {
-      this.sendJson(res, 405, { success: false, error: `Method ${req.method} not allowed` });
-      return;
-    }
+function sendError(
+  res: ServerResponse,
+  code: ErrorBody["code"],
+  error: string,
+): void {
+  const body: ErrorBody = { success: false, code, error };
+  sendJson(res, ERROR_STATUS[code], body);
+}
 
-    const slug = url.split("?")[0] ?? "";
-    const handler = this.handlers[slug];
-    if (!handler) {
-      this.sendJson(res, 404, { success: false, error: `No handler for ${slug}` });
-      return;
-    }
-
-    let body: Record<string, unknown> = {};
-    try {
-      const raw = await this.readBody(req);
-      body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-    } catch (err) {
-      this.sendJson(res, 400, {
-        success: false,
-        error: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      });
-      return;
-    }
-
-    try {
-      const result = await handler(body);
-      this.sendJson(res, result.success ? 200 : 400, result);
-    } catch (err) {
-      this.log(
-        "error",
-        `[staruml-mcp-ext] handler ${slug} threw: ${err instanceof Error ? err.stack : String(err)}`,
-      );
-      this.sendJson(res, 500, {
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+function sendJson(
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+  handlerStarted?: number,
+): void {
+  const text = JSON.stringify(body);
+  const headers: Record<string, string | number> = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": Buffer.byteLength(text),
+  };
+  if (handlerStarted !== undefined) {
+    const ms = performance.now() - handlerStarted;
+    headers["Server-Timing"] = `handler;dur=${ms.toFixed(3)}`;
   }
+  res.writeHead(status, headers);
+  res.end(text);
+}
 
-  private readBody(req: IncomingMessage): Promise<string> {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      req.setEncoding("utf-8");
-      req.on("data", (chunk: string) => {
-        data += chunk;
-      });
-      req.on("end", () => resolve(data));
-      req.on("error", reject);
-    });
-  }
-
-  private sendJson(res: ServerResponse, status: number, body: unknown): void {
-    const text = JSON.stringify(body);
-    res.writeHead(status, {
-      "Content-Type": "application/json; charset=utf-8",
-      "Content-Length": Buffer.byteLength(text),
-    });
-    res.end(text);
-  }
+function stackOf(err: unknown): string {
+  return err instanceof Error ? String(err.stack) : String(err);
 }

@@ -1,80 +1,101 @@
-import type { Handler } from "../http-server.js";
+/*
+ * Copyright (c) 2026 Ezra Brilliant Konterliem
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ */
 
-export const createDiagram: Handler = (body) => {
-  const typeName = body.type;
-  const parentId = body.parentId;
-  const name = typeof body.name === "string" ? body.name : undefined;
+import * as z from "zod/mini";
+import { defineEndpoint } from "../endpoint.js";
+import { ApiError, inStarUML } from "../errors.js";
+import { requireDiagram, requireElement } from "../lookup.js";
+import {
+  elementSchema,
+  id,
+  projectionShape,
+  text,
+  typeName,
+} from "../schemas.js";
+import { serialize } from "../serialize.js";
+import type { Element } from "../types.js";
 
-  if (typeof typeName !== "string" || typeName.length === 0) {
-    return {
-      success: false,
-      error:
-        "Required field 'type' (string) missing. Example: 'UMLClassDiagram', 'UMLUseCaseDiagram', 'UMLSequenceDiagram', 'UMLActivityDiagram', 'ERDDiagram'",
-    };
-  }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' (string) missing" };
-  }
-
-  const parent = app.repository.get(parentId);
-  if (!parent) {
-    return { success: false, error: `Parent element not found: ${parentId}` };
-  }
-
-  try {
-    const diagram = app.factory.createDiagram({
-      id: typeName,
-      parent,
-      ...(name !== undefined && {
-        diagramInitializer: (d) => {
-          d.name = name;
-        },
+export const createDiagram = defineEndpoint({
+  path: "/create_diagram",
+  description: "Create a diagram under a model element.",
+  readOnly: false,
+  destructive: false,
+  request: z.object({
+    type: typeName(
+      "A diagram id of app.factory.getDiagramIds(), e.g. 'UMLClassDiagram', 'UMLSequenceDiagram', 'ERDDiagram'.",
+    ),
+    parentId: id("Owner, usually a UMLModel or UMLPackage."),
+    name: z.optional(text("Diagram name; StarUML generates one if omitted.")),
+    ...projectionShape(),
+  }),
+  response: elementSchema(),
+  handle: (input) => {
+    const parent = requireElement(input.parentId, "Parent element");
+    const { name } = input;
+    const diagram = inStarUML(() =>
+      app.factory.createDiagram({
+        id: input.type,
+        parent,
+        ...(name !== undefined && {
+          diagramInitializer: (d: Element) => {
+            d.name = name;
+          },
+        }),
       }),
-    });
-    const d = diagram as Record<string, unknown>;
-    return {
-      success: true,
-      data: {
-        _id: d._id,
-        name: d.name,
-        type: (diagram.constructor as { name?: string }).name,
-      },
-    };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
+    );
+    if (!diagram) {
+      throw new ApiError("UNKNOWN_TYPE", `Unknown diagram type: ${input.type}`);
+    }
+    return serialize(diagram, input);
+  },
+});
 
-export const switchDiagram: Handler = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' (diagram id) missing" };
-  }
-  const diagram = app.repository.get(id);
-  if (!diagram) {
-    return { success: false, error: `Diagram not found: ${id}` };
-  }
-  try {
-    app.diagrams.setCurrentDiagram(diagram);
-    return { success: true, data: { _id: id } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
+const diagramRequest = () => z.object({ id: id("Diagram id.") });
 
-export const closeDiagramById: Handler = (body) => {
-  const id = body.id;
-  if (typeof id !== "string" || id.length === 0) {
-    return { success: false, error: "Required field 'id' missing" };
-  }
-  const diagram = app.repository.get(id);
-  if (!diagram) {
-    return { success: false, error: `Diagram not found: ${id}` };
-  }
-  try {
-    app.diagrams.closeDiagram(diagram);
-    return { success: true, data: { closed: id } };
-  } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
+export const switchDiagram = defineEndpoint({
+  path: "/switch_diagram",
+  description: "Open a diagram in the editor and make it the current one.",
+  readOnly: false,
+  destructive: false,
+  request: diagramRequest(),
+  response: z.object({ _id: z.string() }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.id);
+    inStarUML(() => app.diagrams.setCurrentDiagram(diagram));
+    return { _id: diagram._id };
+  },
+});
+
+export const closeDiagram = defineEndpoint({
+  path: "/close_diagram",
+  description: "Close a diagram's editor tab; the diagram stays in the model.",
+  readOnly: false,
+  destructive: false,
+  request: diagramRequest(),
+  response: z.object({ closed: z.string() }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.id);
+    inStarUML(() => app.diagrams.closeDiagram(diagram));
+    return { closed: diagram._id };
+  },
+});

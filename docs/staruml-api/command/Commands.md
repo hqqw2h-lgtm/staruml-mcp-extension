@@ -11,6 +11,7 @@ Docs use dot-separated IDs (`file.save`, `edit.delete`). **Runtime commands in t
 ## Documented IDs (may or may not match runtime)
 
 ### File
+
 - `file` — file menu
 - `file.new`, `file.newFromTemplate`, `file.open`, `file.openRecent`
 - `file.save`, `file.saveAs`, `file.close`
@@ -19,6 +20,7 @@ Docs use dot-separated IDs (`file.save`, `edit.delete`). **Runtime commands in t
 - `file.close_window`, `file.quit`
 
 ### Edit
+
 - `edit` — edit menu
 - `edit.undo`, `edit.redo`
 - `edit.cut`, `edit.copy`, `edit.paste`, `edit.selectAll`
@@ -27,18 +29,22 @@ Docs use dot-separated IDs (`file.save`, `edit.delete`). **Runtime commands in t
 - `edit.selectInExplorer`, `edit.selectInDiagram`
 
 ### Format
+
 - `format`, `format.font`
 - `format.fillColor`, `format.lineColor`
 - `format.linestyle`, `format.linestyle.rectilinear`, `format.linestyle.oblique`
 - `format.autoResize`, `format.showShadow`
 
 ### Model
+
 - `model`
 
 ### Tools
+
 - `tools`, `tools.extensionManager`
 
 ### View
+
 - `view`
 - `view.closeDiagram`, `view.closeOtherDiagrams`, `view.closeAllDiagrams`
 - `view.nextDiagram`, `view.previousDiagram`
@@ -48,10 +54,12 @@ Docs use dot-separated IDs (`file.save`, `edit.delete`). **Runtime commands in t
 - `view.hideToolbox`, `view.hideEditors`
 
 ### Help
+
 - `help`, `help.about`, `help.checkForUpdates`, `help.enterLicense`
 - `help.documentation`, `help.forum`, `help.releaseNote`, `help.requestFeature`
 
 ### App
+
 - `app.reload`
 
 ## Runtime-verified sample (from our get_all_commands on StarUML 7)

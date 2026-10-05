@@ -1,0 +1,427 @@
+{
+  "class": {
+    "kind": "class",
+    "name": "Shop",
+    "spec": {
+      "classes": [
+        {
+          "name": "Order",
+          "attributes": ["+id: long"],
+          "operations": ["+place(): void"]
+        },
+        {
+          "name": "Payable",
+          "kind": "interface",
+          "operations": ["pay()"]
+        }
+      ],
+      "relations": [
+        {
+          "from": "Order",
+          "to": "Payable",
+          "type": "realization"
+        }
+      ]
+    }
+  },
+  "sequence": {
+    "kind": "sequence",
+    "name": "Checkout",
+    "spec": {
+      "participants": ["User", "Shop", "Bank"],
+      "messages": [
+        {
+          "from": "User",
+          "to": "Shop",
+          "text": "order()"
+        },
+        {
+          "from": "Shop",
+          "to": "Bank",
+          "text": "charge()",
+          "kind": "async"
+        },
+        {
+          "from": "Bank",
+          "to": "Shop",
+          "text": "ok",
+          "kind": "reply"
+        },
+        {
+          "from": "Shop",
+          "to": "Shop",
+          "text": "log()"
+        },
+        {
+          "from": "Shop",
+          "to": "User",
+          "text": "done",
+          "kind": "reply"
+        }
+      ],
+      "fragments": [
+        {
+          "operator": "alt",
+          "guard": "funds ok",
+          "from": 1,
+          "to": 2
+        },
+        {
+          "operator": "loop",
+          "from": 3,
+          "to": 3
+        }
+      ]
+    }
+  },
+  "usecase": {
+    "kind": "usecase",
+    "name": "Shop UC",
+    "spec": {
+      "system": "Shop",
+      "actors": ["Customer", "Admin"],
+      "useCases": ["Browse", "Buy", "Pay<br/>online"],
+      "relations": [
+        {
+          "from": "Customer",
+          "to": "Browse"
+        },
+        {
+          "from": "Customer",
+          "to": "Buy"
+        },
+        {
+          "from": "Buy",
+          "to": "Pay<br/>online",
+          "type": "include"
+        },
+        {
+          "from": "Admin",
+          "to": "Browse"
+        }
+      ]
+    }
+  },
+  "usecase-free": {
+    "kind": "usecase",
+    "name": "Free UC",
+    "spec": {
+      "actors": ["Customer"],
+      "useCases": ["Browse", "Buy"],
+      "relations": [
+        {
+          "from": "Customer",
+          "to": "Browse"
+        },
+        {
+          "from": "Buy",
+          "to": "Browse",
+          "type": "extend"
+        }
+      ]
+    }
+  },
+  "activity": {
+    "kind": "activity",
+    "name": "Order flow",
+    "spec": {
+      "lanes": ["Customer", "Shop"],
+      "nodes": [
+        {
+          "id": "start",
+          "type": "initial",
+          "lane": "Customer"
+        },
+        {
+          "name": "Place order",
+          "lane": "Customer"
+        },
+        {
+          "id": "ok",
+          "name": "in stock?",
+          "type": "decision",
+          "lane": "Shop"
+        },
+        {
+          "name": "Ship",
+          "lane": "Shop"
+        },
+        {
+          "name": "Refund",
+          "lane": "Shop"
+        },
+        {
+          "id": "end",
+          "type": "final",
+          "lane": "Shop"
+        }
+      ],
+      "flows": [
+        {
+          "from": "start",
+          "to": "Place order"
+        },
+        {
+          "from": "Place order",
+          "to": "ok"
+        },
+        {
+          "from": "ok",
+          "to": "Ship",
+          "guard": "yes"
+        },
+        {
+          "from": "ok",
+          "to": "Refund",
+          "guard": "no"
+        },
+        {
+          "from": "Ship",
+          "to": "end"
+        },
+        {
+          "from": "Refund",
+          "to": "end"
+        }
+      ]
+    }
+  },
+  "activity-free": {
+    "kind": "activity",
+    "name": "Free flow",
+    "spec": {
+      "nodes": [
+        {
+          "id": "s",
+          "type": "initial"
+        },
+        "A",
+        {
+          "id": "f",
+          "type": "fork"
+        },
+        "B",
+        "C",
+        {
+          "id": "j",
+          "type": "join"
+        },
+        {
+          "id": "e",
+          "type": "final"
+        }
+      ],
+      "flows": [
+        {
+          "from": "s",
+          "to": "A"
+        },
+        {
+          "from": "A",
+          "to": "f"
+        },
+        {
+          "from": "f",
+          "to": "B"
+        },
+        {
+          "from": "f",
+          "to": "C"
+        },
+        {
+          "from": "B",
+          "to": "j"
+        },
+        {
+          "from": "C",
+          "to": "j"
+        },
+        {
+          "from": "j",
+          "to": "e"
+        }
+      ]
+    }
+  },
+  "statemachine": {
+    "kind": "statemachine",
+    "name": "Order states",
+    "spec": {
+      "states": [
+        {
+          "id": "i",
+          "type": "initial"
+        },
+        "New",
+        "Paid",
+        {
+          "id": "c",
+          "type": "choice"
+        },
+        "Shipped",
+        {
+          "id": "f",
+          "type": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "i",
+          "to": "New"
+        },
+        {
+          "from": "New",
+          "to": "Paid",
+          "trigger": "pay",
+          "guard": "amount > 0"
+        },
+        {
+          "from": "Paid",
+          "to": "c"
+        },
+        {
+          "from": "c",
+          "to": "Shipped",
+          "guard": "in stock"
+        },
+        {
+          "from": "Shipped",
+          "to": "f",
+          "trigger": "deliver",
+          "effect": "notify"
+        }
+      ]
+    }
+  },
+  "erd": {
+    "kind": "erd",
+    "name": "Shop DB",
+    "spec": {
+      "entities": [
+        {
+          "name": "customer",
+          "columns": ["id int PK", "name varchar(40)"]
+        },
+        {
+          "name": "orders",
+          "columns": [
+            "id int PK",
+            "customer_id int FK",
+            "total decimal(10,2) NULL"
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "from": "customer",
+          "to": "orders",
+          "name": "places"
+        }
+      ]
+    }
+  },
+  "flowchart": {
+    "kind": "flowchart",
+    "name": "Login",
+    "spec": {
+      "nodes": [
+        {
+          "id": "s",
+          "name": "Start",
+          "shape": "terminator"
+        },
+        {
+          "id": "i",
+          "name": "Enter\ncredentials",
+          "shape": "manualInput"
+        },
+        {
+          "id": "d",
+          "name": "valid?",
+          "shape": "decision"
+        },
+        {
+          "id": "ok",
+          "name": "Home"
+        },
+        {
+          "id": "e",
+          "name": "End",
+          "shape": "terminator"
+        }
+      ],
+      "flows": [
+        {
+          "from": "s",
+          "to": "i"
+        },
+        {
+          "from": "i",
+          "to": "d"
+        },
+        {
+          "from": "d",
+          "to": "ok",
+          "label": "yes"
+        },
+        {
+          "from": "d",
+          "to": "i",
+          "label": "no"
+        },
+        {
+          "from": "ok",
+          "to": "e"
+        }
+      ]
+    }
+  },
+  "mindmap": {
+    "kind": "mindmap",
+    "name": "Ideas",
+    "spec": {
+      "root": {
+        "name": "Shop",
+        "children": [
+          {
+            "name": "Catalog",
+            "children": [
+              {
+                "name": "Search"
+              }
+            ]
+          },
+          {
+            "name": "Cart"
+          },
+          {
+            "name": "Pay"
+          }
+        ]
+      }
+    }
+  },
+  "m-class": {
+    "mermaid": "---\ntitle: Animals\n---\nclassDiagram\n  Animal <|-- Duck\n  Animal <|-- Fish\n  Animal : +int age\n  Animal: +isMammal() bool\n  class Duck{\n    +String beakColor\n    +swim()\n  }\n  class Fish {\n    <<interface>>\n    +swim()\n  }\n  Duck \"1\" *-- \"many\" Egg : lays"
+  },
+  "m-seq": {
+    "mermaid": "sequenceDiagram\n  title Greeting\n  participant A as Alice\n  actor B as Bob\n  participant C\n  A->>B: Hello\n  loop Every minute\n    B-->>A: Fine\n  end\n  alt sick\n    opt really\n      B-)A: cough\n    end\n  else well\n    B->>C: great\n  end\n  C->>C: self"
+  },
+  "m-flow": {
+    "mermaid": "flowchart LR\n  A([Start]) --> B[Do it]\n  B --> C{OK?}\n  C -->|yes| D[(Store)]\n  C -- no --> B\n  D --> E([End])"
+  },
+  "m-activity": {
+    "kind": "activity",
+    "mermaid": "flowchart TD\n  subgraph Customer\n    S([start]) --> O[Order]\n  end\n  subgraph Shop\n    O --> C{stock?}\n    C -->|yes| SH[Ship]\n    C -->|no| R[Refund]\n    SH --> E([end])\n    R --> E\n  end"
+  },
+  "m-usecase": {
+    "kind": "usecase",
+    "mermaid": "flowchart LR\n  U[User]\n  subgraph Shop\n    B((Browse))\n    P((Pay))\n    L((Login))\n  end\n  U --> B\n  U --> P\n  P -.->|include| L"
+  },
+  "m-erd": {
+    "mermaid": "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE-ITEM : contains\n  CUSTOMER {\n    string name PK\n    string email UK\n  }\n  ORDER {\n    int id PK\n    string customer FK\n  }"
+  },
+  "m-state": {
+    "mermaid": "stateDiagram-v2\n  [*] --> Still\n  Still --> [*]\n  Still --> Moving : push\n  Moving --> Still\n  Moving --> Crash : hit [fast]\n  state check <<choice>>\n  Crash --> check\n  check --> [*]\n  state \"Long<br/>name\" as LN\n  Crash --> LN"
+  }
+}

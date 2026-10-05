@@ -1,138 +1,153 @@
-import { ExtensionHttpServer, type Handler } from "./http-server.js";
-import { executeCommand, getAllCommands } from "./handlers/commands.js";
+/*
+ * Copyright (c) 2026 Ezra Brilliant Konterliem
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+import { ExtensionHttpServer } from "./http-server.js";
+import { errorMessage } from "./errors.js";
+import { routes } from "./routes.js";
+import { randomBytes } from "node:crypto";
+import type { LogLevel } from "./http-server.js";
 import {
-  getProjectInfo,
-  saveProject,
-  saveProjectAs,
-  newProject,
-  openProject,
-} from "./handlers/project.js";
-import {
-  getElementById,
-  findElements,
-  createElement,
-  updateElement,
-  deleteElement,
-  createElementWithView,
-  createEdgeWithView,
-} from "./handlers/elements.js";
-import {
-  createDiagram,
-  switchDiagram,
-  closeDiagramById,
-} from "./handlers/diagrams.js";
-import "./types.js";
+  allowedOrigins,
+  logs,
+  PREF,
+  preferencePolicy,
+  token,
+} from "./settings.js";
+import { EXTENSION_NAME, EXTENSION_VERSION } from "./version.js";
 
-// Debug handler — introspect `app` namespace so we can learn the real API shape
-const debugHandler: Handler = () => {
-  const appKeys = Object.keys(app).sort();
-  const commandsInfo: Record<string, unknown> = {
-    type: typeof app.commands,
-    keys: app.commands ? Object.keys(app.commands).sort() : null,
-    proto: app.commands ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.commands)).sort() : null,
-  };
-  const repositoryInfo: Record<string, unknown> = {
-    type: typeof app.repository,
-    keys: app.repository ? Object.keys(app.repository).sort() : null,
-    proto: app.repository ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.repository)).sort() : null,
-  };
-  const engineInfo: Record<string, unknown> = {
-    type: typeof app.engine,
-    keys: app.engine ? Object.keys(app.engine).sort() : null,
-    proto: app.engine ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.engine)).sort() : null,
-  };
-  const factoryInfo: Record<string, unknown> = {
-    type: typeof app.factory,
-    keys: app.factory ? Object.keys(app.factory).sort() : null,
-    proto: app.factory ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.factory)).sort() : null,
-  };
-  const diagramsInfo: Record<string, unknown> = {
-    type: typeof app.diagrams,
-    keys: app.diagrams ? Object.keys(app.diagrams).sort() : null,
-    proto: app.diagrams ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.diagrams)).sort() : null,
-  };
-  return {
-    success: true,
-    data: {
-      app_keys: appKeys,
-      commands: commandsInfo,
-      repository: repositoryInfo,
-      engine: engineInfo,
-      factory: factoryInfo,
-      diagrams: diagramsInfo,
-    },
-  };
-};
+/** One above StarUML's built-in API server (58321) so both can run side by side. */
+export const DEFAULT_PORT = 58322;
 
-const EXT_PORT = 58322;
-const LOG_PREFIX = "[staruml-mcp-ext]";
+export const PREF_ENABLED = PREF.enabled;
+export const PREF_PORT = PREF.port;
 
-const handlers: Record<string, Handler> = {
-  // Commands
-  "/get_all_commands": getAllCommands,
-  "/execute_command": executeCommand,
-
-  // Project lifecycle
-  "/get_project_info": getProjectInfo,
-  "/save_project": saveProject,
-  "/save_project_as": saveProjectAs,
-  "/new_project": newProject,
-  "/open_project": openProject,
-
-  // Element CRUD
-  "/get_element_by_id": getElementById,
-  "/find_elements": findElements,
-  "/create_element": createElement,
-  "/update_element": updateElement,
-  "/delete_element": deleteElement,
-  "/create_element_with_view": createElementWithView,
-  "/create_edge_with_view": createEdgeWithView,
-
-  // Diagram management
-  "/create_diagram": createDiagram,
-  "/switch_diagram": switchDiagram,
-  "/close_diagram": closeDiagramById,
-
-  // Debug
-  "/debug": debugHandler,
-};
+const LOG_PREFIX = `[${EXTENSION_NAME}]`;
 
 let server: ExtensionHttpServer | null = null;
 
-async function init(): Promise<void> {
-  try {
-    server = new ExtensionHttpServer({
-      port: EXT_PORT,
-      handlers,
-      onLog: (level, msg) => {
-        if (level === "error") {
-          console.error(msg);
-        } else {
-          console.log(msg);
-        }
-      },
-    });
-    await server.start();
+/**
+ * Called by StarUML's extension loader, which neither passes arguments nor
+ * awaits the result (extensibility/extension-loader.js in 7.1.1), so every
+ * failure is logged here instead of rejecting.
+ */
+export async function init(): Promise<void> {
+  // Registered first so Tools > MCP Extension works even when the server is off.
+  app.commands.register(
+    "mcp-ext:server-info",
+    showServerInfo,
+    "MCP Extension: Server Info",
+  );
+  app.commands.register(
+    "mcp-ext:set-token",
+    setToken,
+    "MCP Extension: Generate Access Token",
+  );
 
-    // Register a command so user can stop the server via Command Palette if needed
-    app.commands.register(
-      "mcp-ext:server-info",
-      "MCP Ext: Server Info",
-      showServerInfo,
+  if (app.preferences.get(PREF_ENABLED, true) !== true) {
+    log(
+      "info",
+      `${LOG_PREFIX} HTTP server disabled by preference ${PREF_ENABLED}`,
     );
-  } catch (err) {
-    console.error(
-      `${LOG_PREFIX} Failed to start HTTP server on port ${EXT_PORT}:`,
-      err instanceof Error ? err.message : err,
-    );
+    return;
   }
+  const port = app.preferences.get(PREF_PORT, DEFAULT_PORT);
+  // 0 asks the OS for a free port; Server Info shows which one was bound.
+  if (
+    !Number.isInteger(port) ||
+    (port as number) < 0 ||
+    (port as number) > 65535
+  ) {
+    log(
+      "error",
+      `${LOG_PREFIX} ${PREF_PORT} must be an integer in 0..65535, got ${String(port)}`,
+    );
+    return;
+  }
+
+  const candidate = new ExtensionHttpServer({
+    port: port as number,
+    handlers: routes,
+    policy: preferencePolicy(),
+    onLog: log,
+  });
+  try {
+    await candidate.start();
+  } catch (err) {
+    log(
+      "error",
+      `${LOG_PREFIX} failed to listen on port ${String(port)}: ${errorMessage(err)}`,
+    );
+    return;
+  }
+  server = candidate;
 }
 
-function showServerInfo(): void {
-  const endpoints = Object.keys(handlers).sort().join("\n  ");
-  window.alert(
-    `staruml-mcp-extension v0.2.0\n\nListening on http://localhost:${EXT_PORT}\n\nEndpoints:\n  ${endpoints}`,
+/** Not called by StarUML; lets tests and a future reload command release the port. */
+export async function shutdown(): Promise<void> {
+  const running = server;
+  server = null;
+  await running?.stop();
+}
+
+/** StarUML's developer console, filtered by the log level preference. */
+export function log(level: LogLevel, message: string): void {
+  if (!logs(level)) return;
+  if (level === "error") console.error(message);
+  else console.log(message);
+}
+
+export function showServerInfo(): void {
+  const address = server?.address;
+  const status = address
+    ? `Listening on http://${address.address}:${address.port}`
+    : "HTTP server is not running";
+  const origins = allowedOrigins();
+  const access = [
+    token()
+      ? "Access token: required (Authorization: Bearer <token>)"
+      : "Access token: none; any local process can call the endpoints",
+    `Allowed browser origins: ${origins.length > 0 ? origins.join(", ") : "none"}`,
+  ].join("\n");
+  app.dialogs.showInfoDialog(
+    `${EXTENSION_NAME} v${EXTENSION_VERSION}\n\n${status}\n${access}\n\nEndpoints:\n  ${Object.keys(routes).sort().join("\n  ")}`,
   );
 }
 
-exports.init = init;
+/**
+ * Stores `value` as the access token; an empty string removes it. Without
+ * an argument, as from the menu, a random token is generated and shown once
+ * so it can be copied into the MCP server's configuration.
+ */
+export function setToken(value?: unknown): string {
+  const next =
+    typeof value === "string"
+      ? value.trim()
+      : randomBytes(24).toString("base64url");
+  app.preferences.set(PREF.token, next);
+  if (value === undefined) {
+    app.dialogs.showInfoDialog(
+      `New access token:\n\n${next}\n\nClients must send 'Authorization: Bearer ${next}'. It is stored in Preferences > MCP Extension.`,
+    );
+  }
+  return next ? "set" : "cleared";
+}

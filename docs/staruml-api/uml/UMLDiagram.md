@@ -27,40 +27,52 @@ Pass to `app.factory.createDiagram(typeName, parent, options)`:
 Factory pairs `UMLXxx` (model) with `UMLXxxView` (view). Pass the **model** type name to `createModelAndView(typeName, parent, diagram, options)`.
 
 ### Use Case (UMLUseCaseDiagram)
+
 Model types: `UMLActor`, `UMLUseCase`, `UMLSubsystem`, `UMLInclude`, `UMLExtend`, `UMLAssociation`
 View types: `UMLActorView`, `UMLUseCaseView`, `UMLSubsystemView`, `UMLIncludeView`, `UMLExtendView`, `UMLAssociationView`
 
 ### Activity (UMLActivityDiagram)
+
 Model types: `UMLActivity`, `UMLAction`, `UMLInitialNode`, `UMLActivityFinalNode` (aka `UMLFinalNode`), `UMLFlowFinalNode`, `UMLDecisionNode`, `UMLMergeNode`, `UMLForkNode`, `UMLJoinNode`, `UMLObjectNode`, `UMLInputPin`, `UMLOutputPin`, `UMLControlFlow`, `UMLObjectFlow`
 
 ### Sequence (UMLSequenceDiagram)
+
 Model types: `UMLLifeline`, `UMLMessage` (model) / `UMLSeqMessageView` (view), `UMLActivation`, `UMLContinuation`, `UMLCombinedFragment`, `UMLGate`, `UMLInteractionOperand`
 
 ### Class (UMLClassDiagram)
+
 Model types: `UMLClass`, `UMLInterface`, `UMLDataType`, `UMLEnumeration`, `UMLPrimitiveType`, `UMLAttribute`, `UMLOperation`, `UMLGeneralization`, `UMLAssociation`, `UMLDependency`, `UMLInterfaceRealization`, `UMLPort`
 
 ### Component (UMLComponentDiagram)
+
 Model types: `UMLComponent`, `UMLComponentInstance`, `UMLArtifact`, `UMLArtifactInstance`, `UMLComponentRealization`, `UMLDependency`, `UMLPort`, `UMLConnector`
 
 ### Deployment (UMLDeploymentDiagram)
+
 Model types: `UMLNode`, `UMLNodeInstance`, `UMLDeployment`, `UMLComponentInstance`, `UMLCommunicationPath`, `UMLDependency`
 
 ### State Machine (UMLStatechartDiagram)
+
 Model types: `UMLState`, `UMLPseudostate`, `UMLFinalState`, `UMLTransition`, `UMLRegion`
 
 ### Object (UMLObjectDiagram)
+
 Model types: `UMLObject`, `UMLSlot`, `UMLLink`
 
 ### Package (UMLPackageDiagram)
+
 Model types: `UMLPackage`, `UMLSubsystem`, `UMLModel`, `UMLContainment`
 
 ### Communication (UMLCommunicationDiagram)
+
 Model types: `UMLLifeline`, `UMLCommMessage`, `UMLCommunicationPath`
 
 ### Composite Structure (UMLCompositeStructureDiagram)
+
 Model types: `UMLClass`, `UMLPart`, `UMLPort`, `UMLCollaboration`, `UMLConnector`
 
 ### Profile (UMLProfileDiagram)
+
 Model types: `UMLProfile`, `UMLStereotype`, `UMLMetaClass`
 
 ## Relationships (edges)
