@@ -1,0 +1,15 @@
+@startuml
+title Checkout
+participant "User" as P0
+participant "Shop" as P1
+participant "Bank" as P2
+P0 -> P1 : order()
+alt funds ok
+P1 -> P2 : charge()
+P2 -> P1 : ok
+end
+loop
+P1 -> P1 : log()
+end
+P1 -> P0 : done
+@enduml

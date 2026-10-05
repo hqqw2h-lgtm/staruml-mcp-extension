@@ -637,6 +637,18 @@ export class Factory {
     if (is(view, "EdgeView")) {
       view.tail = options.tailView ?? null;
       view.head = options.headView ?? null;
+      // Factory.createModelAndView starts an edge at the drag points, held
+      // as Points.points and saved as "x:y;x:y" (core/graphics.js).
+      if (options.y1 !== undefined) {
+        const points = [
+          { x: options.x1 ?? 0, y: options.y1 },
+          { x: options.x2 ?? 0, y: options.y2 ?? options.y1 },
+        ];
+        view.points = {
+          points,
+          __write: () => points.map((p) => `${p.x}:${p.y}`).join(";"),
+        };
+      }
     }
     if (is(view, "NodeView")) {
       view.left = options.x1 ?? 0;

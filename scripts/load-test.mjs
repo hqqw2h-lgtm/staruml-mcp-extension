@@ -30,8 +30,9 @@
  * Replaces the open project with a fresh one seeded with SEED classes, then
  * fires read-only requests at a fixed concurrency: summaries, full and
  * field-projected elements, owned elements expanded one level, paged
- * find_elements, /introspect sections, /search_types queries and a
- * read-only /batch of five lookups. Exits non-zero on any transport error or non-2xx answer, when
+ * find_elements, /introspect sections, /search_types queries, /export_text
+ * of a built class diagram as Mermaid and PlantUML and a read-only /batch
+ * of five lookups. Exits non-zero on any transport error or non-2xx answer, when
  * client p99 exceeds P99_BUDGET_MS, or when any single handler held the
  * renderer thread longer than HANDLER_BUDGET_MS (taken from the
  * Server-Timing header the server sets).
@@ -268,6 +269,12 @@ async function buildPhase(errors) {
 async function main() {
   const ids = await seed();
   const [modelId, ...classIds] = ids;
+  const exported = await post("/build_diagram", {
+    kind: "class",
+    name: "Export",
+    spec: BUILD_SPEC,
+  });
+  const exportId = exported.json.data.diagram._id;
   const mix = [
     () => ["/find_elements", { type: "UMLClass" }],
     () => ["/find_elements", { type: "UMLClass", name: `C${SEED >> 1}` }],
@@ -295,6 +302,10 @@ async function main() {
       },
     ],
     () => ["/introspect", { include: ["factory", "toolbox"] }],
+    (i) => [
+      "/export_text",
+      { diagramId: exportId, format: i % 2 ? "plantuml" : "mermaid" },
+    ],
     (i) => [
       "/search_types",
       { query: SEARCHES[i % SEARCHES.length], limit: 10 },

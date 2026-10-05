@@ -261,7 +261,7 @@ function createRequestListener(handlers, log2, policy = UNLIMITED) {
 function bearerMatches(header, token2) {
   const match = /^Bearer (.+)$/i.exec(header ?? "");
   if (!match) return false;
-  const digest = (text3) => (0, import_node_crypto.createHash)("sha256").update(text3).digest();
+  const digest = (text4) => (0, import_node_crypto.createHash)("sha256").update(text4).digest();
   return (0, import_node_crypto.timingSafeEqual)(digest(match[1]), digest(token2));
 }
 var TIMED_OUT = /* @__PURE__ */ Symbol("timed out");
@@ -356,17 +356,17 @@ function sendError(res, code, error2) {
   sendJson(res, ERROR_STATUS[code], body);
 }
 function sendJson(res, status, body, handlerStarted) {
-  const text3 = JSON.stringify(body);
+  const text4 = JSON.stringify(body);
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(text3)
+    "Content-Length": Buffer.byteLength(text4)
   };
   if (handlerStarted !== void 0) {
     const ms = import_node_perf_hooks.performance.now() - handlerStarted;
     headers["Server-Timing"] = `handler;dur=${ms.toFixed(3)}`;
   }
   res.writeHead(status, headers);
-  res.end(text3);
+  res.end(text4);
 }
 function stackOf(err) {
   return err instanceof Error ? String(err.stack) : String(err);
@@ -441,8 +441,8 @@ function isPlainObject(o) {
   return true;
 }
 var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
-function escapeRegex(str3) {
-  return str3.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str4) {
+  return str4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -551,13 +551,13 @@ function finalizeIssue(iss, ctx, config2) {
   return full;
 }
 var highSurrogate = /[\uD800-\uDBFF]/;
-function codePointLength(str3) {
-  const units = str3.length;
-  if (!highSurrogate.test(str3))
+function codePointLength(str4) {
+  const units = str4.length;
+  if (!highSurrogate.test(str4))
     return units;
   let count = units;
   for (let i = 0; i < units - 1; i++) {
-    if ((str3.charCodeAt(i) & 64512) === 55296 && (str3.charCodeAt(i + 1) & 64512) === 56320) {
+    if ((str4.charCodeAt(i) & 64512) === 55296 && (str4.charCodeAt(i + 1) & 64512) === 56320) {
       count--;
       i++;
     }
@@ -3813,16 +3813,16 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text3, name2, path, results) {
+function lookup(text4, name2, path, results) {
   const result = results.get(name2);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text3}: no earlier op is named ${name2}`
+      `${text4}: no earlier op is named ${name2}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text3}: op ${name2} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text4}: op ${name2} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
@@ -3834,7 +3834,7 @@ function lookup(text3, name2, path, results) {
     value = _id ?? $ref;
   }
   if (!["string", "number", "boolean"].includes(typeof value)) {
-    throw new ApiError("INVALID_ARGUMENT", `${text3} does not name a value`);
+    throw new ApiError("INVALID_ARGUMENT", `${text4} does not name a value`);
   }
   return value;
 }
@@ -4013,47 +4013,47 @@ var VISIBILITY = {
   "#": "protected",
   "~": "package"
 };
-function modifiers(text3) {
-  const last = text3.at(-1);
-  if (last === "$") return { text: text3.slice(0, -1).trim(), isStatic: true };
-  if (last === "*") return { text: text3.slice(0, -1).trim(), isAbstract: true };
-  return { text: text3 };
+function modifiers(text4) {
+  const last = text4.at(-1);
+  if (last === "$") return { text: text4.slice(0, -1).trim(), isStatic: true };
+  if (last === "*") return { text: text4.slice(0, -1).trim(), isAbstract: true };
+  return { text: text4 };
 }
-function visibility(text3) {
-  const v = VISIBILITY[text3.charAt(0)];
-  return v ? { text: text3.slice(1).trim(), visibility: v } : { text: text3 };
+function visibility(text4) {
+  const v = VISIBILITY[text4.charAt(0)];
+  return v ? { text: text4.slice(1).trim(), visibility: v } : { text: text4 };
 }
-function typedName(text3) {
-  const colon = text3.indexOf(":");
+function typedName(text4) {
+  const colon = text4.indexOf(":");
   if (colon >= 0) {
-    const type2 = text3.slice(colon + 1).trim();
-    return { name: text3.slice(0, colon).trim(), ...type2 && { type: type2 } };
+    const type2 = text4.slice(colon + 1).trim();
+    return { name: text4.slice(0, colon).trim(), ...type2 && { type: type2 } };
   }
-  const space = text3.lastIndexOf(" ");
-  if (space < 0) return { name: text3 };
+  const space = text4.lastIndexOf(" ");
+  if (space < 0) return { name: text4 };
   return {
-    name: text3.slice(space + 1),
-    type: text3.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
+    name: text4.slice(space + 1),
+    type: text4.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
   };
 }
 function parseAttribute(source) {
   const mod = modifiers(source.trim());
   const vis = visibility(mod.text);
-  let text3 = vis.text;
+  let text4 = vis.text;
   let defaultValue;
-  const eq = text3.indexOf("=");
+  const eq = text4.indexOf("=");
   if (eq >= 0) {
-    defaultValue = text3.slice(eq + 1).trim();
-    text3 = text3.slice(0, eq).trim();
+    defaultValue = text4.slice(eq + 1).trim();
+    text4 = text4.slice(0, eq).trim();
   }
   let multiplicity;
-  const mult = /\[([^\]]*)\]$/.exec(text3);
+  const mult = /\[([^\]]*)\]$/.exec(text4);
   if (mult) {
     multiplicity = mult[1];
-    text3 = text3.slice(0, mult.index).trim();
+    text4 = text4.slice(0, mult.index).trim();
   }
   return {
-    ...typedName(text3),
+    ...typedName(text4),
     ...vis.visibility && { visibility: vis.visibility },
     ...mod.isStatic && { isStatic: true },
     ...defaultValue !== void 0 && { defaultValue },
@@ -4131,10 +4131,13 @@ function preprocess(source) {
     start = end + 1;
   }
   const lines = [];
-  raw.forEach((text3, i) => {
+  raw.forEach((text4, i) => {
     if (i < start) return;
-    const t = text3.replace(/%%.*$/, "").trim();
-    if (t) lines.push({ no: i + 1, text: t });
+    const t = text4.replace(/%%.*$/, "").trim();
+    if (t) {
+      const indent = text4.length - text4.trimStart().length;
+      lines.push({ no: i + 1, text: t, indent });
+    }
   });
   return { ...title !== void 0 && { title }, lines };
 }
@@ -4165,12 +4168,15 @@ var CLASS_ARROWS = [
 var RELATION = /^([\w.]+)\s*(?:"([^"]*)"\s*)?(<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|o--|--o|-->|<--|\.\.>|<\.\.|--|\.\.)\s*(?:"([^"]*)"\s*)?([\w.]+)\s*(?::\s*(.*))?$/;
 function classDiagram(lines) {
   const classes = /* @__PURE__ */ new Map();
+  const packages = [];
   const relations = [];
+  let namespace;
   const entry = (name2) => {
     const key = name2.replace(/~.*~$/, "");
     let e = classes.get(key);
     if (!e) {
       e = { name: key, attributes: [], operations: [], literals: [] };
+      if (namespace !== void 0) e.package = namespace;
       classes.set(key, e);
     }
     return e;
@@ -4181,26 +4187,32 @@ function classDiagram(lines) {
     else if (a === "enumeration" || a === "enum") e.kind = "enum";
     else if (a === "abstract") e.kind = "abstract";
   };
-  const member = (e, text3) => {
-    if (/^<<(.+)>>$/.test(text3)) annotate(e, text3.slice(2, -2));
-    else if (e.kind === "enum") e.literals.push(text3);
-    else if (isOperation(text3)) e.operations.push(text3);
-    else e.attributes.push(text3);
+  const member = (e, text4) => {
+    if (/^<<(.+)>>$/.test(text4)) annotate(e, text4.slice(2, -2));
+    else if (e.kind === "enum") e.literals.push(text4);
+    else if (isOperation(text4)) e.operations.push(text4);
+    else e.attributes.push(text4);
   };
   let open = null;
-  for (const { no, text: text3 } of lines) {
+  for (const { no, text: text4 } of lines) {
     if (open) {
-      if (text3 === "}") open = null;
-      else member(open, text3);
+      if (text4 === "}") open = null;
+      else member(open, text4);
       continue;
     }
     let m;
-    if (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(\{)?\s*$/.exec(text3)) {
+    if (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(\{)?\s*$/.exec(text4)) {
       const e = entry(m[1]);
+      if (m[2] !== void 0) e.name = multiline(m[2]);
       if (m[3]) open = e;
-    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text3)) {
+    } else if (m = /^namespace\s+([\w.]+)\s*\{$/.exec(text4)) {
+      namespace = m[1];
+      if (!packages.includes(namespace)) packages.push(namespace);
+    } else if (text4 === "}" && namespace !== void 0) {
+      namespace = void 0;
+    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text4)) {
       annotate(entry(m[2]), m[1]);
-    } else if (m = RELATION.exec(text3)) {
+    } else if (m = RELATION.exec(text4)) {
       const [, a, aCard, arrow, bCard, b, label2] = m;
       const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
       entry(a);
@@ -4214,23 +4226,30 @@ function classDiagram(lines) {
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
-    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text3)) {
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text4)) {
       member(entry(m[1]), m[2].trim());
-    } else if (!/^(direction\s|note\b|style\b|classDef\b|cssClass\b|click\b|link\b|callback\b|namespace\b|})/.test(
-      text3
+    } else if (!/^(direction\s|note\b|style\b|classDef\b|cssClass\b|click\b|link\b|callback\b|})/.test(
+      text4
     )) {
-      fail(no, `cannot read "${text3}"`);
+      fail(no, `cannot read "${text4}"`);
     }
   }
+  const nameOf2 = (key) => classes.get(key).name;
   return {
+    ...packages.length > 0 && { packages },
     classes: [...classes.values()].map((e) => ({
       name: e.name,
       ...e.kind && { kind: e.kind },
+      ...e.package !== void 0 && { package: e.package },
       ...e.attributes.length > 0 && { attributes: e.attributes },
       ...e.operations.length > 0 && { operations: e.operations },
       ...e.literals.length > 0 && { literals: e.literals }
     })),
-    relations
+    relations: relations.map((r) => ({
+      ...r,
+      from: nameOf2(r.from),
+      to: nameOf2(r.to)
+    }))
   };
 }
 var MESSAGE_ARROWS = [
@@ -4246,22 +4265,22 @@ var MESSAGE_ARROWS = [
 var MESSAGE = /^([^\s:+-][^:]*?)\s*(-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-]?)\s*([^:]+?)\s*(?::\s*(.*))?$/;
 function sequenceDiagram(lines) {
   const participants = [];
-  const aliases = /* @__PURE__ */ new Map();
+  const aliases2 = /* @__PURE__ */ new Map();
   const messages = [];
   const fragments = [];
   const open = [];
-  const who = (id2) => aliases.get(id2.trim()) ?? id2.trim();
-  for (const { no, text: text3 } of lines) {
+  const who = (id2) => aliases2.get(id2.trim()) ?? id2.trim();
+  for (const { no, text: text4 } of lines) {
     let m;
-    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text3)) {
+    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
       const name2 = multiline(m[3] ?? m[2]);
-      aliases.set(m[2], name2);
+      aliases2.set(m[2], name2);
       participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text3)) {
+    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
       const name2 = multiline(m[3] ?? m[2]);
-      aliases.set(m[2], name2);
+      aliases2.set(m[2], name2);
       participants.push({ name: name2, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text3)) {
+    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text4)) {
       open.push({
         operator: m[1],
         ...m[2] && { guard: m[2] },
@@ -4269,10 +4288,10 @@ function sequenceDiagram(lines) {
         no,
         operands: []
       });
-    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text3)) {
+    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text4)) {
       const f = open.at(-1) ?? fail(no, `${m[1]} outside a block`);
       f.operands.push(m[2] || m[1]);
-    } else if (text3 === "end") {
+    } else if (text4 === "end") {
       const f = open.pop() ?? fail(no, "end without a block");
       if (messages.length > f.from) {
         fragments.push({
@@ -4283,7 +4302,7 @@ function sequenceDiagram(lines) {
           to: messages.length - 1
         });
       }
-    } else if (m = MESSAGE.exec(text3)) {
+    } else if (m = MESSAGE.exec(text4)) {
       const kind = MESSAGE_ARROWS.find(([a]) => a === m[2])[1];
       messages.push({
         from: who(m[1]),
@@ -4292,9 +4311,9 @@ function sequenceDiagram(lines) {
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
     } else if (!/^(autonumber|activate|deactivate|note\b|Note\b|rect\b|box\b|destroy\b|link\b|links\b)/.test(
-      text3
+      text4
     )) {
-      fail(no, `cannot read "${text3}"`);
+      fail(no, `cannot read "${text4}"`);
     }
   }
   if (open.length > 0)
@@ -4354,19 +4373,19 @@ function flowchart(lines) {
     }
     return [id2, after.trimStart()];
   };
-  for (const { no, text: text3 } of lines) {
+  for (const { no, text: text4 } of lines) {
     let m;
-    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text3)) {
+    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text4)) {
       lanes.push(multiline(unquote(m[2] ?? m[3])));
       continue;
     }
-    if (text3 === "end") {
+    if (text4 === "end") {
       if (lanes.pop() === void 0) fail(no, "end without a subgraph");
       continue;
     }
-    if (/^(direction\s|classDef\b|class\s|style\b|linkStyle\b|click\b)/.test(text3))
+    if (/^(direction\s|classDef\b|class\s|style\b|linkStyle\b|click\b)/.test(text4))
       continue;
-    let [from, rest] = node(text3, no);
+    let [from, rest] = node(text4, no);
     while (rest) {
       const link = LINK.exec(rest);
       if (!link) fail(no, `expected a link at "${rest}"`);
@@ -4470,17 +4489,17 @@ var RIGHT_CARD = {
 function erDiagram(lines) {
   const entities = /* @__PURE__ */ new Map();
   const relationships = [];
-  const entity = (name2) => {
+  const entity2 = (name2) => {
     const key = unquote(name2);
     if (!entities.has(key)) entities.set(key, []);
     return entities.get(key);
   };
   let open = null;
-  for (const { no, text: text3 } of lines) {
+  for (const { no, text: text4 } of lines) {
     if (open) {
-      if (text3 === "}") open = null;
+      if (text4 === "}") open = null;
       else {
-        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text3) ?? fail(no, `cannot read attribute "${text3}"`);
+        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text4) ?? fail(no, `cannot read attribute "${text4}"`);
         open.push(
           [
             m2[2],
@@ -4492,13 +4511,13 @@ function erDiagram(lines) {
       continue;
     }
     let m;
-    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text3)) {
-      open = entity(m[1]);
+    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text4)) {
+      open = entity2(m[1]);
     } else if (m = /^("[^"]+"|[\w-]+)\s+(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)\s+("[^"]+"|[\w-]+)\s*(?::\s*(.*))?$/.exec(
-      text3
+      text4
     )) {
-      entity(m[1]);
-      entity(m[5]);
+      entity2(m[1]);
+      entity2(m[5]);
       relationships.push({
         from: unquote(m[1]),
         to: unquote(m[5]),
@@ -4507,10 +4526,10 @@ function erDiagram(lines) {
         identifying: m[3] === "--",
         ...m[6] && { name: unquote(m[6]) }
       });
-    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text3)) {
-      entity(m[1]);
-    } else if (!/^direction\s/.test(text3)) {
-      fail(no, `cannot read "${text3}"`);
+    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text4)) {
+      entity2(m[1]);
+    } else if (!/^direction\s/.test(text4)) {
+      fail(no, `cannot read "${text4}"`);
     }
   }
   return {
@@ -4525,24 +4544,24 @@ function stateDiagram(lines) {
   const states = /* @__PURE__ */ new Map();
   const transitions = [];
   let starts = 0;
-  let ends = 0;
+  let ends2 = 0;
   const state2 = (id2, side) => {
     if (id2 === "[*]") {
-      const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends}`;
+      const key = side === "from" ? `[*] start ${++starts}` : `[*] end ${++ends2}`;
       states.set(key, { id: key, type: side === "from" ? "initial" : "final" });
       return key;
     }
     if (!states.has(id2)) states.set(id2, { id: id2, name: id2 });
     return id2;
   };
-  for (const { no, text: text3 } of lines) {
+  for (const { no, text: text4 } of lines) {
     let m;
-    if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text3)) {
+    if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text4)) {
       states.set(m[2], { id: m[2], name: multiline(m[1]) });
-    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text3)) {
+    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text4)) {
       states.set(m[1], { id: m[1], type: m[2] });
     } else if (m = /^(\[\*\]|[\w-]+)\s*-->\s*(\[\*\]|[\w-]+)\s*(?::\s*(.*))?$/.exec(
-      text3
+      text4
     )) {
       const from = state2(m[1], "from");
       const to = state2(m[2], "to");
@@ -4555,23 +4574,51 @@ function stateDiagram(lines) {
         ...trigger && { trigger },
         ...guard && { guard: guard[1] }
       });
-    } else if (m = /^([\w-]+)\s*:\s*(.+)$/.exec(text3)) {
+    } else if (m = /^([\w-]+)\s*:\s*(.+)$/.exec(text4)) {
       state2(m[1], "to");
       states.get(m[1]).name = multiline(m[2]);
-    } else if ((m = /^state\s+([\w-]+)$/.exec(text3)) || (m = /^(\w[\w-]*)$/.exec(text3))) {
+    } else if ((m = /^state\s+([\w-]+)$/.exec(text4)) || (m = /^(\w[\w-]*)$/.exec(text4))) {
       state2(m[1], "to");
-    } else if (!/^(direction\s|note\b|classDef\b|class\s|--$)/.test(text3)) {
-      fail(no, `cannot read "${text3}"`);
+    } else if (!/^(direction\s|note\b|classDef\b|class\s|--$)/.test(text4)) {
+      fail(no, `cannot read "${text4}"`);
     }
   }
   return { states: [...states.values()], transitions };
+}
+var MIND_SHAPE = /^[\w-]*\s*(?:\[\[?|\(\(|\(|\)\)|\)|\{\{)(.*?)(?:\]\]?|\)\)|\)|\(\(|\(|\}\})$/;
+function mindmap(lines) {
+  const stack = [];
+  let root;
+  for (const { no, text: text4, indent } of lines) {
+    if (/^::icon\(/.test(text4)) continue;
+    const bare = text4.replace(/\s*:::.*$/, "");
+    const shaped = MIND_SHAPE.exec(bare);
+    const node = {
+      name: multiline(unquote(shaped ? shaped[1] : bare)),
+      children: []
+    };
+    while (stack.length > 0 && stack.at(-1).indent >= indent) stack.pop();
+    const parent = stack.at(-1);
+    if (parent) parent.node.children.push(node);
+    else if (root)
+      fail(no, "a mindmap has one root; indent this line under it");
+    else root = node;
+    stack.push({ indent, node });
+  }
+  if (!root) fail(1, "mindmap has no root");
+  const strip = (n) => ({
+    name: n.name,
+    ...n.children.length > 0 && { children: n.children.map(strip) }
+  });
+  return { root: strip(root) };
 }
 var HEADERS = [
   [/^classDiagram(-v2)?\b/, "class"],
   [/^sequenceDiagram\b/, "sequence"],
   [/^(flowchart|graph)\b/, "flowchart"],
   [/^erDiagram\b/, "erd"],
-  [/^stateDiagram(-v2)?\b/, "statemachine"]
+  [/^stateDiagram(-v2)?\b/, "statemachine"],
+  [/^mindmap\b/, "mindmap"]
 ];
 function parseMermaid(source, as) {
   const { title: front, lines } = preprocess(source);
@@ -4582,7 +4629,7 @@ function parseMermaid(source, as) {
   if (!found) {
     return fail(
       header.no,
-      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram or stateDiagram`
+      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram or mindmap`
     );
   }
   let kind = found[1];
@@ -4602,6 +4649,8 @@ function parseMermaid(source, as) {
       return { kind, ...titled, spec: erDiagram(body()) };
     case "statemachine":
       return { kind, ...titled, spec: stateDiagram(body()) };
+    case "mindmap":
+      return { kind, ...titled, spec: mindmap(body()) };
     case "activity":
       return { kind, ...titled, ...activitySpec(lines) };
     case "usecase":
@@ -5195,17 +5244,17 @@ function classPlan(spec) {
   });
   (spec.relations ?? []).forEach((r, i) => {
     const type2 = r.type ?? "association";
-    const ends = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
+    const ends2 = type2 !== "generalization" && type2 !== "realization" && type2 !== "dependency";
     b.edge(
       {
         type: RELATION_TYPES[type2],
         from: r.from,
         to: r.to,
         ...r.name !== void 0 && { name: r.name },
-        ...ends && r.fromMultiplicity !== void 0 && {
+        ...ends2 && r.fromMultiplicity !== void 0 && {
           tailEnd: { multiplicity: r.fromMultiplicity }
         },
-        ...ends && r.toMultiplicity !== void 0 && {
+        ...ends2 && r.toMultiplicity !== void 0 && {
           headEnd: { multiplicity: r.toMultiplicity }
         }
       },
@@ -5306,8 +5355,8 @@ function sequencePlan(spec) {
         `spec.fragments.${i}: from and to must be message indices with from <= to < ${messages.length}`
       );
     }
-    const inside = messages.slice(f.from, f.to + 1);
-    const columns = inside.flatMap((m) => [m.from, m.to]).map((p) => participants.indexOf(p));
+    const inside2 = messages.slice(f.from, f.to + 1);
+    const columns = inside2.flatMap((m) => [m.from, m.to]).map((p) => participants.indexOf(p));
     const outer = fragments.filter(
       (g, j) => j !== i && g.from <= f.from && g.to >= f.to && (g.to - g.from > f.to - f.from || j < i)
     );
@@ -6983,7 +7032,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       return;
     }
     const as = `n${i}`;
-    const box = boxes.get(node.key);
+    const box2 = boxes.get(node.key);
     refs.set(node.key, { model: `$${as}.model`, view: `$${as}.view` });
     created2.set(as, node.key);
     ops.push({
@@ -6997,10 +7046,10 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         },
         name: node.name,
         ...node.properties && { properties: node.properties },
-        x: Math.round(box.x),
-        y: Math.round(box.y),
-        x2: Math.round(box.x + box.width),
-        y2: Math.round(box.y + box.height),
+        x: Math.round(box2.x),
+        y: Math.round(box2.y),
+        x2: Math.round(box2.x + box2.width),
+        y2: Math.round(box2.y + box2.height),
         ...node.guard !== void 0 && { fields: ["operands"] }
       }
     });
@@ -7097,7 +7146,7 @@ var refSchema = () => object({
 function buildDiagramEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/build_diagram",
-    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram; a flowchart also as activity or usecase). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
+    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: object({
@@ -11569,6 +11618,338 @@ var debug = defineEndpoint({
   }
 });
 
+// src/text/mermaid-writer.ts
+var text3 = (name2) => name2.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
+var isWord = (name2) => /^[A-Za-z_][\w.]*$/.test(name2);
+var Ids = class {
+  constructor(prefix) {
+    this.prefix = prefix;
+  }
+  prefix;
+  ids = /* @__PURE__ */ new Map();
+  get(name2) {
+    if (isWord(name2)) return name2;
+    let id2 = this.ids.get(name2);
+    if (!id2) {
+      id2 = `${this.prefix}${this.ids.size}`;
+      this.ids.set(name2, id2);
+    }
+    return id2;
+  }
+};
+function classDiagram2(spec) {
+  const ids2 = new Ids("C");
+  const lines = ["classDiagram"];
+  const write = (c, indent) => {
+    const id2 = ids2.get(c.name);
+    const annotation = {
+      class: [],
+      abstract: ["<<abstract>>"],
+      interface: ["<<interface>>"],
+      enum: ["<<enumeration>>"]
+    }[c.kind];
+    const members2 = [
+      ...annotation,
+      ...c.attributes,
+      ...c.operations,
+      ...c.literals
+    ];
+    const head = `${indent}class ${id2}${id2 === c.name ? "" : `["${text3(c.name)}"]`}`;
+    if (members2.length === 0) {
+      lines.push(head);
+      return;
+    }
+    lines.push(`${head} {`);
+    for (const m of members2) lines.push(`${indent}  ${m}`);
+    lines.push(`${indent}}`);
+  };
+  for (const pkg of spec.packages) {
+    lines.push(`  namespace ${pkg.replace(/\W/g, "_")} {`);
+    for (const c of spec.classes) if (c.package === pkg) write(c, "    ");
+    lines.push("  }");
+  }
+  for (const c of spec.classes) if (c.package === void 0) write(c, "  ");
+  for (const r of spec.relations) {
+    const from = ids2.get(r.from);
+    const to = ids2.get(r.to);
+    const card = (m) => m ? ` "${m}"` : "";
+    const cardAfter = (m) => m ? `"${m}" ` : "";
+    const label2 = r.name ? ` : ${text3(r.name)}` : "";
+    const line = {
+      generalization: `${to} <|-- ${from}`,
+      realization: `${to} <|.. ${from}`,
+      composition: `${to}${card(r.toMultiplicity)} *-- ${cardAfter(r.fromMultiplicity)}${from}`,
+      aggregation: `${to}${card(r.toMultiplicity)} o-- ${cardAfter(r.fromMultiplicity)}${from}`,
+      directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
+      dependency: `${from} ..> ${to}`
+    }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
+    lines.push(`  ${line}${label2}`);
+  }
+  return lines;
+}
+var ARROWS = {
+  sync: "->>",
+  async: "-)",
+  reply: "-->>",
+  create: "->>",
+  delete: "-x"
+};
+var BLOCKS = {
+  alt: "else",
+  opt: "else",
+  loop: "else",
+  break: "else",
+  par: "and",
+  critical: "option"
+};
+function sequenceDiagram2(spec) {
+  const lines = ["sequenceDiagram"];
+  const warnings = [];
+  const ids2 = new Ids("P");
+  for (const p of spec.participants) {
+    const id2 = ids2.get(p);
+    lines.push(`  participant ${id2}${id2 === p ? "" : ` as ${text3(p)}`}`);
+  }
+  const fragments = spec.fragments.filter((f) => {
+    if (BLOCKS[f.operator]) return true;
+    warnings.push(`a ${f.operator} fragment has no Mermaid block`);
+    return false;
+  });
+  const depth = () => "  ".repeat(1 + open.length);
+  const open = [];
+  spec.messages.forEach((m, i) => {
+    fragments.forEach((f, j) => {
+      if (f.from !== i) return;
+      lines.push(
+        `${depth()}${f.operator}${f.guard ? ` ${text3(f.guard)}` : ""}`
+      );
+      open.push(j);
+    });
+    lines.push(
+      `${depth()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text3(m.text)}`
+    );
+    while (open.length > 0 && fragments[open.at(-1)].to === i) {
+      const f = fragments[open.pop()];
+      for (const guard of f.operands) {
+        lines.push(`${depth()}${BLOCKS[f.operator]} ${text3(guard)}`.trimEnd());
+      }
+      lines.push(`${depth()}end`);
+    }
+  });
+  return { lines, warnings };
+}
+var HEADER = {
+  TD: "flowchart TD",
+  LR: "flowchart LR",
+  BT: "flowchart BT",
+  RL: "flowchart RL"
+};
+function usecase(spec, direction2) {
+  const lines = [HEADER[direction2]];
+  const ids2 = /* @__PURE__ */ new Map();
+  spec.actors.forEach((a, i) => {
+    ids2.set(a, `A${i}`);
+    lines.push(`  A${i}["${text3(a)}"]`);
+  });
+  const useCase = (u, i, indent) => {
+    ids2.set(u.name, `U${i}`);
+    lines.push(`${indent}U${i}(["${text3(u.name)}"])`);
+  };
+  const inner = spec.useCases.filter((u) => u.inSystem);
+  if (spec.system !== void 0 && inner.length > 0) {
+    lines.push(`  subgraph S["${text3(spec.system)}"]`);
+    spec.useCases.forEach((u, i) => u.inSystem && useCase(u, i, "    "));
+    lines.push("  end");
+  }
+  spec.useCases.forEach((u, i) => !u.inSystem && useCase(u, i, "  "));
+  for (const r of spec.relations) {
+    const label2 = r.type === "association" ? r.name : r.type;
+    lines.push(
+      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label2 ? `|${text3(label2)}|` : ""} ${ids2.get(r.to)}`
+    );
+  }
+  return lines;
+}
+var ACTIVITY_SHAPES = {
+  initial: ["([", "])"],
+  final: ["([", "])"],
+  flowFinal: ["([", "])"],
+  decision: ["{", "}"],
+  merge: ["{", "}"],
+  fork: ["{{", "}}"],
+  join: ["{{", "}}"],
+  object: ["[/", "/]"],
+  action: ["[", "]"]
+};
+var ACTIVITY_LABELS = {
+  initial: "start",
+  final: "end",
+  flowFinal: "end",
+  fork: "fork",
+  join: "join"
+};
+function activity(spec, direction2) {
+  const lines = [HEADER[direction2]];
+  const node = (n, indent) => {
+    const [open, close] = ACTIVITY_SHAPES[n.type];
+    const label2 = n.name || ACTIVITY_LABELS[n.type] || " ";
+    lines.push(`${indent}${n.id}${open}"${text3(label2)}"${close}`);
+  };
+  for (const lane of spec.lanes) {
+    lines.push(`  subgraph ${laneId(spec.lanes, lane)}["${text3(lane)}"]`);
+    for (const n of spec.nodes) if (n.lane === lane) node(n, "    ");
+    lines.push("  end");
+  }
+  for (const n of spec.nodes) if (n.lane === void 0) node(n, "  ");
+  for (const f of spec.flows) {
+    lines.push(`  ${f.from} -->${f.guard ? `|${text3(f.guard)}|` : ""} ${f.to}`);
+  }
+  return lines;
+}
+var laneId = (lanes, lane) => `L${lanes.indexOf(lane)}`;
+function stateDiagram2(spec, direction2) {
+  const lines = ["stateDiagram-v2"];
+  if (direction2 === "LR" || direction2 === "RL") {
+    lines.push(`  direction ${direction2}`);
+  }
+  const types = new Map(spec.states.map((s) => [s.id, s.type]));
+  for (const s of spec.states) {
+    if (s.type === "state") {
+      lines.push(`  state "${text3(s.name || s.id)}" as ${s.id}`);
+    } else if (s.type !== "initial" && s.type !== "final") {
+      lines.push(`  state ${s.id} <<${s.type}>>`);
+    }
+  }
+  const ref2 = (id2) => {
+    const t = types.get(id2);
+    return t === "initial" || t === "final" ? "[*]" : id2;
+  };
+  for (const t of spec.transitions) {
+    const label2 = [
+      t.trigger ? text3(t.trigger) : "",
+      t.guard ? `[${text3(t.guard)}]` : ""
+    ].filter(Boolean).join(" ");
+    lines.push(
+      `  ${ref2(t.from)} --> ${ref2(t.to)}${label2 ? ` : ${label2}` : ""}`
+    );
+  }
+  return lines;
+}
+var LEFT = {
+  "0..1": "|o",
+  "1": "||",
+  "0..*": "}o",
+  "1..*": "}|"
+};
+var RIGHT = {
+  "0..1": "o|",
+  "1": "||",
+  "0..*": "o{",
+  "1..*": "|{"
+};
+var entity = (name2) => /^[\w-]+$/.test(name2) ? name2 : `"${text3(name2)}"`;
+function erDiagram2(spec) {
+  const lines = ["erDiagram"];
+  for (const e of spec.entities) {
+    if (e.columns.length === 0) {
+      lines.push(`  ${entity(e.name)}`);
+      continue;
+    }
+    lines.push(`  ${entity(e.name)} {`);
+    for (const c of e.columns) {
+      const keys = [
+        c.primaryKey && "PK",
+        c.foreignKey && "FK",
+        c.unique && "UK"
+      ].filter(Boolean);
+      lines.push(
+        `    ${c.type || "string"} ${c.name}${keys.length > 0 ? ` ${keys.join(", ")}` : ""}`
+      );
+    }
+    lines.push("  }");
+  }
+  for (const r of spec.relationships) {
+    lines.push(
+      `  ${entity(r.from)} ${LEFT[r.fromCardinality] ?? "||"}${r.identifying ? "--" : ".."}${RIGHT[r.toCardinality] ?? "||"} ${entity(r.to)} : "${text3(r.name ?? "")}"`
+    );
+  }
+  return lines;
+}
+var FLOW_SHAPES = {
+  process: ["[", "]"],
+  decision: ["{", "}"],
+  terminator: ["([", "])"],
+  data: ["[/", "/]"],
+  document: [">", "]"],
+  predefined: ["[[", "]]"],
+  alternate: ["(", ")"],
+  database: ["[(", ")]"],
+  manualInput: ["[/", "\\]"],
+  preparation: ["{{", "}}"],
+  connector: ["((", "))"]
+};
+function flowchart2(spec, direction2) {
+  const lines = [HEADER[direction2]];
+  const warnings = [];
+  for (const n of spec.nodes) {
+    const shape = FLOW_SHAPES[n.type];
+    if (!shape) warnings.push(`${n.id} (${n.type}) is written as a process`);
+    const [open, close] = shape ?? FLOW_SHAPES.process;
+    lines.push(`  ${n.id}${open}"${text3(n.name) || " "}"${close}`);
+  }
+  for (const f of spec.flows) {
+    lines.push(`  ${f.from} -->${f.label ? `|${text3(f.label)}|` : ""} ${f.to}`);
+  }
+  return { lines, warnings };
+}
+function mindmap2(roots) {
+  const lines = ["mindmap"];
+  const warnings = [];
+  const write = (node, depth) => {
+    const name2 = text3(node.name);
+    const label2 = /[()[\]{}]/.test(name2) ? `n["${name2}"]` : name2 || '[" "]';
+    lines.push(`${"  ".repeat(depth)}${label2}`);
+    for (const child of node.children) write(child, depth + 1);
+  };
+  if (roots.length > 1) {
+    warnings.push(`${roots.length - 1} more root nodes are not written`);
+  }
+  if (roots[0]) write(roots[0], 1);
+  return { lines, warnings };
+}
+function toMermaid(x, title = "") {
+  const front = title ? ["---", `title: "${text3(title)}"`, "---"] : [];
+  const done = (lines, warnings = []) => ({
+    text: `${[...front, ...lines].join("\n")}
+`,
+    warnings
+  });
+  switch (x.kind) {
+    case "class":
+      return done(classDiagram2(x.spec));
+    case "sequence": {
+      const { lines, warnings } = sequenceDiagram2(x.spec);
+      return done(lines, warnings);
+    }
+    case "usecase":
+      return done(usecase(x.spec, x.direction));
+    case "activity":
+      return done(activity(x.spec, x.direction));
+    case "statemachine":
+      return done(stateDiagram2(x.spec, x.direction));
+    case "erd":
+      return done(erDiagram2(x.spec));
+    case "flowchart": {
+      const { lines, warnings } = flowchart2(x.spec, x.direction);
+      return done(lines, warnings);
+    }
+    default: {
+      const { lines, warnings } = mindmap2(x.spec.roots);
+      return done(lines, warnings);
+    }
+  }
+}
+
 // src/app-modules.ts
 var import_node_fs2 = require("node:fs");
 var import_node_module2 = require("node:module");
@@ -11614,7 +11995,7 @@ function label(elem) {
 }
 function nodeViews(diagram) {
   return diagram.ownedViews.filter(
-    (v) => v instanceof type.NodeView && v.model
+    (v) => v instanceof type.NodeView && v.model && !(v.model instanceof type.Diagram)
   );
 }
 function edgeViews(diagram) {
@@ -11687,24 +12068,24 @@ var describeDiagram = defineEndpoint({
       ...nodes.length > 0 ? ["Nodes:", ...nodes.map(nodeLine)] : [],
       ...edges.length > 0 ? ["Edges:", ...edges.map(edgeLine)] : []
     ];
-    let text3 = "";
+    let text4 = "";
     let shown = 0;
     for (const line of lines) {
-      const next = shown === 0 ? line : `${text3}
+      const next = shown === 0 ? line : `${text4}
 ${line}`;
       if (next.length > max - 30) break;
-      text3 = next;
+      text4 = next;
       shown++;
     }
     const truncated = shown < lines.length;
-    if (truncated) text3 += `
+    if (truncated) text4 += `
 ... ${lines.length - shown} more lines`;
     const { _id, _type, name: name2 } = summarize(diagram);
     return {
       diagram: { _id, _type, name: name2 },
       nodes: nodes.length,
       edges: edges.length,
-      text: text3,
+      text: text4,
       truncated
     };
   }
@@ -11779,6 +12160,724 @@ var validateModel = defineEndpoint({
   }
 });
 
+// src/text/model.ts
+var typeOf = (elem) => elem.constructor.name;
+var nameOf = (elem) => elem.name;
+var str2 = (value) => typeof value === "string" ? value : "";
+function kindOf(diagram) {
+  const name2 = typeOf(diagram);
+  const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name2);
+  return found ? found[0] : null;
+}
+var box = (view) => view;
+var centre = (view) => ({
+  x: box(view).left + box(view).width / 2,
+  y: box(view).top + box(view).height / 2
+});
+function inside(view, container) {
+  const c = centre(view);
+  const b = box(container);
+  return c.x >= b.left && c.x <= b.left + b.width && c.y >= b.top && c.y <= b.top + b.height;
+}
+function flowDirection(edges) {
+  let dx = 0;
+  let dy = 0;
+  for (const e of edges) {
+    const t = centre(e.tail);
+    const h = centre(e.head);
+    dx += h.x - t.x;
+    dy += h.y - t.y;
+  }
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "LR" : "RL";
+  return dy < 0 ? "BT" : "TD";
+}
+var Views = class {
+  constructor(nodes, edges) {
+    this.nodes = nodes;
+    this.edges = edges;
+  }
+  nodes;
+  edges;
+  skipped = /* @__PURE__ */ new Map();
+  skip(view) {
+    const t = typeOf(view.model);
+    this.skipped.set(t, (this.skipped.get(t) ?? 0) + 1);
+  }
+  warnings() {
+    return [...this.skipped].map(
+      ([t, n]) => `${n} ${t} ${n === 1 ? "view is" : "views are"} not written`
+    );
+  }
+};
+var ends = (edge) => ({
+  tail: edge.tail.model,
+  head: edge.head.model
+});
+function classSpec2(v) {
+  const kinds = {
+    UMLClass: "class",
+    UMLInterface: "interface",
+    UMLEnumeration: "enum"
+  };
+  const packages = v.nodes.filter((n) => typeOf(n.model) === "UMLPackage").map((n) => n.model);
+  const classes = [];
+  for (const view of v.nodes) {
+    const m = view.model;
+    const kind = kinds[typeOf(m)];
+    if (typeOf(m) === "UMLPackage") continue;
+    if (!kind) {
+      v.skip(view);
+      continue;
+    }
+    const pkg = packages.find((p) => p === m._parent);
+    classes.push({
+      name: nameOf(m),
+      kind: kind === "class" && m.isAbstract ? "abstract" : kind,
+      ...pkg && { package: nameOf(pkg) },
+      attributes: list(m.attributes).map((a) => formatAttribute(a)),
+      operations: list(m.operations).map((o) => formatOperation(o)),
+      literals: list(m.literals).map(nameOf)
+    });
+  }
+  const relations = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    const t = typeOf(m);
+    const named = m.name ? { name: nameOf(m) } : {};
+    if (t === "UMLGeneralization" || t === "UMLInterfaceRealization") {
+      relations.push({
+        from: nameOf(m.source),
+        to: nameOf(m.target),
+        type: t === "UMLGeneralization" ? "generalization" : "realization",
+        ...named
+      });
+    } else if (t === "UMLDependency") {
+      relations.push({
+        from: nameOf(m.source),
+        to: nameOf(m.target),
+        type: "dependency",
+        ...named
+      });
+    } else if (t === "UMLAssociation") {
+      relations.push(association(m, named));
+    } else {
+      v.skip(edge);
+    }
+  }
+  return { packages: packages.map(nameOf), classes, relations };
+}
+function association(m, named) {
+  let [a, b] = [m.end1, m.end2];
+  if (a.aggregation !== "none" && b.aggregation === "none") [a, b] = [b, a];
+  const type2 = b.aggregation === "composite" ? "composition" : b.aggregation === "shared" ? "aggregation" : b.navigable === "navigable" && a.navigable !== "navigable" ? "directed" : "association";
+  return {
+    from: nameOf(a.reference),
+    to: nameOf(b.reference),
+    type: type2,
+    ...named,
+    ...str2(a.multiplicity) && { fromMultiplicity: str2(a.multiplicity) },
+    ...str2(b.multiplicity) && { toMultiplicity: str2(b.multiplicity) }
+  };
+}
+var MESSAGE_KINDS2 = {
+  synchCall: "sync",
+  asynchCall: "async",
+  asynchSignal: "async",
+  reply: "reply",
+  createMessage: "create",
+  deleteMessage: "delete"
+};
+function edgeY(view) {
+  const points = view.points?.points;
+  return points?.[0]?.y ?? Number.POSITIVE_INFINITY;
+}
+function sequenceSpec2(v) {
+  const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline").sort((a, b) => box(a).left - box(b).left);
+  const messages = [...v.edges].sort((a, b) => edgeY(a) - edgeY(b));
+  const fragments = [];
+  for (const view of v.nodes) {
+    const m = view.model;
+    if (typeOf(m) === "UMLLifeline") continue;
+    if (typeOf(m) !== "UMLCombinedFragment") {
+      v.skip(view);
+      continue;
+    }
+    const b = box(view);
+    const covered = messages.map((e, i) => [edgeY(e), i]).filter(([y]) => y >= b.top && y <= b.top + b.height).map(([, i]) => i);
+    if (covered.length === 0) {
+      v.skip(view);
+      continue;
+    }
+    const operands = list(m.operands).map((o) => str2(o.guard));
+    fragments.push({
+      operator: str2(m.interactionOperator),
+      ...operands[0] && { guard: operands[0] },
+      operands: operands.slice(1),
+      from: covered[0],
+      to: covered.at(-1)
+    });
+  }
+  return {
+    participants: lifelines.map((l) => nameOf(l.model)),
+    messages: messages.map((e) => {
+      const { tail, head } = ends(e);
+      return {
+        from: nameOf(tail),
+        to: nameOf(head),
+        text: nameOf(e.model),
+        kind: MESSAGE_KINDS2[str2(e.model.messageSort)] ?? "sync"
+      };
+    }),
+    // Outer fragments open first.
+    fragments: fragments.sort((a, b) => a.from - b.from || b.to - a.to)
+  };
+}
+var USECASE_RELATIONS2 = {
+  UMLAssociation: "association",
+  UMLInclude: "include",
+  UMLExtend: "extend",
+  UMLGeneralization: "generalization"
+};
+function usecaseSpec3(v) {
+  const subject = v.nodes.find((n) => typeOf(n.model) === "UMLUseCaseSubject");
+  const actors = [];
+  const useCases = [];
+  for (const view of v.nodes) {
+    const t = typeOf(view.model);
+    if (t === "UMLActor") actors.push(nameOf(view.model));
+    else if (t === "UMLUseCase") {
+      useCases.push({
+        name: nameOf(view.model),
+        inSystem: subject !== void 0 && inside(view, subject)
+      });
+    } else if (view !== subject) v.skip(view);
+  }
+  const relations = [];
+  for (const edge of v.edges) {
+    const type2 = USECASE_RELATIONS2[typeOf(edge.model)];
+    if (!type2) {
+      v.skip(edge);
+      continue;
+    }
+    const { tail, head } = ends(edge);
+    relations.push({
+      from: nameOf(tail),
+      to: nameOf(head),
+      type: type2,
+      ...type2 === "association" && edge.model.name ? { name: nameOf(edge.model) } : {}
+    });
+  }
+  return {
+    ...subject && { system: nameOf(subject.model) },
+    actors,
+    useCases,
+    relations
+  };
+}
+var ACTIVITY_TYPES2 = {
+  UMLAction: "action",
+  UMLOpaqueAction: "action",
+  UMLInitialNode: "initial",
+  UMLActivityFinalNode: "final",
+  UMLFlowFinalNode: "flowFinal",
+  UMLDecisionNode: "decision",
+  UMLMergeNode: "merge",
+  UMLForkNode: "fork",
+  UMLJoinNode: "join",
+  UMLObjectNode: "object",
+  UMLCentralBufferNode: "object"
+};
+function flowGraph(v, typeFor, edgeTypes, lanes = []) {
+  const ids2 = /* @__PURE__ */ new Map();
+  const nodes = [];
+  for (const view of v.nodes) {
+    if (lanes.includes(view)) continue;
+    const type2 = typeFor(view.model);
+    if (type2 === void 0) {
+      v.skip(view);
+      continue;
+    }
+    const id2 = `N${nodes.length}`;
+    ids2.set(view.model, id2);
+    const lane = lanes.find((l) => inside(view, l));
+    nodes.push({
+      id: id2,
+      name: nameOf(view.model),
+      type: type2,
+      ...lane && { lane: nameOf(lane.model) }
+    });
+  }
+  const edges = [];
+  for (const view of v.edges) {
+    const { tail, head } = ends(view);
+    const known = ids2.has(tail) && ids2.has(head);
+    if (!edgeTypes.includes(typeOf(view.model)) || !known) {
+      v.skip(view);
+      continue;
+    }
+    edges.push({ from: ids2.get(tail), to: ids2.get(head), edge: view.model });
+  }
+  return { nodes, edges };
+}
+function activitySpec3(v) {
+  const lanes = v.nodes.filter(
+    (n) => typeOf(n.model) === "UMLActivityPartition"
+  );
+  const { nodes, edges } = flowGraph(
+    v,
+    (m) => ACTIVITY_TYPES2[typeOf(m)],
+    ["UMLControlFlow", "UMLObjectFlow"],
+    lanes
+  );
+  return {
+    lanes: lanes.map((l) => nameOf(l.model)),
+    nodes,
+    flows: edges.map(({ from, to, edge }) => ({
+      from,
+      to,
+      ...str2(edge.guard) && { guard: str2(edge.guard) }
+    }))
+  };
+}
+var PSEUDO_KINDS = ["initial", "choice", "fork", "join"];
+function stateType(model) {
+  const t = typeOf(model);
+  if (t === "UMLState") return "state";
+  if (t === "UMLFinalState") return "final";
+  if (t !== "UMLPseudostate") return void 0;
+  const kind = str2(model.kind);
+  return PSEUDO_KINDS.includes(kind) ? kind : "choice";
+}
+function stateSpec(v) {
+  const { nodes, edges } = flowGraph(v, stateType, ["UMLTransition"]);
+  return {
+    states: nodes,
+    transitions: edges.map(({ from, to, edge }) => ({
+      from,
+      to,
+      ...edge.name ? { trigger: nameOf(edge) } : {},
+      ...str2(edge.guard) && { guard: str2(edge.guard) }
+    }))
+  };
+}
+function erdSpec2(v) {
+  const entities = [];
+  for (const view of v.nodes) {
+    const m = view.model;
+    if (typeOf(m) !== "ERDEntity") {
+      v.skip(view);
+      continue;
+    }
+    entities.push({
+      name: nameOf(m),
+      columns: list(m.columns).map((c) => ({
+        name: nameOf(c),
+        type: typeText(c.type) + (str2(c.length) && str2(c.length) !== "0" ? `(${str2(c.length)})` : ""),
+        primaryKey: c.primaryKey === true,
+        foreignKey: c.foreignKey === true,
+        unique: c.unique === true
+      }))
+    });
+  }
+  const relationships = [];
+  for (const edge of v.edges) {
+    const m = edge.model;
+    if (typeOf(m) !== "ERDRelationship") {
+      v.skip(edge);
+      continue;
+    }
+    const [a, b] = [m.end1, m.end2];
+    relationships.push({
+      from: nameOf(a.reference),
+      to: nameOf(b.reference),
+      fromCardinality: str2(a.cardinality),
+      toCardinality: str2(b.cardinality),
+      identifying: m.identifying !== false,
+      ...m.name ? { name: nameOf(m) } : {}
+    });
+  }
+  return { entities, relationships };
+}
+var SHAPES2 = Object.fromEntries(
+  Object.entries(FLOWCHART_SHAPES).map(([shape, t]) => [t, shape])
+);
+function flowchartSpec3(v) {
+  const { nodes, edges } = flowGraph(v, (m) => SHAPES2[typeOf(m)], ["FCFlow"]);
+  return {
+    nodes,
+    flows: edges.map(({ from, to, edge }) => ({
+      from,
+      to,
+      ...edge.name ? { label: nameOf(edge) } : {}
+    }))
+  };
+}
+function mindmapSpec2(v) {
+  const children = /* @__PURE__ */ new Map();
+  const hasParent = /* @__PURE__ */ new Set();
+  for (const edge of v.edges) {
+    const { tail, head } = ends(edge);
+    if (typeOf(edge.model) !== "MMEdge" || hasParent.has(head)) {
+      v.skip(edge);
+      continue;
+    }
+    children.set(tail, [...children.get(tail) ?? [], head]);
+    hasParent.add(head);
+  }
+  const tree = (m) => ({
+    name: nameOf(m),
+    children: (children.get(m) ?? []).map(tree)
+  });
+  const models = v.nodes.map((n) => n.model);
+  return { roots: models.filter((m) => !hasParent.has(m)).map(tree) };
+}
+function extract(diagram, kind) {
+  const nodes = nodeViews(diagram);
+  const edges = edgeViews(diagram);
+  const v = new Views(nodes, edges);
+  const direction2 = flowDirection(edges);
+  const extracted = (() => {
+    switch (kind) {
+      case "class":
+        return { kind, spec: classSpec2(v) };
+      case "sequence":
+        return { kind, spec: sequenceSpec2(v) };
+      case "usecase":
+        return { kind, spec: usecaseSpec3(v), direction: direction2 };
+      case "activity":
+        return { kind, spec: activitySpec3(v), direction: direction2 };
+      case "statemachine":
+        return { kind, spec: stateSpec(v), direction: direction2 };
+      case "erd":
+        return { kind, spec: erdSpec2(v) };
+      case "flowchart":
+        return { kind, spec: flowchartSpec3(v), direction: direction2 };
+      default:
+        return { kind, spec: mindmapSpec2(v) };
+    }
+  })();
+  return { extracted, warnings: v.warnings() };
+}
+
+// src/text/plantuml-writer.ts
+var q = (name2) => `"${name2.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
+var one = (name2) => name2.replace(/\r?\n/g, " ");
+function aliases(names2, prefix) {
+  const ids2 = /* @__PURE__ */ new Map();
+  for (const n of names2) if (!ids2.has(n)) ids2.set(n, `${prefix}${ids2.size}`);
+  return (name2) => ids2.get(name2);
+}
+function classDiagram3(spec) {
+  const id2 = aliases(
+    spec.classes.map((c) => c.name),
+    "C"
+  );
+  const lines = [];
+  const keyword = {
+    class: "class",
+    abstract: "abstract class",
+    interface: "interface",
+    enum: "enum"
+  };
+  const write = (c, indent) => {
+    const members2 = [...c.attributes, ...c.operations, ...c.literals];
+    const head = `${indent}${keyword[c.kind]} ${q(c.name)} as ${id2(c.name)}`;
+    if (members2.length === 0) {
+      lines.push(head);
+      return;
+    }
+    lines.push(`${head} {`);
+    for (const m of members2) lines.push(`${indent}  ${m}`);
+    lines.push(`${indent}}`);
+  };
+  for (const pkg of spec.packages) {
+    lines.push(`package ${q(pkg)} {`);
+    for (const c of spec.classes) if (c.package === pkg) write(c, "  ");
+    lines.push("}");
+  }
+  for (const c of spec.classes) if (c.package === void 0) write(c, "");
+  for (const r of spec.relations) {
+    const from = id2(r.from);
+    const to = id2(r.to);
+    const card = (m) => m ? ` "${m}"` : "";
+    const cardAfter = (m) => m ? `"${m}" ` : "";
+    const label2 = r.name ? ` : ${one(r.name)}` : "";
+    const line = {
+      generalization: `${to} <|-- ${from}`,
+      realization: `${to} <|.. ${from}`,
+      composition: `${to}${card(r.toMultiplicity)} *-- ${cardAfter(r.fromMultiplicity)}${from}`,
+      aggregation: `${to}${card(r.toMultiplicity)} o-- ${cardAfter(r.fromMultiplicity)}${from}`,
+      directed: `${from}${card(r.fromMultiplicity)} --> ${cardAfter(r.toMultiplicity)}${to}`,
+      dependency: `${from} ..> ${to}`
+    }[r.type] ?? `${from}${card(r.fromMultiplicity)} -- ${cardAfter(r.toMultiplicity)}${to}`;
+    lines.push(`${line}${label2}`);
+  }
+  return lines;
+}
+var ARROWS2 = {
+  sync: "->",
+  async: "->>",
+  reply: "-->",
+  create: "->",
+  delete: "->"
+};
+var GROUPS = /* @__PURE__ */ new Set(["alt", "opt", "loop", "par", "break", "critical"]);
+function sequenceDiagram3(spec) {
+  const id2 = aliases(spec.participants, "P");
+  const lines = spec.participants.map((p) => `participant ${q(p)} as ${id2(p)}`);
+  const open = [];
+  spec.messages.forEach((m, i) => {
+    for (const f of spec.fragments) {
+      if (f.from !== i) continue;
+      const head = GROUPS.has(f.operator) ? f.operator : `group ${f.operator}`;
+      lines.push(`${head}${f.guard ? ` ${one(f.guard)}` : ""}`);
+      open.push(f);
+    }
+    if (m.kind === "create") lines.push(`create ${id2(m.to)}`);
+    lines.push(
+      `${id2(m.from)} ${ARROWS2[m.kind]} ${id2(m.to)}${m.text ? ` : ${one(m.text)}` : ""}`
+    );
+    if (m.kind === "delete") lines.push(`destroy ${id2(m.to)}`);
+    while (open.length > 0 && open.at(-1).to === i) {
+      const f = open.pop();
+      for (const guard of f.operands)
+        lines.push(`else ${one(guard)}`.trimEnd());
+      lines.push("end");
+    }
+  });
+  return lines;
+}
+var LAYOUT = {
+  TD: [],
+  BT: [],
+  LR: ["left to right direction"],
+  RL: ["left to right direction"]
+};
+function usecase2(spec, direction2) {
+  const actor = aliases(spec.actors, "A");
+  const uc = aliases(
+    spec.useCases.map((u) => u.name),
+    "U"
+  );
+  const lines = [...LAYOUT[direction2]];
+  for (const a of spec.actors) lines.push(`actor ${q(a)} as ${actor(a)}`);
+  const inner = spec.useCases.filter((u) => u.inSystem);
+  if (spec.system !== void 0 && inner.length > 0) {
+    lines.push(`rectangle ${q(spec.system)} {`);
+    for (const u of inner)
+      lines.push(`  usecase ${q(u.name)} as ${uc(u.name)}`);
+    lines.push("}");
+  }
+  for (const u of spec.useCases) {
+    if (!u.inSystem) lines.push(`usecase ${q(u.name)} as ${uc(u.name)}`);
+  }
+  const ref2 = (name2) => spec.actors.includes(name2) ? actor(name2) : uc(name2);
+  for (const r of spec.relations) {
+    const [from, to] = [ref2(r.from), ref2(r.to)];
+    lines.push(
+      {
+        include: `${from} ..> ${to} : <<include>>`,
+        extend: `${from} ..> ${to} : <<extend>>`,
+        generalization: `${to} <|-- ${from}`
+      }[r.type] ?? `${from} --> ${to}${r.name ? ` : ${one(r.name)}` : ""}`
+    );
+  }
+  return lines;
+}
+function graph(nodes, edges, direction2) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const declared = /* @__PURE__ */ new Set();
+  const ref2 = (id2, side) => {
+    const n = byId.get(id2);
+    if (n.type === "initial" && side === "from") return "(*)";
+    if ((n.type === "final" || n.type === "flowFinal") && side === "to") {
+      return "(*)";
+    }
+    if (n.type === "fork" || n.type === "join") return `===${n.id}===`;
+    if (declared.has(id2)) return n.id;
+    declared.add(id2);
+    return `${q(n.name || n.id)} as ${n.id}`;
+  };
+  const lines = [...LAYOUT[direction2]];
+  for (const e of edges) {
+    const from = ref2(e.from, "from");
+    lines.push(
+      `${from} -->${e.label ? ` [${one(e.label)}]` : ""} ${ref2(e.to, "to")}`
+    );
+  }
+  const linked = new Set(edges.flatMap((e) => [e.from, e.to]));
+  const alone = nodes.filter((n) => !linked.has(n.id)).length;
+  return {
+    lines,
+    warnings: alone > 0 ? [
+      `${alone} node${alone === 1 ? "" : "s"} without flows ${alone === 1 ? "is" : "are"} not written`
+    ] : []
+  };
+}
+function activity2(spec, direction2) {
+  return graph(
+    spec.nodes,
+    spec.flows.map((f) => ({ from: f.from, to: f.to, label: f.guard })),
+    direction2
+  );
+}
+function flowchart3(spec, direction2) {
+  return graph(spec.nodes, spec.flows, direction2);
+}
+var STEREOTYPES = /* @__PURE__ */ new Set(["choice", "fork", "join"]);
+function stateDiagram3(spec, direction2) {
+  const lines = [...LAYOUT[direction2]];
+  const types = new Map(spec.states.map((s) => [s.id, s.type]));
+  for (const s of spec.states) {
+    if (s.type === "state") lines.push(`state ${q(s.name || s.id)} as ${s.id}`);
+    else if (STEREOTYPES.has(s.type)) lines.push(`state ${s.id} <<${s.type}>>`);
+  }
+  const ref2 = (id2) => {
+    const t = types.get(id2);
+    return t === "initial" || t === "final" ? "[*]" : id2;
+  };
+  for (const t of spec.transitions) {
+    const label2 = [
+      t.trigger ? one(t.trigger) : "",
+      t.guard ? `[${one(t.guard)}]` : ""
+    ].filter(Boolean).join(" ");
+    lines.push(`${ref2(t.from)} --> ${ref2(t.to)}${label2 ? ` : ${label2}` : ""}`);
+  }
+  return lines;
+}
+var LEFT2 = {
+  "0..1": "|o",
+  "1": "||",
+  "0..*": "}o",
+  "1..*": "}|"
+};
+var RIGHT2 = {
+  "0..1": "o|",
+  "1": "||",
+  "0..*": "o{",
+  "1..*": "|{"
+};
+function erDiagram3(spec) {
+  const id2 = aliases(
+    spec.entities.map((e) => e.name),
+    "E"
+  );
+  const lines = [];
+  for (const e of spec.entities) {
+    lines.push(`entity ${q(e.name)} as ${id2(e.name)} {`);
+    const keys = e.columns.filter((c) => c.primaryKey);
+    const rest = e.columns.filter((c) => !c.primaryKey);
+    const column = (c) => {
+      const marks = [
+        c.primaryKey && "<<PK>>",
+        c.foreignKey && "<<FK>>",
+        c.unique && "<<UK>>"
+      ].filter(Boolean);
+      return `  ${c.primaryKey ? "*" : ""}${c.name}${c.type ? ` : ${c.type}` : ""}${marks.length > 0 ? ` ${marks.join(" ")}` : ""}`;
+    };
+    lines.push(...keys.map(column));
+    if (keys.length > 0 && rest.length > 0) lines.push("  --");
+    lines.push(...rest.map(column), "}");
+  }
+  for (const r of spec.relationships) {
+    lines.push(
+      `${id2(r.from)} ${LEFT2[r.fromCardinality] ?? "||"}${r.identifying ? "--" : ".."}${RIGHT2[r.toCardinality] ?? "||"} ${id2(r.to)}${r.name ? ` : ${one(r.name)}` : ""}`
+    );
+  }
+  return lines;
+}
+function mindmap3(roots) {
+  const lines = [];
+  const write = (node, depth) => {
+    lines.push(`${"*".repeat(depth)} ${one(node.name)}`);
+    for (const child of node.children) write(child, depth + 1);
+  };
+  for (const root of roots) write(root, 1);
+  return lines;
+}
+function toPlantUml(x, title = "") {
+  const done = (lines, warnings = [], start = "@startuml", end = "@enduml") => ({
+    text: `${[start, ...title ? [`title ${one(title)}`] : [], ...lines, end].join("\n")}
+`,
+    warnings
+  });
+  switch (x.kind) {
+    case "class":
+      return done(classDiagram3(x.spec));
+    case "sequence":
+      return done(sequenceDiagram3(x.spec));
+    case "usecase":
+      return done(usecase2(x.spec, x.direction));
+    case "activity": {
+      const { lines, warnings } = activity2(x.spec, x.direction);
+      return done(lines, [
+        ...x.spec.lanes.length > 0 ? ["swimlanes are not written in the legacy activity syntax"] : [],
+        ...warnings
+      ]);
+    }
+    case "statemachine":
+      return done(stateDiagram3(x.spec, x.direction));
+    case "erd":
+      return done(erDiagram3(x.spec));
+    case "flowchart": {
+      const { lines, warnings } = flowchart3(x.spec, x.direction);
+      return done(lines, warnings);
+    }
+    default:
+      return done(mindmap3(x.spec.roots), [], "@startmindmap", "@endmindmap");
+  }
+}
+
+// src/handlers/export-text.ts
+var exportText = defineEndpoint({
+  path: "/export_text",
+  description: "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart and mind map diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    diagramId: id("Diagram id."),
+    format: doc(_enum(["mermaid", "plantuml"]), "Text format.")
+  }),
+  response: object({
+    diagram: object({
+      _id: string2(),
+      _type: string2(),
+      name: nullable(string2())
+    }),
+    kind: doc(
+      _enum(KINDS),
+      "The /build_diagram kind; use case and activity diagrams are written as Mermaid flowcharts and need it to be built again."
+    ),
+    format: string2(),
+    text: string2(),
+    warnings: doc(
+      array(string2()),
+      "Views or details the text leaves out or changes."
+    )
+  }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.diagramId);
+    const kind = kindOf(diagram);
+    if (!kind) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${diagram.constructor.name} cannot be written as text; supported: ${KINDS.join(", ")} diagrams`
+      );
+    }
+    const { extracted, warnings } = extract(diagram, kind);
+    const { _id, _type, name: name2 } = summarize(diagram);
+    const write = input.format === "mermaid" ? toMermaid : toPlantUml;
+    const out = write(extracted, diagram.name);
+    return {
+      diagram: { _id, _type, name: name2 },
+      kind,
+      format: input.format,
+      text: out.text,
+      warnings: [...warnings, ...out.warnings]
+    };
+  }
+});
+
 // src/handlers/search.ts
 var CATEGORIES = [
   "diagram",
@@ -11814,7 +12913,7 @@ function ownAttributes(name2) {
 function relationshipText(model) {
   return relationshipKind(model) === "directed" ? "directed relationship (source -> target)" : "undirected relationship (end1 -- end2)";
 }
-var article = (text3) => /^[aeiou]/.test(text3) ? "an" : "a";
+var article = (text4) => /^[aeiou]/.test(text4) ? "an" : "a";
 function groupDiagrams(groupId) {
   const group = app.toolbox.groups[groupId];
   if (!group) return "";
@@ -11926,10 +13025,10 @@ function typeCorpus() {
   return cache.entries;
 }
 var squash2 = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-function subsequence(q, s) {
+function subsequence(q2, s) {
   let at = -1;
   let gaps = 0;
-  for (const ch of q) {
+  for (const ch of q2) {
     const next = s.indexOf(ch, at + 1);
     if (next < 0) return 0;
     if (at >= 0) gaps += next - at - 1;
@@ -11938,18 +13037,18 @@ function subsequence(q, s) {
   return Math.max(1, 100 - gaps);
 }
 function scoreEntry(entry, query) {
-  const q = squash2(query);
+  const q2 = squash2(query);
   const id2 = squash2(entry.id);
   const title = squash2(entry.title ?? "");
-  if (!q) return 0;
-  if (id2 === q || title === q) return 1e3;
-  if (id2.startsWith(q)) return 900 - (id2.length - q.length);
-  if (id2.includes(q) || title.includes(q)) return 800 - (id2.length - q.length);
+  if (!q2) return 0;
+  if (id2 === q2 || title === q2) return 1e3;
+  if (id2.startsWith(q2)) return 900 - (id2.length - q2.length);
+  if (id2.includes(q2) || title.includes(q2)) return 800 - (id2.length - q2.length);
   const words = query.toLowerCase().match(/[a-z0-9]+/g);
   const hay = `${entry.id} ${entry.title ?? ""} ${entry.description}`.toLowerCase();
   const found = words.filter((w) => hay.includes(w)).length;
   if (found === words.length) return 500 + found;
-  const fuzzy = subsequence(q, id2);
+  const fuzzy = subsequence(q2, id2);
   return fuzzy > 0 ? 200 + fuzzy : 0;
 }
 var searchTypes = defineEndpoint({
@@ -12499,7 +13598,7 @@ var visibility2 = () => optional(
 var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "Default none."));
 var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
 var flag = (description) => optional(doc(boolean2(), description));
-var str2 = (description) => optional(text2(description));
+var str3 = (description) => optional(text2(description));
 function pick2(input, names2) {
   const out = {};
   for (const name2 of names2) {
@@ -12526,14 +13625,14 @@ var structuralShape = () => ({
     )
   ),
   visibility: visibility2(),
-  multiplicity: str2("E.g. '0..1', '1', '*', '1..*'."),
-  defaultValue: str2("Default value as text."),
+  multiplicity: str3("E.g. '0..1', '1', '*', '1..*'."),
+  defaultValue: str3("Default value as text."),
   isStatic: flag("Class-level feature."),
   isReadOnly: flag("Read only."),
   isDerived: flag("Derived."),
   isID: flag("Part of the identity."),
   aggregation: aggregation(),
-  documentation: str2("Documentation text."),
+  documentation: str3("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
 function featureValues(typeName2, input, names2) {
@@ -12577,10 +13676,10 @@ var parameterShape = () => ({
     typeValue("A type name, or {$ref: id} of a classifier in the model.")
   ),
   direction: direction(),
-  multiplicity: str2("E.g. '0..1', '*'."),
-  defaultValue: str2("Default value as text."),
+  multiplicity: str3("E.g. '0..1', '*'."),
+  defaultValue: str3("Default value as text."),
   isReadOnly: flag("Read only."),
-  documentation: str2("Documentation text."),
+  documentation: str3("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
 var OPERATION = [
@@ -12603,8 +13702,8 @@ var addOperation = defineEndpoint({
     isStatic: flag("Class-level operation."),
     isAbstract: flag("Abstract."),
     isQuery: flag("Does not change state."),
-    specification: str2("Body or specification text."),
-    documentation: str2("Documentation text."),
+    specification: str3("Body or specification text."),
+    documentation: str3("Documentation text."),
     parameters: optional(
       doc(array(object(parameterShape())), "In declaration order.")
     ),
@@ -12675,7 +13774,7 @@ var addEnumerationLiteral = defineEndpoint({
   request: object({
     enumerationId: id("UMLEnumeration id."),
     name: text2("Literal name."),
-    documentation: str2("Documentation text."),
+    documentation: str3("Documentation text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
@@ -12728,13 +13827,13 @@ var addSlot = defineEndpoint({
   destructive: false,
   request: object({
     instanceId: id("Instance id, e.g. a UMLObject."),
-    name: str2("Slot name; usually the defining attribute's name."),
+    name: str3("Slot name; usually the defining attribute's name."),
     definingFeature: optional(
       reference(
         "The UMLAttribute (or other structural feature) the slot sets."
       )
     ),
-    value: str2("Value as text."),
+    value: str3("Value as text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
@@ -12863,9 +13962,9 @@ function endValues(modelType, kind, tailEnd, headEnd) {
     head: toModelValues(types.head, headEnd ?? {})
   };
 }
-function assignEnds(model, ends) {
-  if (model.end1) Object.assign(model.end1, ends.tail);
-  if (model.end2) Object.assign(model.end2, ends.head);
+function assignEnds(model, ends2) {
+  if (model.end1) Object.assign(model.end1, ends2.tail);
+  if (model.end2) Object.assign(model.end2, ends2.head);
 }
 function edgeGeometry(tail, head, input) {
   const from = center(tail);
@@ -12896,7 +13995,7 @@ function createEdge(request) {
   const modelType = modelTypeOf(createId);
   const kind = modelType ? relationshipKind(modelType) : null;
   const values = valuesFor(createId, request.name, request.properties);
-  const ends = endValues(modelType, kind, request.tailEnd, request.headEnd);
+  const ends2 = endValues(modelType, kind, request.tailEnd, request.headEnd);
   return createModelAndView({
     ...preset,
     id: createId,
@@ -12909,7 +14008,7 @@ function createEdge(request) {
     ...edgeGeometry(request.tail, request.head, request),
     modelInitializer: (m) => {
       Object.assign(m, values);
-      assignEnds(m, ends);
+      assignEnds(m, ends2);
     }
   });
 }
@@ -12952,7 +14051,7 @@ var createEdgeWithView = defineEndpoint({
 });
 function createModelOnly(modelType, kind, input, tail, head) {
   const values = initialValues(modelType, input.name, input.properties);
-  const ends = endValues(modelType, kind, input.tailEnd, input.headEnd);
+  const ends2 = endValues(modelType, kind, input.tailEnd, input.headEnd);
   const parent = input.parentId === void 0 ? defaultOwner(tail, modelType) : requireElement(input.parentId, "Parent");
   const field = resolveOwnerField(parent, modelType, input.field);
   const model = instantiate(modelType);
@@ -12964,7 +14063,7 @@ function createModelOnly(modelType, kind, input, tail, head) {
     model.end2.reference = head;
   }
   Object.assign(model, values);
-  assignEnds(model, ends);
+  assignEnds(model, ends2);
   const stored = inStarUML(() => app.engine.addModel(parent, field, model));
   if (!stored) {
     throw new ApiError(
@@ -13725,6 +14824,7 @@ var endpoints = [
   exportDiagrams,
   exportPdf,
   exportHtml,
+  exportText,
   listCodeGenerators,
   generateCode,
   reverseCode,

@@ -1,0 +1,8 @@
+@startuml
+(*) --> "Order" as N1
+N1 --> "stock?" as N2
+N2 --> [yes] "Ship" as N3
+N2 --> [no] "Refund" as N4
+N3 --> (*)
+N4 --> (*)
+@enduml

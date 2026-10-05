@@ -1,0 +1,19 @@
+---
+title: "Greeting"
+---
+sequenceDiagram
+  participant Alice
+  participant Bob
+  participant C
+  Alice->>Bob: Hello
+  loop Every minute
+    Bob->>Alice: Fine
+  end
+  alt sick
+    opt really
+      Bob->>Alice: cough
+    end
+    Bob->>C: great
+  else well
+  end
+  C->>C: self

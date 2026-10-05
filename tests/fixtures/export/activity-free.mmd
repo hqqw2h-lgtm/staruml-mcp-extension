@@ -1,0 +1,18 @@
+---
+title: "Free flow"
+---
+flowchart TD
+  N0(["start"])
+  N1["A"]
+  N2{{"fork"}}
+  N3["B"]
+  N4["C"]
+  N5{{"join"}}
+  N6(["end"])
+  N0 --> N1
+  N1 --> N2
+  N2 --> N3
+  N2 --> N4
+  N3 --> N5
+  N4 --> N5
+  N5 --> N6

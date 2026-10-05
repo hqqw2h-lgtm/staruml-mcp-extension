@@ -1,0 +1,16 @@
+@startuml
+entity "CUSTOMER" as E0 {
+  *name : string <<PK>>
+  --
+  email : string <<UK>>
+}
+entity "ORDER" as E1 {
+  *id : int <<PK>>
+  --
+  customer : string <<FK>>
+}
+entity "LINE-ITEM" as E2 {
+}
+E0 ||--o{ E1 : places
+E1 ||--|{ E2 : contains
+@enduml

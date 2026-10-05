@@ -1,0 +1,15 @@
+@startuml
+title Shop DB
+entity "customer" as E0 {
+  *id : int <<PK>>
+  --
+  name : varchar(40)
+}
+entity "orders" as E1 {
+  *id : int <<PK>>
+  --
+  customer_id : int <<FK>>
+  total : decimal(10,2)
+}
+E0 ||--o{ E1 : places
+@enduml

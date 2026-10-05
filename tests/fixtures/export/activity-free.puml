@@ -1,0 +1,10 @@
+@startuml
+title Free flow
+(*) --> "A" as N1
+N1 --> ===N2===
+===N2=== --> "B" as N3
+===N2=== --> "C" as N4
+N3 --> ===N5===
+N4 --> ===N5===
+===N5=== --> (*)
+@enduml

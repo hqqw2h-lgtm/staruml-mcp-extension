@@ -1,0 +1,14 @@
+---
+title: "Shop DB"
+---
+erDiagram
+  customer {
+    int id PK
+    varchar(40) name
+  }
+  orders {
+    int id PK
+    int customer_id FK
+    decimal(10,2) total
+  }
+  customer ||--o{ orders : "places"

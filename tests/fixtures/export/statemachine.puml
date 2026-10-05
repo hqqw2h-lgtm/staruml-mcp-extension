@@ -1,0 +1,12 @@
+@startuml
+title Order states
+state "New" as N1
+state "Paid" as N2
+state N3 <<choice>>
+state "Shipped" as N4
+[*] --> N1
+N1 --> N2 : pay [amount > 0]
+N2 --> N3
+N3 --> N4 : [in stock]
+N4 --> [*] : deliver / notify
+@enduml

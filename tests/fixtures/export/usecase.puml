@@ -1,0 +1,15 @@
+@startuml
+title Shop UC
+left to right direction
+actor "Customer" as A0
+actor "Admin" as A1
+rectangle "Shop" {
+  usecase "Browse" as U0
+  usecase "Buy" as U1
+  usecase "Pay\nonline" as U2
+}
+A0 --> U0
+A0 --> U1
+U1 ..> U2 : <<include>>
+A1 --> U0
+@enduml

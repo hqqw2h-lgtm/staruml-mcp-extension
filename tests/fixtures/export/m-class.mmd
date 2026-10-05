@@ -1,0 +1,20 @@
+---
+title: "Animals"
+---
+classDiagram
+  class Animal {
+    +age: int
+    +isMammal(): bool
+  }
+  class Duck {
+    +beakColor: String
+    +swim()
+  }
+  class Fish {
+    <<interface>>
+    +swim()
+  }
+  class Egg
+  Animal <|-- Duck
+  Animal <|-- Fish
+  Egg "many" -- "1" Duck : lays

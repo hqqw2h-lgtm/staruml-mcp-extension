@@ -21,12 +21,12 @@ describe("preprocess", () => {
     ).toEqual({
       title: "My diagram",
       lines: [
-        { no: 7, text: "classDiagram" },
-        { no: 8, text: "A" },
+        { no: 7, text: "classDiagram", indent: 0 },
+        { no: 8, text: "A", indent: 2 },
       ],
     });
     expect(preprocess("---\nx: 1\n---\ngraph")).toEqual({
-      lines: [{ no: 4, text: "graph" }],
+      lines: [{ no: 4, text: "graph", indent: 0 }],
     });
   });
 
@@ -104,8 +104,9 @@ describe("classDiagram", () => {
       attributes: ["+int age"],
       operations: ["+isMammal() bool"],
     });
-    expect(byName.Duck).toEqual({
-      name: "Duck",
+    // The label is the name, as Mermaid draws it.
+    expect(byName["Duck label"]).toEqual({
+      name: "Duck label",
       attributes: ["+String beak"],
       operations: ["+swim()"],
     });
@@ -118,12 +119,12 @@ describe("classDiagram", () => {
     expect(byName.Kind!.kind).toBe("enum");
     expect(byName.Mark!.kind).toBeUndefined();
     expect(spec.relations.map((r) => `${r.from} ${r.type} ${r.to}`)).toEqual([
-      "Duck generalization Animal",
+      "Duck label generalization Animal",
       "Fish generalization Animal",
       "Fish realization Swimmer",
-      "Duck realization Swimmer",
-      "Duck composition Pond",
-      "Duck composition Pond",
+      "Duck label realization Swimmer",
+      "Duck label composition Pond",
+      "Duck label composition Pond",
       "Pond aggregation Zoo",
       "Pond aggregation Zoo",
       "Zoo directed Keeper",
@@ -508,6 +509,64 @@ describe("erDiagram", () => {
     expect(refused("erDiagram\n  A -- B")).toBe(
       'mermaid line 2: cannot read "A -- B"',
     );
+  });
+});
+
+describe("classDiagram namespaces", () => {
+  it("files classes under a namespace's package, once per name", () => {
+    const { spec } = parseMermaid(
+      "classDiagram\n  namespace Shop {\n    class A\n  }\n  namespace Shop {\n    class B\n  }\n  class C\n  }",
+    );
+    expect(spec).toEqual({
+      packages: ["Shop"],
+      classes: [
+        { name: "A", package: "Shop" },
+        { name: "B", package: "Shop" },
+        { name: "C" },
+      ],
+      relations: [],
+    });
+  });
+});
+
+describe("mindmap", () => {
+  it("nests nodes by indentation and strips shapes and styling", () => {
+    const parsed = parseMermaid(
+      [
+        "mindmap",
+        "  root((Shop))",
+        "    Catalog",
+        "      ::icon(fa fa-book)",
+        "      s[Search<br/>box]:::big",
+        '      "Quoted"',
+        "    Cart",
+        "      c{{Check out}}",
+        "    p)Pay(",
+      ].join("\n"),
+    );
+    expect(parsed).toEqual({
+      kind: "mindmap",
+      spec: {
+        root: {
+          name: "Shop",
+          children: [
+            {
+              name: "Catalog",
+              children: [{ name: "Search\nbox" }, { name: "Quoted" }],
+            },
+            { name: "Cart", children: [{ name: "Check out" }] },
+            { name: "Pay" },
+          ],
+        },
+      },
+    });
+  });
+
+  it("refuses a second root and an empty map", () => {
+    expect(refused("mindmap\n  A\n  B")).toBe(
+      "mermaid line 3: a mindmap has one root; indent this line under it",
+    );
+    expect(refused("mindmap")).toBe("mermaid line 1: mindmap has no root");
   });
 });
 

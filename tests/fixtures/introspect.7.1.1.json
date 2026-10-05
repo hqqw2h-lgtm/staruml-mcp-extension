@@ -20599,6 +20599,68 @@
       }
     },
     {
+      "path": "/export_text",
+      "description": "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart and mind map diagrams. Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagramId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram id."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["mermaid", "plantuml"],
+            "description": "Text format."
+          }
+        },
+        "required": ["diagramId", "format"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "_type": { "type": "string" },
+              "name": { "type": ["string", "null"] }
+            },
+            "required": ["_id", "_type", "name"],
+            "additionalProperties": false
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "class",
+              "sequence",
+              "usecase",
+              "activity",
+              "statemachine",
+              "erd",
+              "flowchart",
+              "mindmap"
+            ],
+            "description": "The /build_diagram kind; use case and activity diagrams are written as Mermaid flowcharts and need it to be built again."
+          },
+          "format": { "type": "string" },
+          "text": { "type": "string" },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Views or details the text leaves out or changes."
+          }
+        },
+        "required": ["diagram", "kind", "format", "text", "warnings"],
+        "additionalProperties": false
+      }
+    },
+    {
       "path": "/list_code_generators",
       "description": "Which code generator extensions are installed, for /generate_code and /reverse_code, with the options each takes from its preferences.",
       "readOnly": true,
@@ -20915,7 +20977,7 @@
     },
     {
       "path": "/build_diagram",
-      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram; a flowchart also as activity or usecase). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
+      "description": "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap) or from Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram, mindmap; a flowchart also as activity or usecase; /export_text writes this Mermaid back). One undo step; laid out by Format > Layout where the kind allows. upsert updates the diagram of the same name instead of adding another. Answers the ids of what it made, not the model.",
       "readOnly": false,
       "destructive": false,
       "request": {

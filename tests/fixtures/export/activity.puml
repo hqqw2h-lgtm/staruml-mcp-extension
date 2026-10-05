@@ -1,0 +1,9 @@
+@startuml
+title Order flow
+(*) --> "Place order" as N1
+N1 --> "in stock?" as N2
+N2 --> [yes] "Ship" as N3
+N2 --> [no] "Refund" as N4
+N3 --> (*)
+N4 --> (*)
+@enduml

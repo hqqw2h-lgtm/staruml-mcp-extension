@@ -35,6 +35,7 @@ import {
   reverseCode,
 } from "./handlers/codegen.js";
 import { debug } from "./handlers/debug.js";
+import { exportText } from "./handlers/export-text.js";
 import { describeDiagram, validateModel } from "./handlers/describe.js";
 import { searchTypes } from "./handlers/search.js";
 import { introspectEndpoint } from "./handlers/introspect.js";
@@ -160,6 +161,7 @@ export const endpoints: readonly Endpoint[] = [
   exportDiagrams,
   exportPdf,
   exportHtml,
+  exportText,
 
   listCodeGenerators,
   generateCode,

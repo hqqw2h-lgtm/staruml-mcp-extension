@@ -1,0 +1,14 @@
+---
+title: "Login"
+---
+flowchart TD
+  N0(["Start"])
+  N1[/"Enter<br/>credentials"\]
+  N2{"valid?"}
+  N3["Home"]
+  N4(["End"])
+  N0 --> N1
+  N1 --> N2
+  N2 -->|yes| N3
+  N2 -->|no| N1
+  N3 --> N4

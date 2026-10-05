@@ -30,7 +30,7 @@ import type { Direction, Kind } from "./spec.js";
  * read into the JSON spec of a kind, so names, line breaks and layout are
  * ours rather than the built-in generate_diagram's. Syntax follows
  * mermaid.js.org/syntax (classDiagram, sequenceDiagram, flowchart,
- * erDiagram, stateDiagram); what a StarUML diagram cannot show (styles,
+ * erDiagram, stateDiagram, mindmap); what a StarUML diagram cannot show (styles,
  * notes, click handlers, activations) is skipped.
  */
 
@@ -48,6 +48,8 @@ const fail = (line: number, message: string): never => {
 interface Line {
   no: number;
   text: string;
+  /** Leading whitespace, which only mindmap reads. */
+  indent: number;
 }
 
 /** Strips front matter (keeping its title), %% comments and blank lines. */
@@ -68,7 +70,10 @@ export function preprocess(source: string): { title?: string; lines: Line[] } {
   raw.forEach((text, i) => {
     if (i < start) return;
     const t = text.replace(/%%.*$/, "").trim();
-    if (t) lines.push({ no: i + 1, text: t });
+    if (t) {
+      const indent = text.length - text.trimStart().length;
+      lines.push({ no: i + 1, text: t, indent });
+    }
   });
   return { ...(title !== undefined && { title }), lines };
 }
@@ -109,19 +114,28 @@ const RELATION =
 interface ClassEntry {
   name: string;
   kind?: string;
+  package?: string;
   attributes: string[];
   operations: string[];
   literals: string[];
 }
 
+/**
+ * Classes are keyed by their Mermaid id; a label (class Id["Label"]) is the
+ * name, as it is what Mermaid draws. A namespace becomes a package that owns
+ * the classes declared in it.
+ */
 function classDiagram(lines: Line[]): Record<string, unknown> {
   const classes = new Map<string, ClassEntry>();
-  const relations: Record<string, unknown>[] = [];
+  const packages: string[] = [];
+  const relations: { from: string; to: string; [k: string]: unknown }[] = [];
+  let namespace: string | undefined;
   const entry = (name: string) => {
     const key = name.replace(/~.*~$/, "");
     let e = classes.get(key);
     if (!e) {
       e = { name: key, attributes: [], operations: [], literals: [] };
+      if (namespace !== undefined) e.package = namespace;
       classes.set(key, e);
     }
     return e;
@@ -150,7 +164,13 @@ function classDiagram(lines: Line[]): Record<string, unknown> {
       (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(\{)?\s*$/.exec(text))
     ) {
       const e = entry(m[1]!);
+      if (m[2] !== undefined) e.name = multiline(m[2]);
       if (m[3]) open = e;
+    } else if ((m = /^namespace\s+([\w.]+)\s*\{$/.exec(text))) {
+      namespace = m[1]!;
+      if (!packages.includes(namespace)) packages.push(namespace);
+    } else if (text === "}" && namespace !== undefined) {
+      namespace = undefined;
     } else if ((m = /^<<(.+)>>\s+([\w.]+)$/.exec(text))) {
       annotate(entry(m[2]!), m[1]!);
     } else if ((m = RELATION.exec(text))) {
@@ -172,22 +192,29 @@ function classDiagram(lines: Line[]): Record<string, unknown> {
     } else if ((m = /^([\w.]+)\s*:\s*(.+)$/.exec(text))) {
       member(entry(m[1]!), m[2]!.trim());
     } else if (
-      !/^(direction\s|note\b|style\b|classDef\b|cssClass\b|click\b|link\b|callback\b|namespace\b|})/.test(
+      !/^(direction\s|note\b|style\b|classDef\b|cssClass\b|click\b|link\b|callback\b|})/.test(
         text,
       )
     ) {
       fail(no, `cannot read "${text}"`);
     }
   }
+  const nameOf = (key: string) => classes.get(key)!.name;
   return {
+    ...(packages.length > 0 && { packages }),
     classes: [...classes.values()].map((e) => ({
       name: e.name,
       ...(e.kind && { kind: e.kind }),
+      ...(e.package !== undefined && { package: e.package }),
       ...(e.attributes.length > 0 && { attributes: e.attributes }),
       ...(e.operations.length > 0 && { operations: e.operations }),
       ...(e.literals.length > 0 && { literals: e.literals }),
     })),
-    relations,
+    relations: relations.map((r) => ({
+      ...r,
+      from: nameOf(r.from),
+      to: nameOf(r.to),
+    })),
   };
 }
 
@@ -612,6 +639,48 @@ function stateDiagram(lines: Line[]): Record<string, unknown> {
   return { states: [...states.values()], transitions };
 }
 
+// ---------------------------------------------------------------- mindmap
+
+interface MindEntry {
+  name: string;
+  children: MindEntry[];
+}
+
+/** Mermaid's node shapes, outermost delimiters first. */
+const MIND_SHAPE =
+  /^[\w-]*\s*(?:\[\[?|\(\(|\(|\)\)|\)|\{\{)(.*?)(?:\]\]?|\)\)|\)|\(\(|\(|\}\})$/;
+
+/**
+ * A mindmap: each line a node, a child of the nearest line above it that is
+ * indented less. ::icon() lines and :::class suffixes are styling.
+ */
+function mindmap(lines: Line[]): Record<string, unknown> {
+  const stack: { indent: number; node: MindEntry }[] = [];
+  let root: MindEntry | undefined;
+  for (const { no, text, indent } of lines) {
+    if (/^::icon\(/.test(text)) continue;
+    const bare = text.replace(/\s*:::.*$/, "");
+    const shaped = MIND_SHAPE.exec(bare);
+    const node: MindEntry = {
+      name: multiline(unquote(shaped ? shaped[1]! : bare)),
+      children: [],
+    };
+    while (stack.length > 0 && stack.at(-1)!.indent >= indent) stack.pop();
+    const parent = stack.at(-1);
+    if (parent) parent.node.children.push(node);
+    else if (root)
+      fail(no, "a mindmap has one root; indent this line under it");
+    else root = node;
+    stack.push({ indent, node });
+  }
+  if (!root) fail(1, "mindmap has no root");
+  const strip = (n: MindEntry): Record<string, unknown> => ({
+    name: n.name,
+    ...(n.children.length > 0 && { children: n.children.map(strip) }),
+  });
+  return { root: strip(root!) };
+}
+
 // ---------------------------------------------------------------- entry
 
 const HEADERS: [RegExp, Kind][] = [
@@ -620,6 +689,7 @@ const HEADERS: [RegExp, Kind][] = [
   [/^(flowchart|graph)\b/, "flowchart"],
   [/^erDiagram\b/, "erd"],
   [/^stateDiagram(-v2)?\b/, "statemachine"],
+  [/^mindmap\b/, "mindmap"],
 ];
 
 /**
@@ -635,7 +705,7 @@ export function parseMermaid(source: string, as?: Kind): Parsed {
   if (!found) {
     return fail(
       header.no,
-      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram or stateDiagram`,
+      `unsupported diagram "${header.text.split(/\s/)[0]}"; expected classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram or mindmap`,
     );
   }
   let kind = found[1];
@@ -655,6 +725,8 @@ export function parseMermaid(source: string, as?: Kind): Parsed {
       return { kind, ...titled, spec: erDiagram(body()) };
     case "statemachine":
       return { kind, ...titled, spec: stateDiagram(body()) };
+    case "mindmap":
+      return { kind, ...titled, spec: mindmap(body()) };
     case "activity":
       return { kind, ...titled, ...activitySpec(lines) };
     case "usecase":

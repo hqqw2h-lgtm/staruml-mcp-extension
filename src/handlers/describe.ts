@@ -43,10 +43,16 @@ export function label(elem: Element): string {
   return elem.name!.replace(/\s*\n\s*/g, " ");
 }
 
-/** Node views on `diagram` that show a model, in diagram order. */
+/**
+ * Node views on `diagram` that show a model element, in diagram order. A
+ * sequence diagram's frame is a view whose model is the diagram itself.
+ */
 export function nodeViews(diagram: Element): View[] {
   return (diagram.ownedViews as View[]).filter(
-    (v) => v instanceof type.NodeView && v.model,
+    (v) =>
+      v instanceof type.NodeView &&
+      v.model &&
+      !(v.model instanceof type.Diagram),
   );
 }
 
