@@ -389,6 +389,8 @@ async function main() {
     () => ["/sync_operations", { diagram: "LoadSeq", dryRun: true }],
     () => ["/get_project_info", {}],
     () => ["/get_style_profile", {}],
+    () => ["/diagram_quality", { ref: "Export" }],
+    () => ["/improve_diagram", { ref: "Export", dryRun: true }],
     () => ["/explain_style_violation", { ref: "Order" }],
     () => ["/apply_style_profile", { scope: "Export", dryRun: true }],
     (i) => [

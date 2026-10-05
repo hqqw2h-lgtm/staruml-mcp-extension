@@ -114,6 +114,28 @@ export async function oneStep<T>(
   }
 }
 
+export interface Recording {
+  /** Stops recording; what was recorded stays applied. */
+  stop(): void;
+  /** Stops recording and undoes what was recorded. */
+  revert(): void;
+}
+
+/** Records the operations StarUML runs from now on, to undo them if they do not help. */
+export function record(): Recording {
+  const recorded = new Set<Operation>();
+  const listener = (operation: Operation) => recorded.add(operation);
+  app.repository.on("operationExecuted", listener);
+  const stop = () => app.repository.off("operationExecuted", listener);
+  return {
+    stop,
+    revert: () => {
+      stop();
+      revert(recorded);
+    },
+  };
+}
+
 /**
  * Runs `run`, then undoes everything it did: a dry run that needs the
  * model changed to measure the result (a quality loop's score).

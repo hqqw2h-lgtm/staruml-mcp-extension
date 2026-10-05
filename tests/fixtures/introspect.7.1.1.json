@@ -20226,6 +20226,82 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
             "description": "Node views resized by fit."
+          },
+          "quality": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "0–100 from view geometry, see /diagram_quality."
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "1–5; 4 needs a score of 80."
+              },
+              "before": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "The score before the loop."
+              },
+              "target": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passes": {
+                "type": "boolean",
+                "description": "score reached target."
+              },
+              "iterations": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "steps": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Post-processing steps kept, in order."
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rule": { "type": "string" },
+                    "name": { "type": "string" },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["error", "warning", "info"]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["rule", "name", "severity", "count"],
+                  "additionalProperties": false
+                },
+                "description": "/lint_diagram findings left, by rule."
+              }
+            },
+            "required": [
+              "score",
+              "rating",
+              "before",
+              "target",
+              "passes",
+              "iterations",
+              "steps",
+              "findings"
+            ],
+            "additionalProperties": false,
+            "description": "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
           }
         },
         "required": ["_id", "direction"],
@@ -22221,6 +22297,82 @@
             "required": ["profile"],
             "additionalProperties": false,
             "description": "What the style profile changed in this call."
+          },
+          "quality": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "0–100 from view geometry, see /diagram_quality."
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "1–5; 4 needs a score of 80."
+              },
+              "before": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "The score before the loop."
+              },
+              "target": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passes": {
+                "type": "boolean",
+                "description": "score reached target."
+              },
+              "iterations": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "steps": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Post-processing steps kept, in order."
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rule": { "type": "string" },
+                    "name": { "type": "string" },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["error", "warning", "info"]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["rule", "name", "severity", "count"],
+                  "additionalProperties": false
+                },
+                "description": "/lint_diagram findings left, by rule."
+              }
+            },
+            "required": [
+              "score",
+              "rating",
+              "before",
+              "target",
+              "passes",
+              "iterations",
+              "steps",
+              "findings"
+            ],
+            "additionalProperties": false,
+            "description": "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
           }
         },
         "required": [
@@ -23983,6 +24135,82 @@
             "required": ["profile"],
             "additionalProperties": false,
             "description": "What the style profile changed in this call."
+          },
+          "quality": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "0–100 from view geometry, see /diagram_quality."
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "1–5; 4 needs a score of 80."
+              },
+              "before": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "The score before the loop."
+              },
+              "target": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passes": {
+                "type": "boolean",
+                "description": "score reached target."
+              },
+              "iterations": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "steps": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Post-processing steps kept, in order."
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rule": { "type": "string" },
+                    "name": { "type": "string" },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["error", "warning", "info"]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["rule", "name", "severity", "count"],
+                  "additionalProperties": false
+                },
+                "description": "/lint_diagram findings left, by rule."
+              }
+            },
+            "required": [
+              "score",
+              "rating",
+              "before",
+              "target",
+              "passes",
+              "iterations",
+              "steps",
+              "findings"
+            ],
+            "additionalProperties": false,
+            "description": "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
           }
         },
         "required": [
@@ -24699,6 +24927,274 @@
           }
         },
         "required": ["profile", "ok", "violations"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/diagram_quality",
+      "description": "Score a diagram 0–100 from its view geometry, no rendering: overlap of boxes, edges through nodes, crossing edges, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. rating is 1–5 (4 needs 80); target is the profile's threshold for the kind. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram; default the current one. Id or path."
+          },
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of ref.",
+            "x-alias-of": "ref",
+            "deprecated": true
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of ref.",
+            "x-alias-of": "ref",
+            "deprecated": true
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "_type": { "type": "string" }
+            },
+            "required": ["_id", "name", "_type"],
+            "additionalProperties": false
+          },
+          "kind": { "type": ["string", "null"] },
+          "score": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "target": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "passes": { "type": "boolean" },
+          "metrics": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": { "type": "number" },
+            "description": "overlapArea, overlapPairs, overlapRatio, nodeEdgeCrossings, edgeCrossings, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges."
+          },
+          "penalties": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": { "type": "number" },
+            "description": "Points lost per measure, at most: overlap 30, nodeEdge 20, edgeEdge 15, length 5, bends 5, alignment 10, whitespace 5, aspect 5, page 5."
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": { "type": "string" },
+                "name": { "type": "string" },
+                "severity": {
+                  "type": "string",
+                  "enum": ["error", "warning", "info"]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["rule", "name", "severity", "count"],
+              "additionalProperties": false
+            },
+            "description": "/lint_diagram findings left, by rule."
+          }
+        },
+        "required": [
+          "diagram",
+          "kind",
+          "score",
+          "rating",
+          "target",
+          "passes",
+          "metrics",
+          "penalties",
+          "findings"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/improve_diagram",
+      "description": "Run the quality loop on an existing diagram as one undo step: the profile's layout preset (unless the kind's placement is the build's own: sequence, use case with a boundary, lanes), post-processing for the kind (rank ordering, lifeline order and spacing, boundary around use cases, straight flow chains, label room, overlap removal, grid, margin), then /lint_diagram's autofixes, measured after each step and undone if a step lowers the score, until target, no gain, or maxIterations. Allowed under a strict profile: it is how a strict diagram is rearranged. dryRun answers the score it would reach and leaves the diagram as it was.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram; default the current one. Id or path."
+          },
+          "target": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Score to stop at; default the profile's threshold for the kind."
+          },
+          "maxIterations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Default the profile's (3)."
+          },
+          "relayout": {
+            "type": "boolean",
+            "description": "Default true: run the layout preset first."
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "flow-down",
+              "flow-up",
+              "flow-right",
+              "flow-left",
+              "hierarchy-down",
+              "hierarchy-up",
+              "hierarchy-right",
+              "hierarchy-left"
+            ],
+            "description": "Preset for that layout."
+          },
+          "dryRun": { "type": "boolean" },
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of ref.",
+            "x-alias-of": "ref",
+            "deprecated": true
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of ref.",
+            "x-alias-of": "ref",
+            "deprecated": true
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "_type": { "type": "string" }
+            },
+            "required": ["_id", "name", "_type"],
+            "additionalProperties": false
+          },
+          "kind": { "type": ["string", "null"] },
+          "quality": {
+            "type": "object",
+            "properties": {
+              "score": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "0–100 from view geometry, see /diagram_quality."
+              },
+              "rating": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "1–5; 4 needs a score of 80."
+              },
+              "before": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "The score before the loop."
+              },
+              "target": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passes": {
+                "type": "boolean",
+                "description": "score reached target."
+              },
+              "iterations": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "steps": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Post-processing steps kept, in order."
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rule": { "type": "string" },
+                    "name": { "type": "string" },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["error", "warning", "info"]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["rule", "name", "severity", "count"],
+                  "additionalProperties": false
+                },
+                "description": "/lint_diagram findings left, by rule."
+              }
+            },
+            "required": [
+              "score",
+              "rating",
+              "before",
+              "target",
+              "passes",
+              "iterations",
+              "steps",
+              "findings"
+            ],
+            "additionalProperties": false,
+            "description": "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
+          },
+          "dryRun": { "type": "boolean" }
+        },
+        "required": ["diagram", "kind", "quality"],
         "additionalProperties": false
       }
     },

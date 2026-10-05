@@ -355,6 +355,9 @@ function overflows(f: Findings, boxes: Box[]): void {
     if (typeof name !== "string" || !name || NAME_OUTSIDE.test(kind(b.view))) {
       continue;
     }
+    // A view with wordWrap breaks its name over lines (the style profile's
+    // labelWrap turns it on for long names), so its width is not the limit.
+    if (b.view.wordWrap === true) continue;
     const width = labelWidth(name);
     if (width <= b.right - b.left) continue;
     f.add(

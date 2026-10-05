@@ -113,7 +113,9 @@ describeLive("layout presets and edge routing", () => {
     const b = await bounds(built.ids.Two!.view);
     expect(a.width).toBeLessThan(600);
     expect(a.height).toBeLessThan(400);
-    expect(b.top - (a.top + a.height)).toBeGreaterThanOrEqual(119);
+    // The quality loop after a layout snaps boxes to the style profile's
+    // 10-unit grid, which may take a few units off the asked separation.
+    expect(b.top - (a.top + a.height)).toBeGreaterThanOrEqual(110);
   });
 
   it("routes every edge in one undoable step", async () => {

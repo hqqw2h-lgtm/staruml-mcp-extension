@@ -33,7 +33,7 @@
      },
      "containerView": null,
      "left": 130,
-     "top": 450,
+     "top": 50,
      "width": 20,
      "height": 20
     },
@@ -45,7 +45,7 @@
      },
      "containerView": null,
      "left": 80,
-     "top": 1335,
+     "top": 940,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -58,7 +58,7 @@
      },
      "containerView": null,
      "left": 40,
-     "top": 1840,
+     "top": 1440,
      "width": 200,
      "height": 840,
      "showNamespace": false
@@ -143,8 +143,8 @@
       "$ref": "#23"
      },
      "containerView": null,
-     "left": 127,
-     "top": 3147,
+     "left": 130,
+     "top": 2750,
      "width": 26,
      "height": 26
     },
@@ -154,7 +154,7 @@
      "model": null,
      "containerView": null,
      "left": 330,
-     "top": 436,
+     "top": 40,
      "width": 140,
      "height": 48
     },
@@ -164,7 +164,7 @@
      "model": null,
      "containerView": null,
      "left": 590,
-     "top": 436,
+     "top": 40,
      "width": 140,
      "height": 48
     },

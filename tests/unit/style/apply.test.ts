@@ -259,13 +259,25 @@ describe("visuals", () => {
       kind: "class",
       result: "ids",
       spec: {
-        classes: [{ name: "Ledger" }],
-        styles: { Ledger: { fillColor: "#123456" } },
+        classes: [
+          { name: "Ledger" },
+          { name: "Port", kind: "interface" },
+          { name: "Plain" },
+        ],
+        styles: {
+          Ledger: { fillColor: "#123456" },
+          Port: { fillColor: "#123456" },
+        },
       },
     });
     expect(get(strict.ids.Ledger!.view).fillColor).toBe("#fdf6e3");
+    // An interface keeps the box display it needs to show its operations.
+    expect(get(strict.ids.Port!.view)).toMatchObject({
+      fillColor: "#e8f4fd",
+      stereotypeDisplay: "label",
+    });
     expect(strict.warnings).toEqual([
-      "the style profile is strict: the colours the spec gives 1 node(s) were not applied",
+      "the style profile is strict: the colours the spec gives 2 node(s) were not applied",
     ]);
   });
 

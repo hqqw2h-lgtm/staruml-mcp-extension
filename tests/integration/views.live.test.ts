@@ -142,7 +142,12 @@ describeLive("views, export and history", () => {
       id: diagramId,
       direction: "TB",
     });
-    expect(layout.data).toEqual({ _id: diagramId, direction: "TB" });
+    // A layout from outside also runs the quality loop (issue #32).
+    expect(layout.data).toMatchObject({
+      _id: diagramId,
+      direction: "TB",
+      quality: { passes: true },
+    });
     const after = await call<Record<string, number>>("/get_element_by_id", {
       id: b.view._id,
       fields: ["left", "top"],

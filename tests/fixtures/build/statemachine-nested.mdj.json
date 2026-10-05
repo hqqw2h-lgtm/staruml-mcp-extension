@@ -33,7 +33,7 @@
      },
      "containerView": null,
      "left": 110,
-     "top": 195,
+     "top": 50,
      "width": 20,
      "height": 20
     },
@@ -45,7 +45,7 @@
      },
      "containerView": null,
      "left": 60,
-     "top": 570,
+     "top": 420,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -58,7 +58,7 @@
      },
      "containerView": null,
      "left": 40,
-     "top": 820,
+     "top": 670,
      "width": 160,
      "height": 330,
      "showNamespace": false
@@ -113,7 +113,7 @@
      "model": null,
      "containerView": null,
      "left": 270,
-     "top": 185,
+     "top": 40,
      "width": 140,
      "height": 40
     },

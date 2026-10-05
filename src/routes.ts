@@ -133,6 +133,11 @@ import {
   setStyleProfileEndpoint,
 } from "./handlers/style.js";
 import { profiled } from "./style/authoring.js";
+import {
+  diagramQuality,
+  improveDiagram,
+  withQuality,
+} from "./handlers/quality.js";
 import { saveGated, styleLocked, viewFieldLocked } from "./style/guard.js";
 import type { Handler } from "./http-server.js";
 
@@ -177,7 +182,7 @@ export const endpoints: readonly Endpoint[] = [
   getRefsTo,
   getConnectedNodeViews,
 
-  layoutDiagram,
+  withQuality(layoutDiagram),
   styleLocked(routeEdges),
   styleLocked(moveViews),
   styleLocked(resizeNode),
@@ -235,6 +240,9 @@ export const endpoints: readonly Endpoint[] = [
   setStyleProfileEndpoint(() => endpoints),
   applyStyleProfile,
   explainStyleViolation,
+
+  diagramQuality,
+  improveDiagram,
 
   introspectEndpoint(() => endpoints),
   debug,

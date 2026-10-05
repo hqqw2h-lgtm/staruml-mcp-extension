@@ -32,8 +32,8 @@
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 20,
-     "top": 20,
+     "left": 40,
+     "top": 40,
      "width": 160,
      "height": 88
     },
@@ -44,8 +44,8 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 170,
-     "top": 20,
+     "left": 220,
+     "top": 40,
      "width": 160,
      "height": 104
     },
@@ -56,8 +56,8 @@
       "$ref": "#9"
      },
      "containerView": null,
-     "left": 320,
-     "top": 20,
+     "left": 400,
+     "top": 40,
      "width": 160,
      "height": 104
     },
@@ -68,8 +68,8 @@
       "$ref": "#11"
      },
      "containerView": null,
-     "left": 470,
-     "top": 20,
+     "left": 580,
+     "top": 40,
      "width": 160,
      "height": 72
     },

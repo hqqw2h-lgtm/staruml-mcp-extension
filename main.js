@@ -1198,8 +1198,8 @@ var $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (ins
   inst._zod.check = (payload) => {
     const input = payload.value;
     const units = input.length;
-    const length = typeof input === "string" && units > def.maximum ? codePointLength(input) : units;
-    if (length <= def.maximum)
+    const length2 = typeof input === "string" && units > def.maximum ? codePointLength(input) : units;
+    if (length2 <= def.maximum)
       return;
     const origin = getLengthableOrigin(input);
     payload.issues.push({
@@ -1220,8 +1220,8 @@ var $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (ins
   inst._zod.check = (payload) => {
     const input = payload.value;
     const units = input.length;
-    const length = typeof input === "string" && units >= def.minimum && units < def.minimum * 2 ? codePointLength(input) : units;
-    if (length >= def.minimum)
+    const length2 = typeof input === "string" && units >= def.minimum && units < def.minimum * 2 ? codePointLength(input) : units;
+    if (length2 >= def.minimum)
       return;
     const origin = getLengthableOrigin(input);
     payload.issues.push({
@@ -3388,8 +3388,8 @@ function rewriteKeyNames(ctx) {
       bySchema.set(entry.schema, entry);
   }
   const rewrites = /* @__PURE__ */ new Map();
-  for (const record2 of pendingRecords.get(ctx) ?? []) {
-    const seen = ctx.seen.get(record2);
+  for (const record3 of pendingRecords.get(ctx) ?? []) {
+    const seen = ctx.seen.get(record3);
     const names4 = (seen?.def ?? seen?.schema)?.propertyNames;
     if (!names4 || names4 === true || rewrites.has(names4))
       continue;
@@ -6110,12 +6110,12 @@ function requirementPlan(spec) {
     });
   }
   (spec.relations ?? []).forEach((r, i) => {
-    const contains = r.type === "contains";
+    const contains2 = r.type === "contains";
     b.edge(
       {
         type: REQUIREMENT_RELATIONS[r.type],
-        from: contains ? r.to : r.from,
-        to: contains ? r.from : r.to,
+        from: contains2 ? r.to : r.from,
+        to: contains2 ? r.from : r.to,
         ...r.type === "traces" && { properties: { stereotype: "trace" } }
       },
       `relations.${i}`
@@ -7479,16 +7479,16 @@ var divideFragment = defineEndpoint({
     const diagram = diagramOf2(view);
     editorShowing(diagram);
     app.diagrams.repaint();
-    const box2 = (v) => v;
-    const operands = subViewsOf(view).filter((v) => v instanceof type.UMLInteractionOperandView).sort((a, b) => box2(a).top - box2(b).top);
+    const box3 = (v) => v;
+    const operands = subViewsOf(view).filter((v) => v instanceof type.UMLInteractionOperandView).sort((a, b) => box3(a).top - box3(b).top);
     if (operands.length !== input.at.length + 1) {
       throw new ApiError(
         "INVALID_ARGUMENT",
         `at: ${view._id} has ${operands.length} operand views, so it takes ${Math.max(0, operands.length - 1)} boundaries`
       );
     }
-    const bottom = box2(view).top + box2(view).height;
-    const tops = [box2(operands[0]).top, ...input.at, bottom];
+    const bottom = box3(view).top + box3(view).height;
+    const tops = [box3(operands[0]).top, ...input.at, bottom];
     if (tops.some((t, i) => i > 0 && t <= tops[i - 1])) {
       throw new ApiError(
         "INVALID_ARGUMENT",
@@ -8486,6 +8486,7 @@ function effectiveProfile() {
 }
 var profile = () => effectiveProfile().profile;
 var presetFor = (p, kind2) => p.layout.presets[kind2];
+var thresholdFor = (p, kind2) => p.quality.thresholds[kind2] ?? p.quality.minScore;
 
 // src/style/guard.ts
 var trustedDepth = 0;
@@ -8637,6 +8638,32 @@ async function oneStep(name4, run) {
   } finally {
     depth--;
     app.repository.off("operationExecuted", listener);
+  }
+}
+function record2() {
+  const recorded = /* @__PURE__ */ new Set();
+  const listener = (operation2) => recorded.add(operation2);
+  app.repository.on("operationExecuted", listener);
+  const stop = () => app.repository.off("operationExecuted", listener);
+  return {
+    stop,
+    revert: () => {
+      stop();
+      revert(recorded);
+    }
+  };
+}
+async function rehearse(run) {
+  const recorded = /* @__PURE__ */ new Set();
+  const listener = (operation2) => recorded.add(operation2);
+  app.repository.on("operationExecuted", listener);
+  depth++;
+  try {
+    return await run();
+  } finally {
+    depth--;
+    app.repository.off("operationExecuted", listener);
+    revert(recorded);
   }
 }
 
@@ -11594,10 +11621,10 @@ function nestedBoxes(plan, direction2) {
     );
     let width = 0;
     let height = 0;
-    for (const [key2, box2] of local) {
-      relative2.set(key2, box2);
-      width = Math.max(width, box2.x + box2.width);
-      height = Math.max(height, box2.y + box2.height);
+    for (const [key2, box3] of local) {
+      relative2.set(key2, box3);
+      width = Math.max(width, box3.x + box3.width);
+      height = Math.max(height, box3.y + box3.height);
     }
     return { width, height };
   };
@@ -11607,13 +11634,13 @@ function nestedBoxes(plan, direction2) {
   const absolute = (key2) => {
     const known = boxes.get(key2);
     if (known) return known;
-    const box2 = relative2.get(key2);
+    const box3 = relative2.get(key2);
     const container = byKey.get(key2).container;
     const origin = container === void 0 ? { x: MARGIN, y: MARGIN } : {
       x: absolute(container).x + INSET,
       y: absolute(container).y + HEADER
     };
-    const placed = { ...box2, x: box2.x + origin.x, y: box2.y + origin.y };
+    const placed = { ...box3, x: box3.x + origin.x, y: box3.y + origin.y };
     boxes.set(key2, placed);
     return placed;
   };
@@ -11986,6 +12013,1090 @@ var styleReportSchema = () => doc(
   "What the style profile changed in this call."
 );
 
+// src/handlers/lint.ts
+var SEVERITIES = ["error", "warning", "info"];
+var LAYOUT_RULES = {
+  L001: "stacked",
+  L002: "overlap",
+  L003: "out-of-canvas",
+  L004: "edge-crosses-node",
+  L005: "label-overflow",
+  L006: "disconnected",
+  L007: "dense",
+  L008: "too-many-elements",
+  L009: "off-profile"
+};
+var AREA = /Frame|Subject|Swimlane|Partition|CombinedFragment|Operand|Region|Boundary|Lane|Pool/;
+var PASSED_THROUGH = /Lifeline/;
+var NAME_OUTSIDE = /Actor|Pseudostate|InitialState|FinalState|Port|Pin|Point/;
+var CHAR_WIDTH = 7;
+var LABEL_PADDING2 = 20;
+var CELL = 300;
+var CROWDED = 7;
+var GAP2 = 20;
+var kind = (v) => v.constructor.name;
+function boxOf(view) {
+  const [left, top, width, height] = [
+    view.left,
+    view.top,
+    view.width,
+    view.height
+  ];
+  return { view, left, top, right: left + width, bottom: top + height };
+}
+function nodeBoxes(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.NodeView && v.visible !== false && !(v.model instanceof type.Diagram)
+  ).map(boxOf);
+}
+function edgeViews(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.EdgeView && v.visible !== false
+  );
+}
+var inside = (a, b) => a.left >= b.left && a.top >= b.top && a.right <= b.right && a.bottom <= b.bottom;
+function heldBy(a, b) {
+  if (inside(a, b)) return true;
+  for (let c = a.view.containerView; c; c = c.containerView) {
+    if (c === b.view) return true;
+  }
+  return false;
+}
+var area = (b) => AREA.test(kind(b.view));
+function edgePoints(edge) {
+  const points = edge.points?.points;
+  if (Array.isArray(points) && points.length >= 2) return points;
+  const centre3 = (v) => {
+    const b = boxOf(v);
+    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
+  };
+  return [centre3(edge.tail), centre3(edge.head)];
+}
+function crosses(p, q2, box3) {
+  const [x0, y0, x1, y1] = [
+    box3.left + 2,
+    box3.top + 2,
+    box3.right - 2,
+    box3.bottom - 2
+  ];
+  if (x1 <= x0 || y1 <= y0) return false;
+  const dx = q2.x - p.x;
+  const dy = q2.y - p.y;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [pk, qk] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y]
+  ]) {
+    if (pk === 0) {
+      if (qk < 0) return false;
+      continue;
+    }
+    const r = qk / pk;
+    if (pk < 0) t0 = Math.max(t0, r);
+    else t1 = Math.min(t1, r);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+function labelWidth(name4) {
+  const widest = Math.max(...name4.split("\n").map((l) => l.length));
+  return widest * CHAR_WIDTH + LABEL_PADDING2;
+}
+function attached(edge, box3) {
+  for (const end of [edge.tail, edge.head]) {
+    for (let v = end; v; v = v._parent) {
+      if (v === box3.view) return true;
+      if (!(v._parent instanceof type.View)) break;
+    }
+  }
+  return false;
+}
+var Findings = class {
+  constructor(enabled, diagram) {
+    this.enabled = enabled;
+    this.diagram = diagram;
+  }
+  enabled;
+  diagram;
+  list = [];
+  on(rule) {
+    return this.enabled.has(rule);
+  }
+  add(rule, severity, views, message, fix, autofix2) {
+    this.list.push({
+      rule,
+      name: LAYOUT_RULES[rule],
+      severity,
+      message,
+      ids: views.map((v) => v._id),
+      paths: views.map(pathOf),
+      fix,
+      autofix: autofix2
+    });
+  }
+  relayout(options = {}) {
+    return {
+      path: "/layout_diagram",
+      body: { diagram: this.diagram._id, ...options }
+    };
+  }
+};
+var label2 = (v) => {
+  const name4 = v.model?.name;
+  return typeof name4 === "string" && name4 ? `"${name4.replace(/\n/g, " ")}"` : kind(v);
+};
+function stacked(f, boxes) {
+  const byOrigin = /* @__PURE__ */ new Map();
+  for (const b of boxes) {
+    const key2 = `${Math.round(b.left)},${Math.round(b.top)}`;
+    byOrigin.set(key2, [...byOrigin.get(key2) ?? [], b]);
+  }
+  const seen = /* @__PURE__ */ new Set();
+  for (const [origin, group] of byOrigin) {
+    if (group.length < 2) continue;
+    for (const b of group) seen.add(b.view);
+    f.add(
+      "L001",
+      "error",
+      group.map((b) => b.view),
+      `${group.length} views start at the same point (${origin}): ${group.map((b) => label2(b.view)).join(", ")}`,
+      "Lay the diagram out again.",
+      f.relayout()
+    );
+  }
+  return seen;
+}
+function overlaps(f, boxes, skip) {
+  const solid = boxes.filter((b) => !area(b));
+  for (let i = 0; i < solid.length; i++) {
+    for (let j = i + 1; j < solid.length; j++) {
+      const [a, b] = [solid[i], solid[j]];
+      if (skip.has(a.view) && skip.has(b.view)) continue;
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (w <= 1 || h <= 1 || heldBy(a, b) || heldBy(b, a)) continue;
+      f.add(
+        "L002",
+        "warning",
+        [a.view, b.view],
+        `${label2(a.view)} and ${label2(b.view)} overlap by ${Math.round(w)}x${Math.round(h)}`,
+        `Move ${label2(b.view)} ${Math.round(w + GAP2)} to the right, or lay the diagram out again.`,
+        {
+          path: "/move_views",
+          body: { refs: [b.view._id], dx: Math.round(w + GAP2), dy: 0 }
+        }
+      );
+    }
+  }
+}
+function outOfCanvas(f, boxes) {
+  for (const b of boxes) {
+    if (b.left >= 0 && b.top >= 0) continue;
+    const dx = b.left < 0 ? Math.round(GAP2 - b.left) : 0;
+    const dy = b.top < 0 ? Math.round(GAP2 - b.top) : 0;
+    f.add(
+      "L003",
+      "warning",
+      [b.view],
+      `${label2(b.view)} starts outside the canvas at (${Math.round(b.left)}, ${Math.round(b.top)})`,
+      `Move it by (${dx}, ${dy}).`,
+      { path: "/move_views", body: { refs: [b.view._id], dx, dy } }
+    );
+  }
+}
+function crossings(f, boxes, edges) {
+  const obstacles = boxes.filter(
+    (b) => !area(b) && !PASSED_THROUGH.test(kind(b.view))
+  );
+  for (const edge of edges) {
+    const points = edgePoints(edge);
+    for (const b of obstacles) {
+      if (attached(edge, b)) continue;
+      const ends3 = [edge.tail, edge.head].map((e) => boxOf(e));
+      if (ends3.some((e) => heldBy(e, b))) continue;
+      if (!points.some((p, i) => i > 0 && crosses(points[i - 1], p, b))) {
+        continue;
+      }
+      f.add(
+        "L004",
+        "warning",
+        [edge, b.view],
+        `The ${kind(edge)} from ${label2(edge.tail)} to ${label2(edge.head)} runs through ${label2(b.view)}`,
+        "Lay the diagram out again, or move the node off the line.",
+        f.relayout()
+      );
+    }
+  }
+}
+function overflows(f, boxes) {
+  for (const b of boxes) {
+    const name4 = b.view.model?.name;
+    if (typeof name4 !== "string" || !name4 || NAME_OUTSIDE.test(kind(b.view))) {
+      continue;
+    }
+    if (b.view.wordWrap === true) continue;
+    const width = labelWidth(name4);
+    if (width <= b.right - b.left) continue;
+    f.add(
+      "L005",
+      "warning",
+      [b.view],
+      `The name of ${label2(b.view)} needs about ${width}px and its box is ${Math.round(b.right - b.left)}px wide, so it wraps or is cut`,
+      `Widen it to ${width}.`,
+      {
+        path: "/resize_node",
+        body: {
+          ref: b.view._id,
+          width,
+          height: Math.round(b.bottom - b.top)
+        }
+      }
+    );
+  }
+}
+function disconnected(f, boxes, edges) {
+  if (edges.length === 0) return;
+  for (const b of boxes) {
+    if (!b.view.model || area(b)) continue;
+    if (edges.some((e) => attached(e, b))) continue;
+    if (boxes.some((o) => o !== b && heldBy(o, b))) continue;
+    f.add(
+      "L006",
+      "info",
+      [b.view],
+      `${label2(b.view)} has no edge on this diagram`,
+      "Connect it, or show it on a diagram where it relates to something.",
+      null
+    );
+  }
+}
+function dense(f, boxes) {
+  const cells = /* @__PURE__ */ new Map();
+  for (const b of boxes) {
+    if (area(b)) continue;
+    const cx = Math.floor((b.left + b.right) / 2 / CELL);
+    const cy = Math.floor((b.top + b.bottom) / 2 / CELL);
+    const key2 = `${cx},${cy}`;
+    cells.set(key2, [...cells.get(key2) ?? [], b]);
+  }
+  for (const [cell, group] of cells) {
+    if (group.length < CROWDED) continue;
+    const [cx, cy] = cell.split(",").map((n) => Number(n) * CELL);
+    f.add(
+      "L007",
+      "info",
+      group.map((b) => b.view),
+      `${group.length} nodes are centred in the ${CELL}x${CELL} area at (${cx}, ${cy})`,
+      "Lay the diagram out with more spacing.",
+      f.relayout({ nodeSeparation: 60, rankSeparation: 80 })
+    );
+  }
+}
+function tooMany(f, boxes, profile2) {
+  const nodes = boxes.filter((b) => b.view.model && !area(b));
+  const max = profile2.layout.maxElements;
+  if (nodes.length <= max) return;
+  f.add(
+    "L008",
+    "info",
+    nodes.map((b) => b.view),
+    `${nodes.length} nodes, more than the ${max} the style profile '${profile2.name}' allows on one diagram`,
+    `Split it, e.g. one diagram per package (/derive_diagrams does), or raise layout.maxElements.`,
+    null
+  );
+}
+function offStyle(f, diagram, profile2) {
+  const off = styledViews(diagram).filter(
+    (v) => offProfile(v, profile2).length > 0
+  );
+  if (off.length === 0) return;
+  const fields = [...new Set(off.flatMap((v) => offProfile(v, profile2)))];
+  f.add(
+    "L009",
+    profile2.strict ? "error" : "warning",
+    off,
+    `${off.length} view(s) are drawn off the style profile '${profile2.name}' (${fields.join(", ")})`,
+    "Apply the profile to the diagram.",
+    {
+      path: "/apply_style_profile",
+      body: { scope: diagram._id, names: false }
+    }
+  );
+}
+var RANK = { error: 0, warning: 1, info: 2 };
+function lintLayout(diagram, enabled) {
+  const f = new Findings(enabled, diagram);
+  const boxes = nodeBoxes(diagram);
+  const edges = edgeViews(diagram).filter((e) => e.tail && e.head);
+  const piled = f.on("L001") ? stacked(f, boxes) : /* @__PURE__ */ new Set();
+  if (f.on("L002")) overlaps(f, boxes, piled);
+  if (f.on("L003")) outOfCanvas(f, boxes);
+  if (f.on("L004")) crossings(f, boxes, edges);
+  if (f.on("L005")) overflows(f, boxes);
+  if (f.on("L006")) disconnected(f, boxes, edges);
+  if (f.on("L007")) dense(f, boxes);
+  const profile2 = effectiveProfile().profile;
+  if (f.on("L008")) tooMany(f, boxes, profile2);
+  if (f.on("L009")) offStyle(f, diagram, profile2);
+  return f.list.sort((a, b) => RANK[a.severity] - RANK[b.severity]);
+}
+function pickRules(table, wanted, field) {
+  const ids2 = Object.keys(table);
+  if (wanted === void 0) return new Set(ids2);
+  return new Set(
+    wanted.map((w) => {
+      const id2 = ids2.find((i) => i === w || table[i] === w);
+      if (!id2) {
+        throw new ApiError(
+          "INVALID_ARGUMENT",
+          `${field}: no rule ${w}; rules are ${ids2.map((i) => `${i} ${table[i]}`).join(", ")}`
+        );
+      }
+      return id2;
+    })
+  );
+}
+var limitField = () => optional(
+  doc(
+    int().check(_gte(1), _lte(1e3)),
+    "Most findings to list, most severe first; default 100. count is always the full number."
+  )
+);
+function counted(findings, limit) {
+  const counts = { error: 0, warning: 0, info: 0 };
+  for (const f of findings) counts[f.severity]++;
+  const shown = findings.slice(0, limit ?? 100);
+  return {
+    count: findings.length,
+    counts,
+    truncated: shown.length < findings.length,
+    findings: shown
+  };
+}
+var countsSchema = () => object({ error: int(), warning: int(), info: int() });
+var lintDiagram = defineEndpoint({
+  path: "/lint_diagram",
+  description: "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006), crowded areas (L007), more nodes than the style profile allows (L008) and views drawn off the style profile (L009, an error when it is strict). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    diagram: optional(ref2("Diagram; default the current diagram.")),
+    rules: optional(
+      doc(
+        array(string2().check(_minLength(1))),
+        "Rules to run, by id (L001) or name (overlap); default all."
+      )
+    ),
+    limit: limitField()
+  }),
+  aliases: { diagramId: "diagram", id: "diagram" },
+  response: object({
+    diagram: elementSchema(),
+    count: doc(int(), "Findings in all."),
+    counts: countsSchema(),
+    truncated: boolean2(),
+    findings: array(
+      object({
+        rule: string2(),
+        name: string2(),
+        severity: _enum(SEVERITIES),
+        message: string2(),
+        ids: doc(array(string2()), "Views the finding is about."),
+        paths: array(nullable(string2())),
+        fix: string2(),
+        autofix: doc(
+          nullable(
+            object({
+              path: string2(),
+              body: record(string2(), unknown())
+            })
+          ),
+          "A request that fixes it: POST body to path. Null where only a person can decide."
+        )
+      })
+    )
+  }),
+  handle: (input) => {
+    const enabled = pickRules(LAYOUT_RULES, input.rules, "rules");
+    const diagram = requireDiagram(input.diagram ?? "@current");
+    return {
+      diagram: serialize(diagram),
+      ...counted(lintLayout(diagram, enabled), input.limit)
+    };
+  }
+});
+
+// src/quality/geometry.ts
+var AREA2 = /Frame|Subject|Swimlane|Partition|CombinedFragment|Operand|Region|Boundary|Lane|Pool/;
+var THROUGH = /Lifeline/;
+function nodeViews(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.NodeView && v.visible !== false && !(v.model instanceof type.Diagram)
+  );
+}
+function edgeViewsOf(diagram) {
+  return diagram.ownedViews.filter(
+    (v) => v instanceof type.EdgeView && v.visible !== false && v.tail !== null && v.head !== null
+  );
+}
+function holderOf(view, listed2) {
+  let v = view.containerView ?? null;
+  while (v && !listed2.has(v)) {
+    v = (v.containerView ?? v._parent) || null;
+    if (v && !(v instanceof type.View)) return null;
+  }
+  return v ?? null;
+}
+function ownerNode(view) {
+  let v = view;
+  while (v._parent instanceof type.View) {
+    v = v._parent;
+  }
+  return v;
+}
+var box = (v) => v;
+function geometryOf(diagram) {
+  const views = nodeViews(diagram);
+  const listed2 = new Set(views);
+  const nodes = views.map((v) => {
+    const b = box(v);
+    const kind2 = v.constructor.name;
+    const container = holderOf(v, listed2);
+    return {
+      id: v._id,
+      left: b.left,
+      top: b.top,
+      width: b.width,
+      height: b.height,
+      area: AREA2.test(kind2),
+      through: THROUGH.test(kind2),
+      parent: container ? container._id : null
+    };
+  });
+  const edges = edgeViewsOf(diagram).map((e) => ({
+    id: e._id,
+    points: edgePoints(e),
+    ends: [ownerNode(e.tail)._id, ownerNode(e.head)._id]
+  }));
+  edgeViewsOf(diagram).forEach((e, i) => {
+    const label4 = e.nameLabel;
+    if (!label4 || label4.visible === false || !String(label4.text ?? "")) return;
+    const b = box(label4);
+    if (!(b.width > 0 && b.height > 0)) return;
+    nodes.push({
+      id: label4._id,
+      left: b.left,
+      top: b.top,
+      width: b.width,
+      height: b.height,
+      area: false,
+      through: true,
+      parent: null,
+      attachedTo: edges[i].ends
+    });
+  });
+  return { nodes, edges };
+}
+var KINDS_BY_TYPE = new Map(
+  Object.entries(DIAGRAM_TYPES).map(([k, t]) => [t, k])
+);
+var kindOf = (diagram) => KINDS_BY_TYPE.get(diagram.constructor.name) ?? null;
+
+// src/quality/metric.ts
+var WEIGHTS = {
+  overlap: 30,
+  nodeEdge: 20,
+  edgeEdge: 15,
+  length: 5,
+  bends: 5,
+  alignment: 10,
+  whitespace: 5,
+  aspect: 5,
+  page: 5
+};
+var EPS = 1e-6;
+function nestedIn(a, b, byId2) {
+  const seen = /* @__PURE__ */ new Set();
+  for (let p = a.parent; p !== null && !seen.has(p); p = byId2.get(p)?.parent ?? null) {
+    if (p === b.id) return true;
+    seen.add(p);
+  }
+  return false;
+}
+var contains = (outer, inner) => inner.left >= outer.left && inner.top >= outer.top && inner.left + inner.width <= outer.left + outer.width && inner.top + inner.height <= outer.top + outer.height;
+function overlapOf(a, b, byId2) {
+  if (nestedIn(a, b, byId2) || nestedIn(b, a, byId2)) return 0;
+  if (a.attachedTo?.includes(b.id) || b.attachedTo?.includes(a.id)) return 0;
+  if (a.through !== b.through) return 0;
+  if (contains(a, b) || contains(b, a)) {
+    return Math.min(a.width * a.height, b.width * b.height);
+  }
+  const w = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+  const h = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+  return w > 1 && h > 1 ? w * h : 0;
+}
+function segmentCrossesBox(p, q2, box3) {
+  const [x0, y0, x1, y1] = [
+    box3.left + 2,
+    box3.top + 2,
+    box3.left + box3.width - 2,
+    box3.top + box3.height - 2
+  ];
+  if (x1 <= x0 || y1 <= y0) return false;
+  const dx = q2.x - p.x;
+  const dy = q2.y - p.y;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [pk, qk] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y]
+  ]) {
+    if (pk === 0) {
+      if (qk < 0) return false;
+      continue;
+    }
+    const r = qk / pk;
+    if (pk < 0) t0 = Math.max(t0, r);
+    else t1 = Math.min(t1, r);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+var cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+function segmentsCross(a, b, c, d) {
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  return (d1 > EPS && d2 < -EPS || d1 < -EPS && d2 > EPS) && (d3 > EPS && d4 < -EPS || d3 < -EPS && d4 > EPS);
+}
+var segments = (points) => points.slice(1).map((p, i) => [points[i], p]);
+var length = (points) => segments(points).reduce(
+  (n, [a, b]) => n + Math.hypot(b.x - a.x, b.y - a.y),
+  0
+);
+function endOf(edge, node, byId2) {
+  return edge.ends.some((id2) => {
+    if (id2 === node.id) return true;
+    const end = byId2.get(id2);
+    return end !== void 0 && (nestedIn(end, node, byId2) || nestedIn(node, end, byId2));
+  });
+}
+function alignmentOf(nodes) {
+  if (nodes.length < 2) return 1;
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  const lines = (n) => [
+    n.left + n.width / 2,
+    n.top + n.height / 2,
+    n.top,
+    n.left
+  ];
+  const aligned = nodes.filter(
+    (n) => nodes.some(
+      (o) => o !== n && lines(n).some((v, i) => near(v, lines(o)[i]))
+    )
+  );
+  return aligned.length / nodes.length;
+}
+function measure(g) {
+  const byId2 = new Map(g.nodes.map((n) => [n.id, n]));
+  const solid = g.nodes.filter((n) => !n.area);
+  let overlapArea = 0;
+  let overlapPairs = 0;
+  for (let i = 0; i < solid.length; i++) {
+    for (let j = i + 1; j < solid.length; j++) {
+      const o = overlapOf(solid[i], solid[j], byId2);
+      if (o > 0) {
+        overlapArea += o;
+        overlapPairs++;
+      }
+    }
+  }
+  const solidArea = solid.reduce((n, b) => n + b.width * b.height, 0);
+  let nodeEdgeCrossings = 0;
+  const obstacles = solid.filter((n) => !n.through);
+  for (const e of g.edges) {
+    for (const n of obstacles) {
+      if (endOf(e, n, byId2)) continue;
+      if (segments(e.points).some(([p, q2]) => segmentCrossesBox(p, q2, n))) {
+        nodeEdgeCrossings++;
+      }
+    }
+  }
+  let edgeCrossings = 0;
+  for (let i = 0; i < g.edges.length; i++) {
+    for (let j = i + 1; j < g.edges.length; j++) {
+      const [a, b] = [g.edges[i], g.edges[j]];
+      if (a.ends.some((id2) => b.ends.includes(id2))) continue;
+      for (const [p, q2] of segments(a.points)) {
+        for (const [r, s] of segments(b.points)) {
+          if (segmentsCross(p, q2, r, s)) edgeCrossings++;
+        }
+      }
+    }
+  }
+  const lengths = g.edges.map((e) => length(e.points));
+  const mean = lengths.reduce((n, l) => n + l, 0) / Math.max(1, lengths.length);
+  const sd = Math.sqrt(
+    lengths.reduce((n, l) => n + (l - mean) ** 2, 0) / Math.max(1, lengths.length)
+  );
+  const all = g.nodes;
+  const minX = Math.min(...all.map((n) => n.left));
+  const minY = Math.min(...all.map((n) => n.top));
+  const maxX = Math.max(...all.map((n) => n.left + n.width));
+  const maxY = Math.max(...all.map((n) => n.top + n.height));
+  const width = all.length > 0 ? maxX - minX : 0;
+  const height = all.length > 0 ? maxY - minY : 0;
+  const density = solidArea / Math.max(1, width * height);
+  const whitespace = density >= 1 / 6 && density <= 0.5 ? 1 : density < 1 / 6 ? density * 6 : Math.max(0, 1 - (density - 0.5) * 2);
+  return {
+    nodes: g.nodes.length,
+    edges: g.edges.length,
+    overlapArea: Math.round(overlapArea),
+    overlapPairs,
+    overlapRatio: solidArea > 0 ? overlapArea / solidArea : 0,
+    nodeEdgeCrossings,
+    edgeCrossings,
+    lengthVariation: mean > 0 ? sd / mean : 0,
+    bends: g.edges.reduce((n, e) => n + Math.max(0, e.points.length - 2), 0),
+    alignment: alignmentOf(solid),
+    whitespace: all.length > 0 ? whitespace : 1,
+    aspect: width > 0 && height > 0 ? Math.max(width, height) / Math.min(width, height) : 1,
+    width,
+    height
+  };
+}
+function penalties(m, page) {
+  const capped = (weight, x) => Math.min(weight, weight * x);
+  const edges = Math.max(1, m.edges);
+  const over = Math.max(
+    0,
+    m.width / page.width - 1.5,
+    m.height / page.height - 1.5
+  );
+  return {
+    overlap: capped(
+      WEIGHTS.overlap,
+      0.5 * (1 - Math.exp(-4 * m.overlapRatio)) + 0.1 * m.overlapPairs
+    ),
+    nodeEdge: capped(WEIGHTS.nodeEdge, m.nodeEdgeCrossings / 4),
+    edgeEdge: capped(WEIGHTS.edgeEdge, 1 - Math.exp(-m.edgeCrossings / edges)),
+    length: capped(WEIGHTS.length, m.lengthVariation / 1.5),
+    bends: capped(WEIGHTS.bends, m.bends / edges / 4),
+    alignment: WEIGHTS.alignment * (1 - m.alignment),
+    whitespace: WEIGHTS.whitespace * (1 - m.whitespace),
+    aspect: capped(WEIGHTS.aspect, Math.max(0, m.aspect - 3) / 3),
+    page: capped(WEIGHTS.page, over)
+  };
+}
+function scoreOf(m, page) {
+  const lost = Object.values(penalties(m, page)).reduce((n, p) => n + p, 0);
+  return Math.max(0, Math.min(100, Math.round(100 - lost)));
+}
+var ratingOf = (score2) => score2 >= 90 ? 5 : score2 >= 80 ? 4 : score2 >= 60 ? 3 : score2 >= 40 ? 2 : 1;
+
+// src/quality/loop.ts
+var GAP3 = 40;
+var MARGIN2 = 40;
+var centre = (b) => ({
+  x: b.left + b.width / 2,
+  y: b.top + b.height / 2
+});
+function solids(diagram) {
+  return nodeViews(diagram).filter(
+    (v) => !AREA2.test(v.constructor.name) && !v.containerView
+  );
+}
+var Mover = class {
+  constructor(diagram) {
+    this.diagram = diagram;
+  }
+  diagram;
+  editor = null;
+  ed() {
+    this.editor ??= editorShowing(this.diagram);
+    return this.editor;
+  }
+  move(views, dx, dy) {
+    if (views.length === 0 || dx === 0 && dy === 0) return;
+    inStarUML(() => app.engine.moveViews(this.ed(), views, dx, dy));
+  }
+  resize(view, b) {
+    const c = box(view);
+    if (c.left === b.left && c.top === b.top && c.width === b.width && c.height === b.height) {
+      return;
+    }
+    inStarUML(
+      () => app.engine.resizeNode(
+        this.ed(),
+        view,
+        b.left,
+        b.top,
+        b.left + b.width,
+        b.top + b.height
+      )
+    );
+  }
+  assign(view, field, value) {
+    const builder = app.repository.getOperationBuilder();
+    builder.begin(`set ${field}`);
+    builder.fieldAssign(view, field, value);
+    builder.end();
+    inStarUML(() => app.repository.doOperation(builder.getOperation()));
+  }
+};
+var PLACED_KINDS = /* @__PURE__ */ new Set(["sequence", "usecase", "mindmap"]);
+function placedByBuild(diagram, kind2) {
+  return PLACED_KINDS.has(kind2) || nodeViews(diagram).some(
+    (v) => /Swimlane|Partition|Subject/.test(v.constructor.name)
+  );
+}
+function fitLabels(diagram, profile2, m) {
+  for (const v of nodeViews(diagram)) {
+    const name4 = v.model?.name;
+    if (typeof name4 !== "string" || !name4 || NAME_OUTSIDE.test(v.constructor.name) || AREA2.test(v.constructor.name)) {
+      continue;
+    }
+    const b = box(v);
+    const need = labelWidth(name4);
+    if (need <= b.width) continue;
+    const wrap = profile2.layout.labelWrap;
+    if (need > wrap && typeof v.wordWrap === "boolean") {
+      if (!v.wordWrap) m.assign(v, "wordWrap", true);
+      if (b.width < wrap) m.resize(v, { ...b, width: wrap });
+      app.diagrams.repaint();
+      const min = v.minHeight;
+      if (typeof min === "number" && min > box(v).height) {
+        m.resize(v, { ...box(v), height: min });
+      }
+    } else {
+      m.resize(v, { ...b, width: need });
+    }
+  }
+}
+function separate(diagram, m) {
+  for (let pass = 0; pass < 3; pass++) {
+    const views = solids(diagram).sort(
+      (a, b) => box(a).left - box(b).left || box(a).top - box(b).top
+    );
+    let moved = false;
+    for (let i = 0; i < views.length; i++) {
+      for (let j = i + 1; j < views.length; j++) {
+        const [a, b] = [box(views[i]), box(views[j])];
+        const w = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+        const h = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+        if (w <= 1 || h <= 1) continue;
+        if (w <= h) m.move([views[j]], Math.round(w + GAP3 / 2), 0);
+        else m.move([views[j]], 0, Math.round(h + GAP3 / 2));
+        moved = true;
+      }
+    }
+    if (!moved) return;
+  }
+}
+function snap(diagram, profile2, m) {
+  const { size, snap: snap2 } = profile2.visuals.grid;
+  if (!snap2) return;
+  for (const v of nodeViews(diagram).filter((v2) => !v2.containerView)) {
+    const b = box(v);
+    m.move(
+      [v],
+      Math.round(b.left / size) * size - b.left,
+      Math.round(b.top / size) * size - b.top
+    );
+  }
+}
+function trim(diagram, m) {
+  const top = nodeViews(diagram).filter((v) => !v.containerView);
+  if (top.length === 0) return;
+  const minX = Math.min(...top.map((v) => box(v).left));
+  const minY = Math.min(...top.map((v) => box(v).top));
+  m.move(top, MARGIN2 - minX, MARGIN2 - minY);
+}
+function rows(views) {
+  const sorted = [...views].sort((a, b) => centre(box(a)).y - centre(box(b)).y);
+  const out = [];
+  for (const v of sorted) {
+    const row = out.at(-1);
+    const first = row?.[0];
+    if (row && first && centre(box(v)).y - centre(box(first)).y <= box(first).height / 2) {
+      row.push(v);
+    } else out.push([v]);
+  }
+  return out;
+}
+function orderRanks(diagram, m) {
+  const views = solids(diagram);
+  const geometry = geometryOf(diagram);
+  const neighbours2 = /* @__PURE__ */ new Map();
+  for (const e of geometry.edges) {
+    const [a, b] = e.ends;
+    neighbours2.set(a, [...neighbours2.get(a) ?? [], b]);
+    neighbours2.set(b, [...neighbours2.get(b) ?? [], a]);
+  }
+  const placed = /* @__PURE__ */ new Map();
+  for (const row of rows(views)) {
+    const bary = (v) => {
+      const xs = (neighbours2.get(v._id) ?? []).map((id2) => placed.get(id2)).filter((x) => x !== void 0);
+      return xs.length > 0 ? xs.reduce((n, x) => n + x, 0) / xs.length : centre(box(v)).x;
+    };
+    const current = [...row].sort((a, b) => box(a).left - box(b).left);
+    const wanted = [...row].sort(
+      (a, b) => bary(a) - bary(b) || box(a).left - box(b).left
+    );
+    if (wanted.some((v, i) => v !== current[i])) {
+      let x = box(current[0]).left;
+      for (const v of wanted) {
+        m.move([v], x - box(v).left, 0);
+        x += box(v).width + GAP3;
+      }
+    }
+    for (const v of row) placed.set(v._id, centre(box(v)).x);
+  }
+}
+function sequence(diagram, m) {
+  const lifelines = nodeViews(diagram).filter(
+    (v) => v instanceof type.UMLSeqLifelineView
+  );
+  if (lifelines.length === 0) return;
+  const ownerOf = (end) => lifelines.find((l) => l === end || end._parent === l);
+  const order = [];
+  const messages2 = edgeViewsOf(diagram).sort((a, b) => edgeY(a) - edgeY(b));
+  for (const msg of messages2) {
+    for (const end of [msg.tail, msg.head]) {
+      const l = ownerOf(end);
+      if (l && !order.includes(l)) order.push(l);
+    }
+  }
+  const rest = lifelines.filter((l) => !order.includes(l)).sort((a, b) => box(a).left - box(b).left);
+  const wanted = [...order, ...rest];
+  const current = [...lifelines].sort((a, b) => box(a).left - box(b).left);
+  const notes = nodeViews(diagram).some((v) => v instanceof type.UMLNoteView);
+  if (!notes && wanted.some((l, i) => l !== current[i])) {
+    const pitch = Math.max(...lifelines.map((l) => box(l).width)) + GAP3 * 1.5;
+    const x0 = box(current[0]).left;
+    wanted.forEach(
+      (l, i) => m.move([l], Math.round(x0 + i * pitch - box(l).left), 0)
+    );
+  }
+  const frame = diagram.ownedViews.find(
+    (v) => v.model === diagram && v instanceof type.UMLFrameView
+  );
+  if (frame) {
+    const inner = nodeViews(diagram);
+    const right = Math.max(...inner.map((v) => box(v).left + box(v).width));
+    const bottom = Math.max(...inner.map((v) => box(v).top + box(v).height));
+    const f = box(frame);
+    m.resize(frame, {
+      left: f.left,
+      top: f.top,
+      width: Math.max(f.width, right - f.left + 20),
+      height: Math.max(f.height, bottom - f.top + 20)
+    });
+  }
+}
+function edgeY(edge) {
+  const points = edge.points?.points;
+  return points && points.length > 0 ? points[0].y : 0;
+}
+function usecase(diagram, m) {
+  const views = nodeViews(diagram);
+  for (const subject of views.filter(
+    (v) => v instanceof type.UMLUseCaseSubjectView
+  )) {
+    const s = box(subject);
+    const inside3 = (v) => {
+      const c = centre(box(v));
+      return c.x > s.left && c.x < s.left + s.width && c.y > s.top && c.y < s.top + s.height;
+    };
+    const cases = views.filter(
+      (v) => v instanceof type.UMLUseCaseView && (v.containerView === subject || inside3(v))
+    );
+    if (cases.length > 0) {
+      const left = Math.min(...cases.map((v) => box(v).left)) - GAP3 / 2;
+      const top = Math.min(...cases.map((v) => box(v).top)) - GAP3;
+      const right = Math.max(...cases.map((v) => box(v).left + box(v).width)) + GAP3 / 2;
+      const bottom = Math.max(...cases.map((v) => box(v).top + box(v).height)) + GAP3 / 2;
+      m.resize(subject, {
+        left: Math.min(s.left, left),
+        top: Math.min(s.top, top),
+        width: Math.max(s.left + s.width, right) - Math.min(s.left, left),
+        height: Math.max(s.top + s.height, bottom) - Math.min(s.top, top)
+      });
+    }
+    const b = box(subject);
+    for (const actor of views.filter(
+      (v) => v instanceof type.UMLActorView && inside3(v)
+    )) {
+      const a = box(actor);
+      m.move([actor], b.left - GAP3 - a.width - a.left, 0);
+    }
+  }
+}
+function alignChains(diagram, vertical2, m) {
+  const g = geometryOf(diagram);
+  const out = /* @__PURE__ */ new Map();
+  const into = /* @__PURE__ */ new Map();
+  for (const e of g.edges) {
+    out.set(e.ends[0], [...out.get(e.ends[0]) ?? [], e.ends[1]]);
+    into.set(e.ends[1], [...into.get(e.ends[1]) ?? [], e.ends[0]]);
+  }
+  const byId2 = new Map(nodeViews(diagram).map((v) => [v._id, v]));
+  for (const [from, tos] of out) {
+    if (tos.length !== 1) continue;
+    const to = tos[0];
+    if (into.get(to).length !== 1 || to === from) continue;
+    const [a, b] = [byId2.get(from), byId2.get(to)];
+    if (!a || !b || a.containerView || b.containerView) continue;
+    const [ca, cb] = [centre(box(a)), centre(box(b))];
+    if (vertical2) m.move([b], Math.round(ca.x - cb.x), 0);
+    else m.move([b], 0, Math.round(ca.y - cb.y));
+  }
+}
+function vertical(kind2, profile2) {
+  const preset = presetFor(profile2, kind2);
+  const direction2 = preset === void 0 ? "BT" : LAYOUT_PRESETS[preset].direction;
+  return direction2 === "TB" || direction2 === "BT";
+}
+function assess(diagram, profile2) {
+  const metrics = measure(geometryOf(diagram));
+  const score2 = scoreOf(metrics, profile2.layout.page);
+  const counts = /* @__PURE__ */ new Map();
+  const lint = lintLayout(
+    diagram,
+    new Set(Object.keys(LAYOUT_RULES))
+  );
+  for (const f of lint) counts.set(f.rule, (counts.get(f.rule) ?? 0) + 1);
+  const findings = [...counts].map(([rule, count]) => ({
+    rule,
+    name: LAYOUT_RULES[rule],
+    severity: lint.find((f) => f.rule === rule).severity,
+    count
+  }));
+  return { metrics, score: score2, findings };
+}
+var AUTOFIXED = /* @__PURE__ */ new Set(["L001", "L002", "L003", "L004", "L005"]);
+function improve(diagram, profile2, options = {}) {
+  const kind2 = kindOf(diagram);
+  const m = new Mover(diagram);
+  const page = profile2.layout.page;
+  const score2 = () => scoreOf(measure(geometryOf(diagram)), page);
+  const target = options.target ?? (kind2 ? thresholdFor(profile2, kind2) : profile2.quality.minScore);
+  const max = options.maxIterations ?? profile2.quality.maxIterations;
+  const placed = placedByBuild(diagram, kind2);
+  const steps = [];
+  const before = score2();
+  const attempt = (name4, step, rule = false) => {
+    const recording2 = record2();
+    const s0 = score2();
+    let changed = false;
+    const listener = () => changed = true;
+    app.repository.on("operationExecuted", listener);
+    try {
+      step();
+    } finally {
+      app.repository.off("operationExecuted", listener);
+    }
+    if (!rule && score2() < s0) recording2.revert();
+    else {
+      recording2.stop();
+      if (changed) steps.push(name4);
+    }
+  };
+  if (options.relayout && !placed && solids(diagram).length > 1) {
+    const preset = options.preset ?? (kind2 ? presetFor(profile2, kind2) : void 0) ?? (kind2 === "class" || kind2 === "package" ? "hierarchy-down" : "flow-down");
+    attempt(
+      `layout ${preset}`,
+      () => applyLayout(diagram, { preset, fit: true })
+    );
+  }
+  let iterations = 0;
+  while (iterations < max) {
+    iterations++;
+    const start = score2();
+    attempt("fit labels", () => fitLabels(diagram, profile2, m));
+    if (kind2 === "sequence") {
+      attempt("lifelines", () => sequence(diagram, m), true);
+    } else if (kind2 === "usecase") {
+      attempt("boundary", () => usecase(diagram, m), true);
+    } else if (placed) {
+    } else if (kind2 === "activity" || kind2 === "statemachine" || kind2 === "flowchart") {
+      attempt(
+        "align chains",
+        () => alignChains(diagram, vertical(kind2, profile2), m)
+      );
+    } else {
+      attempt("order ranks", () => orderRanks(diagram, m));
+    }
+    if (!placed) {
+      attempt("separate", () => separate(diagram, m));
+      attempt("autofix", () => autofix(diagram, iterations > 1, m));
+      attempt("snap", () => snap(diagram, profile2, m));
+      attempt("trim", () => trim(diagram, m));
+    }
+    const now = score2();
+    if (now >= target || now <= start) break;
+  }
+  const after = assess(diagram, profile2);
+  return {
+    score: after.score,
+    rating: ratingOf(after.score),
+    before,
+    target,
+    passes: after.score >= target,
+    iterations,
+    steps,
+    findings: after.findings
+  };
+}
+function autofix(diagram, noRelayout, m) {
+  const findings = lintLayout(diagram, AUTOFIXED);
+  let relaid = false;
+  for (const f of findings) {
+    const fix = f.autofix;
+    const b = fix.body;
+    if (fix.path === "/layout_diagram") {
+      if (noRelayout || relaid) continue;
+      relaid = true;
+      applyLayout(diagram, { preset: "hierarchy-down", fit: true });
+    } else if (fix.path === "/move_views") {
+      const view = app.repository.get(b.refs[0]);
+      m.move([view], b.dx, b.dy);
+    } else {
+      const view = app.repository.get(b.ref);
+      m.resize(view, { ...box(view), width: b.width });
+    }
+  }
+}
+var qualitySchema = () => doc(
+  object({
+    score: doc(int(), "0\u2013100 from view geometry, see /diagram_quality."),
+    rating: doc(int(), "1\u20135; 4 needs a score of 80."),
+    before: doc(int(), "The score before the loop."),
+    target: int(),
+    passes: doc(boolean2(), "score reached target."),
+    iterations: int(),
+    steps: doc(array(string2()), "Post-processing steps kept, in order."),
+    findings: doc(
+      array(
+        object({
+          rule: string2(),
+          name: string2(),
+          severity: _enum(SEVERITIES),
+          count: int()
+        })
+      ),
+      "/lint_diagram findings left, by rule."
+    )
+  }),
+  "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
+);
+
 // src/handlers/build.ts
 var DIRECTIONS = ["TB", "BT", "LR", "RL"];
 function within(elem, ancestor) {
@@ -12238,7 +13349,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       return;
     }
     const as = `n${i}`;
-    const box2 = boxes.get(node.key);
+    const box3 = boxes.get(node.key);
     created2.set(as, node.key);
     fresh.add(node.key);
     const warned = warnings.length;
@@ -12259,16 +13370,16 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         body: {
           ref: model._id,
           diagram: diagramRef,
-          x: Math.round(box2.x),
-          y: Math.round(box2.y)
+          x: Math.round(box3.x),
+          y: Math.round(box3.y)
         }
       });
       ops.push({
         path: "/resize_node",
         body: {
           ref: `$${as}.view`,
-          width: Math.round(box2.width),
-          height: Math.round(box2.height)
+          width: Math.round(box3.width),
+          height: Math.round(box3.height)
         }
       });
       ops.push(
@@ -12305,10 +13416,10 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         // A note is a view without a model, so it takes neither.
         ...!note && { name: node.name },
         ...node.properties && { properties: node.properties },
-        x: Math.round(box2.x),
-        y: Math.round(box2.y),
-        x2: Math.round(box2.x + box2.width),
-        y2: Math.round(box2.y + box2.height),
+        x: Math.round(box3.x),
+        y: Math.round(box3.y),
+        x2: Math.round(box3.x + box3.width),
+        y2: Math.round(box3.y + box3.height),
         ...node.operandNames && { fields: ["operands"] },
         ...duplicate && { allowDuplicateNames: true }
       }
@@ -12654,15 +13765,24 @@ function viewIdOf(key2, built, byName) {
   const as = [...built.created].find(([, k]) => k === key2)[0];
   return byName.get(as).view._id;
 }
+var COLOURS = ["fillColor", "lineColor", "fontColor"];
+var coloured = (n) => Object.keys(n.style ?? {}).some((k) => COLOURS.includes(k));
 function withoutStyles(plan, warnings) {
-  const styled = plan.nodes.filter((n) => n.style !== void 0);
+  const styled = plan.nodes.filter(coloured);
   if (styled.length === 0) return plan;
   warnings.push(
     `the style profile is strict: the colours the spec gives ${styled.length} node(s) were not applied`
   );
   return {
     ...plan,
-    nodes: plan.nodes.map(({ style: _style, ...n }) => n)
+    nodes: plan.nodes.map((n) => {
+      if (!coloured(n)) return n;
+      const { style: style2, ...rest } = n;
+      const kept = Object.fromEntries(
+        Object.entries(style2).filter(([k]) => !COLOURS.includes(k))
+      );
+      return Object.keys(kept).length > 0 ? { ...rest, style: kept } : rest;
+    })
   };
 }
 function buildDiagramEndpoint(endpoints2) {
@@ -12811,7 +13931,8 @@ function buildDiagramEndpoint(endpoints2) {
       ),
       dryRun: optional(doc(boolean2(), "Set when nothing was changed.")),
       plan: optional(doc(planSchema(), "With dryRun: what applying runs.")),
-      style: optional(styleReportSchema())
+      style: optional(styleReportSchema()),
+      quality: optional(qualitySchema())
     }),
     handle: async (input) => {
       const { kind: kind2, spec, title, direction: direction2, parsed } = readSource(input);
@@ -12847,7 +13968,7 @@ function buildDiagramEndpoint(endpoints2) {
         ...built.warnings,
         ...styleWarnings
       ];
-      const summary = {
+      const summary2 = {
         kind: kind2,
         upserted: diagram !== null,
         updated: built.updated,
@@ -12872,7 +13993,7 @@ function buildDiagramEndpoint(endpoints2) {
             _type: DIAGRAM_TYPES[kind2],
             name: name4 ?? null
           },
-          ...summary,
+          ...summary2,
           created: built.created.size + built.edgeOps.length,
           ...shaped(
             input.result,
@@ -12888,8 +14009,8 @@ function buildDiagramEndpoint(endpoints2) {
           plan: planOf(built.ops)
         };
       }
-      const specStyled = plan.nodes.filter((n) => n.style !== void 0).map((n) => n.key);
-      const { byName, target, styled } = await oneStep(
+      const specStyled = plan.nodes.filter(coloured).map((n) => n.key);
+      const { byName, target, styled, quality } = await oneStep(
         "build diagram",
         async () => {
           let data = { results: [] };
@@ -12917,7 +14038,12 @@ function buildDiagramEndpoint(endpoints2) {
             styledViews(target2).filter((v) => !keep.has(v._id)),
             profile2
           );
-          return { byName: byName2, target: target2, styled: styled2 };
+          return {
+            byName: byName2,
+            target: target2,
+            styled: styled2,
+            quality: improve(target2, profile2)
+          };
         }
       );
       const ids2 = {};
@@ -12933,10 +14059,11 @@ function buildDiagramEndpoint(endpoints2) {
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
-        ...summary,
+        ...summary2,
         created: built.created.size + edges.length,
         ...shaped(input.result, ids2, edges),
-        style: styleReport(profile2, renames, styled)
+        style: styleReport(profile2, renames, styled),
+        quality
       };
     }
   });
@@ -17291,15 +18418,15 @@ function diagramExport() {
 }
 
 // src/handlers/describe.ts
-function label2(elem) {
+function label3(elem) {
   return elem.name.replace(/\s*\n\s*/g, " ");
 }
-function nodeViews(diagram) {
+function nodeViews2(diagram) {
   return diagram.ownedViews.filter(
     (v) => v instanceof type.NodeView && v.model && !(v.model instanceof type.Diagram)
   );
 }
-function edgeViews(diagram) {
+function edgeViews2(diagram) {
   return diagram.ownedViews.filter(
     (v) => v instanceof type.EdgeView && v.model && v.tail?.model && v.head?.model
   );
@@ -17309,10 +18436,10 @@ function membersOf(model) {
   return [
     ...list(model.attributes).map((a) => formatAttribute(a)),
     ...list(model.operations).map((o) => formatOperation(o)),
-    ...list(model.literals).map((l) => label2(l)),
+    ...list(model.literals).map((l) => label3(l)),
     ...list(model.columns).map(
       (c) => [
-        label2(c),
+        label3(c),
         typeText(c.type) + (typeof c.length === "string" && c.length ? `(${c.length})` : ""),
         c.primaryKey ? "PK" : "",
         c.foreignKey ? "FK" : ""
@@ -17321,7 +18448,7 @@ function membersOf(model) {
   ];
 }
 var quoted = (elem) => {
-  const name4 = label2(elem);
+  const name4 = label3(elem);
   return name4 ? `"${name4}"` : "(unnamed)";
 };
 function nodeLine(view) {
@@ -17335,13 +18462,13 @@ function endText(end) {
     end.aggregation === "none" ? "" : end.aggregation,
     end.multiplicity,
     end.cardinality,
-    end.name ? label2(end) : ""
+    end.name ? label3(end) : ""
   ].filter((p) => typeof p === "string" && p !== "");
   return parts.length > 0 ? ` (${parts.join(" ")})` : "";
 }
 function edgeLine(view) {
   const model = view.model;
-  const name4 = label2(model);
+  const name4 = label3(model);
   return `- ${quoted(view.tail.model)}${endText(model.end1)} -[${model.constructor.name}` + (name4 ? ` "${name4}"` : "") + `]->${endText(model.end2)} ${quoted(view.head.model)}`;
 }
 var describeDiagram = defineEndpoint({
@@ -17373,8 +18500,8 @@ var describeDiagram = defineEndpoint({
   handle: (input) => {
     const diagram = requireDiagram(input.diagram);
     const max = input.maxChars ?? 4e3;
-    const nodes = nodeViews(diagram);
-    const edges = edgeViews(diagram);
+    const nodes = nodeViews2(diagram);
+    const edges = edgeViews2(diagram);
     const lines = [
       `${diagram.constructor.name} ${quoted(diagram)} in ${quoted(diagram._parent)}: ${nodes.length} nodes, ${edges.length} edges`,
       ...nodes.length > 0 ? ["Nodes:", ...nodes.map(nodeLine)] : [],
@@ -17476,27 +18603,27 @@ var validateModel = defineEndpoint({
 var typeOf = (elem) => elem.constructor.name;
 var nameOf = (elem) => elem.name;
 var str2 = (value) => typeof value === "string" ? value : "";
-function kindOf(diagram) {
+function kindOf2(diagram) {
   const name4 = typeOf(diagram);
   const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name4);
   return found ? found[0] : null;
 }
-var box = (view) => view;
-var centre = (view) => ({
-  x: box(view).left + box(view).width / 2,
-  y: box(view).top + box(view).height / 2
+var box2 = (view) => view;
+var centre2 = (view) => ({
+  x: box2(view).left + box2(view).width / 2,
+  y: box2(view).top + box2(view).height / 2
 });
-function inside(view, container) {
-  const c = centre(view);
-  const b = box(container);
+function inside2(view, container) {
+  const c = centre2(view);
+  const b = box2(container);
   return c.x >= b.left && c.x <= b.left + b.width && c.y >= b.top && c.y <= b.top + b.height;
 }
 function flowDirection(edges) {
   let dx = 0;
   let dy = 0;
   for (const e of edges) {
-    const t = centre(e.tail);
-    const h = centre(e.head);
+    const t = centre2(e.tail);
+    const h = centre2(e.head);
     dx += h.x - t.x;
     dy += h.y - t.y;
   }
@@ -17622,13 +18749,13 @@ var MESSAGE_KINDS2 = {
   createMessage: "create",
   deleteMessage: "delete"
 };
-function edgeY(view) {
+function edgeY2(view) {
   const points = view.points?.points;
   return points?.[0]?.y ?? Number.POSITIVE_INFINITY;
 }
 function sequenceSpec2(v) {
-  const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline").sort((a, b) => box(a).left - box(b).left);
-  const messages2 = [...v.edges].sort((a, b) => edgeY(a) - edgeY(b));
+  const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline").sort((a, b) => box2(a).left - box2(b).left);
+  const messages2 = [...v.edges].sort((a, b) => edgeY2(a) - edgeY2(b));
   const fragments = [];
   for (const view of v.nodes) {
     const m = view.model;
@@ -17637,19 +18764,19 @@ function sequenceSpec2(v) {
       v.skip(view);
       continue;
     }
-    const b = box(view);
-    const covered = messages2.map((e, i) => [edgeY(e), i]).filter(([y]) => y >= b.top && y <= b.top + b.height).map(([, i]) => i);
+    const b = box2(view);
+    const covered = messages2.map((e, i) => [edgeY2(e), i]).filter(([y]) => y >= b.top && y <= b.top + b.height).map(([, i]) => i);
     if (covered.length === 0) {
       v.skip(view);
       continue;
     }
     const operands = list(m.operands).map((o) => str2(o.guard));
-    const operandViews = subViews(view).filter((s) => s instanceof type.UMLInteractionOperandView).sort((a, b2) => box(a).top - box(b2).top);
+    const operandViews = subViews(view).filter((s) => s instanceof type.UMLInteractionOperandView).sort((a, b2) => box2(a).top - box2(b2).top);
     const tops = operandViews.slice(1).map(
-      (_, k) => box(operandViews[0]).top + operandViews.slice(0, k + 1).reduce((sum, o) => sum + box(o).height, 0)
+      (_, k) => box2(operandViews[0]).top + operandViews.slice(0, k + 1).reduce((sum, o) => sum + box2(o).height, 0)
     );
     const starts = tops.map(
-      (top) => covered.find((i) => edgeY(messages2[i]) >= top)
+      (top) => covered.find((i) => edgeY2(messages2[i]) >= top)
     );
     const divided = tops.length === operands.length - 1 && tops.length > 0 && starts.every(
       (s, k) => s !== void 0 && s > (k === 0 ? covered[0] : starts[k - 1])
@@ -17681,21 +18808,21 @@ function sequenceSpec2(v) {
 function sequenceNotes(v) {
   const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline");
   return v.notes.map((note) => {
-    const b = box(note);
-    const x = centre(note).x;
+    const b = box2(note);
+    const x = centre2(note).x;
     const over = lifelines.filter(
-      (l) => centre(l).x >= b.left && centre(l).x <= b.left + b.width
+      (l) => centre2(l).x >= b.left && centre2(l).x <= b.left + b.width
     );
     const near = [...lifelines].sort(
-      (p, q2) => Math.abs(centre(p).x - x) - Math.abs(centre(q2).x - x)
+      (p, q2) => Math.abs(centre2(p).x - x) - Math.abs(centre2(q2).x - x)
     )[0];
     const on = over.length > 0 ? over : near ? [near] : [];
-    const side = over.length > 0 ? "over" : near && x < centre(near).x ? "left" : "right";
+    const side = over.length > 0 ? "over" : near && x < centre2(near).x ? "left" : "right";
     return {
       text: str2(note.text),
       on: on.map((l) => nameOf(l.model)),
       ...on.length > 0 && { side },
-      at: v.edges.filter((e) => edgeY(e) < b.top).length
+      at: v.edges.filter((e) => edgeY2(e) < b.top).length
     };
   });
 }
@@ -17715,7 +18842,7 @@ function usecaseSpec3(v) {
     else if (t === "UMLUseCase") {
       useCases2.push({
         name: nameOf(view.model),
-        inSystem: subject !== void 0 && inside(view, subject)
+        inSystem: subject !== void 0 && inside2(view, subject)
       });
     } else if (view !== subject) v.skip(view);
   }
@@ -17766,7 +18893,7 @@ function flowGraph(v, typeFor, edgeTypes, lanes = []) {
     }
     const id2 = `N${nodes.length}`;
     ids2.set(view.model, id2);
-    const lane = lanes.find((l) => inside(view, l));
+    const lane = lanes.find((l) => inside2(view, l));
     nodes.push({
       id: id2,
       name: nameOf(view.model),
@@ -18162,8 +19289,8 @@ function deploymentSpec2(v) {
   };
 }
 function extract(diagram, kind2) {
-  const nodes = nodeViews(diagram);
-  const edges = edgeViews(diagram);
+  const nodes = nodeViews2(diagram);
+  const edges = edgeViews2(diagram);
   const owned = diagram.ownedViews;
   const notes = owned.filter((n) => n instanceof type.UMLNoteView);
   const links = owned.filter((n) => n instanceof type.UMLNoteLinkView);
@@ -18398,7 +19525,7 @@ var HEADER2 = {
   BT: "flowchart BT",
   RL: "flowchart RL"
 };
-function usecase(spec, direction2) {
+function usecase2(spec, direction2) {
   const lines = [HEADER2[direction2]];
   const ids2 = /* @__PURE__ */ new Map();
   spec.actors.forEach((a, i) => {
@@ -18639,7 +19766,7 @@ function toMermaid(x, title = "") {
       return done(lines, warnings);
     }
     case "usecase":
-      return done(usecase(x.spec, x.direction));
+      return done(usecase2(x.spec, x.direction));
     case "activity":
       return done(activity(x.spec, x.direction));
     case "statemachine":
@@ -18781,7 +19908,7 @@ var LAYOUT = {
   LR: ["left to right direction"],
   RL: ["left to right direction"]
 };
-function usecase2(spec, direction2) {
+function usecase3(spec, direction2) {
   const actor = aliases(spec.actors, "A");
   const uc = aliases(
     spec.useCases.map((u) => u.name),
@@ -19117,7 +20244,7 @@ function toPlantUml(x, title = "") {
     case "sequence":
       return done(sequenceDiagram4(x.spec, x.notes ?? []));
     case "usecase":
-      return done(usecase2(x.spec, x.direction));
+      return done(usecase3(x.spec, x.direction));
     case "activity": {
       const { lines, warnings } = activity2(x.spec, x.direction);
       return done(lines, [
@@ -19178,7 +20305,7 @@ var exportText = defineEndpoint({
   }),
   handle: (input) => {
     const diagram = requireDiagram(input.diagram);
-    const kind2 = kindOf(diagram);
+    const kind2 = kindOf2(diagram);
     if (!kind2) {
       throw new ApiError(
         "INVALID_ARGUMENT",
@@ -19200,421 +20327,6 @@ var exportText = defineEndpoint({
       format: input.format,
       text: out.text,
       warnings: [...warnings, ...out.warnings]
-    };
-  }
-});
-
-// src/handlers/lint.ts
-var SEVERITIES = ["error", "warning", "info"];
-var LAYOUT_RULES = {
-  L001: "stacked",
-  L002: "overlap",
-  L003: "out-of-canvas",
-  L004: "edge-crosses-node",
-  L005: "label-overflow",
-  L006: "disconnected",
-  L007: "dense",
-  L008: "too-many-elements",
-  L009: "off-profile"
-};
-var AREA = /Frame|Subject|Swimlane|Partition|CombinedFragment|Operand|Region|Boundary|Lane|Pool/;
-var PASSED_THROUGH = /Lifeline/;
-var NAME_OUTSIDE = /Actor|Pseudostate|InitialState|FinalState|Port|Pin|Point/;
-var CHAR_WIDTH = 7;
-var LABEL_PADDING2 = 20;
-var CELL = 300;
-var CROWDED = 7;
-var GAP2 = 20;
-var kind = (v) => v.constructor.name;
-function boxOf(view) {
-  const [left, top, width, height] = [
-    view.left,
-    view.top,
-    view.width,
-    view.height
-  ];
-  return { view, left, top, right: left + width, bottom: top + height };
-}
-function nodeBoxes(diagram) {
-  return diagram.ownedViews.filter(
-    (v) => v instanceof type.NodeView && v.visible !== false && !(v.model instanceof type.Diagram)
-  ).map(boxOf);
-}
-function edgeViews2(diagram) {
-  return diagram.ownedViews.filter(
-    (v) => v instanceof type.EdgeView && v.visible !== false
-  );
-}
-var inside2 = (a, b) => a.left >= b.left && a.top >= b.top && a.right <= b.right && a.bottom <= b.bottom;
-function heldBy(a, b) {
-  if (inside2(a, b)) return true;
-  for (let c = a.view.containerView; c; c = c.containerView) {
-    if (c === b.view) return true;
-  }
-  return false;
-}
-var area = (b) => AREA.test(kind(b.view));
-function edgePoints(edge) {
-  const points = edge.points?.points;
-  if (Array.isArray(points) && points.length >= 2) return points;
-  const centre2 = (v) => {
-    const b = boxOf(v);
-    return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
-  };
-  return [centre2(edge.tail), centre2(edge.head)];
-}
-function crosses(p, q2, box2) {
-  const [x0, y0, x1, y1] = [
-    box2.left + 2,
-    box2.top + 2,
-    box2.right - 2,
-    box2.bottom - 2
-  ];
-  if (x1 <= x0 || y1 <= y0) return false;
-  const dx = q2.x - p.x;
-  const dy = q2.y - p.y;
-  let t0 = 0;
-  let t1 = 1;
-  for (const [pk, qk] of [
-    [-dx, p.x - x0],
-    [dx, x1 - p.x],
-    [-dy, p.y - y0],
-    [dy, y1 - p.y]
-  ]) {
-    if (pk === 0) {
-      if (qk < 0) return false;
-      continue;
-    }
-    const r = qk / pk;
-    if (pk < 0) t0 = Math.max(t0, r);
-    else t1 = Math.min(t1, r);
-    if (t0 > t1) return false;
-  }
-  return true;
-}
-function labelWidth(name4) {
-  const widest = Math.max(...name4.split("\n").map((l) => l.length));
-  return widest * CHAR_WIDTH + LABEL_PADDING2;
-}
-function attached(edge, box2) {
-  for (const end of [edge.tail, edge.head]) {
-    for (let v = end; v; v = v._parent) {
-      if (v === box2.view) return true;
-      if (!(v._parent instanceof type.View)) break;
-    }
-  }
-  return false;
-}
-var Findings = class {
-  constructor(enabled, diagram) {
-    this.enabled = enabled;
-    this.diagram = diagram;
-  }
-  enabled;
-  diagram;
-  list = [];
-  on(rule) {
-    return this.enabled.has(rule);
-  }
-  add(rule, severity, views, message, fix, autofix) {
-    this.list.push({
-      rule,
-      name: LAYOUT_RULES[rule],
-      severity,
-      message,
-      ids: views.map((v) => v._id),
-      paths: views.map(pathOf),
-      fix,
-      autofix
-    });
-  }
-  relayout(options = {}) {
-    return {
-      path: "/layout_diagram",
-      body: { diagram: this.diagram._id, ...options }
-    };
-  }
-};
-var label3 = (v) => {
-  const name4 = v.model?.name;
-  return typeof name4 === "string" && name4 ? `"${name4.replace(/\n/g, " ")}"` : kind(v);
-};
-function stacked(f, boxes) {
-  const byOrigin = /* @__PURE__ */ new Map();
-  for (const b of boxes) {
-    const key2 = `${Math.round(b.left)},${Math.round(b.top)}`;
-    byOrigin.set(key2, [...byOrigin.get(key2) ?? [], b]);
-  }
-  const seen = /* @__PURE__ */ new Set();
-  for (const [origin, group] of byOrigin) {
-    if (group.length < 2) continue;
-    for (const b of group) seen.add(b.view);
-    f.add(
-      "L001",
-      "error",
-      group.map((b) => b.view),
-      `${group.length} views start at the same point (${origin}): ${group.map((b) => label3(b.view)).join(", ")}`,
-      "Lay the diagram out again.",
-      f.relayout()
-    );
-  }
-  return seen;
-}
-function overlaps(f, boxes, skip) {
-  const solid = boxes.filter((b) => !area(b));
-  for (let i = 0; i < solid.length; i++) {
-    for (let j = i + 1; j < solid.length; j++) {
-      const [a, b] = [solid[i], solid[j]];
-      if (skip.has(a.view) && skip.has(b.view)) continue;
-      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      if (w <= 1 || h <= 1 || heldBy(a, b) || heldBy(b, a)) continue;
-      f.add(
-        "L002",
-        "warning",
-        [a.view, b.view],
-        `${label3(a.view)} and ${label3(b.view)} overlap by ${Math.round(w)}x${Math.round(h)}`,
-        `Move ${label3(b.view)} ${Math.round(w + GAP2)} to the right, or lay the diagram out again.`,
-        {
-          path: "/move_views",
-          body: { refs: [b.view._id], dx: Math.round(w + GAP2), dy: 0 }
-        }
-      );
-    }
-  }
-}
-function outOfCanvas(f, boxes) {
-  for (const b of boxes) {
-    if (b.left >= 0 && b.top >= 0) continue;
-    const dx = b.left < 0 ? Math.round(GAP2 - b.left) : 0;
-    const dy = b.top < 0 ? Math.round(GAP2 - b.top) : 0;
-    f.add(
-      "L003",
-      "warning",
-      [b.view],
-      `${label3(b.view)} starts outside the canvas at (${Math.round(b.left)}, ${Math.round(b.top)})`,
-      `Move it by (${dx}, ${dy}).`,
-      { path: "/move_views", body: { refs: [b.view._id], dx, dy } }
-    );
-  }
-}
-function crossings(f, boxes, edges) {
-  const obstacles = boxes.filter(
-    (b) => !area(b) && !PASSED_THROUGH.test(kind(b.view))
-  );
-  for (const edge of edges) {
-    const points = edgePoints(edge);
-    for (const b of obstacles) {
-      if (attached(edge, b)) continue;
-      const ends3 = [edge.tail, edge.head].map((e) => boxOf(e));
-      if (ends3.some((e) => heldBy(e, b))) continue;
-      if (!points.some((p, i) => i > 0 && crosses(points[i - 1], p, b))) {
-        continue;
-      }
-      f.add(
-        "L004",
-        "warning",
-        [edge, b.view],
-        `The ${kind(edge)} from ${label3(edge.tail)} to ${label3(edge.head)} runs through ${label3(b.view)}`,
-        "Lay the diagram out again, or move the node off the line.",
-        f.relayout()
-      );
-    }
-  }
-}
-function overflows(f, boxes) {
-  for (const b of boxes) {
-    const name4 = b.view.model?.name;
-    if (typeof name4 !== "string" || !name4 || NAME_OUTSIDE.test(kind(b.view))) {
-      continue;
-    }
-    const width = labelWidth(name4);
-    if (width <= b.right - b.left) continue;
-    f.add(
-      "L005",
-      "warning",
-      [b.view],
-      `The name of ${label3(b.view)} needs about ${width}px and its box is ${Math.round(b.right - b.left)}px wide, so it wraps or is cut`,
-      `Widen it to ${width}.`,
-      {
-        path: "/resize_node",
-        body: {
-          ref: b.view._id,
-          width,
-          height: Math.round(b.bottom - b.top)
-        }
-      }
-    );
-  }
-}
-function disconnected(f, boxes, edges) {
-  if (edges.length === 0) return;
-  for (const b of boxes) {
-    if (!b.view.model || area(b)) continue;
-    if (edges.some((e) => attached(e, b))) continue;
-    if (boxes.some((o) => o !== b && heldBy(o, b))) continue;
-    f.add(
-      "L006",
-      "info",
-      [b.view],
-      `${label3(b.view)} has no edge on this diagram`,
-      "Connect it, or show it on a diagram where it relates to something.",
-      null
-    );
-  }
-}
-function dense(f, boxes) {
-  const cells = /* @__PURE__ */ new Map();
-  for (const b of boxes) {
-    if (area(b)) continue;
-    const cx = Math.floor((b.left + b.right) / 2 / CELL);
-    const cy = Math.floor((b.top + b.bottom) / 2 / CELL);
-    const key2 = `${cx},${cy}`;
-    cells.set(key2, [...cells.get(key2) ?? [], b]);
-  }
-  for (const [cell, group] of cells) {
-    if (group.length < CROWDED) continue;
-    const [cx, cy] = cell.split(",").map((n) => Number(n) * CELL);
-    f.add(
-      "L007",
-      "info",
-      group.map((b) => b.view),
-      `${group.length} nodes are centred in the ${CELL}x${CELL} area at (${cx}, ${cy})`,
-      "Lay the diagram out with more spacing.",
-      f.relayout({ nodeSeparation: 60, rankSeparation: 80 })
-    );
-  }
-}
-function tooMany(f, boxes, profile2) {
-  const nodes = boxes.filter((b) => b.view.model && !area(b));
-  const max = profile2.layout.maxElements;
-  if (nodes.length <= max) return;
-  f.add(
-    "L008",
-    "info",
-    nodes.map((b) => b.view),
-    `${nodes.length} nodes, more than the ${max} the style profile '${profile2.name}' allows on one diagram`,
-    `Split it, e.g. one diagram per package (/derive_diagrams does), or raise layout.maxElements.`,
-    null
-  );
-}
-function offStyle(f, diagram, profile2) {
-  const off = styledViews(diagram).filter(
-    (v) => offProfile(v, profile2).length > 0
-  );
-  if (off.length === 0) return;
-  const fields = [...new Set(off.flatMap((v) => offProfile(v, profile2)))];
-  f.add(
-    "L009",
-    profile2.strict ? "error" : "warning",
-    off,
-    `${off.length} view(s) are drawn off the style profile '${profile2.name}' (${fields.join(", ")})`,
-    "Apply the profile to the diagram.",
-    {
-      path: "/apply_style_profile",
-      body: { scope: diagram._id, names: false }
-    }
-  );
-}
-var RANK = { error: 0, warning: 1, info: 2 };
-function lintLayout(diagram, enabled) {
-  const f = new Findings(enabled, diagram);
-  const boxes = nodeBoxes(diagram);
-  const edges = edgeViews2(diagram).filter((e) => e.tail && e.head);
-  const piled = f.on("L001") ? stacked(f, boxes) : /* @__PURE__ */ new Set();
-  if (f.on("L002")) overlaps(f, boxes, piled);
-  if (f.on("L003")) outOfCanvas(f, boxes);
-  if (f.on("L004")) crossings(f, boxes, edges);
-  if (f.on("L005")) overflows(f, boxes);
-  if (f.on("L006")) disconnected(f, boxes, edges);
-  if (f.on("L007")) dense(f, boxes);
-  const profile2 = effectiveProfile().profile;
-  if (f.on("L008")) tooMany(f, boxes, profile2);
-  if (f.on("L009")) offStyle(f, diagram, profile2);
-  return f.list.sort((a, b) => RANK[a.severity] - RANK[b.severity]);
-}
-function pickRules(table, wanted, field) {
-  const ids2 = Object.keys(table);
-  if (wanted === void 0) return new Set(ids2);
-  return new Set(
-    wanted.map((w) => {
-      const id2 = ids2.find((i) => i === w || table[i] === w);
-      if (!id2) {
-        throw new ApiError(
-          "INVALID_ARGUMENT",
-          `${field}: no rule ${w}; rules are ${ids2.map((i) => `${i} ${table[i]}`).join(", ")}`
-        );
-      }
-      return id2;
-    })
-  );
-}
-var limitField = () => optional(
-  doc(
-    int().check(_gte(1), _lte(1e3)),
-    "Most findings to list, most severe first; default 100. count is always the full number."
-  )
-);
-function counted(findings, limit) {
-  const counts = { error: 0, warning: 0, info: 0 };
-  for (const f of findings) counts[f.severity]++;
-  const shown = findings.slice(0, limit ?? 100);
-  return {
-    count: findings.length,
-    counts,
-    truncated: shown.length < findings.length,
-    findings: shown
-  };
-}
-var countsSchema = () => object({ error: int(), warning: int(), info: int() });
-var lintDiagram = defineEndpoint({
-  path: "/lint_diagram",
-  description: "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006), crowded areas (L007), more nodes than the style profile allows (L008) and views drawn off the style profile (L009, an error when it is strict). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
-  readOnly: true,
-  destructive: false,
-  request: object({
-    diagram: optional(ref2("Diagram; default the current diagram.")),
-    rules: optional(
-      doc(
-        array(string2().check(_minLength(1))),
-        "Rules to run, by id (L001) or name (overlap); default all."
-      )
-    ),
-    limit: limitField()
-  }),
-  aliases: { diagramId: "diagram", id: "diagram" },
-  response: object({
-    diagram: elementSchema(),
-    count: doc(int(), "Findings in all."),
-    counts: countsSchema(),
-    truncated: boolean2(),
-    findings: array(
-      object({
-        rule: string2(),
-        name: string2(),
-        severity: _enum(SEVERITIES),
-        message: string2(),
-        ids: doc(array(string2()), "Views the finding is about."),
-        paths: array(nullable(string2())),
-        fix: string2(),
-        autofix: doc(
-          nullable(
-            object({
-              path: string2(),
-              body: record(string2(), unknown())
-            })
-          ),
-          "A request that fixes it: POST body to path. Null where only a person can decide."
-        )
-      })
-    )
-  }),
-  handle: (input) => {
-    const enabled = pickRules(LAYOUT_RULES, input.rules, "rules");
-    const diagram = requireDiagram(input.diagram ?? "@current");
-    return {
-      diagram: serialize(diagram),
-      ...counted(lintLayout(diagram, enabled), input.limit)
     };
   }
 });
@@ -19747,20 +20459,20 @@ function models() {
   );
 }
 function requireSnapshot(label4) {
-  const snap = snapshots.get(label4);
-  if (!snap) {
+  const snap2 = snapshots.get(label4);
+  if (!snap2) {
     throw new ApiError(
       "NOT_FOUND",
       `No snapshot ${label4}; snapshots: ${[...snapshots.keys()].join(", ") || "none"}`
     );
   }
-  if (snap.project !== app.project.getProject()) {
+  if (snap2.project !== app.project.getProject()) {
     throw new ApiError(
       "SNAPSHOT_STALE",
       `Snapshot ${label4} was taken of another project`
     );
   }
-  return snap;
+  return snap2;
 }
 var takeSnapshot = defineEndpoint({
   path: "/snapshot",
@@ -19796,8 +20508,8 @@ var takeSnapshot = defineEndpoint({
     if (snapshots.size > MAX_SNAPSHOTS) {
       snapshots.delete(snapshots.keys().next().value);
     }
-    const snap = snapshots.get(label4);
-    return { label: label4, takenAt: snap.takenAt, elements: elements.size };
+    const snap2 = snapshots.get(label4);
+    return { label: label4, takenAt: snap2.takenAt, elements: elements.size };
   }
 });
 var changedItem = () => object({
@@ -19813,13 +20525,13 @@ var listed = () => object({
   name: nullable(string2()),
   path: nullable(string2())
 });
-function diffSince(snap) {
+function diffSince(snap2) {
   const added = [];
   const changed = [];
   const seen = /* @__PURE__ */ new Set();
   for (const elem of models()) {
     seen.add(elem._id);
-    const before = snap.elements.get(elem._id);
+    const before = snap2.elements.get(elem._id);
     const now = capture(elem);
     const item = {
       _id: elem._id,
@@ -19836,7 +20548,7 @@ function diffSince(snap) {
     ].filter((f) => before.fields[f] !== now.fields[f]);
     if (fields.length > 0) changed.push({ ...item, fields });
   }
-  const removed = [...snap.elements].filter(([id2]) => !seen.has(id2)).map(([id2, c]) => ({ _id: id2, _type: c.type, name: c.name, path: c.path }));
+  const removed = [...snap2.elements].filter(([id2]) => !seen.has(id2)).map(([id2, c]) => ({ _id: id2, _type: c.type, name: c.name, path: c.path }));
   return { added, changed, removed };
 }
 var diffSinceEndpoint = defineEndpoint({
@@ -19862,11 +20574,11 @@ var diffSinceEndpoint = defineEndpoint({
     removed: array(listed())
   }),
   handle: (input) => {
-    const snap = requireSnapshot(input.snapshot);
-    const { added, changed, removed } = diffSince(snap);
+    const snap2 = requireSnapshot(input.snapshot);
+    const { added, changed, removed } = diffSince(snap2);
     const limit = input.limit ?? 200;
     return {
-      snapshot: snap.label,
+      snapshot: snap2.label,
       counts: {
         added: added.length,
         changed: changed.length,
@@ -19896,13 +20608,13 @@ var restoreSnapshot = defineEndpoint({
     )
   }),
   handle: (input) => {
-    const snap = requireSnapshot(input.snapshot);
+    const snap2 = requireSnapshot(input.snapshot);
     const undo2 = history3()._undoStack.stack;
-    const at = snap.top === null ? -1 : undo2.lastIndexOf(snap.top);
-    if (snap.top !== null && at < 0) {
+    const at = snap2.top === null ? -1 : undo2.lastIndexOf(snap2.top);
+    if (snap2.top !== null && at < 0) {
       throw new ApiError(
         "SNAPSHOT_STALE",
-        `The undo history no longer reaches snapshot ${snap.label}`
+        `The undo history no longer reaches snapshot ${snap2.label}`
       );
     }
     const count = undo2.length - 1 - at;
@@ -19917,9 +20629,9 @@ var restoreSnapshot = defineEndpoint({
       merged.ops = undone.flatMap((o) => o.ops);
       redo2.push(merged);
     }
-    const diff = diffSince(snap);
+    const diff = diffSince(snap2);
     return {
-      snapshot: snap.label,
+      snapshot: snap2.label,
       undone: count,
       remaining: {
         added: diff.added.length,
@@ -25867,7 +26579,8 @@ function applyPatternEndpoint(endpoints2) {
       warnings: optional(array(string2())),
       dryRun: optional(boolean2()),
       plan: optional(planSchema()),
-      style: optional(styleReportSchema())
+      style: optional(styleReportSchema()),
+      quality: optional(qualitySchema())
     }),
     handle: async (input) => {
       const pattern2 = withVariant(findPattern(input.pattern), input.variant);
@@ -25940,21 +26653,25 @@ function applyPatternEndpoint(endpoints2) {
         )
       });
       normalizeOps(plan.ops, renames);
-      const { run, styled } = await oneStep("apply pattern", async () => {
-        const run2 = await batchRunner.run(
-          endpoints2(),
-          plan.ops,
-          true,
-          MODEL_MAX_OPS
-        );
-        const id3 = resolver(run2.results);
-        const diagrams = [plan.diagram, plan.sequenceDiagram].filter((d) => d !== void 0).map((d) => requireElement(id3(d)));
-        const styled2 = diagrams.reduce(
-          (n, d) => n + styleDiagram(d, profile2),
-          0
-        );
-        return { run: run2, styled: styled2 };
-      });
+      const { run, styled, quality } = await oneStep(
+        "apply pattern",
+        async () => {
+          const run2 = await batchRunner.run(
+            endpoints2(),
+            plan.ops,
+            true,
+            MODEL_MAX_OPS
+          );
+          const id3 = resolver(run2.results);
+          const diagrams = [plan.diagram, plan.sequenceDiagram].filter((d) => d !== void 0).map((d) => requireElement(id3(d)));
+          const styled2 = diagrams.reduce(
+            (n, d) => n + styleDiagram(d, profile2),
+            0
+          );
+          const quality2 = diagrams.map((d) => improve(d, profile2))[0];
+          return { run: run2, styled: styled2, quality: quality2 };
+        }
+      );
       const id2 = resolver(run.results);
       return {
         ...answer(
@@ -25964,7 +26681,8 @@ function applyPatternEndpoint(endpoints2) {
             value: resolveValue(c.value, id2)
           }))
         ),
-        style: styleReport(profile2, renames, styled)
+        style: styleReport(profile2, renames, styled),
+        ...quality && { quality }
       };
     }
   });
@@ -28130,7 +28848,7 @@ var import_node_path3 = require("node:path");
 
 // src/annotate.ts
 var ANNOTATE = ["none", "ids", "paths"];
-var MARGIN2 = 10;
+var MARGIN3 = 10;
 var LABEL = {
   font: 10,
   padding: 2,
@@ -28157,31 +28875,31 @@ function labelsFor(diagram, mode, scale) {
   const element = document.createElement("canvas");
   const context = element.getContext("2d");
   const canvas = new (graphics()).Canvas(context);
-  const measure = (text4) => {
+  const measure2 = (text4) => {
     context.font = `${LABEL.font}px sans-serif`;
     return context.measureText(text4).width;
   };
-  const box2 = (v) => v.getBoundingBox(
+  const box3 = (v) => v.getBoundingBox(
     canvas
   );
   const bounds = diagram.getBoundingBoxWithChildren(canvas);
-  const left = bounds.x1 - MARGIN2;
-  const top = bounds.y1 - MARGIN2;
+  const left = bounds.x1 - MARGIN3;
+  const top = bounds.y1 - MARGIN3;
   const placed = [];
   const views = [
-    ...nodeViews(diagram).map((v) => [v, false]),
-    ...edgeViews(diagram).map((v) => [v, true])
+    ...nodeViews2(diagram).map((v) => [v, false]),
+    ...edgeViews2(diagram).map((v) => [v, true])
   ];
   for (const [view, edge] of views) {
     const model = view.model;
     const text4 = mode === "ids" ? model._id : alias(model);
-    const r = box2(view);
+    const r = box3(view);
     const label4 = {
       text: text4,
       ref: model._id,
       x: Math.round(((edge ? (r.x1 + r.x2) / 2 : r.x1) - left) * scale),
       y: Math.round(((edge ? (r.y1 + r.y2) / 2 : r.y1) - top) * scale),
-      width: Math.ceil((measure(text4) + 2 * LABEL.padding) * scale),
+      width: Math.ceil((measure2(text4) + 2 * LABEL.padding) * scale),
       height: Math.ceil(LABEL.height * scale)
     };
     while (placed.some((p) => overlaps2(p, label4))) label4.y += label4.height + 1;
@@ -29134,7 +29852,7 @@ function walk(root, visit) {
     if (Array.isArray(list5)) for (const e of list5) walk(e, visit);
   }
 }
-function kindOf2(elem) {
+function kindOf3(elem) {
   const name4 = elem.constructor.name;
   if (name4 !== "UMLAttribute") return namingKindOf(name4);
   return elem.isStatic === true && elem.isReadOnly === true ? "constant" : "attribute";
@@ -29142,7 +29860,7 @@ function kindOf2(elem) {
 function renamesIn(scope, renames) {
   const groups = /* @__PURE__ */ new Map();
   walk(scope, (elem) => {
-    const kind2 = kindOf2(elem);
+    const kind2 = kindOf3(elem);
     const from = elem.name;
     if (kind2 === null || typeof from !== "string" || from === "") return;
     const to = renames.name(from, kind2);
@@ -29156,7 +29874,7 @@ function renamesIn(scope, renames) {
       if (names4[i] !== g.from) {
         out.push({
           elem: g.elem,
-          kind: kindOf2(g.elem),
+          kind: kindOf3(g.elem),
           from: g.from,
           to: names4[i]
         });
@@ -29267,7 +29985,7 @@ var DOCUMENTED_TYPES = {
 };
 function explainElement(elem, profile2) {
   const out = [];
-  const kind2 = kindOf2(elem);
+  const kind2 = kindOf3(elem);
   const rule = kind2 && profile2.naming[kind2];
   const name4 = String(elem.name ?? "");
   if (rule && name4) {
@@ -29430,6 +30148,138 @@ function profiled(endpoint) {
   };
 }
 
+// src/handlers/quality.ts
+var diagramSchema = () => object({
+  _id: string2(),
+  name: nullable(string2()),
+  _type: string2()
+});
+var summary = (d) => ({
+  _id: d._id,
+  name: typeof d.name === "string" ? d.name : null,
+  _type: d.constructor.name
+});
+var diagramQuality = defineEndpoint({
+  path: "/diagram_quality",
+  description: "Score a diagram 0\u2013100 from its view geometry, no rendering: overlap of boxes, edges through nodes, crossing edges, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. rating is 1\u20135 (4 needs 80); target is the profile's threshold for the kind. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    ref: optional(ref2("Diagram; default the current one."))
+  }),
+  aliases: { diagram: "ref", id: "ref" },
+  response: object({
+    diagram: diagramSchema(),
+    kind: nullable(string2()),
+    score: int(),
+    rating: int(),
+    target: int(),
+    passes: boolean2(),
+    metrics: doc(
+      record(string2(), number2()),
+      "overlapArea, overlapPairs, overlapRatio, nodeEdgeCrossings, edgeCrossings, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges."
+    ),
+    penalties: doc(
+      record(string2(), number2()),
+      `Points lost per measure, at most: ${Object.entries(WEIGHTS).map(([k, w]) => `${k} ${w}`).join(", ")}.`
+    ),
+    findings: qualitySchema().shape.findings
+  }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.ref ?? "@current");
+    const profile2 = effectiveProfile().profile;
+    const kind2 = kindOf(diagram);
+    const { metrics, score: score2, findings } = assess(diagram, profile2);
+    const target = kind2 ? thresholdFor(profile2, kind2) : profile2.quality.minScore;
+    const lost = penalties(metrics, profile2.layout.page);
+    return {
+      diagram: summary(diagram),
+      kind: kind2,
+      score: score2,
+      rating: ratingOf(score2),
+      target,
+      passes: score2 >= target,
+      metrics: { ...metrics },
+      penalties: Object.fromEntries(
+        Object.entries(lost).map(([k, v]) => [k, Math.round(v * 10) / 10])
+      ),
+      findings
+    };
+  }
+});
+var improveDiagram = defineEndpoint({
+  path: "/improve_diagram",
+  description: "Run the quality loop on an existing diagram as one undo step: the profile's layout preset (unless the kind's placement is the build's own: sequence, use case with a boundary, lanes), post-processing for the kind (rank ordering, lifeline order and spacing, boundary around use cases, straight flow chains, label room, overlap removal, grid, margin), then /lint_diagram's autofixes, measured after each step and undone if a step lowers the score, until target, no gain, or maxIterations. Allowed under a strict profile: it is how a strict diagram is rearranged. dryRun answers the score it would reach and leaves the diagram as it was.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    ref: optional(ref2("Diagram; default the current one.")),
+    target: optional(
+      doc(
+        int().check(_gte(0), _lte(100)),
+        "Score to stop at; default the profile's threshold for the kind."
+      )
+    ),
+    maxIterations: optional(
+      doc(
+        int().check(_gte(1), _lte(10)),
+        "Default the profile's (3)."
+      )
+    ),
+    relayout: optional(
+      doc(boolean2(), "Default true: run the layout preset first.")
+    ),
+    preset: optional(doc(_enum(PRESET_NAMES), "Preset for that layout.")),
+    dryRun: optional(boolean2())
+  }),
+  aliases: { diagram: "ref", id: "ref" },
+  response: object({
+    diagram: diagramSchema(),
+    kind: nullable(string2()),
+    quality: qualitySchema(),
+    dryRun: optional(boolean2())
+  }),
+  handle: async (input) => {
+    const diagram = requireDiagram(input.ref ?? "@current");
+    const profile2 = effectiveProfile().profile;
+    const run = () => improve(diagram, profile2, {
+      relayout: input.relayout ?? true,
+      ...input.target !== void 0 && { target: input.target },
+      ...input.maxIterations !== void 0 && {
+        maxIterations: input.maxIterations
+      },
+      ...input.preset !== void 0 && { preset: input.preset }
+    });
+    const quality = input.dryRun ? await rehearse(run) : await oneStep("improve diagram", run);
+    return {
+      diagram: summary(diagram),
+      kind: kindOf(diagram),
+      quality,
+      ...input.dryRun && { dryRun: true }
+    };
+  }
+});
+function withQuality(endpoint) {
+  const response = extend2(endpoint.response, {
+    quality: optional(qualitySchema())
+  });
+  return {
+    ...endpoint,
+    response,
+    handler: async (body) => {
+      if (isTrusted()) return endpoint.handler(body);
+      return oneStep("layout diagram", async () => {
+        const result = await endpoint.handler(body);
+        if (!result.success) return result;
+        const data = result.data;
+        const diagram = requireDiagram(data._id);
+        const quality = improve(diagram, effectiveProfile().profile);
+        return { success: true, data: { ...data, quality } };
+      });
+    }
+  };
+}
+
 // src/routes.ts
 var endpoints = [
   getAllCommands,
@@ -29465,7 +30315,7 @@ var endpoints = [
   getRelationshipsOf,
   getRefsTo,
   getConnectedNodeViews,
-  layoutDiagram,
+  withQuality(layoutDiagram),
   styleLocked(routeEdges),
   styleLocked(moveViews),
   styleLocked(resizeNode),
@@ -29513,6 +30363,8 @@ var endpoints = [
   setStyleProfileEndpoint(() => endpoints),
   applyStyleProfile,
   explainStyleViolation,
+  diagramQuality,
+  improveDiagram,
   introspectEndpoint(() => endpoints),
   debug
 ];

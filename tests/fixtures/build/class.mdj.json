@@ -32,8 +32,8 @@
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 20,
-     "top": 20,
+     "left": 40,
+     "top": 40,
      "width": 180,
      "height": 68,
      "showNamespace": false,
@@ -47,8 +47,8 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 20,
-     "top": 120,
+     "left": 40,
+     "top": 140,
      "width": 180,
      "height": 54,
      "showNamespace": false,

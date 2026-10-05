@@ -48,6 +48,7 @@ import {
 } from "../style/apply.js";
 import { effectiveProfile, presetFor } from "../style/profile.js";
 import { oneStep } from "../undo.js";
+import { improve, qualitySchema } from "../quality/loop.js";
 import { batchRunner } from "./batch.js";
 import { byId, pathOf, tryResolve } from "../refs.js";
 import { requireElement, requireProject } from "../lookup.js";
@@ -1073,15 +1074,33 @@ function viewIdOf(
  * A plan without the colours its spec gives: under a strict profile the
  * profile alone styles views (issue #31).
  */
+const COLOURS = ["fillColor", "lineColor", "fontColor"];
+
+/** Whether a node's spec gives it colours (rather than only a display such as an interface's). */
+const coloured = (n: PlanNode) =>
+  Object.keys(n.style ?? {}).some((k) => COLOURS.includes(k));
+
+/**
+ * A plan without the colours its spec gives: under a strict profile the
+ * profile alone colours views (issue #31). Display settings the kind needs,
+ * such as an interface drawn as a box, stay.
+ */
 function withoutStyles(plan: Plan, warnings: string[]): Plan {
-  const styled = plan.nodes.filter((n) => n.style !== undefined);
+  const styled = plan.nodes.filter(coloured);
   if (styled.length === 0) return plan;
   warnings.push(
     `the style profile is strict: the colours the spec gives ${styled.length} node(s) were not applied`,
   );
   return {
     ...plan,
-    nodes: plan.nodes.map(({ style: _style, ...n }) => n),
+    nodes: plan.nodes.map((n) => {
+      if (!coloured(n)) return n;
+      const { style, ...rest } = n;
+      const kept = Object.fromEntries(
+        Object.entries(style!).filter(([k]) => !COLOURS.includes(k)),
+      );
+      return Object.keys(kept).length > 0 ? { ...rest, style: kept } : rest;
+    }),
   };
 }
 
@@ -1235,6 +1254,7 @@ export function buildDiagramEndpoint(
       dryRun: z.optional(doc(z.boolean(), "Set when nothing was changed.")),
       plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
       style: z.optional(styleReportSchema()),
+      quality: z.optional(qualitySchema()),
     }),
     handle: async (input) => {
       const { kind, spec, title, direction, parsed } = readSource(input);
@@ -1324,10 +1344,8 @@ export function buildDiagramEndpoint(
           plan: planOf(built.ops),
         };
       }
-      const specStyled = plan.nodes
-        .filter((n) => n.style !== undefined)
-        .map((n) => n.key);
-      const { byName, target, styled } = await oneStep(
+      const specStyled = plan.nodes.filter(coloured).map((n) => n.key);
+      const { byName, target, styled, quality } = await oneStep(
         "build diagram",
         async () => {
           let data: BatchData = { results: [] };
@@ -1357,7 +1375,12 @@ export function buildDiagramEndpoint(
             styledViews(target).filter((v) => !keep.has(v._id)),
             profile,
           );
-          return { byName, target, styled };
+          return {
+            byName,
+            target,
+            styled,
+            quality: improve(target, profile),
+          };
         },
       );
       const ids: Record<string, { model: string | null; view: string }> = {};
@@ -1377,6 +1400,7 @@ export function buildDiagramEndpoint(
         created: built.created.size + edges.length,
         ...shaped(input.result, ids, edges),
         style: styleReport(profile, renames, styled),
+        quality,
       };
     },
   });

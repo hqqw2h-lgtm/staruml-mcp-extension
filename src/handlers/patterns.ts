@@ -47,6 +47,7 @@ import {
 } from "../style/apply.js";
 import { effectiveProfile } from "../style/profile.js";
 import { oneStep } from "../undo.js";
+import { improve, qualitySchema } from "../quality/loop.js";
 import type { Element } from "../types.js";
 import { batchRunner, type OpResult } from "./batch.js";
 import { planOf, planSchema } from "./build.js";
@@ -270,6 +271,7 @@ export function applyPatternEndpoint(
       dryRun: z.optional(z.boolean()),
       plan: z.optional(planSchema()),
       style: z.optional(styleReportSchema()),
+      quality: z.optional(qualitySchema()),
     }),
     handle: async (input) => {
       const pattern = withVariant(findPattern(input.pattern), input.variant);
@@ -351,23 +353,27 @@ export function applyPatternEndpoint(
         ) as typeof profile.naming,
       });
       normalizeOps(plan.ops, renames);
-      const { run, styled } = await oneStep("apply pattern", async () => {
-        const run = await batchRunner.run(
-          endpoints(),
-          plan.ops,
-          true,
-          MODEL_MAX_OPS,
-        );
-        const id = resolver(run.results);
-        const diagrams = [plan.diagram, plan.sequenceDiagram]
-          .filter((d) => d !== undefined)
-          .map((d) => requireElement(id(d)));
-        const styled = diagrams.reduce(
-          (n, d) => n + styleDiagram(d, profile),
-          0,
-        );
-        return { run, styled };
-      });
+      const { run, styled, quality } = await oneStep(
+        "apply pattern",
+        async () => {
+          const run = await batchRunner.run(
+            endpoints(),
+            plan.ops,
+            true,
+            MODEL_MAX_OPS,
+          );
+          const id = resolver(run.results);
+          const diagrams = [plan.diagram, plan.sequenceDiagram]
+            .filter((d) => d !== undefined)
+            .map((d) => requireElement(id(d)));
+          const styled = diagrams.reduce(
+            (n, d) => n + styleDiagram(d, profile),
+            0,
+          );
+          const quality = diagrams.map((d) => improve(d, profile))[0];
+          return { run, styled, quality };
+        },
+      );
       const id = resolver(run.results);
       return {
         ...answer(
@@ -378,6 +384,7 @@ export function applyPatternEndpoint(
           })),
         ),
         style: styleReport(profile, renames, styled),
+        ...(quality && { quality }),
       };
     },
   });

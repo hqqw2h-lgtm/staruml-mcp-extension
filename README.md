@@ -82,6 +82,7 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 | Patterns      | `/list_patterns`, `/describe_pattern`, `/apply_pattern`, `/detect_patterns`, `/apply_preset`, `/describe_type`                                                                |
 | History       | `/undo`, `/redo`, `/is_modified`, `/snapshot`, `/diff_since`, `/restore_snapshot`                                                                                             |
 | Style         | `/get_style_profile`, `/set_style_profile`, `/apply_style_profile`, `/explain_style_violation`                                                                                |
+| Quality       | `/diagram_quality`, `/improve_diagram`                                                                                                                                        |
 
 ### References: paths and canonical field names
 
@@ -154,6 +155,14 @@ Conventions live in one style profile: naming rules (a pattern and a fixer per k
 - `strict: true` is enforced by the server: `/set_view_style`, `/apply_theme`, `/move_views`, `/resize_node`, `/route_edges`, `/set_z_order`, `/divide_fragment` and `/update_element` on a view's style or geometry answer `403 STYLE_LOCKED` unless the call passes `override: true` (also inside a client's `/batch`); the spec's own colours are dropped with a warning; naming findings and `L009` become errors. The extension's own calls (a build placing its views, the quality loop) are not refused.
 - `blockSaveOnErrors: true`: `/save_project*` and `/export_*` answer `409 SAVE_BLOCKED` with the findings while `/uml_lint` (and `/model_lint`) report errors, unless `override: true`.
 - The same spec on the same profile gives the same model, placement and text export; `tests/unit/style/apply.test.ts` builds every golden spec twice and compares.
+
+### Diagram quality (issue #32)
+
+Every `/build_diagram`, `/apply_pattern` (its class diagram) and `/layout_diagram` called from outside runs the quality loop in the same undo step and answers `quality {score, rating, before, target, passes, iterations, steps, findings}`: StarUML's dagre layout gives ranks, then post-processing for the kind (rank ordering by barycenter for class-like diagrams, lifelines in order of their first message at one pitch with the frame around them all, the system boundary around its use cases with actors outside it, straight chains along an activity's or state machine's flow), label room (names wider than `layout.labelWrap` wrap), overlap removal, `/lint_diagram`'s autofixes, grid snap and a margin. Each step is measured and undone if it lowers the score; the loop stops at the profile's threshold, when a round gains nothing, or after `quality.maxIterations` (3). Sequence diagrams, lanes and mind maps keep the build's placement, which carries meaning.
+
+- `/diagram_quality {ref}` scores a diagram 0–100 from view geometry alone (`src/quality/metric.ts`): overlap area and pairs, edges through nodes, crossing edges, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against `layout.page`; `rating` is 1–5 and 4 needs 80. More overlap or more crossings never score higher (property-tested). Notes over a lifeline, a container and what it holds, and an edge label beside its own ends do not count as overlap.
+- `/improve_diagram {ref, target?, maxIterations?, relayout?, preset?, dryRun?}` runs the loop on any diagram as one undo step, the layout preset first; `dryRun` answers the score it would reach and leaves the diagram as it was. A strict profile allows it.
+- Visual regression: `tests/integration/visual.live.test.ts` builds a golden spec per kind, exports it as PNG and compares it with `tests/visual/baselines` by difference hash (at most 6 bits) and pixels (at most 1%), and requires the score to be no lower than the baseline's; `npm run visual:update` records new baselines.
 
 ### Commands and code generation
 
