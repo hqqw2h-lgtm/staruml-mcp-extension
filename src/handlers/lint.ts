@@ -28,6 +28,8 @@ import { requireDiagram } from "../lookup.js";
 import { pathOf } from "../refs.js";
 import { elementSchema, ref } from "../schemas.js";
 import { serialize } from "../serialize.js";
+import { offProfile, styledViews } from "../style/apply.js";
+import { effectiveProfile, type Profile } from "../style/profile.js";
 import type { Element, View } from "../types.js";
 
 /*
@@ -47,8 +49,10 @@ export const LAYOUT_RULES = {
   L005: "label-overflow",
   L006: "disconnected",
   L007: "dense",
+  L008: "too-many-elements",
+  L009: "off-profile",
 } as const;
-type LayoutRule = keyof typeof LAYOUT_RULES;
+export type LayoutRule = keyof typeof LAYOUT_RULES;
 
 /** Request that fixes a finding, as the endpoint takes it. */
 export interface Autofix {
@@ -85,7 +89,8 @@ const AREA =
 /** Messages run across every lifeline between their ends. */
 const PASSED_THROUGH = /Lifeline/;
 /** Views drawing their name outside the shape (an actor's under its figure). */
-const NAME_OUTSIDE = /Actor|Pseudostate|InitialState|FinalState|Port|Pin|Point/;
+export const NAME_OUTSIDE =
+  /Actor|Pseudostate|InitialState|FinalState|Port|Pin|Point/;
 
 /** Arial 13px, StarUML's default font, averages under 7px per character. */
 const CHAR_WIDTH = 7;
@@ -410,6 +415,41 @@ function dense(f: Findings, boxes: Box[]): void {
   }
 }
 
+/** More nodes than the style profile's layout.maxElements: suggest a split. */
+function tooMany(f: Findings, boxes: Box[], profile: Profile): void {
+  const nodes = boxes.filter((b) => b.view.model && !area(b));
+  const max = profile.layout.maxElements;
+  if (nodes.length <= max) return;
+  f.add(
+    "L008",
+    "info",
+    nodes.map((b) => b.view),
+    `${nodes.length} nodes, more than the ${max} the style profile '${profile.name}' allows on one diagram`,
+    `Split it, e.g. one diagram per package (/derive_diagrams does), or raise layout.maxElements.`,
+    null,
+  );
+}
+
+/** Views off the profile's look; an error under a strict profile. */
+function offStyle(f: Findings, diagram: Element, profile: Profile): void {
+  const off = styledViews(diagram).filter(
+    (v) => offProfile(v, profile).length > 0,
+  );
+  if (off.length === 0) return;
+  const fields = [...new Set(off.flatMap((v) => offProfile(v, profile)))];
+  f.add(
+    "L009",
+    profile.strict ? "error" : "warning",
+    off,
+    `${off.length} view(s) are drawn off the style profile '${profile.name}' (${fields.join(", ")})`,
+    "Apply the profile to the diagram.",
+    {
+      path: "/apply_style_profile",
+      body: { scope: diagram._id, names: false },
+    },
+  );
+}
+
 const RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
 
 export function lintLayout(
@@ -426,6 +466,9 @@ export function lintLayout(
   if (f.on("L005")) overflows(f, boxes);
   if (f.on("L006")) disconnected(f, boxes, edges);
   if (f.on("L007")) dense(f, boxes);
+  const profile = effectiveProfile().profile;
+  if (f.on("L008")) tooMany(f, boxes, profile);
+  if (f.on("L009")) offStyle(f, diagram, profile);
   return f.list.sort((a, b) => RANK[a.severity] - RANK[b.severity]);
 }
 
@@ -480,7 +523,7 @@ export const countsSchema = () =>
 export const lintDiagram = defineEndpoint({
   path: "/lint_diagram",
   description:
-    "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006) and crowded areas (L007). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
+    "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006), crowded areas (L007), more nodes than the style profile allows (L008) and views drawn off the style profile (L009, an error when it is strict). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
   readOnly: true,
   destructive: false,
   request: z.object({

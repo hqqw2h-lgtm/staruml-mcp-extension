@@ -81,6 +81,34 @@
       "description": "Most calls to each of /execute_command, /generate_code and /reverse_code in any minute, from all clients together; more get 429.",
       "type": "number",
       "default": 60
+    },
+    "mcp-ext.style": {
+      "text": "Style",
+      "type": "section"
+    },
+    "mcp-ext.style.profile": {
+      "text": "Default Style Profile",
+      "description": "The style profile authoring applies in a project that stores none (/set_style_profile stores one in the .mdj): naming rules, colours, layout presets, limits and quality thresholds. Applies to the next request.",
+      "type": "dropdown",
+      "options": [
+        {
+          "value": "uml-standard",
+          "text": "UML standard"
+        },
+        {
+          "value": "minimal",
+          "text": "Minimal"
+        },
+        {
+          "value": "presentation",
+          "text": "Presentation"
+        },
+        {
+          "value": "print",
+          "text": "Print"
+        }
+      ],
+      "default": "uml-standard"
     }
   }
 }

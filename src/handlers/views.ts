@@ -295,49 +295,61 @@ export const layoutDiagram = defineEndpoint({
     edgeLineStyle: z.optional(z.string()),
     fitted: z.optional(doc(z.int(), "Node views resized by fit.")),
   }),
-  handle: (input) => {
-    const diagram = diagramOrCurrent(input.diagram, "diagram");
-    const preset =
-      input.preset === undefined ? undefined : LAYOUT_PRESETS[input.preset];
-    const direction = input.direction ?? preset?.direction ?? "TB";
-    // Diagram.layout tests `typeof separations.node !== undefined`, which is
-    // always true, so a partial object would hand dagre undefined spacings.
-    const custom =
-      preset !== undefined ||
-      input.separations !== undefined ||
-      input.nodeSeparation !== undefined ||
-      input.rankSeparation !== undefined;
-    const base =
-      input.separations ?? preset?.separations ?? DEFAULT_SEPARATIONS;
-    const separations = custom
-      ? {
-          node: input.nodeSeparation ?? base.node,
-          edge: base.edge,
-          rank: input.rankSeparation ?? base.rank,
-        }
-      : undefined;
-    const edgeLineStyle = input.edgeLineStyle ?? preset?.edgeLineStyle;
-    const editor = editorShowing(diagram);
-    const fitted = input.fit ? fitNodeViews(diagram) : undefined;
-    inStarUML(() =>
-      app.engine.layoutDiagram(
-        editor,
-        diagram,
-        direction,
-        separations,
-        edgeLineStyle === undefined ? undefined : LINE_STYLES[edgeLineStyle],
-      ),
-    );
-    return {
-      _id: diagram._id,
-      direction,
-      ...(input.preset !== undefined && { preset: input.preset }),
-      ...(separations && { separations }),
-      ...(edgeLineStyle !== undefined && { edgeLineStyle }),
-      ...(fitted !== undefined && { fitted }),
-    };
-  },
+  handle: (input) =>
+    applyLayout(diagramOrCurrent(input.diagram, "diagram"), input),
 });
+
+export interface LayoutRequest {
+  preset?: LayoutPresetName;
+  direction?: LayoutDirection;
+  separations?: { node: number; edge: number; rank: number };
+  nodeSeparation?: number;
+  rankSeparation?: number;
+  edgeLineStyle?: keyof typeof LINE_STYLES;
+  fit?: boolean;
+}
+
+/** Format > Layout on `diagram` as /layout_diagram asks for it. */
+export function applyLayout(diagram: Element, input: LayoutRequest) {
+  const preset =
+    input.preset === undefined ? undefined : LAYOUT_PRESETS[input.preset];
+  const direction = input.direction ?? preset?.direction ?? "TB";
+  // Diagram.layout tests `typeof separations.node !== undefined`, which is
+  // always true, so a partial object would hand dagre undefined spacings.
+  const custom =
+    preset !== undefined ||
+    input.separations !== undefined ||
+    input.nodeSeparation !== undefined ||
+    input.rankSeparation !== undefined;
+  const base = input.separations ?? preset?.separations ?? DEFAULT_SEPARATIONS;
+  const separations = custom
+    ? {
+        node: input.nodeSeparation ?? base.node,
+        edge: base.edge,
+        rank: input.rankSeparation ?? base.rank,
+      }
+    : undefined;
+  const edgeLineStyle = input.edgeLineStyle ?? preset?.edgeLineStyle;
+  const editor = editorShowing(diagram);
+  const fitted = input.fit ? fitNodeViews(diagram) : undefined;
+  inStarUML(() =>
+    app.engine.layoutDiagram(
+      editor,
+      diagram,
+      direction,
+      separations,
+      edgeLineStyle === undefined ? undefined : LINE_STYLES[edgeLineStyle],
+    ),
+  );
+  return {
+    _id: diagram._id,
+    direction,
+    ...(input.preset !== undefined && { preset: input.preset }),
+    ...(separations && { separations }),
+    ...(edgeLineStyle !== undefined && { edgeLineStyle }),
+    ...(fitted !== undefined && { fitted }),
+  };
+}
 
 export const routeEdges = defineEndpoint({
   path: "/route_edges",

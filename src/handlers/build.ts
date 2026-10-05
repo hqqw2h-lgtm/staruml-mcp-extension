@@ -37,7 +37,18 @@ import {
   planFor,
 } from "../build/spec.js";
 import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
-import { ApiError, type ErrorCode } from "../errors.js";
+import { ApiError } from "../errors.js";
+import {
+  normalizePlan,
+  Renames,
+  styledViews,
+  styleReport,
+  styleReportSchema,
+  styleViews,
+} from "../style/apply.js";
+import { effectiveProfile, presetFor } from "../style/profile.js";
+import { oneStep } from "../undo.js";
+import { batchRunner } from "./batch.js";
 import { byId, pathOf, tryResolve } from "../refs.js";
 import { requireElement, requireProject } from "../lookup.js";
 import { duplicateShape, ref } from "../schemas.js";
@@ -789,7 +800,12 @@ function labelRoom(
         nodeSeparation: Math.max(separations.node, room),
         rankSeparation: Math.max(separations.rank, 80),
       }
-    : { rankSeparation: Math.max(separations.rank, room) };
+    : {
+        // A label sits above its edge, so ranks side by side need it across
+        // and nodes stacked in a rank need its height between them.
+        nodeSeparation: Math.max(separations.node, 60),
+        rankSeparation: Math.max(separations.rank, room),
+      };
 }
 
 /** Sizes a sequence diagram's frame to the plan's, if it differs. */
@@ -1035,6 +1051,40 @@ function shaped<I, E>(mode: ResultMode | undefined, ids: I, edges: E) {
   };
 }
 
+interface BuiltRef {
+  _id?: string;
+  view?: { _id: string };
+  model?: { _id: string } | null;
+}
+
+/** The view id a plan node ended up with: reused, or made by its op. */
+function viewIdOf(
+  key: string,
+  built: Built,
+  byName: ReadonlyMap<string, BuiltRef>,
+): string | undefined {
+  const reused = built.reused.get(key);
+  if (reused) return reused.view;
+  const as = [...built.created].find(([, k]) => k === key)![0];
+  return byName.get(as)!.view!._id;
+}
+
+/**
+ * A plan without the colours its spec gives: under a strict profile the
+ * profile alone styles views (issue #31).
+ */
+function withoutStyles(plan: Plan, warnings: string[]): Plan {
+  const styled = plan.nodes.filter((n) => n.style !== undefined);
+  if (styled.length === 0) return plan;
+  warnings.push(
+    `the style profile is strict: the colours the spec gives ${styled.length} node(s) were not applied`,
+  );
+  return {
+    ...plan,
+    nodes: plan.nodes.map(({ style: _style, ...n }) => n),
+  };
+}
+
 export function buildDiagramEndpoint(
   endpoints: () => readonly Endpoint[],
 ): Endpoint {
@@ -1184,10 +1234,19 @@ export function buildDiagramEndpoint(
       ),
       dryRun: z.optional(doc(z.boolean(), "Set when nothing was changed.")),
       plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
+      style: z.optional(styleReportSchema()),
     }),
     handle: async (input) => {
       const { kind, spec, title, direction, parsed } = readSource(input);
-      const plan = planFor(kind, spec);
+      const profile = effectiveProfile().profile;
+      const renames = new Renames(profile);
+      const styleWarnings: string[] = [];
+      const plan = normalizePlan(
+        profile.strict
+          ? withoutStyles(planFor(kind, spec), styleWarnings)
+          : planFor(kind, spec),
+        renames,
+      );
       const parent =
         input.parent === undefined
           ? requireProject()
@@ -1203,7 +1262,10 @@ export function buildDiagramEndpoint(
         { diagram, parent, name },
         direction ?? defaultDirection(kind),
         input.autoLayout ?? true,
-        input.layout,
+        input.layout ??
+          (input.direction === undefined && parsed?.direction === undefined
+            ? presetFor(profile, kind)
+            : undefined),
         {
           prune: input.prune,
           reuse: input.reuse ?? true,
@@ -1211,7 +1273,11 @@ export function buildDiagramEndpoint(
           showNamespace: input.showNamespace,
         },
       );
-      const warnings = [...(parsed?.warnings ?? []), ...built.warnings];
+      const warnings = [
+        ...(parsed?.warnings ?? []),
+        ...built.warnings,
+        ...styleWarnings,
+      ];
       const summary = {
         kind,
         upserted: diagram !== null,
@@ -1253,29 +1319,47 @@ export function buildDiagramEndpoint(
               view: `$${as}.view`,
             })),
           ),
+          style: styleReport(profile, renames, 0),
           dryRun: true,
           plan: planOf(built.ops),
         };
       }
-      const batch = endpoints().find((e) => e.path === "/batch")!;
-      let data: BatchData = { results: [] };
-      if (built.ops.length > 0) {
-        const result = await batch.handler({ ops: built.ops, result: "full" });
-        if (!result.success) {
-          throw new ApiError(
-            result.code as ErrorCode,
-            `build_diagram: ${result.error}`,
-            result.details,
+      const specStyled = plan.nodes
+        .filter((n) => n.style !== undefined)
+        .map((n) => n.key);
+      const { byName, target, styled } = await oneStep(
+        "build diagram",
+        async () => {
+          let data: BatchData = { results: [] };
+          if (built.ops.length > 0) {
+            try {
+              data = await batchRunner.run(endpoints(), built.ops);
+            } catch (err) {
+              const e = err as ApiError;
+              throw new ApiError(
+                e.code,
+                `build_diagram: ${e.message}`,
+                e.details,
+              );
+            }
+          }
+          const byName = new Map(
+            data.results.flatMap((r) => (r.as ? [[r.as, r.data]] : [])),
+          ) as Map<string, BuiltRef>;
+          const target = diagram ?? requireElement(byName.get("diagram")!._id!);
+          // Colours the spec gives a node win over the profile's, unless
+          // the profile is strict (then the spec's were dropped above).
+          const keep = new Set(
+            specStyled.map((key) => viewIdOf(key, built, byName)),
           );
-        }
-        data = result.data as BatchData;
-      }
-      const byName = new Map(
-        data.results.flatMap((r) => (r.as ? [[r.as, r.data]] : [])),
-      ) as Map<
-        string,
-        { _id?: string; view?: { _id: string }; model?: { _id: string } | null }
-      >;
+          const styled = styleViews(
+            target,
+            styledViews(target).filter((v) => !keep.has(v._id)),
+            profile,
+          );
+          return { byName, target, styled };
+        },
+      );
       const ids: Record<string, { model: string | null; view: string }> = {};
       for (const [key, ref] of built.reused) ids[key] = ref;
       for (const [as, key] of built.created) {
@@ -1286,13 +1370,13 @@ export function buildDiagramEndpoint(
         const r = byName.get(as)!;
         return { key, model: r.model?._id ?? null, view: r.view!._id };
       });
-      const target = diagram ?? requireElement(byName.get("diagram")!._id!);
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
         ...summary,
         created: built.created.size + edges.length,
         ...shaped(input.result, ids, edges),
+        style: styleReport(profile, renames, styled),
       };
     },
   });

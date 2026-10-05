@@ -278,7 +278,7 @@ describe("state machines", () => {
         },
       ],
     };
-    const ops = await opsOf({ kind: "statemachine", spec });
+    const ops = await opsOf({ kind: "statemachine", direction: "TB", spec });
     const state = ops.find((o) => o.body.name === "Active Unacknowledged")!;
     expect(
       (state.body.x2 as number) - (state.body.x as number),
@@ -298,7 +298,8 @@ describe("state machines", () => {
       spec,
     });
     expect(sideways.at(-1)!.body).toMatchObject({ rankSeparation: label });
-    expect(sideways.at(-1)!.body.nodeSeparation).toBeUndefined();
+    // Labels above edges between ranks side by side need height between nodes.
+    expect(sideways.at(-1)!.body.nodeSeparation).toBe(60);
     const unlabelled = await opsOf({
       kind: "statemachine",
       spec: { states: ["A", "B"], transitions: [{ from: "A", to: "B" }] },

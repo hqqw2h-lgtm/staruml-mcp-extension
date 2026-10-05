@@ -17620,6 +17620,10 @@
             "type": "string",
             "minLength": 1,
             "description": "Absolute .mdj path; overwrites the file."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
           }
         }
       },
@@ -17644,6 +17648,10 @@
             "type": "string",
             "minLength": 1,
             "description": "Absolute .mdj path; overwrites the file."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
           }
         },
         "required": ["filename"]
@@ -18070,6 +18078,10 @@
             "maximum": 8,
             "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
+          },
           "id": {
             "type": "string",
             "minLength": 1,
@@ -18303,6 +18315,43 @@
               { "type": "null" }
             ],
             "description": "Null for view-only ids such as Note or NoteLink."
+          },
+          "style": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "type": "string",
+                "description": "The style profile applied."
+              },
+              "renamed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["kind", "from", "to"],
+                  "additionalProperties": false
+                },
+                "description": "Names the profile's naming rules rewrote (first 50)."
+              },
+              "unfixed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "styled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Views given the profile's look."
+              }
+            },
+            "required": ["profile"],
+            "additionalProperties": false,
+            "description": "What the style profile changed in this call."
           }
         },
         "required": ["view", "model"],
@@ -18482,6 +18531,43 @@
               { "type": "null" }
             ],
             "description": "Null for view-only ids such as Note or NoteLink."
+          },
+          "style": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "type": "string",
+                "description": "The style profile applied."
+              },
+              "renamed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["kind", "from", "to"],
+                  "additionalProperties": false
+                },
+                "description": "Names the profile's naming rules rewrote (first 50)."
+              },
+              "unfixed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "styled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Views given the profile's look."
+              }
+            },
+            "required": ["profile"],
+            "additionalProperties": false,
+            "description": "What the style profile changed in this call."
           }
         },
         "required": ["view", "model"],
@@ -20165,6 +20251,10 @@
             "enum": ["rectilinear", "oblique", "roundrect", "curve"],
             "description": "Line style for every edge."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
+          },
           "diagramId": {
             "type": "string",
             "minLength": 1,
@@ -20234,6 +20324,10 @@
             "minimum": 0,
             "maximum": 8,
             "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
           },
           "ids": {
             "minItems": 1,
@@ -20337,6 +20431,10 @@
             "minimum": 0,
             "maximum": 8,
             "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
           },
           "id": {
             "type": "string",
@@ -20445,6 +20543,10 @@
             "maximum": 8,
             "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
+          },
           "ids": {
             "minItems": 1,
             "type": "array",
@@ -20514,6 +20616,10 @@
             "enum": ["front", "back"],
             "description": "Where to move the views."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
+          },
           "ids": {
             "minItems": 1,
             "type": "array",
@@ -20574,6 +20680,10 @@
             "minimum": 0,
             "maximum": 8,
             "description": "Levels of owned elements (ownedElements, attributes, ownedViews, ...) to expand with the same projection. Default 0: owned elements are {$ref: id}."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
           },
           "id": {
             "type": "string",
@@ -21104,6 +21214,10 @@
             "enum": ["none", "ids", "paths"],
             "description": "Draw a small label on each view of the image, not the model: ids its element's id, paths the shortest path naming it (its id when unnamed). Default none."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
+          },
           "id": {
             "type": "string",
             "minLength": 1,
@@ -21206,6 +21320,10 @@
             "pattern": "^(#[0-9a-f]{3,8}|[a-z]+)$",
             "description": "As for /export_diagram."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
+          },
           "ids": {
             "minItems": 1,
             "type": "array",
@@ -21288,6 +21406,10 @@
             "type": "boolean",
             "description": "Print each diagram's path name; default true."
           },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
+          },
           "ids": {
             "minItems": 1,
             "type": "array",
@@ -21331,6 +21453,10 @@
           "path": {
             "type": "string",
             "description": "Absolute directory to write into; created if missing. index.html is its entry page."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
           }
         },
         "required": ["path"]
@@ -21364,6 +21490,10 @@
             "type": "string",
             "enum": ["mermaid", "plantuml"],
             "description": "Text format."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
           },
           "diagramId": {
             "type": "string",
@@ -22054,6 +22184,43 @@
             "required": ["ops", "creates", "updates", "deletes"],
             "additionalProperties": false,
             "description": "With dryRun: what applying runs."
+          },
+          "style": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "type": "string",
+                "description": "The style profile applied."
+              },
+              "renamed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["kind", "from", "to"],
+                  "additionalProperties": false
+                },
+                "description": "Names the profile's naming rules rewrote (first 50)."
+              },
+              "unfixed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "styled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Views given the profile's look."
+              }
+            },
+            "required": ["profile"],
+            "additionalProperties": false,
+            "description": "What the style profile changed in this call."
           }
         },
         "required": [
@@ -22287,7 +22454,7 @@
     },
     {
       "path": "/lint_diagram",
-      "description": "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006) and crowded areas (L007). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
+      "description": "Check how a diagram reads: node views stacked at one point (L001) or overlapping (L002), outside the canvas (L003), edges running through unrelated nodes (L004), names wider than their box (L005), nodes with no edge (L006), crowded areas (L007), more nodes than the style profile allows (L008) and views drawn off the style profile (L009, an error when it is strict). Each finding names the views by id and path, with a severity, a one-line fix and an autofix request to send as is.",
       "readOnly": true,
       "destructive": false,
       "request": {
@@ -22485,7 +22652,19 @@
                   { "type": "boolean", "const": false }
                 ]
               },
+              "constant": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "type": "boolean", "const": false }
+                ]
+              },
               "literal": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "type": "boolean", "const": false }
+                ]
+              },
+              "usecase": {
                 "anyOf": [
                   { "type": "string" },
                   { "type": "boolean", "const": false }
@@ -22498,7 +22677,7 @@
                 ]
               }
             },
-            "description": "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, a regular expression, or false to skip. Defaults: classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, package skipped."
+            "description": "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, 'Verb noun', a regular expression, or false to skip. Defaults: the project's style profile when it stores one; else classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, constant (static read-only attribute), use case and package skipped."
           },
           "limit": {
             "type": "integer",
@@ -23153,6 +23332,43 @@
             "required": ["ops", "creates", "updates", "deletes"],
             "additionalProperties": false,
             "description": "With dryRun: what applying runs."
+          },
+          "style": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "type": "string",
+                "description": "The style profile applied."
+              },
+              "renamed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["kind", "from", "to"],
+                  "additionalProperties": false
+                },
+                "description": "Names the profile's naming rules rewrote (first 50)."
+              },
+              "unfixed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "styled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Views given the profile's look."
+              }
+            },
+            "required": ["profile"],
+            "additionalProperties": false,
+            "description": "What the style profile changed in this call."
           }
         },
         "required": ["model", "upserted", "counts"],
@@ -23730,6 +23946,43 @@
             },
             "required": ["ops", "creates", "updates", "deletes"],
             "additionalProperties": false
+          },
+          "style": {
+            "type": "object",
+            "properties": {
+              "profile": {
+                "type": "string",
+                "description": "The style profile applied."
+              },
+              "renamed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string" },
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["kind", "from", "to"],
+                  "additionalProperties": false
+                },
+                "description": "Names the profile's naming rules rewrote (first 50)."
+              },
+              "unfixed": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "styled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Views given the profile's look."
+              }
+            },
+            "required": ["profile"],
+            "additionalProperties": false,
+            "description": "What the style profile changed in this call."
           }
         },
         "required": [
@@ -24073,6 +24326,10 @@
             "description": "monochrome, blueprint, by-stereotype or by-package."
           },
           "dryRun": { "type": "boolean" },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile is strict; the call is still made as asked."
+          },
           "diagram": {
             "type": "string",
             "minLength": 1,
@@ -24189,6 +24446,259 @@
           }
         },
         "required": ["diagram", "theme", "description", "styles"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/get_style_profile",
+      "description": "The style profile authoring applies: the project's (stored in the .mdj), else the built-in the preference mcp-ext.style.profile names (default uml-standard). name returns a built-in instead: uml-standard, minimal, presentation, print.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["uml-standard", "minimal", "presentation", "print"],
+            "description": "A built-in profile."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "The profile: name, description, strict, blockSaveOnErrors, naming, visuals, layout, rules, quality, policy."
+          },
+          "source": {
+            "type": "string",
+            "enum": ["project", "preferences", "built-in"],
+            "description": "Where it comes from."
+          },
+          "builtIns": { "type": "array", "items": { "type": "string" } },
+          "problem": {
+            "type": "string",
+            "description": "Why the project's stored profile was not used."
+          }
+        },
+        "required": ["profile", "source", "builtIns"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/set_style_profile",
+      "description": "Store a style profile in the project, as one undo step: a built-in by name, a whole profile, or a patch merged into the current one (objects field by field; null turns a naming rule off). reset removes the project's profile, so the preference's built-in applies again. The profile is checked whole; an unknown field or a bad pattern is INVALID_ARGUMENT.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["uml-standard", "minimal", "presentation", "print"]
+              },
+              {
+                "type": "object",
+                "propertyNames": { "type": "string" },
+                "additionalProperties": {}
+              }
+            ],
+            "description": "A built-in name, or a whole profile (see /get_style_profile)."
+          },
+          "patch": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "Fields to change, merged into profile (or the current one), e.g. {strict: true} or {naming: {package: null}}."
+          },
+          "reset": {
+            "type": "boolean",
+            "description": "Remove the project's profile; nothing else may be given."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "The profile: name, description, strict, blockSaveOnErrors, naming, visuals, layout, rules, quality, policy."
+          },
+          "source": { "type": "string", "enum": ["project", "preferences"] },
+          "changed": {
+            "type": "boolean",
+            "description": "The project's stored profile changed."
+          }
+        },
+        "required": ["profile", "source", "changed"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/apply_style_profile",
+      "description": "Normalise what a scope already has to the style profile, as one undo step: names off the naming rules are rewritten (siblings stay distinct), every view on the scope's diagrams takes the profile's colours, fonts, edge style and show/hide switches. Answers what changed; a second call changes nothing. dryRun answers the renames without changing anything.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A diagram, a package or model; default the project. Id or path."
+          },
+          "names": {
+            "type": "boolean",
+            "description": "Default true: apply the naming rules."
+          },
+          "visuals": {
+            "type": "boolean",
+            "description": "Default true: apply the visuals to the diagrams."
+          },
+          "dryRun": { "type": "boolean" }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profile": { "type": "string" },
+          "diagrams": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Diagrams looked at."
+          },
+          "styled": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Views given the profile's look."
+          },
+          "renamed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": { "type": ["string", "null"] },
+                "kind": { "type": "string" },
+                "from": { "type": "string" },
+                "to": { "type": "string" }
+              },
+              "required": ["path", "kind", "from", "to"],
+              "additionalProperties": false
+            }
+          },
+          "unfixed": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Names off the rules the profile only reports."
+          },
+          "dryRun": { "type": "boolean" }
+        },
+        "required": ["profile", "diagrams", "styled", "renamed", "unfixed"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/explain_style_violation",
+      "description": "Say which rules of the style profile an element breaks and why: its naming rule (pattern, the fixed name), documentation required, duplicate names, and views off the profile's colours, each with a one-line fix and an autofix request. Or, with kind and name, check a name before creating it.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The element. Id or path."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "classifier",
+              "attribute",
+              "operation",
+              "constant",
+              "literal",
+              "usecase",
+              "package"
+            ],
+            "description": "Instead of ref: the naming rule to check name against."
+          },
+          "name": {
+            "type": "string",
+            "description": "With kind: the name to check."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profile": { "type": "string" },
+          "element": { "type": ["string", "null"] },
+          "ok": {
+            "type": "boolean",
+            "description": "Nothing is off the profile."
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": {
+                  "type": "string",
+                  "description": "naming.<kind>, visuals, documentation, duplicates."
+                },
+                "setting": {
+                  "type": "string",
+                  "description": "What the profile says."
+                },
+                "actual": { "type": "string" },
+                "expected": { "type": "string" },
+                "fix": {
+                  "type": "string",
+                  "description": "One line on how to fix it."
+                },
+                "autofix": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "path": { "type": "string" },
+                        "body": {
+                          "type": "object",
+                          "propertyNames": { "type": "string" },
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": ["path", "body"],
+                      "additionalProperties": false
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "required": ["rule", "setting", "actual", "fix", "autofix"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["profile", "ok", "violations"],
         "additionalProperties": false
       }
     },
@@ -24751,6 +25261,7 @@
       "UNKNOWN_TYPE": 400,
       "UNAUTHORIZED": 401,
       "FORBIDDEN_ORIGIN": 403,
+      "STYLE_LOCKED": 403,
       "NOT_FOUND": 404,
       "UNKNOWN_ENDPOINT": 404,
       "METHOD_NOT_ALLOWED": 405,
@@ -24760,6 +25271,7 @@
       "AMBIGUOUS_REF": 409,
       "DUPLICATE_NAME": 409,
       "SNAPSHOT_STALE": 409,
+      "SAVE_BLOCKED": 409,
       "STARUML_ERROR": 422,
       "UNSUPPORTED_SYNTAX": 422,
       "DIALOG_REQUIRED": 422,
@@ -24781,6 +25293,7 @@
             "UNKNOWN_TYPE",
             "UNAUTHORIZED",
             "FORBIDDEN_ORIGIN",
+            "STYLE_LOCKED",
             "NOT_FOUND",
             "UNKNOWN_ENDPOINT",
             "METHOD_NOT_ALLOWED",
@@ -24790,6 +25303,7 @@
             "AMBIGUOUS_REF",
             "DUPLICATE_NAME",
             "SNAPSHOT_STALE",
+            "SAVE_BLOCKED",
             "STARUML_ERROR",
             "UNSUPPORTED_SYNTAX",
             "DIALOG_REQUIRED",

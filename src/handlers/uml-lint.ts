@@ -23,12 +23,14 @@
 
 import * as z from "zod/mini";
 import { defineEndpoint, doc } from "../endpoint.js";
-import { ApiError } from "../errors.js";
 import { requireElement, requireProject } from "../lookup.js";
 import { byId, pathOf } from "../refs.js";
 import { ref } from "../schemas.js";
 import { violations } from "../patterns/detect.js";
 import { findPattern, patterns, withVariant } from "../patterns/index.js";
+import { type LintError, saveChecks } from "../style/guard.js";
+import { compilePattern } from "../style/naming.js";
+import { effectiveProfile, profileTag } from "../style/profile.js";
 import type { Element } from "../types.js";
 import { detectIn } from "./patterns.js";
 import {
@@ -88,31 +90,45 @@ export interface UmlFinding {
   fix: string;
 }
 
-/** Name patterns by convention name; anything else is a regular expression. */
-const PRESETS: Record<string, RegExp> = {
-  PascalCase: /^[A-Z][A-Za-z0-9]*$/,
-  camelCase: /^[a-z][A-Za-z0-9]*$/,
-  UPPER_CASE: /^[A-Z][A-Z0-9_]*$/,
-  snake_case: /^[a-z][a-z0-9_]*$/,
-  lowercase: /^[a-z][a-z0-9.]*$/,
-};
-
 const NAMING_KINDS = {
   classifier: ["UMLClass", "UMLInterface", "UMLEnumeration", "UMLSignal"],
   attribute: ["UMLAttribute"],
   operation: ["UMLOperation"],
+  constant: ["UMLAttribute"],
   literal: ["UMLEnumerationLiteral"],
+  usecase: ["UMLUseCase"],
   package: ["UMLPackage"],
 } as const;
 type NamingKind = keyof typeof NAMING_KINDS;
+
+/** A static read-only attribute is a constant and follows that convention instead. */
+const isConstant = (e: Element) => e.isStatic === true && e.isReadOnly === true;
 
 const DEFAULT_NAMING: Record<NamingKind, string | false> = {
   classifier: "PascalCase",
   attribute: "camelCase",
   operation: "camelCase",
+  constant: false,
   literal: "UPPER_CASE",
+  usecase: false,
   package: false,
 };
+
+/**
+ * The naming conventions of the project's style profile, when the project
+ * stores one (issue #31); otherwise the defaults above, as before profiles.
+ */
+function profileNaming():
+  Partial<Record<NamingKind, string | false>> | undefined {
+  if (!profileTag()) return undefined;
+  const naming = effectiveProfile().profile.naming;
+  return Object.fromEntries(
+    (Object.keys(NAMING_KINDS) as NamingKind[]).map((k) => [
+      k,
+      naming[k]?.pattern ?? false,
+    ]),
+  );
+}
 
 function compileNaming(
   given: Partial<Record<NamingKind, string | false>> | undefined,
@@ -121,24 +137,19 @@ function compileNaming(
   return (Object.keys(NAMING_KINDS) as NamingKind[]).flatMap((k) => {
     const pattern = naming[k];
     if (pattern === false) return [];
-    try {
-      const re = Object.hasOwn(PRESETS, pattern)
-        ? PRESETS[pattern]!
-        : new RegExp(pattern, "u");
-      return [[k, pattern, re]];
-    } catch (err) {
-      throw new ApiError(
-        "INVALID_ARGUMENT",
-        `naming.${k}: ${pattern} is neither ${Object.keys(PRESETS).join(", ")} nor a regular expression (${(err as Error).message})`,
-      );
-    }
+    return [[k, pattern, compilePattern(pattern, `naming.${k}`)]];
   });
 }
 
 const list = (value: unknown) =>
   (Array.isArray(value) ? value : []) as Element[];
-const quoted = (e: Element) =>
-  typeof e.name === "string" && e.name ? `"${e.name}"` : e.constructor.name;
+/** An element as a message names it; a dangling end (U004) reads "nothing". */
+const quoted = (e: Element | null) =>
+  !e
+    ? "nothing"
+    : typeof e.name === "string" && e.name
+      ? `"${e.name}"`
+      : e.constructor.name;
 
 function within(elem: Element, scope: Element): boolean {
   for (let e: Element | null | undefined = elem; e; e = e._parent) {
@@ -190,7 +201,7 @@ function associations(l: Lint): void {
         l.add(
           "U001",
           a,
-          `The association ${quoted(a)} between ${ends.map((e) => quoted(e.reference as Element)).join(" and ")} has ${missing.length === 2 ? "no multiplicity on either end" : "an end without multiplicity"}`,
+          `The association ${quoted(a)} between ${ends.map((e) => quoted(e.reference as Element | null)).join(" and ")} has ${missing.length === 2 ? "no multiplicity on either end" : "an end without multiplicity"}`,
           "Set each end's multiplicity, e.g. /update_element {ref: <end id>, field: 'multiplicity', value: '1'}.",
         );
       }
@@ -380,11 +391,17 @@ function entities(l: Lint): void {
 }
 
 function naming(l: Lint, patterns: [NamingKind, string, RegExp][]): void {
+  const constantRuled = patterns.some(([k]) => k === "constant");
   for (const [k, pattern, re] of patterns) {
     for (const typeName of NAMING_KINDS[k]) {
       for (const e of l.all(typeName)) {
         // Exact kinds only: a UMLModel is a package, a primitive a classifier.
         if (e.constructor.name !== typeName) continue;
+        if (typeName === "UMLAttribute") {
+          // A constant follows its own convention when one is set.
+          if (k === "constant" && !isConstant(e)) continue;
+          if (k === "attribute" && constantRuled && isConstant(e)) continue;
+        }
         const name = e.name as string;
         if (!name || re.test(name)) continue;
         l.add(
@@ -444,6 +461,39 @@ export function lintModel(
   );
 }
 
+/**
+ * Severity per rule: the request's setting, else the default; a strict
+ * style profile reports naming as an error (issue #31).
+ */
+function severities(given: Record<string, string>): Map<UmlRule, Severity> {
+  const strict = effectiveProfile().profile.strict;
+  const severity = new Map<UmlRule, Severity>();
+  for (const id of Object.keys(UML_RULES) as UmlRule[]) {
+    const setting = Object.entries(given).find(
+      ([k]) => k === id || k === UML_RULES[id],
+    )?.[1];
+    if (setting === "off") continue;
+    severity.set(
+      id,
+      (setting as Severity | undefined) ??
+        (strict && id === "U012" ? "error" : DEFAULT_SEVERITY[id]),
+    );
+  }
+  return severity;
+}
+
+/** /uml_lint's errors over the project, as the save gate counts them. */
+export function umlLintErrors(): LintError[] {
+  return lintModel(
+    requireProject(),
+    severities({}),
+    compileNaming(profileNaming()),
+  )
+    .filter((f) => f.severity === "error")
+    .map((f) => ({ rule: f.rule, message: f.message, path: f.path }));
+}
+saveChecks.push(umlLintErrors);
+
 const ruleSetting = () => z.enum(["off", ...SEVERITIES]);
 const pattern = () => z.optional(z.union([z.string(), z.literal(false)]));
 
@@ -469,10 +519,12 @@ export const umlLint = defineEndpoint({
           classifier: pattern(),
           attribute: pattern(),
           operation: pattern(),
+          constant: pattern(),
           literal: pattern(),
+          usecase: pattern(),
           package: pattern(),
         }),
-        "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, a regular expression, or false to skip. Defaults: classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, package skipped.",
+        "Naming convention per kind: PascalCase, camelCase, UPPER_CASE, snake_case, lowercase, 'Verb noun', a regular expression, or false to skip. Defaults: the project's style profile when it stores one; else classifier PascalCase, attribute and operation camelCase, literal UPPER_CASE, constant (static read-only attribute), use case and package skipped.",
       ),
     ),
     limit: limitField(),
@@ -496,22 +548,11 @@ export const umlLint = defineEndpoint({
   handle: (input) => {
     const given = input.rules ?? {};
     pickRules(UML_RULES, Object.keys(given), "rules");
-    const severity = new Map<UmlRule, Severity>();
-    for (const id of Object.keys(UML_RULES) as UmlRule[]) {
-      const setting = Object.entries(given).find(
-        ([k]) => k === id || k === UML_RULES[id],
-      )?.[1];
-      if (setting === "off") continue;
-      severity.set(
-        id,
-        (setting as Severity | undefined) ?? DEFAULT_SEVERITY[id],
-      );
-    }
-    const patterns = compileNaming(input.naming);
+    const patterns = compileNaming(input.naming ?? profileNaming());
     const scope =
       input.scope === undefined
         ? requireProject()
         : requireElement(input.scope, "Scope");
-    return counted(lintModel(scope, severity, patterns), input.limit);
+    return counted(lintModel(scope, severities(given), patterns), input.limit);
   },
 });

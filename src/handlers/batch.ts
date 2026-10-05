@@ -26,7 +26,9 @@ import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError, type ErrorBody } from "../errors.js";
 import type { HandlerResult } from "../http-server.js";
 import { maxBatchOps } from "../settings.js";
+import { trusted } from "../style/guard.js";
 import type { Operation } from "../types.js";
+import { insideStep } from "../undo.js";
 
 /**
  * Paths an atomic batch refuses. Nesting and history steps would fight the
@@ -381,7 +383,8 @@ export async function runBatch(
       { index, results },
     );
   }
-  if (atomic && operations.length > 1) squash(operations);
+  // Inside a step (a build with its quality loop) the step merges everything.
+  if (atomic && operations.length > 1 && !insideStep()) squash(operations);
   return {
     atomic,
     succeeded: results.length - failures.length,
@@ -392,9 +395,13 @@ export async function runBatch(
 
 /**
  * runBatch as the composite endpoints call it, an object so tests can
- * watch the ops a call runs and compare them with its dry run's plan.
+ * watch the ops a call runs and compare them with its dry run's plan. Their
+ * ops are the extension's own, so the style guards let them through.
  */
-export const batchRunner = { run: runBatch };
+export const batchRunner = {
+  run: (...args: Parameters<typeof runBatch>) =>
+    trusted(() => runBatch(...args)),
+};
 
 export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
   return defineEndpoint({

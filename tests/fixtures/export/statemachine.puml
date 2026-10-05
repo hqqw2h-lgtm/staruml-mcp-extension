@@ -1,5 +1,6 @@
 @startuml
 title Order states
+left to right direction
 state "New" as N1
 state "Paid" as N2
 state N3 <<choice>>

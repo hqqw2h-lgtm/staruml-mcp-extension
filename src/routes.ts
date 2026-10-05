@@ -126,6 +126,14 @@ import {
   setZOrder,
 } from "./handlers/views.js";
 import { applyThemeEndpoint } from "./handlers/theme.js";
+import {
+  applyStyleProfile,
+  explainStyleViolation,
+  getStyleProfile,
+  setStyleProfileEndpoint,
+} from "./handlers/style.js";
+import { profiled } from "./style/authoring.js";
+import { saveGated, styleLocked, viewFieldLocked } from "./style/guard.js";
 import type { Handler } from "./http-server.js";
 
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
@@ -135,18 +143,18 @@ export const endpoints: readonly Endpoint[] = [
   executeCommand,
 
   getProjectInfo,
-  saveProject,
-  saveProjectAs,
+  saveGated(saveProject),
+  saveGated(saveProjectAs),
   newProject,
   openProject,
 
   getElementById,
   findElements,
   createElement,
-  updateElement,
+  viewFieldLocked(updateElement),
   deleteElement,
-  createElementWithView,
-  createEdgeWithView,
+  profiled(createElementWithView),
+  profiled(createEdgeWithView),
   createRelationship,
 
   addAttribute,
@@ -170,12 +178,12 @@ export const endpoints: readonly Endpoint[] = [
   getConnectedNodeViews,
 
   layoutDiagram,
-  routeEdges,
-  moveViews,
-  resizeNode,
-  setViewStyle,
-  setZOrder,
-  divideFragment,
+  styleLocked(routeEdges),
+  styleLocked(moveViews),
+  styleLocked(resizeNode),
+  styleLocked(setViewStyle),
+  styleLocked(setZOrder),
+  styleLocked(divideFragment),
   createViewOf,
 
   getSelection,
@@ -183,11 +191,11 @@ export const endpoints: readonly Endpoint[] = [
   getEditorState,
   setEditorState,
 
-  exportDiagram,
-  exportDiagrams,
-  exportPdf,
-  exportHtml,
-  exportText,
+  saveGated(exportDiagram),
+  saveGated(exportDiagrams),
+  saveGated(exportPdf),
+  saveGated(exportHtml),
+  saveGated(exportText),
 
   listCodeGenerators,
   generateCode,
@@ -221,7 +229,12 @@ export const endpoints: readonly Endpoint[] = [
   applyPresetEndpoint(() => endpoints),
   describeType,
 
-  applyThemeEndpoint(() => endpoints),
+  styleLocked(applyThemeEndpoint(() => endpoints)),
+
+  getStyleProfile,
+  setStyleProfileEndpoint(() => endpoints),
+  applyStyleProfile,
+  explainStyleViolation,
 
   introspectEndpoint(() => endpoints),
   debug,

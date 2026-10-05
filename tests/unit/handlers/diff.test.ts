@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { batchRunner } from "../../../src/handlers/batch.js";
 import { describeOp, planOf } from "../../../src/handlers/build.js";
 import {
   clearSnapshots,
@@ -26,7 +27,7 @@ beforeEach(() => {
 const endpoint = (path: string) =>
   fullResults(endpoints.find((e) => e.path === path)!);
 const build = endpoint("/build_diagram");
-// The batch build_diagram runs, unwrapped.
+// The /batch endpoint, unwrapped.
 const batch = endpoints.find((e) => e.path === "/batch")!;
 
 interface Step {
@@ -98,16 +99,13 @@ describe("/build_diagram dryRun", () => {
     expect(dry.plan!.updates.map((u) => u.op)).toEqual(["/layout_diagram"]);
     expect(dry.plan!.deletes).toEqual([]);
 
-    const spy = vi.spyOn(batch, "handler");
+    const spy = vi.spyOn(batchRunner, "run");
     const applied = await ok<Planned>(build, {
       kind: "class",
       name: "Shop",
       spec: SPEC,
     });
-    expect(spy.mock.calls[0]![0]).toEqual({
-      ops: dry.plan!.ops,
-      result: "full",
-    });
+    expect(spy.mock.calls[0]![1]).toEqual(dry.plan!.ops);
     spy.mockRestore();
     expect(applied.dryRun).toBeUndefined();
     expect(applied.created).toBe(dry.created);

@@ -207,8 +207,8 @@ describe("/export_diagram annotate", () => {
 
   it("annotates JPEG on white and SVG with elements of its own", async () => {
     const data = await ok<{ diagram: { _id: string } }>(build, {
-      kind: "class",
-      spec: { classes: [{ name: "A <b>" }] },
+      kind: "requirement",
+      spec: { requirements: [{ name: "A <b>" }] },
     });
     bounds(data.diagram._id);
     painted = [];

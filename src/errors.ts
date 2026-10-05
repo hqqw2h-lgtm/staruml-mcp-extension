@@ -36,6 +36,12 @@ export const ERROR_STATUS = {
   UNAUTHORIZED: 401,
   /** The request carries an Origin header not in mcp-ext.security.allowedOrigins. */
   FORBIDDEN_ORIGIN: 403,
+  /**
+   * The project's style profile is strict and the call would draw freely
+   * (a colour, a font, a position, a size) outside the profile; pass
+   * override: true to do it anyway (issue #31).
+   */
+  STYLE_LOCKED: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
@@ -61,6 +67,12 @@ export const ERROR_STATUS = {
    * longer reaches, or one taken of another project.
    */
   SNAPSHOT_STALE: 409,
+  /**
+   * The style profile sets blockSaveOnErrors and /uml_lint or /model_lint
+   * report errors; details.findings lists them. Pass override: true to save
+   * or export anyway.
+   */
+  SAVE_BLOCKED: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**

@@ -28,6 +28,13 @@ import { requireDiagram, requireElement, requireProject } from "../lookup.js";
 import { calledName, type Change, planModel } from "../model/plan.js";
 import { parseModelSpec, RELATIONS } from "../model/spec.js";
 import { pathOf } from "../refs.js";
+import {
+  normalizeModelSpec,
+  Renames,
+  styleReport,
+  styleReportSchema,
+} from "../style/apply.js";
+import { effectiveProfile } from "../style/profile.js";
 import { ref } from "../schemas.js";
 import type { Element, View } from "../types.js";
 import { batchRunner, type OpResult } from "./batch.js";
@@ -136,9 +143,12 @@ export function buildModelEndpoint(
       ),
       dryRun: z.optional(z.boolean()),
       plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
+      style: z.optional(styleReportSchema()),
     }),
     handle: async (input) => {
-      const spec = parseModelSpec(input.spec);
+      const profile = effectiveProfile().profile;
+      const renames = new Renames(profile);
+      const spec = normalizeModelSpec(parseModelSpec(input.spec), renames);
       const parent =
         input.parent === undefined
           ? requireProject()
@@ -156,6 +166,7 @@ export function buildModelEndpoint(
           changes: { created: plan.created, updated: plan.updated },
         }),
         ...(spec.skipped.length > 0 && { skipped: spec.skipped }),
+        style: styleReport(profile, renames, 0),
       };
       const model = {
         _id: plan.root.ref,

@@ -388,6 +388,9 @@ async function main() {
     () => ["/apply_theme", { ref: "Export", theme: "blueprint", dryRun: true }],
     () => ["/sync_operations", { diagram: "LoadSeq", dryRun: true }],
     () => ["/get_project_info", {}],
+    () => ["/get_style_profile", {}],
+    () => ["/explain_style_violation", { ref: "Order" }],
+    () => ["/apply_style_profile", { scope: "Export", dryRun: true }],
     (i) => [
       "/get_element_by_id",
       { id: classIds[i % classIds.length], summary: false },

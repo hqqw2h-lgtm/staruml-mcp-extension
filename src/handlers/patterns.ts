@@ -38,6 +38,15 @@ import { findPattern, patterns, withVariant } from "../patterns/index.js";
 import { allPresets, PRESET_NAMES } from "../patterns/presets.js";
 import { pathOf, tryResolve } from "../refs.js";
 import { ref } from "../schemas.js";
+import {
+  normalizeOps,
+  Renames,
+  styleDiagram,
+  styleReport,
+  styleReportSchema,
+} from "../style/apply.js";
+import { effectiveProfile } from "../style/profile.js";
+import { oneStep } from "../undo.js";
 import type { Element } from "../types.js";
 import { batchRunner, type OpResult } from "./batch.js";
 import { planOf, planSchema } from "./build.js";
@@ -260,6 +269,7 @@ export function applyPatternEndpoint(
       warnings: z.optional(z.array(z.string())),
       dryRun: z.optional(z.boolean()),
       plan: z.optional(planSchema()),
+      style: z.optional(styleReportSchema()),
     }),
     handle: async (input) => {
       const pattern = withVariant(findPattern(input.pattern), input.variant);
@@ -327,17 +337,48 @@ export function applyPatternEndpoint(
           plan: planOf(plan.ops),
         };
       }
-      const run = await batchRunner.run(
-        endpoints(),
-        plan.ops,
-        true,
-        MODEL_MAX_OPS,
-      );
+      const profile = effectiveProfile().profile;
+      // A pattern names its roles' elements by its own vocabulary; names
+      // off the profile are reported, not rewritten, so the roles stay
+      // recognisable to /detect_patterns.
+      const renames = new Renames({
+        ...profile,
+        naming: Object.fromEntries(
+          Object.entries(profile.naming).map(([k, r]) => [
+            k,
+            r && { ...r, fix: "none" as const },
+          ]),
+        ) as typeof profile.naming,
+      });
+      normalizeOps(plan.ops, renames);
+      const { run, styled } = await oneStep("apply pattern", async () => {
+        const run = await batchRunner.run(
+          endpoints(),
+          plan.ops,
+          true,
+          MODEL_MAX_OPS,
+        );
+        const id = resolver(run.results);
+        const diagrams = [plan.diagram, plan.sequenceDiagram]
+          .filter((d) => d !== undefined)
+          .map((d) => requireElement(id(d)));
+        const styled = diagrams.reduce(
+          (n, d) => n + styleDiagram(d, profile),
+          0,
+        );
+        return { run, styled };
+      });
       const id = resolver(run.results);
-      return answer(
-        id,
-        p.properties.map((c) => ({ ...c, value: resolveValue(c.value, id) })),
-      );
+      return {
+        ...answer(
+          id,
+          p.properties.map((c) => ({
+            ...c,
+            value: resolveValue(c.value, id),
+          })),
+        ),
+        style: styleReport(profile, renames, styled),
+      };
     },
   });
 }
