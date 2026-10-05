@@ -34,10 +34,12 @@
  * of a built class diagram as Mermaid and PlantUML, a read-only /batch
  * of five lookups, and reads that address elements by path ("Load/C7",
  * "Order.total", "Order#place()", the diagram by name) rather than by id,
- * and /lint_diagram and /uml_lint over them. Exits non-zero on any transport error or non-2xx answer, when
- * client p99 exceeds P99_BUDGET_MS, or when any single handler held the
- * renderer thread longer than HANDLER_BUDGET_MS (taken from the
- * Server-Timing header the server sets).
+ * /lint_diagram and /uml_lint over them, and the read-only planning
+ * endpoints: /diff_diagram, a /build_diagram dryRun and /diff_since of a
+ * snapshot taken after seeding. Exits non-zero on any transport error or
+ * non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or when any single
+ * handler held the renderer thread longer than HANDLER_BUDGET_MS (taken
+ * from the Server-Timing header the server sets).
  *
  * A second, sequential phase sends WRITE_BATCHES /batch requests that each
  * create a class with an attribute and an operation, alternating atomic and
@@ -277,6 +279,7 @@ async function main() {
     spec: BUILD_SPEC,
   });
   const exportId = exported.json.data.diagram._id;
+  await post("/snapshot", { label: "load" });
   const mix = [
     () => ["/find_elements", { type: "UMLClass" }],
     () => ["/find_elements", { type: "UMLClass", name: `C${SEED >> 1}` }],
@@ -290,6 +293,21 @@ async function main() {
     () => ["/describe_diagram", { diagram: "Export" }],
     () => ["/lint_diagram", { diagram: "Export" }],
     () => ["/uml_lint", { scope: "Load", limit: 50 }],
+    () => [
+      "/diff_diagram",
+      { diagram: "Export", kind: "class", spec: BUILD_SPEC },
+    ],
+    () => [
+      "/build_diagram",
+      {
+        kind: "class",
+        name: "Export",
+        spec: BUILD_SPEC,
+        upsert: true,
+        dryRun: true,
+      },
+    ],
+    () => ["/diff_since", { snapshot: "load", limit: 20 }],
     () => ["/get_project_info", {}],
     (i) => [
       "/get_element_by_id",

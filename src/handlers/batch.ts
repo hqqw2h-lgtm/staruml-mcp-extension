@@ -42,6 +42,7 @@ export const NOT_ATOMIC = new Set([
   "/build_diagram",
   "/undo",
   "/redo",
+  "/restore_snapshot",
   "/new_project",
   "/open_project",
   "/save_project",
@@ -296,7 +297,7 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
       atomic: z.optional(
         doc(
           z.boolean(),
-          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram.",
+          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram.",
         ),
       ),
     }),

@@ -38,6 +38,12 @@ import { debug } from "./handlers/debug.js";
 import { exportText } from "./handlers/export-text.js";
 import { describeDiagram, validateModel } from "./handlers/describe.js";
 import { lintDiagram } from "./handlers/lint.js";
+import {
+  diffDiagram,
+  diffSinceEndpoint,
+  restoreSnapshot,
+  takeSnapshot,
+} from "./handlers/diff.js";
 import { umlLint } from "./handlers/uml-lint.js";
 import { searchTypes } from "./handlers/search.js";
 import { introspectEndpoint } from "./handlers/introspect.js";
@@ -185,6 +191,10 @@ export const endpoints: readonly Endpoint[] = [
   validateModel,
   lintDiagram,
   umlLint,
+  diffDiagram,
+  takeSnapshot,
+  diffSinceEndpoint,
+  restoreSnapshot,
 
   introspectEndpoint(() => endpoints),
   debug,

@@ -38,7 +38,7 @@ import {
 } from "../build/spec.js";
 import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError, type ErrorCode } from "../errors.js";
-import { tryResolve } from "../refs.js";
+import { byId, pathOf, tryResolve } from "../refs.js";
 import { requireElement, requireProject } from "../lookup.js";
 import { duplicateShape, ref } from "../schemas.js";
 import { summarize } from "../serialize.js";
@@ -346,6 +346,10 @@ function pruneTarget(
 }
 export interface Built {
   ops: Op[];
+  /** Nodes already on the diagram that the plan changes, with the ops that do. */
+  changes: { key: string; view: View; ops: Op[] }[];
+  /** What prune deletes. */
+  removed: Element[];
   /** Node keys by op name, and the existing elements reused. */
   created: Map<string, string>;
   reused: Map<string, Ref>;
@@ -419,6 +423,8 @@ export function opsFor(
   const claimed = new Set<Element>();
   const warnings: string[] = [];
   const reuse = options.reuse === true && SHARED_KINDS.has(plan.kind);
+  const changes: Built["changes"] = [];
+  const removed: Element[] = [];
   let updated = 0;
   let unchanged = 0;
   let shown = 0;
@@ -443,8 +449,10 @@ export function opsFor(
           : []),
         ...styleOps(node, found._id, found),
       ];
-      if (more.length > 0) updated++;
-      else unchanged++;
+      if (more.length > 0) {
+        updated++;
+        changes.push({ key: node.key, view: found, ops: more });
+      } else unchanged++;
       ops.push(...more);
       return;
     }
@@ -662,6 +670,7 @@ export function opsFor(
         owned !== null && models.some((m) => m !== owned && within(owned, m));
       if (covered || targets.indexOf(t) !== i) continue;
       deleted++;
+      removed.push(t);
       ops.push({ path: "/delete_element", body: { ref: t._id } });
     }
   }
@@ -680,6 +689,8 @@ export function opsFor(
   }
   return {
     ops,
+    changes,
+    removed,
     created,
     reused,
     edgeOps,
@@ -723,6 +734,166 @@ const refSchema = () =>
   z.object({
     model: z.nullable(z.string()),
     view: z.string(),
+  });
+
+export interface SourceInput {
+  kind?: Kind;
+  spec?: Record<string, unknown>;
+  mermaid?: string;
+  text?: string;
+  format?: (typeof FORMATS)[number];
+  direction?: Direction;
+}
+
+/** The kind and spec a request describes, from its spec or its text. */
+export function readSource(input: SourceInput): {
+  kind: Kind;
+  spec: unknown;
+  title: string | undefined;
+  direction: Direction | undefined;
+  parsed: ReturnType<typeof parseSource> | undefined;
+} {
+  const given = [input.spec, input.mermaid, input.text].filter(
+    (x) => x !== undefined,
+  );
+  if (given.length !== 1) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      "Pass one of spec (with kind), mermaid and text",
+    );
+  }
+  if (
+    input.mermaid !== undefined &&
+    (input.format ?? "mermaid") !== "mermaid"
+  ) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `format: mermaid holds Mermaid; pass ${input.format} source as text`,
+    );
+  }
+  const source = input.mermaid ?? input.text;
+  if (source !== undefined) {
+    const parsed = parseSource(
+      source,
+      input.mermaid !== undefined ? "mermaid" : input.format,
+      input.kind,
+    );
+    return {
+      kind: parsed.kind,
+      spec: parsed.spec,
+      title: parsed.title,
+      direction: input.direction ?? parsed.direction,
+      parsed,
+    };
+  }
+  if (input.kind === undefined) {
+    throw new ApiError("INVALID_ARGUMENT", "kind: required with spec");
+  }
+  return {
+    kind: input.kind,
+    spec: input.spec,
+    title: undefined,
+    direction: input.direction,
+    parsed: undefined,
+  };
+}
+
+const CREATES = new Set([
+  "/create_diagram",
+  "/create_element",
+  "/create_element_with_view",
+  "/create_relationship",
+  "/create_edge_with_view",
+  "/create_view_of",
+  "/add_attribute",
+  "/add_operation",
+  "/add_enumeration_literal",
+]);
+
+/**
+ * An id an op names, as its path ("@project" for the project); a "$name"
+ * placeholder, or an id of nothing, stays as written.
+ */
+function where(ref: unknown): string | null {
+  if (typeof ref !== "string") return null;
+  const elem = ref.startsWith("$") ? undefined : byId(ref);
+  if (!elem) return ref;
+  return pathOf(elem) ?? (elem === app.project.getProject() ? "@project" : ref);
+}
+
+export interface PlanStep {
+  op: string;
+  /** The element the op acts on or files under: a path, or a "$name" placeholder. */
+  target: string | null;
+  as?: string;
+  type?: string;
+  name?: string;
+  /** What changes, for updates: "field = value", style properties. */
+  change?: string;
+}
+
+/** One op of a build, as a reader would say it. */
+export function describeOp(op: Op): PlanStep {
+  const b = op.body;
+  const target = where(
+    b.ref ?? b.parent ?? b.diagram ?? (b.refs as unknown[] | undefined)?.[0],
+  );
+  const extra = Object.entries(b).filter(
+    ([k]) => !["ref", "refs", "parent", "diagram", "type", "name"].includes(k),
+  );
+  return {
+    op: op.path,
+    target,
+    ...(op.as !== undefined && { as: op.as }),
+    ...(typeof b.type === "string" && { type: b.type }),
+    ...(typeof b.name === "string" && { name: b.name }),
+    ...(!CREATES.has(op.path) &&
+      extra.length > 0 && {
+        change: extra.map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(", "),
+      }),
+  };
+}
+
+/** The ops of a build sorted into what they create, change and delete. */
+export function planOf(ops: Op[]) {
+  const steps = ops.map((op) => ({ op, step: describeOp(op) }));
+  return {
+    ops,
+    creates: steps.filter((s) => CREATES.has(s.op.path)).map((s) => s.step),
+    updates: steps
+      .filter((s) => !CREATES.has(s.op.path) && s.op.path !== "/delete_element")
+      .map((s) => s.step),
+    deletes: steps
+      .filter((s) => s.op.path === "/delete_element")
+      .map((s) => s.step),
+  };
+}
+
+const stepSchema = () =>
+  z.object({
+    op: z.string(),
+    target: z.nullable(z.string()),
+    as: z.optional(z.string()),
+    type: z.optional(z.string()),
+    name: z.optional(z.string()),
+    change: z.optional(z.string()),
+  });
+
+export const planSchema = () =>
+  z.object({
+    ops: doc(
+      z.array(
+        z.object({
+          path: z.string(),
+          body: z.record(z.string(), z.unknown()),
+          as: z.optional(z.string()),
+        }),
+      ),
+      "The /batch ops applying the plan runs, in order.",
+    ),
+    creates: z.array(stepSchema()),
+    updates: z.array(stepSchema()),
+    deletes: z.array(stepSchema()),
   });
 
 export function buildDiagramEndpoint(
@@ -799,6 +970,12 @@ export function buildDiagramEndpoint(
         ),
       ),
       ...duplicateShape(),
+      dryRun: z.optional(
+        doc(
+          z.boolean(),
+          "Answer what the build would do, with plan listing its creates, updates and deletes (paths, or '$name' placeholders for what it makes) and the exact /batch ops, and change nothing. ids and the diagram carry the placeholders.",
+        ),
+      ),
       reuse: z.optional(
         doc(
           z.boolean(),
@@ -850,48 +1027,11 @@ export function buildDiagramEndpoint(
           view: z.string(),
         }),
       ),
+      dryRun: z.optional(doc(z.boolean(), "Set when nothing was changed.")),
+      plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
     }),
     handle: async (input) => {
-      const given = [input.spec, input.mermaid, input.text].filter(
-        (x) => x !== undefined,
-      );
-      if (given.length !== 1) {
-        throw new ApiError(
-          "INVALID_ARGUMENT",
-          "Pass one of spec (with kind), mermaid and text",
-        );
-      }
-      if (
-        input.mermaid !== undefined &&
-        (input.format ?? "mermaid") !== "mermaid"
-      ) {
-        throw new ApiError(
-          "INVALID_ARGUMENT",
-          `format: mermaid holds Mermaid; pass ${input.format} source as text`,
-        );
-      }
-      let kind: Kind;
-      let spec: unknown;
-      let title: string | undefined;
-      let direction: Direction | undefined = input.direction;
-      const source = input.mermaid ?? input.text;
-      let parsed: ReturnType<typeof parseSource> | undefined;
-      if (source !== undefined) {
-        parsed = parseSource(
-          source,
-          input.mermaid !== undefined ? "mermaid" : input.format,
-          input.kind,
-        );
-        kind = parsed.kind;
-        spec = parsed.spec;
-        title = parsed.title;
-        direction ??= parsed.direction;
-      } else if (input.kind === undefined) {
-        throw new ApiError("INVALID_ARGUMENT", "kind: required with spec");
-      } else {
-        kind = input.kind;
-        spec = input.spec;
-      }
+      const { kind, spec, title, direction, parsed } = readSource(input);
       const plan = planFor(kind, spec);
       const parent =
         input.parent === undefined
@@ -915,6 +1055,49 @@ export function buildDiagramEndpoint(
           allowDuplicateNames: input.allowDuplicateNames,
         },
       );
+      const warnings = [...(parsed?.warnings ?? []), ...built.warnings];
+      const summary = {
+        kind,
+        upserted: diagram !== null,
+        updated: built.updated,
+        unchanged: built.unchanged,
+        layout: built.layout,
+        ...(built.preset && { preset: built.preset }),
+        ...(built.shown > 0 && { shown: built.shown }),
+        ...(input.prune && { deleted: built.deleted }),
+        ...(parsed && input.text !== undefined && { format: parsed.format }),
+        ...(warnings.length > 0 && { warnings }),
+      };
+      if (input.dryRun) {
+        // What applying would answer, with "$name" placeholders for what
+        // does not exist yet; nothing is run.
+        const ids: Record<string, { model: string | null; view: string }> =
+          Object.fromEntries(built.reused);
+        for (const [as, key] of built.created) {
+          ids[key] = { model: `$${as}.model`, view: `$${as}.view` };
+        }
+        return {
+          diagram: diagram
+            ? (({ _id, _type, name }) => ({ _id, _type, name }))(
+                summarize(diagram),
+              )
+            : {
+                _id: "$diagram",
+                _type: DIAGRAM_TYPES[kind],
+                name: name ?? null,
+              },
+          ...summary,
+          created: built.created.size + built.edgeOps.length,
+          ids,
+          edges: built.edgeOps.map(({ key, as }) => ({
+            key,
+            model: `$${as}.model`,
+            view: `$${as}.view`,
+          })),
+          dryRun: true,
+          plan: planOf(built.ops),
+        };
+      }
       const batch = endpoints().find((e) => e.path === "/batch")!;
       let data: BatchData = { results: [] };
       if (built.ops.length > 0) {
@@ -945,21 +1128,11 @@ export function buildDiagramEndpoint(
         return { key, model: r.model?._id ?? null, view: r.view!._id };
       });
       const target = diagram ?? requireElement(byName.get("diagram")!._id!);
-      const warnings = [...(parsed?.warnings ?? []), ...built.warnings];
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
-        kind,
-        upserted: diagram !== null,
+        ...summary,
         created: built.created.size + edges.length,
-        updated: built.updated,
-        unchanged: built.unchanged,
-        layout: built.layout,
-        ...(built.preset && { preset: built.preset }),
-        ...(built.shown > 0 && { shown: built.shown }),
-        ...(input.prune && { deleted: built.deleted }),
-        ...(parsed && input.text !== undefined && { format: parsed.format }),
-        ...(warnings.length > 0 && { warnings }),
         ids,
         edges,
       };

@@ -21680,7 +21680,7 @@
           },
           "atomic": {
             "type": "boolean",
-            "description": "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
+            "description": "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
           }
         },
         "required": ["ops"]
@@ -21812,6 +21812,10 @@
             "type": "boolean",
             "description": "Default false: a classifier, package, diagram, attribute, literal, entity or column named like a sibling of its kind is refused with DUPLICATE_NAME, since paths could not tell them apart."
           },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Answer what the build would do, with plan listing its creates, updates and deletes (paths, or '$name' placeholders for what it makes) and the exact /batch ops, and change nothing. ids and the diagram carry the placeholders."
+          },
           "reuse": {
             "type": "boolean",
             "description": "Default true: a class, interface, enum, package, actor, use case, entity, requirement or C4 element named like one elsewhere in the project is that element shown again (Model Explorer drag and drop), not a copy; a path ('Model/Billing/Invoice') or 'Owner::Name' picks one by its owners. false always makes new elements."
@@ -21920,6 +21924,84 @@
               "required": ["key", "model", "view"],
               "additionalProperties": false
             }
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Set when nothing was changed."
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "ops": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "body": {
+                      "type": "object",
+                      "propertyNames": { "type": "string" },
+                      "additionalProperties": {}
+                    },
+                    "as": { "type": "string" }
+                  },
+                  "required": ["path", "body"],
+                  "additionalProperties": false
+                },
+                "description": "The /batch ops applying the plan runs, in order."
+              },
+              "creates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "updates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              },
+              "deletes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": { "type": "string" },
+                    "target": { "type": ["string", "null"] },
+                    "as": { "type": "string" },
+                    "type": { "type": "string" },
+                    "name": { "type": "string" },
+                    "change": { "type": "string" }
+                  },
+                  "required": ["op", "target"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["ops", "creates", "updates", "deletes"],
+            "additionalProperties": false,
+            "description": "With dryRun: what applying runs."
           }
         },
         "required": [
@@ -22439,6 +22521,367 @@
           }
         },
         "required": ["count", "counts", "truncated", "findings"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/diff_diagram",
+      "description": "Compare a diagram with a spec or diagram text (as /build_diagram takes them) and list what differs: nodes and edges the spec adds, elements and views on the diagram it lacks, and nodes whose members, properties or colours it changes. This is what /build_diagram with upsert and prune would do; nothing is changed.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram to compare. Id or path."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "class",
+              "sequence",
+              "usecase",
+              "activity",
+              "statemachine",
+              "erd",
+              "flowchart",
+              "mindmap",
+              "requirement",
+              "c4"
+            ],
+            "description": "Diagram kind; required with spec, else read from text."
+          },
+          "spec": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "A /build_diagram spec."
+          },
+          "mermaid": { "type": "string", "minLength": 1 },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Diagram source, as /build_diagram reads it."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["mermaid", "plantuml", "sql", "jsonschema"]
+          },
+          "reuse": {
+            "type": "boolean",
+            "description": "As /build_diagram's reuse, default true: a new node named like an element elsewhere counts as showing that element."
+          },
+          "diagramId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of diagram.",
+            "x-alias-of": "diagram",
+            "deprecated": true
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of diagram.",
+            "x-alias-of": "diagram",
+            "deprecated": true
+          }
+        },
+        "required": ["diagram"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagram": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "_type": {
+                "type": "string",
+                "description": "Metamodel class name."
+              },
+              "name": { "type": ["string", "null"] },
+              "_parent": {
+                "description": "Owner id; null for the project.",
+                "type": ["string", "null"]
+              },
+              "path": {
+                "type": "string",
+                "description": "Summary only: a path any id field accepts, e.g. 'Model/Shop/Order', 'Model/Shop/Order.total', 'Model/Shop/Order#pay()', and 'model path@diagram path' for a view. Absent for the project and for views without a model."
+              }
+            },
+            "required": ["_id", "_type"],
+            "additionalProperties": {},
+            "description": "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
+          },
+          "kind": { "type": "string" },
+          "identical": {
+            "type": "boolean",
+            "description": "The diagram already shows the spec."
+          },
+          "added": {
+            "type": "object",
+            "properties": {
+              "nodes": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Nodes of the spec not on the diagram."
+              },
+              "edges": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Edges of the spec not on the diagram, 'from -> to'."
+              }
+            },
+            "required": ["nodes", "edges"],
+            "additionalProperties": false
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "_type": { "type": "string" },
+                "path": { "type": ["string", "null"] }
+              },
+              "required": ["_id", "_type", "path"],
+              "additionalProperties": false
+            },
+            "description": "Elements (or, where they are shown elsewhere too, views) on the diagram that the spec lacks."
+          },
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "node": { "type": "string" },
+                "path": { "type": ["string", "null"] },
+                "changes": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["node", "path", "changes"],
+              "additionalProperties": false
+            }
+          },
+          "unchanged": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Nodes and edges that match."
+          }
+        },
+        "required": [
+          "diagram",
+          "kind",
+          "identical",
+          "added",
+          "removed",
+          "changed",
+          "unchanged"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/snapshot",
+      "description": "Record a checkpoint of the model under a label: every element's attributes, and the place in the undo history. /diff_since lists what changed after it, /restore_snapshot goes back to it. Kept in memory, at most 20, until StarUML restarts; a label taken again is replaced.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Name to refer to it by; default snapshot-<n>."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "takenAt": { "type": "string", "description": "ISO time." },
+          "elements": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Model elements recorded (views are not)."
+          }
+        },
+        "required": ["label", "takenAt", "elements"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/diff_since",
+      "description": "List the model elements added, changed (with the attributes that differ) and removed since a /snapshot, with their paths. Views are not compared.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The snapshot's label."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000,
+            "description": "Most items per list; default 200. counts are always the full numbers."
+          }
+        },
+        "required": ["snapshot"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "snapshot": { "type": "string" },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "added": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "changed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "removed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["added", "changed", "removed"],
+            "additionalProperties": false
+          },
+          "truncated": { "type": "boolean" },
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "_type": { "type": "string" },
+                "name": { "type": ["string", "null"] },
+                "path": { "type": ["string", "null"] }
+              },
+              "required": ["_id", "_type", "name", "path"],
+              "additionalProperties": false
+            }
+          },
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "_type": { "type": "string" },
+                "name": { "type": ["string", "null"] },
+                "path": { "type": ["string", "null"] },
+                "fields": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Attributes whose value differs."
+                }
+              },
+              "required": ["_id", "_type", "name", "path", "fields"],
+              "additionalProperties": false
+            }
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "_type": { "type": "string" },
+                "name": { "type": ["string", "null"] },
+                "path": { "type": ["string", "null"] }
+              },
+              "required": ["_id", "_type", "name", "path"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "snapshot",
+          "counts",
+          "truncated",
+          "added",
+          "changed",
+          "removed"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/restore_snapshot",
+      "description": "Undo back to a /snapshot in one step: every operation recorded after it is undone, and one /redo brings them all back. Refused as SNAPSHOT_STALE when the undo history no longer reaches the snapshot (it was undone past, cut by StarUML's history limit, or another project is open).",
+      "readOnly": false,
+      "destructive": true,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The snapshot's label."
+          }
+        },
+        "required": ["snapshot"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "snapshot": { "type": "string" },
+          "undone": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Operations undone."
+          },
+          "remaining": {
+            "type": "object",
+            "properties": {
+              "added": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "changed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "removed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["added", "changed", "removed"],
+            "additionalProperties": false,
+            "description": "What still differs from the snapshot afterwards; all zero unless something changed outside the undo history."
+          }
+        },
+        "required": ["snapshot", "undone", "remaining"],
         "additionalProperties": false
       }
     },
@@ -23009,6 +23452,7 @@
       "NO_PROJECT": 409,
       "AMBIGUOUS_REF": 409,
       "DUPLICATE_NAME": 409,
+      "SNAPSHOT_STALE": 409,
       "STARUML_ERROR": 422,
       "UNSUPPORTED_SYNTAX": 422,
       "DIALOG_REQUIRED": 422,
@@ -23038,6 +23482,7 @@
             "NO_PROJECT",
             "AMBIGUOUS_REF",
             "DUPLICATE_NAME",
+            "SNAPSHOT_STALE",
             "STARUML_ERROR",
             "UNSUPPORTED_SYNTAX",
             "DIALOG_REQUIRED",

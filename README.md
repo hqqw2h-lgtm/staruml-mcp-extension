@@ -71,14 +71,14 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 | Elements      | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`                                                  |
 | Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
 | Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
-| Diagrams      | `/build_diagram`, `/describe_diagram`, `/validate_model`, `/lint_diagram`, `/uml_lint`, `/create_diagram`, `/switch_diagram`, `/close_diagram`                                |
+| Diagrams      | `/build_diagram`, `/diff_diagram`, `/describe_diagram`, `/validate_model`, `/lint_diagram`, `/uml_lint`, `/create_diagram`, `/switch_diagram`, `/close_diagram`               |
 | Views         | `/layout_diagram`, `/route_edges`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`, `/create_view_of`, `/divide_fragment`                                    |
 | Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                   |
 | Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                  |
 | Export        | `/export_diagram`, `/export_diagrams`, `/export_pdf`, `/export_html`, `/export_text`                                                                                          |
 | Code          | `/list_code_generators`, `/generate_code`, `/reverse_code`                                                                                                                    |
 | Batches       | `/batch`                                                                                                                                                                      |
-| History       | `/undo`, `/redo`, `/is_modified`                                                                                                                                              |
+| History       | `/undo`, `/redo`, `/is_modified`, `/snapshot`, `/diff_since`, `/restore_snapshot`                                                                                             |
 
 ### References: paths and canonical field names
 
@@ -199,6 +199,12 @@ One call builds a whole diagram: `{kind, spec}`, `{mermaid}` or `{text, format?}
 - `upsert: true` updates the diagram of the same kind and name under the parent: nodes already on it (same type and name; notes by text) gain missing attributes, operations, literals and columns, changed properties and colours, missing nodes and edges are added, and the layout is left alone when nothing was added. With `prune: true` the nodes, notes and edges on the diagram that the spec lacks are deleted in the same undo step: an element shown on another diagram too, owning one the spec keeps, or owning the diagram loses only its view here; edges go first, and what a deleted owner holds goes with it.
 - `reuse` (default true): on class, use case, ERD, requirement and C4 diagrams a node named like an element elsewhere in the project (same type) is that element shown again (`/create_view_of`, with its relationships to elements already shown) instead of a copy; it gains missing members, and an edge between two such elements shows their existing relationship of the same type and name. `Owner::Name` picks one by its nearest owners; one of several by plain name is the one under the diagram's owner, else a new element is made and `warnings` says so. `reuse: false` always makes new elements.
 
+### Planning and checkpoints
+
+- `/build_diagram {..., dryRun: true}` changes nothing and answers what the build would do: the usual fields with `$name` placeholders for what does not exist yet (`diagram._id: "$diagram"`, `ids.Order.model: "$n0.model"`), `dryRun: true`, and `plan` with `creates`, `updates` and `deletes` (each `{op, target, as?, type?, name?, change?}`, the target as a path) and `ops`, the exact `/batch` ops applying the same request runs.
+- `/diff_diagram {diagram, spec | mermaid | text, kind?, format?}` compares a diagram with a spec through the same planning, without changing anything: `added` nodes and edges, `removed` elements (or views, where the element is shown elsewhere) that the spec lacks, `changed` nodes with their member, property and colour changes, `unchanged`, and `identical`. It is what `upsert` with `prune` would do.
+- `/snapshot {label?}` records every model element's own attributes (owned lists and views left out) and the place in the undo history, in memory, at most 20 at a time. `/diff_since {snapshot, limit?}` lists what was `added`, `changed` (with the `fields` that differ) and `removed` since, with paths. `/restore_snapshot {snapshot}` undoes every operation recorded after the snapshot and merges them on the redo stack, so the restore is one step and one `/redo` brings it all back; `remaining` counts what still differs (changes made outside the undo history). A snapshot the history no longer reaches (undone past, cut by StarUML's history limit) or of another project is `409 SNAPSHOT_STALE`. Atomic batches refuse `/restore_snapshot`.
+
 ### Responses
 
 Success is `{success: true, data}`. Failure is `{success: false, code, error, details?}`; branch on `code`, `error` is prose. Stack traces are only logged to StarUML's developer console.
@@ -214,6 +220,7 @@ Success is `{success: true, data}`. Failure is `{success: false, code, error, de
 | `NO_PROJECT`                       | 409    | No project open, or it has no file yet                                              |
 | `AMBIGUOUS_REF`                    | 409    | A path or name fits several elements; `details.candidates` lists them               |
 | `DUPLICATE_NAME`                   | 409    | A sibling of the same kind has the name; `details.existing` is it                   |
+| `SNAPSHOT_STALE`                   | 409    | The undo history no longer reaches the snapshot, or another project is open         |
 | `STARUML_ERROR`                    | 422    | StarUML refused, e.g. a factory precondition                                        |
 | `DIALOG_REQUIRED`                  | 422    | The command would open a dialog; `details` says which                               |
 | `UNSUPPORTED_SYNTAX`               | 422    | `/build_diagram` text uses a construct it does not translate; the message names it  |

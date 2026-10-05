@@ -268,19 +268,20 @@ export class MetamodelManager {
 stub(MetamodelManager, ["assert", "register", "validateMetaType"]);
 
 /** core/repository.js's Stack, the undo and redo history. */
+/** core/repository.js Stack: the items are its `stack` array, oldest first. */
 class Stack<T> {
-  items: T[] = [];
+  stack: T[] = [];
   push(item: T): void {
-    this.items.push(item);
+    this.stack.push(item);
   }
   pop(): T | undefined {
-    return this.items.pop();
+    return this.stack.pop();
   }
   size(): number {
-    return this.items.length;
+    return this.stack.length;
   }
   clear(): void {
-    this.items = [];
+    this.stack = [];
   }
 }
 

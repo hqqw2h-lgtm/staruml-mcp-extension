@@ -56,6 +56,11 @@ export const ERROR_STATUS = {
    * unset; details.existing is that sibling.
    */
   DUPLICATE_NAME: 409,
+  /**
+   * /restore_snapshot or /diff_since on a snapshot the undo history no
+   * longer reaches, or one taken of another project.
+   */
+  SNAPSHOT_STALE: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**

@@ -197,7 +197,7 @@ describe("/batch, atomic", () => {
     expect(data).toMatchObject({ atomic: true, succeeded: 3, failed: 0 });
     expect(view).toMatchObject({ left: 115, fillColor: "#ff0000" });
     expect(repo._undoStack.size()).toBe(1);
-    expect(repo._undoStack.items[0]!.name).toBe("batch");
+    expect(repo._undoStack.stack[0]!.name).toBe("batch");
     repo.undo();
     expect(view).toMatchObject({ left: 100, fillColor: "#ffffff" });
     repo.redo();
@@ -212,7 +212,7 @@ describe("/batch, atomic", () => {
     await ok(batch, {
       ops: [{ path: "/move_views", body: { ids: [viewId], dx: 1, dy: 1 } }],
     });
-    expect(env.app.repository._undoStack.items[0]!.name).toBe("move views");
+    expect(env.app.repository._undoStack.stack[0]!.name).toBe("move views");
   });
 
   it("rolls back what ran when an op fails, and leaves nothing to redo", async () => {

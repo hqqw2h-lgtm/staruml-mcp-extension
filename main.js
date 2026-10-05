@@ -100,6 +100,11 @@ var ERROR_STATUS = {
    * unset; details.existing is that sibling.
    */
   DUPLICATE_NAME: 409,
+  /**
+   * /restore_snapshot or /diff_since on a snapshot the undo history no
+   * longer reaches, or one taken of another project.
+   */
+  SNAPSHOT_STALE: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**
@@ -1068,6 +1073,28 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
         continue: !def.abort
       });
     }
+  };
+});
+var $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (inst, def) => {
+  var _a3;
+  $ZodCheck.init(inst, def);
+  (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
+  inst._zod.check = (payload) => {
+    const input = payload.value;
+    const units = input.length;
+    const length = typeof input === "string" && units > def.maximum ? codePointLength(input) : units;
+    if (length <= def.maximum)
+      return;
+    const origin = getLengthableOrigin(input);
+    payload.issues.push({
+      origin,
+      code: "too_big",
+      maximum: def.maximum,
+      inclusive: true,
+      input,
+      inst,
+      continue: !def.abort
+    });
   };
 });
 var $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (inst, def) => {
@@ -2152,6 +2179,15 @@ function _gte(value, params) {
 // @__NO_SIDE_EFFECTS__
 function _positive(params) {
   return /* @__PURE__ */ _gt(0, params);
+}
+// @__NO_SIDE_EFFECTS__
+function _maxLength(maximum, params) {
+  const ch = new $ZodCheckMaxLength({
+    check: "max_length",
+    ...normalizeParams(params),
+    maximum
+  });
+  return ch;
 }
 // @__NO_SIDE_EFFECTS__
 function _minLength(minimum, params) {
@@ -3830,6 +3866,7 @@ var NOT_ATOMIC = /* @__PURE__ */ new Set([
   "/build_diagram",
   "/undo",
   "/redo",
+  "/restore_snapshot",
   "/new_project",
   "/open_project",
   "/save_project",
@@ -3998,7 +4035,7 @@ function batchEndpoint(endpoints2) {
       atomic: optional(
         doc(
           boolean2(),
-          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
+          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code and /build_diagram."
         )
       )
     }),
@@ -7422,7 +7459,7 @@ var Builder = class {
     return this.byKey.get(key);
   }
   /** Ends are names as nodes are, so "a<br/>b" finds the node named "a\nb". */
-  edge(spec, where) {
+  edge(spec, where2) {
     const edge = {
       ...spec,
       from: multiline(spec.from),
@@ -7432,7 +7469,7 @@ var Builder = class {
       if (!this.byKey.has(end)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
-          `spec.${where}: no node named ${end}`
+          `spec.${where2}: no node named ${end}`
         );
       }
     }
@@ -8124,10 +8161,10 @@ var PLANNERS = {
 var longHex = (color2) => color2.length === 4 ? `#${[...color2.slice(1)].map((c) => c + c).join("")}`.toLowerCase() : color2.toLowerCase();
 function decorate(plan, spec) {
   const byKey = new Map(plan.nodes.map((n) => [n.key, n]));
-  const fail5 = (where, key) => {
+  const fail5 = (where2, key) => {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `spec.${where}: no node named ${key}`
+      `spec.${where2}: no node named ${key}`
     );
   };
   if (plan.kind !== "sequence") {
@@ -9195,18 +9232,18 @@ var deleteElement = defineEndpoint({
   }),
   handle: (input) => {
     const elem = requireElement(input.ref);
-    const { models, views } = collectDeletionTargets(elem);
-    inStarUML(() => app.engine.deleteElements(models, views));
+    const { models: models2, views } = collectDeletionTargets(elem);
+    inStarUML(() => app.engine.deleteElements(models2, views));
     return {
       deleted: elem._id,
-      models_deleted: models.length,
+      models_deleted: models2.length,
       views_deleted: views.length
     };
   }
 });
 function collectDeletionTargets(root) {
   const seen = /* @__PURE__ */ new Set();
-  const models = [];
+  const models2 = [];
   const views = [];
   const stack = [root];
   for (let e = stack.pop(); e !== void 0; e = stack.pop()) {
@@ -9216,7 +9253,7 @@ function collectDeletionTargets(root) {
       views.push(e);
       stack.push(...app.repository.getEdgeViewsOf(e));
     } else {
-      models.push(e);
+      models2.push(e);
       stack.push(...app.repository.getViewsOf(e));
     }
     for (const field of ["ownedElements", "ownedViews", "subViews"]) {
@@ -9224,7 +9261,7 @@ function collectDeletionTargets(root) {
       if (Array.isArray(owned)) stack.push(...owned);
     }
   }
-  return { models, views };
+  return { models: models2, views };
 }
 var createdSchema = () => object({
   view: elementSchema(),
@@ -10098,6 +10135,8 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
   const claimed = /* @__PURE__ */ new Set();
   const warnings = [];
   const reuse = options.reuse === true && SHARED_KINDS.has(plan.kind);
+  const changes = [];
+  const removed = [];
   let updated = 0;
   let unchanged = 0;
   let shown = 0;
@@ -10117,8 +10156,10 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         ...model2 ? [...propertyOps(node, model2), ...memberOps(node, model2._id, model2)] : [],
         ...styleOps(node, found._id, found)
       ];
-      if (more.length > 0) updated++;
-      else unchanged++;
+      if (more.length > 0) {
+        updated++;
+        changes.push({ key: node.key, view: found, ops: more });
+      } else unchanged++;
       ops.push(...more);
       return;
     }
@@ -10308,12 +10349,13 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     const gone = pools.all.filter((v) => !kept.has(v)).sort((a, b) => Number(isEdge(b)) - Number(isEdge(a)));
     const keep = [...kept].flatMap((v) => v.model ? [v.model] : []);
     const targets = gone.map((v) => pruneTarget(v, target.diagram, keep));
-    const models = targets.filter((t) => !(t instanceof type.View));
+    const models2 = targets.filter((t) => !(t instanceof type.View));
     for (const [i, t] of targets.entries()) {
       const owned = t instanceof type.View ? t.model : t;
-      const covered = owned !== null && models.some((m) => m !== owned && within(owned, m));
+      const covered = owned !== null && models2.some((m) => m !== owned && within(owned, m));
       if (covered || targets.indexOf(t) !== i) continue;
       deleted++;
+      removed.push(t);
       ops.push({ path: "/delete_element", body: { ref: t._id } });
     }
   }
@@ -10326,6 +10368,8 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
   }
   return {
     ops,
+    changes,
+    removed,
     created: created2,
     reused,
     edgeOps,
@@ -10350,6 +10394,116 @@ function findDiagram(kind2, name2, parent) {
 var refSchema = () => object({
   model: nullable(string2()),
   view: string2()
+});
+function readSource(input) {
+  const given = [input.spec, input.mermaid, input.text].filter(
+    (x) => x !== void 0
+  );
+  if (given.length !== 1) {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      "Pass one of spec (with kind), mermaid and text"
+    );
+  }
+  if (input.mermaid !== void 0 && (input.format ?? "mermaid") !== "mermaid") {
+    throw new ApiError(
+      "INVALID_ARGUMENT",
+      `format: mermaid holds Mermaid; pass ${input.format} source as text`
+    );
+  }
+  const source = input.mermaid ?? input.text;
+  if (source !== void 0) {
+    const parsed = parseSource(
+      source,
+      input.mermaid !== void 0 ? "mermaid" : input.format,
+      input.kind
+    );
+    return {
+      kind: parsed.kind,
+      spec: parsed.spec,
+      title: parsed.title,
+      direction: input.direction ?? parsed.direction,
+      parsed
+    };
+  }
+  if (input.kind === void 0) {
+    throw new ApiError("INVALID_ARGUMENT", "kind: required with spec");
+  }
+  return {
+    kind: input.kind,
+    spec: input.spec,
+    title: void 0,
+    direction: input.direction,
+    parsed: void 0
+  };
+}
+var CREATES = /* @__PURE__ */ new Set([
+  "/create_diagram",
+  "/create_element",
+  "/create_element_with_view",
+  "/create_relationship",
+  "/create_edge_with_view",
+  "/create_view_of",
+  "/add_attribute",
+  "/add_operation",
+  "/add_enumeration_literal"
+]);
+function where(ref3) {
+  if (typeof ref3 !== "string") return null;
+  const elem = ref3.startsWith("$") ? void 0 : byId(ref3);
+  if (!elem) return ref3;
+  return pathOf(elem) ?? (elem === app.project.getProject() ? "@project" : ref3);
+}
+function describeOp(op) {
+  const b = op.body;
+  const target = where(
+    b.ref ?? b.parent ?? b.diagram ?? b.refs?.[0]
+  );
+  const extra = Object.entries(b).filter(
+    ([k]) => !["ref", "refs", "parent", "diagram", "type", "name"].includes(k)
+  );
+  return {
+    op: op.path,
+    target,
+    ...op.as !== void 0 && { as: op.as },
+    ...typeof b.type === "string" && { type: b.type },
+    ...typeof b.name === "string" && { name: b.name },
+    ...!CREATES.has(op.path) && extra.length > 0 && {
+      change: extra.map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(", ")
+    }
+  };
+}
+function planOf(ops) {
+  const steps = ops.map((op) => ({ op, step: describeOp(op) }));
+  return {
+    ops,
+    creates: steps.filter((s) => CREATES.has(s.op.path)).map((s) => s.step),
+    updates: steps.filter((s) => !CREATES.has(s.op.path) && s.op.path !== "/delete_element").map((s) => s.step),
+    deletes: steps.filter((s) => s.op.path === "/delete_element").map((s) => s.step)
+  };
+}
+var stepSchema = () => object({
+  op: string2(),
+  target: nullable(string2()),
+  as: optional(string2()),
+  type: optional(string2()),
+  name: optional(string2()),
+  change: optional(string2())
+});
+var planSchema = () => object({
+  ops: doc(
+    array(
+      object({
+        path: string2(),
+        body: record(string2(), unknown()),
+        as: optional(string2())
+      })
+    ),
+    "The /batch ops applying the plan runs, in order."
+  ),
+  creates: array(stepSchema()),
+  updates: array(stepSchema()),
+  deletes: array(stepSchema())
 });
 function buildDiagramEndpoint(endpoints2) {
   return defineEndpoint({
@@ -10422,6 +10576,12 @@ function buildDiagramEndpoint(endpoints2) {
         )
       ),
       ...duplicateShape(),
+      dryRun: optional(
+        doc(
+          boolean2(),
+          "Answer what the build would do, with plan listing its creates, updates and deletes (paths, or '$name' placeholders for what it makes) and the exact /batch ops, and change nothing. ids and the diagram carry the placeholders."
+        )
+      ),
       reuse: optional(
         doc(
           boolean2(),
@@ -10472,46 +10632,12 @@ function buildDiagramEndpoint(endpoints2) {
           model: nullable(string2()),
           view: string2()
         })
-      )
+      ),
+      dryRun: optional(doc(boolean2(), "Set when nothing was changed.")),
+      plan: optional(doc(planSchema(), "With dryRun: what applying runs."))
     }),
     handle: async (input) => {
-      const given = [input.spec, input.mermaid, input.text].filter(
-        (x) => x !== void 0
-      );
-      if (given.length !== 1) {
-        throw new ApiError(
-          "INVALID_ARGUMENT",
-          "Pass one of spec (with kind), mermaid and text"
-        );
-      }
-      if (input.mermaid !== void 0 && (input.format ?? "mermaid") !== "mermaid") {
-        throw new ApiError(
-          "INVALID_ARGUMENT",
-          `format: mermaid holds Mermaid; pass ${input.format} source as text`
-        );
-      }
-      let kind2;
-      let spec;
-      let title;
-      let direction2 = input.direction;
-      const source = input.mermaid ?? input.text;
-      let parsed;
-      if (source !== void 0) {
-        parsed = parseSource(
-          source,
-          input.mermaid !== void 0 ? "mermaid" : input.format,
-          input.kind
-        );
-        kind2 = parsed.kind;
-        spec = parsed.spec;
-        title = parsed.title;
-        direction2 ??= parsed.direction;
-      } else if (input.kind === void 0) {
-        throw new ApiError("INVALID_ARGUMENT", "kind: required with spec");
-      } else {
-        kind2 = input.kind;
-        spec = input.spec;
-      }
+      const { kind: kind2, spec, title, direction: direction2, parsed } = readSource(input);
       const plan = planFor(kind2, spec);
       const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
       const raw = input.name ?? title;
@@ -10532,6 +10658,44 @@ function buildDiagramEndpoint(endpoints2) {
           allowDuplicateNames: input.allowDuplicateNames
         }
       );
+      const warnings = [...parsed?.warnings ?? [], ...built.warnings];
+      const summary = {
+        kind: kind2,
+        upserted: diagram !== null,
+        updated: built.updated,
+        unchanged: built.unchanged,
+        layout: built.layout,
+        ...built.preset && { preset: built.preset },
+        ...built.shown > 0 && { shown: built.shown },
+        ...input.prune && { deleted: built.deleted },
+        ...parsed && input.text !== void 0 && { format: parsed.format },
+        ...warnings.length > 0 && { warnings }
+      };
+      if (input.dryRun) {
+        const ids3 = Object.fromEntries(built.reused);
+        for (const [as, key] of built.created) {
+          ids3[key] = { model: `$${as}.model`, view: `$${as}.view` };
+        }
+        return {
+          diagram: diagram ? (({ _id: _id2, _type: _type2, name: name3 }) => ({ _id: _id2, _type: _type2, name: name3 }))(
+            summarize(diagram)
+          ) : {
+            _id: "$diagram",
+            _type: DIAGRAM_TYPES[kind2],
+            name: name2 ?? null
+          },
+          ...summary,
+          created: built.created.size + built.edgeOps.length,
+          ids: ids3,
+          edges: built.edgeOps.map(({ key, as }) => ({
+            key,
+            model: `$${as}.model`,
+            view: `$${as}.view`
+          })),
+          dryRun: true,
+          plan: planOf(built.ops)
+        };
+      }
       const batch = endpoints2().find((e) => e.path === "/batch");
       let data = { results: [] };
       if (built.ops.length > 0) {
@@ -10559,21 +10723,11 @@ function buildDiagramEndpoint(endpoints2) {
         return { key, model: r.model?._id ?? null, view: r.view._id };
       });
       const target = diagram ?? requireElement(byName.get("diagram")._id);
-      const warnings = [...parsed?.warnings ?? [], ...built.warnings];
       const { _id, _type, name: diagramName } = summarize(target);
       return {
         diagram: { _id, _type, name: diagramName },
-        kind: kind2,
-        upserted: diagram !== null,
+        ...summary,
         created: built.created.size + edges.length,
-        updated: built.updated,
-        unchanged: built.unchanged,
-        layout: built.layout,
-        ...built.preset && { preset: built.preset },
-        ...built.shown > 0 && { shown: built.shown },
-        ...input.prune && { deleted: built.deleted },
-        ...parsed && input.text !== void 0 && { format: parsed.format },
-        ...warnings.length > 0 && { warnings },
         ids: ids2,
         edges
       };
@@ -15453,9 +15607,9 @@ function stateType(model) {
 }
 function stateSpec(v) {
   const { nodes, edges, ids: ids2 } = flowGraph(v, stateType, ["UMLTransition"]);
-  const models = new Map([...ids2].map(([m, id2]) => [id2, m]));
+  const models2 = new Map([...ids2].map(([m, id2]) => [id2, m]));
   for (const n of nodes) {
-    const owner = models.get(n.id)._parent?._parent;
+    const owner = models2.get(n.id)._parent?._parent;
     const parent = owner ? ids2.get(owner) : void 0;
     if (parent !== void 0) n.parent = parent;
   }
@@ -15538,8 +15692,8 @@ function mindmapSpec2(v) {
     name: nameOf(m),
     children: (children.get(m) ?? []).map(tree)
   });
-  const models = v.nodes.map((n) => n.model);
-  return { roots: models.filter((m) => !hasParent.has(m)).map(tree) };
+  const models2 = v.nodes.map((n) => n.model);
+  return { roots: models2.filter((m) => !hasParent.has(m)).map(tree) };
 }
 function scopeOf(spec) {
   const parent = new Map(spec.states.map((s) => [s.id, s.parent]));
@@ -15842,9 +15996,9 @@ function sequenceDiagram3(spec, notes) {
       warnings.push("a note on no lifeline is not written");
       return;
     }
-    const where = n.side === "over" ? "over" : `${n.side} of`;
+    const where2 = n.side === "over" ? "over" : `${n.side} of`;
     lines.push(
-      `${depth()}Note ${where} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text3(n.text)}`
+      `${depth()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text3(n.text)}`
     );
   };
   const operand = (f, k, level) => lines.push(
@@ -16225,9 +16379,9 @@ function sequenceDiagram4(spec, notes) {
   const open = [];
   const note = (n) => {
     if (n.on.length === 0) return;
-    const where = n.side === "over" ? "over" : `${n.side} of`;
+    const where2 = n.side === "over" ? "over" : `${n.side} of`;
     lines.push(
-      ...noteLines(`note ${where} ${n.on.map(id2).join(", ")}`, n.text)
+      ...noteLines(`note ${where2} ${n.on.map(id2).join(", ")}`, n.text)
     );
   };
   spec.messages.forEach((m, i) => {
@@ -16934,6 +17088,317 @@ var lintDiagram = defineEndpoint({
     return {
       diagram: serialize(diagram),
       ...counted(lintLayout(diagram, enabled), input.limit)
+    };
+  }
+});
+
+// src/handlers/diff.ts
+var refItem = () => object({
+  _id: string2(),
+  _type: string2(),
+  path: nullable(string2())
+});
+var diffDiagram = defineEndpoint({
+  path: "/diff_diagram",
+  description: "Compare a diagram with a spec or diagram text (as /build_diagram takes them) and list what differs: nodes and edges the spec adds, elements and views on the diagram it lacks, and nodes whose members, properties or colours it changes. This is what /build_diagram with upsert and prune would do; nothing is changed.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    diagram: ref2("Diagram to compare."),
+    kind: optional(
+      doc(
+        _enum(KINDS),
+        "Diagram kind; required with spec, else read from text."
+      )
+    ),
+    spec: optional(
+      doc(record(string2(), unknown()), "A /build_diagram spec.")
+    ),
+    mermaid: optional(string2().check(_minLength(1))),
+    text: optional(
+      doc(
+        string2().check(_minLength(1)),
+        "Diagram source, as /build_diagram reads it."
+      )
+    ),
+    format: optional(_enum(FORMATS)),
+    reuse: optional(
+      doc(
+        boolean2(),
+        "As /build_diagram's reuse, default true: a new node named like an element elsewhere counts as showing that element."
+      )
+    )
+  }),
+  aliases: { diagramId: "diagram", id: "diagram" },
+  response: object({
+    diagram: elementSchema(),
+    kind: string2(),
+    identical: doc(boolean2(), "The diagram already shows the spec."),
+    added: object({
+      nodes: doc(array(string2()), "Nodes of the spec not on the diagram."),
+      edges: doc(
+        array(string2()),
+        "Edges of the spec not on the diagram, 'from -> to'."
+      )
+    }),
+    removed: doc(
+      array(refItem()),
+      "Elements (or, where they are shown elsewhere too, views) on the diagram that the spec lacks."
+    ),
+    changed: array(
+      object({
+        node: string2(),
+        path: nullable(string2()),
+        changes: array(string2())
+      })
+    ),
+    unchanged: doc(int(), "Nodes and edges that match.")
+  }),
+  handle: (input) => {
+    const diagram = requireDiagram(input.diagram);
+    const { kind: kind2, spec, direction: direction2 } = readSource(input);
+    const expected = DIAGRAM_TYPES[kind2];
+    if (!app.metamodels.isKindOf(diagram.constructor.name, expected)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${pathOf(diagram)} is a ${diagram.constructor.name}; a ${kind2} spec builds a ${expected}`
+      );
+    }
+    const built = opsFor(
+      planFor(kind2, spec),
+      { diagram, parent: diagram._parent, name: diagram.name },
+      direction2 ?? "TB",
+      false,
+      void 0,
+      { prune: true, reuse: input.reuse ?? true }
+    );
+    const added = {
+      nodes: [...built.created.values()],
+      edges: built.edgeOps.map((e) => e.key)
+    };
+    const removed = built.removed.map(candidate);
+    const changed = built.changes.map((c) => ({
+      node: c.key,
+      path: pathOf(c.view),
+      changes: c.ops.map((op) => {
+        const step = describeOp(op);
+        return step.change ?? `${op.path.slice(1)} ${step.name}`;
+      })
+    }));
+    return {
+      diagram: serialize(diagram),
+      kind: kind2,
+      identical: added.nodes.length + added.edges.length + removed.length + changed.length === 0,
+      added,
+      removed,
+      changed,
+      unchanged: built.unchanged
+    };
+  }
+});
+var MAX_SNAPSHOTS = 20;
+var snapshots = /* @__PURE__ */ new Map();
+var history2 = () => app.repository;
+function capture(elem) {
+  const owned = new Set(
+    app.metamodels.getMetaAttributes(elem.constructor.name).filter((a) => a.kind === "obj" || a.kind === "objs").map((a) => a.name)
+  );
+  const fields = {};
+  for (const [k, v] of Object.entries(serialize(elem, { summary: false }))) {
+    if (!owned.has(k)) fields[k] = JSON.stringify(v);
+  }
+  return {
+    type: elem.constructor.name,
+    name: typeof elem.name === "string" ? elem.name : null,
+    path: pathOf(elem),
+    fields
+  };
+}
+function models() {
+  return Object.values(app.repository.getIdMap()).filter(
+    (e) => !(e instanceof type.View)
+  );
+}
+function requireSnapshot(label4) {
+  const snap = snapshots.get(label4);
+  if (!snap) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `No snapshot ${label4}; snapshots: ${[...snapshots.keys()].join(", ") || "none"}`
+    );
+  }
+  if (snap.project !== app.project.getProject()) {
+    throw new ApiError(
+      "SNAPSHOT_STALE",
+      `Snapshot ${label4} was taken of another project`
+    );
+  }
+  return snap;
+}
+var takeSnapshot = defineEndpoint({
+  path: "/snapshot",
+  description: "Record a checkpoint of the model under a label: every element's attributes, and the place in the undo history. /diff_since lists what changed after it, /restore_snapshot goes back to it. Kept in memory, at most 20, until StarUML restarts; a label taken again is replaced.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    label: optional(
+      doc(
+        string2().check(_minLength(1), _maxLength(100)),
+        "Name to refer to it by; default snapshot-<n>."
+      )
+    )
+  }),
+  response: object({
+    label: string2(),
+    takenAt: doc(string2(), "ISO time."),
+    elements: doc(int(), "Model elements recorded (views are not).")
+  }),
+  handle: (input) => {
+    const project = requireProject();
+    const label4 = input.label ?? `snapshot-${snapshots.size + 1}`;
+    const elements = new Map(models().map((e) => [e._id, capture(e)]));
+    const undo2 = history2()._undoStack.stack;
+    snapshots.delete(label4);
+    snapshots.set(label4, {
+      label: label4,
+      takenAt: (/* @__PURE__ */ new Date()).toISOString(),
+      project,
+      top: undo2.at(-1) ?? null,
+      elements
+    });
+    if (snapshots.size > MAX_SNAPSHOTS) {
+      snapshots.delete(snapshots.keys().next().value);
+    }
+    const snap = snapshots.get(label4);
+    return { label: label4, takenAt: snap.takenAt, elements: elements.size };
+  }
+});
+var changedItem = () => object({
+  _id: string2(),
+  _type: string2(),
+  name: nullable(string2()),
+  path: nullable(string2()),
+  fields: doc(array(string2()), "Attributes whose value differs.")
+});
+var listed = () => object({
+  _id: string2(),
+  _type: string2(),
+  name: nullable(string2()),
+  path: nullable(string2())
+});
+function diffSince(snap) {
+  const added = [];
+  const changed = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const elem of models()) {
+    seen.add(elem._id);
+    const before = snap.elements.get(elem._id);
+    const now = capture(elem);
+    const item = {
+      _id: elem._id,
+      _type: now.type,
+      name: now.name,
+      path: now.path
+    };
+    if (!before) {
+      added.push(item);
+      continue;
+    }
+    const fields = [
+      .../* @__PURE__ */ new Set([...Object.keys(before.fields), ...Object.keys(now.fields)])
+    ].filter((f) => before.fields[f] !== now.fields[f]);
+    if (fields.length > 0) changed.push({ ...item, fields });
+  }
+  const removed = [...snap.elements].filter(([id2]) => !seen.has(id2)).map(([id2, c]) => ({ _id: id2, _type: c.type, name: c.name, path: c.path }));
+  return { added, changed, removed };
+}
+var diffSinceEndpoint = defineEndpoint({
+  path: "/diff_since",
+  description: "List the model elements added, changed (with the attributes that differ) and removed since a /snapshot, with their paths. Views are not compared.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    snapshot: doc(string2().check(_minLength(1)), "The snapshot's label."),
+    limit: optional(
+      doc(
+        int().check(_gte(1), _lte(5e3)),
+        "Most items per list; default 200. counts are always the full numbers."
+      )
+    )
+  }),
+  response: object({
+    snapshot: string2(),
+    counts: object({ added: int(), changed: int(), removed: int() }),
+    truncated: boolean2(),
+    added: array(listed()),
+    changed: array(changedItem()),
+    removed: array(listed())
+  }),
+  handle: (input) => {
+    const snap = requireSnapshot(input.snapshot);
+    const { added, changed, removed } = diffSince(snap);
+    const limit = input.limit ?? 200;
+    return {
+      snapshot: snap.label,
+      counts: {
+        added: added.length,
+        changed: changed.length,
+        removed: removed.length
+      },
+      truncated: [added, changed, removed].some((l) => l.length > limit),
+      added: added.slice(0, limit),
+      changed: changed.slice(0, limit),
+      removed: removed.slice(0, limit)
+    };
+  }
+});
+var restoreSnapshot = defineEndpoint({
+  path: "/restore_snapshot",
+  description: "Undo back to a /snapshot in one step: every operation recorded after it is undone, and one /redo brings them all back. Refused as SNAPSHOT_STALE when the undo history no longer reaches the snapshot (it was undone past, cut by StarUML's history limit, or another project is open).",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    snapshot: doc(string2().check(_minLength(1)), "The snapshot's label.")
+  }),
+  response: object({
+    snapshot: string2(),
+    undone: doc(int(), "Operations undone."),
+    remaining: doc(
+      object({ added: int(), changed: int(), removed: int() }),
+      "What still differs from the snapshot afterwards; all zero unless something changed outside the undo history."
+    )
+  }),
+  handle: (input) => {
+    const snap = requireSnapshot(input.snapshot);
+    const undo2 = history2()._undoStack.stack;
+    const at = snap.top === null ? -1 : undo2.lastIndexOf(snap.top);
+    if (snap.top !== null && at < 0) {
+      throw new ApiError(
+        "SNAPSHOT_STALE",
+        `The undo history no longer reaches snapshot ${snap.label}`
+      );
+    }
+    const count = undo2.length - 1 - at;
+    for (let i = 0; i < count; i++) app.repository.undo();
+    if (count > 1) {
+      const redo2 = history2()._redoStack.stack;
+      const undone = redo2.splice(redo2.length - count, count).reverse();
+      const builder = app.repository.getOperationBuilder();
+      builder.begin("restore snapshot");
+      builder.end();
+      const merged = builder.getOperation();
+      merged.ops = undone.flatMap((o) => o.ops);
+      redo2.push(merged);
+    }
+    const diff = diffSince(snap);
+    return {
+      snapshot: snap.label,
+      undone: count,
+      remaining: {
+        added: diff.added.length,
+        changed: diff.changed.length,
+        removed: diff.removed.length
+      }
     };
   }
 });
@@ -18740,11 +19205,11 @@ var setSelection = defineEndpoint({
         editor.selectView(views[0]);
         for (const view of views.slice(1)) editor.selectAdditionalView(view);
       }
-      const models = [];
+      const models2 = [];
       for (const m of [...views.map((v) => v.model), ...extra]) {
-        if (m && !models.includes(m)) models.push(m);
+        if (m && !models2.includes(m)) models2.push(m);
       }
-      app.selections.select(models, views);
+      app.selections.select(models2, views);
     });
     return {
       models: app.selections.getSelectedModels().map((m) => serialize(m, input)),
@@ -19382,6 +19847,10 @@ var endpoints = [
   validateModel,
   lintDiagram,
   umlLint,
+  diffDiagram,
+  takeSnapshot,
+  diffSinceEndpoint,
+  restoreSnapshot,
   introspectEndpoint(() => endpoints),
   debug
 ];
