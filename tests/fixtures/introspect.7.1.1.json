@@ -17795,6 +17795,497 @@
       }
     },
     {
+      "path": "/list_templates",
+      "description": "The project templates StarUML offers under File > New From Template, from its resources and its extensions, for /new_from_template.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "templates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "source": { "type": "string" },
+                "path": { "type": "string" }
+              },
+              "required": ["name", "source", "path"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["templates"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/new_from_template",
+      "description": "Replace the open project with a new one from a template (File > New From Template), by name as /list_templates gives it, e.g. 'UMLConventional', or an absolute .mdj path; unsaved changes are lost and the new project has no file.",
+      "readOnly": false,
+      "destructive": true,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Template name, or an absolute .mdj path."
+          }
+        },
+        "required": ["template"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "source": { "type": "string" },
+              "path": { "type": "string" }
+            },
+            "required": ["name", "source", "path"],
+            "additionalProperties": false
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "_type": {
+                "type": "string",
+                "description": "Metamodel class name."
+              },
+              "name": { "type": ["string", "null"] },
+              "_parent": {
+                "description": "Owner id; null for the project.",
+                "type": ["string", "null"]
+              },
+              "path": {
+                "type": "string",
+                "description": "Summary only: a path any id field accepts, e.g. 'Model/Shop/Order', 'Model/Shop/Order.total', 'Model/Shop/Order#pay()', and 'model path@diagram path' for a view. Absent for the project and for views without a model."
+              }
+            },
+            "required": ["_id", "_type"],
+            "additionalProperties": {},
+            "description": "Element projection. Reference attributes are {$ref: id}; owned elements are {$ref: id} or, with depth > 0, nested elements."
+          }
+        },
+        "required": ["template", "project"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/get_project_metadata",
+      "description": "The project's own fields: name, author, company, copyright, version and documentation (the Project's attributes in the core metamodel).",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "author": { "type": "string" },
+          "company": { "type": "string" },
+          "copyright": { "type": "string" },
+          "version": { "type": "string" },
+          "documentation": { "type": "string" }
+        },
+        "required": [
+          "name",
+          "author",
+          "company",
+          "copyright",
+          "version",
+          "documentation"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/set_project_metadata",
+      "description": "Set any of the project's name, author, company, copyright, version and documentation, as one undo step; answers them all.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "author": { "type": "string" },
+          "company": { "type": "string" },
+          "copyright": { "type": "string" },
+          "version": { "type": "string" },
+          "documentation": { "type": "string" }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "author": { "type": "string" },
+          "company": { "type": "string" },
+          "copyright": { "type": "string" },
+          "version": { "type": "string" },
+          "documentation": { "type": "string" }
+        },
+        "required": [
+          "name",
+          "author",
+          "company",
+          "copyright",
+          "version",
+          "documentation"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/export_fragment",
+      "description": "Write an element and everything it owns to a model fragment file (.mfj), as File > Export > Fragment does; /import_fragment reads it into any project.",
+      "readOnly": true,
+      "destructive": true,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Element to export, e.g. a package. Id or path."
+          },
+          "filename": {
+            "type": "string",
+            "description": "Absolute .mfj path; overwritten."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
+          }
+        },
+        "required": ["ref", "filename"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "element": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "_type": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "_parent": { "type": ["string", "null"] },
+              "path": { "type": "string" }
+            },
+            "required": ["_id", "_type", "name", "_parent"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["filename", "element"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/import_fragment",
+      "description": "Read a model fragment file (.mfj) into an element's ownedElements, as File > Import > Fragment does. StarUML records the insertion as an operation that undo skips (ProjectManager.importFromFile, 7.1.1): delete the imported element to take it out again.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Absolute .mfj path."
+          },
+          "parent": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Owner of the imported element; default the project. Id or path."
+          }
+        },
+        "required": ["filename"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "element": {
+            "type": "object",
+            "properties": {
+              "_id": { "type": "string" },
+              "_type": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "_parent": { "type": ["string", "null"] },
+              "path": { "type": "string" }
+            },
+            "required": ["_id", "_type", "name", "_parent"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["element"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/export_xmi",
+      "description": "Write the project as XMI 2.1 through the staruml-xmi extension, which must be installed; NOT_FOUND says so otherwise.",
+      "readOnly": true,
+      "destructive": true,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Absolute .xmi path; overwritten."
+          },
+          "override": {
+            "type": "boolean",
+            "description": "Do it although the style profile blocks saving on lint errors; the call is still made as asked."
+          }
+        },
+        "required": ["filename"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "command": { "type": "string" }
+        },
+        "required": ["filename", "command"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/import_xmi",
+      "description": "Read an XMI 2.1 file into the project through the staruml-xmi extension, which must be installed; NOT_FOUND says so otherwise.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string", "description": "Absolute .xmi path." }
+        },
+        "required": ["filename"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "command": { "type": "string" }
+        },
+        "required": ["filename", "command"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/get_preference",
+      "description": "Read a StarUML preference (File > Preferences) by key, e.g. 'diagramEditor.showGrid', 'view.lineStyle', 'uml.class.suppressOperations', 'mcp-ext.limits.maxBatchOps', with its default, type and whether /set_preference may change it. The access token is never answered.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "description": "Key." }
+        },
+        "required": ["key"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "value": {},
+          "default": {},
+          "type": {
+            "type": "string",
+            "description": "check, number, string, color, font, dropdown or combo."
+          },
+          "settable": {
+            "type": "boolean",
+            "description": "Whether /set_preference may change it."
+          },
+          "options": { "type": "array", "items": {} }
+        },
+        "required": ["key", "value", "default", "type", "settable"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/set_preference",
+      "description": "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "description": "Key." },
+          "value": { "description": "New value, of the preference's type." }
+        },
+        "required": ["key", "value"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "value": {},
+          "default": {},
+          "type": {
+            "type": "string",
+            "description": "check, number, string, color, font, dropdown or combo."
+          },
+          "settable": {
+            "type": "boolean",
+            "description": "Whether /set_preference may change it."
+          },
+          "options": { "type": "array", "items": {} },
+          "previous": {}
+        },
+        "required": ["key", "value", "default", "type", "settable", "previous"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/list_extensions",
+      "description": "The extensions StarUML loads (essential, default, dev and user folders) with name, title, version and description, and the commands each adds to the menus that are registered now, for /execute_command.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "extensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "title": { "type": ["string", "null"] },
+                "version": { "type": ["string", "null"] },
+                "description": { "type": ["string", "null"] },
+                "source": {
+                  "type": "string",
+                  "description": "essential, default, dev or user."
+                },
+                "path": { "type": "string" },
+                "commands": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Command ids its menus name that are registered."
+                }
+              },
+              "required": [
+                "name",
+                "title",
+                "version",
+                "description",
+                "source",
+                "path",
+                "commands"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["extensions"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/quick_find",
+      "description": "Find model elements whose name, documentation or tags contain a text, case-insensitively, as Edit > Find does; each match with its path, where it matched and the text around it. Views are not searched.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Text to find."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "Most matches answered; default 50."
+          }
+        },
+        "required": ["text"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "element": {
+                  "type": "object",
+                  "properties": {
+                    "_id": { "type": "string" },
+                    "_type": { "type": "string" },
+                    "name": { "type": ["string", "null"] },
+                    "_parent": { "type": ["string", "null"] },
+                    "path": { "type": "string" }
+                  },
+                  "required": ["_id", "_type", "name", "_parent"],
+                  "additionalProperties": false
+                },
+                "field": {
+                  "type": "string",
+                  "description": "name, documentation or 'tag <name>'."
+                },
+                "text": { "type": "string" }
+              },
+              "required": ["element", "field", "text"],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "truncated": { "type": "boolean" }
+        },
+        "required": ["matches", "total", "truncated"],
+        "additionalProperties": false
+      }
+    },
+    {
       "path": "/get_element_by_id",
       "description": "Read one element by id or path ('Model/Shop/Order', 'Order.total', 'Order#pay()', a diagram name, '@current').",
       "readOnly": true,
@@ -19725,6 +20216,79 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "properties": { "closed": { "type": "string" } },
+        "required": ["closed"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/list_working_diagrams",
+      "description": "The diagrams open in the editor's tabs, in tab order, and which one is current. /switch_diagram opens one, /close_diagram closes one, /close_diagrams several.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagrams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "_type": { "type": "string" },
+                "name": { "type": ["string", "null"] },
+                "_parent": { "type": ["string", "null"] },
+                "path": { "type": "string" },
+                "current": { "type": "boolean" }
+              },
+              "required": ["_id", "_type", "name", "_parent", "current"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["diagrams"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/close_diagrams",
+      "description": "Close editor tabs: the diagrams named, or every one but those in keep; the diagrams stay in the model.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagrams": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Diagram. Id or path."
+            }
+          },
+          "keep": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Diagram. Id or path."
+            },
+            "description": "With no diagrams: tabs left open."
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "closed": { "type": "array", "items": { "type": "string" } }
+        },
         "required": ["closed"],
         "additionalProperties": false
       }
@@ -21930,7 +22494,7 @@
           },
           "atomic": {
             "type": "boolean",
-            "description": "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme."
+            "description": "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /new_from_template, /import_fragment, /import_xmi, /export_xmi, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme."
           },
           "result": {
             "type": "string",

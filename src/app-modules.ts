@@ -98,6 +98,25 @@ export function loadValidationRules(userExtensions: string | null): string[] {
   return files;
 }
 
+/**
+ * Where StarUML 7.1.1 keeps what File > New From Template and the
+ * extension loader read: its resources, then the essential, default and
+ * dev extension folders under the app and the user's extension folder
+ * (extensibility/extension-loader.js).
+ */
+export function extensionRoots(): { source: string; dir: string }[] {
+  const root = appRoot();
+  const user = app.extensionLoader?.getUserExtensionPath() ?? null;
+  return [
+    { source: "core", dir: join(root, "resources") },
+    ...["essential", "default", "dev"].map((source) => ({
+      source,
+      dir: join(root, "extensions", source),
+    })),
+    ...(user ? [{ source: "user", dir: user }] : []),
+  ];
+}
+
 /** The bounds StarUML's views report: Rect in core/graphics.js. */
 export interface Rect {
   x1: number;

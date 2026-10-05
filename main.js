@@ -9443,6 +9443,12 @@ var NOT_ATOMIC = /* @__PURE__ */ new Set([
   "/restore_snapshot",
   "/new_project",
   "/open_project",
+  // Replaces the project, or inserts what undo skips (a bypass operation),
+  // or runs another extension's command.
+  "/new_from_template",
+  "/import_fragment",
+  "/import_xmi",
+  "/export_xmi",
   "/save_project",
   "/save_project_as",
   "/execute_command",
@@ -9680,7 +9686,7 @@ function batchEndpoint(endpoints2) {
       atomic: optional(
         doc(
           boolean2(),
-          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme."
+          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /new_from_template, /import_fragment, /import_xmi, /export_xmi, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme."
         )
       ),
       result: optional(
@@ -12081,8 +12087,8 @@ ${lines2[++i].text}`;
 }
 var C4_MACRO = /^(Person|System|Container|Component)(Db|Queue)?(_Ext)?\s*\(/;
 function detect(src) {
-  const texts = src.lines.map((l) => l.text);
-  const has = (re) => texts.some((t) => re.test(t));
+  const texts2 = src.lines.map((l) => l.text);
+  const has = (re) => texts2.some((t) => re.test(t));
   if (src.includes.some((i) => /C4/i.test(i)) || has(C4_MACRO)) return "c4";
   if (has(/^state\s/) || has(/\[\*\]/)) return "statemachine";
   if (has(/^entity\s/) && (has(/(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)/) || has(/<<\s*(PK|FK)\s*>>/))) {
@@ -19729,6 +19735,18 @@ function loadValidationRules(userExtensions) {
   const load = (0, import_node_module2.createRequire)((0, import_node_path2.join)(root, "src", "index.js"));
   for (const file of files) load(file);
   return files;
+}
+function extensionRoots() {
+  const root = appRoot();
+  const user = app.extensionLoader?.getUserExtensionPath() ?? null;
+  return [
+    { source: "core", dir: (0, import_node_path2.join)(root, "resources") },
+    ...["essential", "default", "dev"].map((source) => ({
+      source,
+      dir: (0, import_node_path2.join)(root, "extensions", source)
+    })),
+    ...user ? [{ source: "user", dir: user }] : []
+  ];
 }
 function graphics() {
   return appModule("core/graphics.js");
@@ -31458,6 +31476,534 @@ function applyThemeEndpoint(endpoints2) {
   });
 }
 
+// src/handlers/workspace.ts
+var import_node_fs4 = require("node:fs");
+var import_node_path4 = require("node:path");
+var absoluteFile = (description) => doc(
+  string2().check(refine((p) => (0, import_node_path4.isAbsolute)(p), "must be an absolute path")),
+  description
+);
+var summarySchema = () => object({
+  _id: string2(),
+  _type: string2(),
+  name: nullable(string2()),
+  _parent: nullable(string2()),
+  path: optional(string2())
+});
+var itemOf = (key2) => app.preferences.getItem?.(key2);
+var SECRET = /* @__PURE__ */ new Set([PREF.token]);
+var SETTABLE = [
+  "view.",
+  "diagramEditor.",
+  "theme.",
+  "validation.",
+  "uml.",
+  "sysml.",
+  "bpmn.",
+  "c4.",
+  "dfd.",
+  "erd.",
+  "flowchart.",
+  "mindmap.",
+  "aws.",
+  "azure.",
+  "gcp.",
+  "wireframe.",
+  "mcp-ext.limits.",
+  PREF.logLevel
+];
+var settable = (key2) => SETTABLE.some((p) => p.endsWith(".") ? key2.startsWith(p) : key2 === p);
+function readableItem(key2) {
+  const item = itemOf(key2);
+  if (!item || item.type === "section" || SECRET.has(key2)) {
+    throw new ApiError(
+      "NOT_FOUND",
+      SECRET.has(key2) ? `${key2} is a secret and is not answered; set it in Tools > MCP Extension` : `No preference ${key2}; File > Preferences lists the keys`
+    );
+  }
+  return item;
+}
+function fits2(item, value) {
+  const values = (item.options ?? []).map((o) => o.value);
+  switch (item.type) {
+    case "check":
+      return typeof value === "boolean" ? null : "true or false";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value) ? null : "a number";
+    case "dropdown":
+      return values.includes(value) ? null : `one of ${values.map((v) => JSON.stringify(v)).join(", ")}`;
+    case "combo":
+      return typeof value === typeof values[0] ? null : `a ${typeof values[0]}`;
+    case "color":
+      return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? null : "a colour such as '#ffcc00'";
+    default:
+      return typeof value === "string" ? null : "a string";
+  }
+}
+var preferenceSchema = () => object({
+  key: string2(),
+  value: unknown(),
+  default: unknown(),
+  type: doc(
+    string2(),
+    "check, number, string, color, font, dropdown or combo."
+  ),
+  settable: doc(boolean2(), "Whether /set_preference may change it."),
+  options: optional(array(unknown()))
+});
+function describePreference(key2, item) {
+  return {
+    key: key2,
+    value: app.preferences.get(key2),
+    // Every item but a section has one (PreferenceManager.validate).
+    default: item.default,
+    type: item.type,
+    settable: settable(key2),
+    ...item.options && { options: item.options.map((o) => o.value) }
+  };
+}
+var getPreference = defineEndpoint({
+  path: "/get_preference",
+  description: "Read a StarUML preference (File > Preferences) by key, e.g. 'diagramEditor.showGrid', 'view.lineStyle', 'uml.class.suppressOperations', 'mcp-ext.limits.maxBatchOps', with its default, type and whether /set_preference may change it. The access token is never answered.",
+  readOnly: true,
+  destructive: false,
+  request: object({ key: doc(string2().check(_minLength(1)), "Key.") }),
+  response: preferenceSchema(),
+  handle: (input) => describePreference(input.key, readableItem(input.key))
+});
+var setPreference = defineEndpoint({
+  path: "/set_preference",
+  description: "Change a StarUML preference, as File > Preferences does; takes effect for what is drawn next. Allowed: view.*, diagramEditor.*, theme.*, validation.*, each diagram extension's defaults (uml.*, sysml.*, bpmn.*, c4.*, dfd.*, erd.*, flowchart.*, mindmap.*, aws.*, azure.*, gcp.*, wireframe.*), mcp-ext.limits.* and mcp-ext.server.logLevel; what decides who may call this server is not.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    key: doc(string2().check(_minLength(1)), "Key."),
+    value: doc(unknown(), "New value, of the preference's type.")
+  }),
+  response: object({ ...preferenceSchema().shape, previous: unknown() }),
+  handle: (input) => {
+    const item = readableItem(input.key);
+    if (!settable(input.key)) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `${input.key} is not changed through the API; settable keys start with ${SETTABLE.join(", ")}`
+      );
+    }
+    const wrong = fits2(item, input.value);
+    if (wrong) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `value: ${input.key} takes ${wrong}`
+      );
+    }
+    const previous = app.preferences.get(input.key);
+    app.preferences.set(input.key, input.value);
+    return { ...describePreference(input.key, item), previous };
+  }
+});
+var exportFragment = defineEndpoint({
+  path: "/export_fragment",
+  description: "Write an element and everything it owns to a model fragment file (.mfj), as File > Export > Fragment does; /import_fragment reads it into any project.",
+  readOnly: true,
+  destructive: true,
+  request: object({
+    ref: ref2("Element to export, e.g. a package."),
+    filename: absoluteFile("Absolute .mfj path; overwritten.")
+  }),
+  response: object({ filename: string2(), element: summarySchema() }),
+  handle: (input) => {
+    const elem = requireElement(input.ref);
+    if (elem === app.project.getProject()) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        "ref: the project itself is saved with /save_project_as, not exported as a fragment"
+      );
+    }
+    inStarUML(() => app.project.exportToFile(elem, input.filename));
+    return { filename: input.filename, element: summarize(elem) };
+  }
+});
+var importFragment = defineEndpoint({
+  path: "/import_fragment",
+  description: "Read a model fragment file (.mfj) into an element's ownedElements, as File > Import > Fragment does. StarUML records the insertion as an operation that undo skips (ProjectManager.importFromFile, 7.1.1): delete the imported element to take it out again.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    filename: absoluteFile("Absolute .mfj path."),
+    parent: optional(
+      ref2("Owner of the imported element; default the project.")
+    )
+  }),
+  response: object({ element: summarySchema() }),
+  handle: (input) => {
+    const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
+    if (!(0, import_node_fs4.existsSync)(input.filename)) {
+      throw new ApiError("NOT_FOUND", `No file ${input.filename}`);
+    }
+    const elem = inStarUML(
+      () => app.project.importFromFile(parent, input.filename)
+    );
+    if (!elem) {
+      throw new ApiError("STARUML_ERROR", `${input.filename} is empty`);
+    }
+    return { element: summarize(elem) };
+  }
+});
+function xmiCommand(direction2) {
+  const id2 = Object.keys(app.commands.commands).sort().find((c) => c.startsWith("xmi:") && c.includes(direction2));
+  if (!id2) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `XMI ${direction2} needs the staruml-xmi extension (Tools > Extension Manager > XMI); no xmi:${direction2} command is registered`
+    );
+  }
+  return id2;
+}
+var xmiRequest = (description) => object({ filename: absoluteFile(description) });
+var exportXmi = defineEndpoint({
+  path: "/export_xmi",
+  description: "Write the project as XMI 2.1 through the staruml-xmi extension, which must be installed; NOT_FOUND says so otherwise.",
+  readOnly: true,
+  destructive: true,
+  request: xmiRequest("Absolute .xmi path; overwritten."),
+  response: object({ filename: string2(), command: string2() }),
+  handle: async (input) => {
+    requireProject();
+    const command = xmiCommand("export");
+    await withoutDialogs(
+      command,
+      () => app.commands.execute(command, input.filename)
+    );
+    return { filename: input.filename, command };
+  }
+});
+var importXmi = defineEndpoint({
+  path: "/import_xmi",
+  description: "Read an XMI 2.1 file into the project through the staruml-xmi extension, which must be installed; NOT_FOUND says so otherwise.",
+  readOnly: false,
+  destructive: false,
+  request: xmiRequest("Absolute .xmi path."),
+  response: object({ filename: string2(), command: string2() }),
+  handle: async (input) => {
+    requireProject();
+    if (!(0, import_node_fs4.existsSync)(input.filename)) {
+      throw new ApiError("NOT_FOUND", `No file ${input.filename}`);
+    }
+    const command = xmiCommand("import");
+    await withoutDialogs(
+      command,
+      () => app.commands.execute(command, input.filename)
+    );
+    return { filename: input.filename, command };
+  }
+});
+function templates() {
+  return scanned("templates", scanTemplates);
+}
+var scans = /* @__PURE__ */ new Map();
+function scanned(what, scan) {
+  const key2 = `${what} ${JSON.stringify(extensionRoots())}`;
+  if (!scans.has(key2)) scans.set(key2, scan());
+  return scans.get(key2);
+}
+function scanTemplates() {
+  const out = [];
+  const add = (dir, source) => {
+    if (!(0, import_node_fs4.existsSync)(dir)) return;
+    for (const file of (0, import_node_fs4.readdirSync)(dir).sort()) {
+      if ((0, import_node_path4.extname)(file) !== ".mdj") continue;
+      out.push({
+        name: (0, import_node_path4.basename)(file, ".mdj"),
+        source,
+        path: (0, import_node_path4.join)(dir, file)
+      });
+    }
+  };
+  for (const root of extensionRoots()) {
+    if (root.source === "core") add((0, import_node_path4.join)(root.dir, "templates"), "core");
+    else {
+      for (const ext of extensionDirs(root.dir)) {
+        add((0, import_node_path4.join)(ext, "templates"), (0, import_node_path4.basename)(ext));
+      }
+    }
+  }
+  return out;
+}
+var templateSchema = () => object({ name: string2(), source: string2(), path: string2() });
+var listTemplates = defineEndpoint({
+  path: "/list_templates",
+  description: "The project templates StarUML offers under File > New From Template, from its resources and its extensions, for /new_from_template.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: object({ templates: array(templateSchema()) }),
+  handle: () => ({ templates: templates() })
+});
+var newFromTemplate = defineEndpoint({
+  path: "/new_from_template",
+  description: "Replace the open project with a new one from a template (File > New From Template), by name as /list_templates gives it, e.g. 'UMLConventional', or an absolute .mdj path; unsaved changes are lost and the new project has no file.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    template: doc(
+      string2().check(_minLength(1)),
+      "Template name, or an absolute .mdj path."
+    )
+  }),
+  response: object({
+    template: templateSchema(),
+    project: elementSchema()
+  }),
+  handle: (input) => {
+    const all = templates();
+    const found = (0, import_node_path4.isAbsolute)(input.template) ? (0, import_node_fs4.existsSync)(input.template) ? {
+      name: (0, import_node_path4.basename)(input.template, ".mdj"),
+      source: "file",
+      path: input.template
+    } : void 0 : all.find((t) => t.name === input.template);
+    if (!found) {
+      throw new ApiError(
+        "NOT_FOUND",
+        `No template ${input.template}; templates: ${all.map((t) => t.name).join(", ")}`
+      );
+    }
+    const project = inStarUML(() => app.project.loadAsTemplate(found.path));
+    if (!project) {
+      throw new ApiError("STARUML_ERROR", `${found.path} is empty`);
+    }
+    return { template: found, project: serialize(project, {}) };
+  }
+});
+function texts(elem) {
+  return [
+    ["name", String(elem.name)],
+    ["documentation", String(elem.documentation ?? "")],
+    ...(elem.tags ?? []).map(
+      (t) => [
+        `tag ${String(t.name)}`,
+        `${String(t.name)} ${String(t.value)}`
+      ]
+    )
+  ];
+}
+function snippet(text4, at, length2) {
+  const from = Math.max(0, at - 40);
+  const to = Math.min(text4.length, at + length2 + 40);
+  return `${from > 0 ? "\u2026" : ""}${text4.slice(from, to).replace(/\s+/g, " ")}${to < text4.length ? "\u2026" : ""}`;
+}
+var quickFind = defineEndpoint({
+  path: "/quick_find",
+  description: "Find model elements whose name, documentation or tags contain a text, case-insensitively, as Edit > Find does; each match with its path, where it matched and the text around it. Views are not searched.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    text: doc(string2().check(_minLength(1)), "Text to find."),
+    limit: optional(
+      doc(
+        int().check(_gte(1), _lte(500)),
+        "Most matches answered; default 50."
+      )
+    )
+  }),
+  response: object({
+    matches: array(
+      object({
+        element: summarySchema(),
+        field: doc(string2(), "name, documentation or 'tag <name>'."),
+        text: string2()
+      })
+    ),
+    total: int(),
+    truncated: boolean2()
+  }),
+  handle: (input) => {
+    const needle = input.text.toLowerCase();
+    const limit = input.limit ?? 50;
+    const matches2 = [];
+    let total = 0;
+    const elements = app.repository.findAll(
+      (e) => e instanceof type.Model && !(e instanceof type.Diagram)
+    );
+    for (const elem of elements) {
+      const hit = texts(elem).find(([, t]) => t.toLowerCase().includes(needle));
+      if (!hit) continue;
+      total++;
+      if (matches2.length >= limit) continue;
+      const at = hit[1].toLowerCase().indexOf(needle);
+      matches2.push({
+        element: summarize(elem),
+        field: hit[0],
+        text: snippet(hit[1], at, needle.length)
+      });
+    }
+    return { matches: matches2, total, truncated: total > matches2.length };
+  }
+});
+var listWorkingDiagrams = defineEndpoint({
+  path: "/list_working_diagrams",
+  description: "The diagrams open in the editor's tabs, in tab order, and which one is current. /switch_diagram opens one, /close_diagram closes one, /close_diagrams several.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: object({
+    diagrams: array(
+      object({ ...summarySchema().shape, current: boolean2() })
+    )
+  }),
+  handle: () => {
+    const current = app.diagrams.getCurrentDiagram();
+    return {
+      diagrams: app.diagrams.getWorkingDiagrams().map((d) => ({
+        ...summarize(d),
+        current: d === current
+      }))
+    };
+  }
+});
+var closeDiagrams = defineEndpoint({
+  path: "/close_diagrams",
+  description: "Close editor tabs: the diagrams named, or every one but those in keep; the diagrams stay in the model.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    diagrams: optional(array(ref2("Diagram."))),
+    keep: optional(
+      doc(array(ref2("Diagram.")), "With no diagrams: tabs left open.")
+    )
+  }),
+  response: object({ closed: array(string2()) }),
+  handle: (input) => {
+    const keep = new Set((input.keep ?? []).map((d) => requireDiagram(d)));
+    const targets = input.diagrams === void 0 ? [...app.diagrams.getWorkingDiagrams()].filter((d) => !keep.has(d)) : input.diagrams.map((d) => requireDiagram(d));
+    for (const d of targets) inStarUML(() => app.diagrams.closeDiagram(d));
+    return { closed: targets.map((d) => d._id) };
+  }
+});
+function extensionDirs(root) {
+  if (!(0, import_node_fs4.existsSync)(root)) return [];
+  return (0, import_node_fs4.readdirSync)(root).sort().map((name4) => (0, import_node_path4.join)(root, name4)).filter((dir) => (0, import_node_fs4.existsSync)((0, import_node_path4.join)(dir, "package.json")));
+}
+function menuCommands(dir) {
+  const menus = (0, import_node_path4.join)(dir, "menus");
+  if (!(0, import_node_fs4.existsSync)(menus)) return [];
+  const found = /* @__PURE__ */ new Set();
+  const visit = (value) => {
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object") {
+      const command = value.command;
+      if (typeof command === "string") found.add(command);
+      Object.values(value).forEach(visit);
+    }
+  };
+  for (const file of (0, import_node_fs4.readdirSync)(menus).filter((f) => f.endsWith(".json"))) {
+    try {
+      visit(JSON.parse((0, import_node_fs4.readFileSync)((0, import_node_path4.join)(menus, file), "utf-8")));
+    } catch {
+    }
+  }
+  return [...found].sort();
+}
+function scanExtensions() {
+  const str4 = (v) => typeof v === "string" ? v : null;
+  return extensionRoots().filter((r) => r.source !== "core").flatMap(
+    (root) => extensionDirs(root.dir).map((dir) => {
+      let pkg = {};
+      try {
+        pkg = JSON.parse(
+          (0, import_node_fs4.readFileSync)((0, import_node_path4.join)(dir, "package.json"), "utf-8")
+        );
+      } catch {
+      }
+      return {
+        name: str4(pkg.name) ?? (0, import_node_path4.basename)(dir),
+        title: str4(pkg.title),
+        version: str4(pkg.version),
+        description: str4(pkg.description),
+        source: root.source,
+        path: dir,
+        commands: menuCommands(dir)
+      };
+    })
+  );
+}
+var listExtensions = defineEndpoint({
+  path: "/list_extensions",
+  description: "The extensions StarUML loads (essential, default, dev and user folders) with name, title, version and description, and the commands each adds to the menus that are registered now, for /execute_command.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: object({
+    extensions: array(
+      object({
+        name: string2(),
+        title: nullable(string2()),
+        version: nullable(string2()),
+        description: nullable(string2()),
+        source: doc(string2(), "essential, default, dev or user."),
+        path: string2(),
+        commands: doc(
+          array(string2()),
+          "Command ids its menus name that are registered."
+        )
+      })
+    )
+  }),
+  handle: () => {
+    const registered = app.commands.commands;
+    return {
+      extensions: scanned("extensions", scanExtensions).map((e) => ({
+        ...e,
+        commands: e.commands.filter((c) => Object.hasOwn(registered, c))
+      }))
+    };
+  }
+});
+var METADATA = [
+  "name",
+  "author",
+  "company",
+  "copyright",
+  "version",
+  "documentation"
+];
+var metadataSchema = () => object(
+  Object.fromEntries(METADATA.map((k) => [k, string2()]))
+);
+var metadataOf = (project) => Object.fromEntries(METADATA.map((k) => [k, String(project[k])]));
+var getProjectMetadata = defineEndpoint({
+  path: "/get_project_metadata",
+  description: "The project's own fields: name, author, company, copyright, version and documentation (the Project's attributes in the core metamodel).",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: metadataSchema(),
+  handle: () => metadataOf(requireProject())
+});
+var setProjectMetadata = defineEndpoint({
+  path: "/set_project_metadata",
+  description: "Set any of the project's name, author, company, copyright, version and documentation, as one undo step; answers them all.",
+  readOnly: false,
+  destructive: false,
+  request: object(
+    Object.fromEntries(
+      METADATA.map((k) => [k, optional(string2())])
+    )
+  ),
+  response: metadataSchema(),
+  handle: async (input) => {
+    const project = requireProject();
+    await oneStep("set project metadata", () => {
+      for (const k of METADATA) {
+        const value = input[k];
+        if (value !== void 0 && project[k] !== value) {
+          inStarUML(() => app.engine.setProperty(project, k, value));
+        }
+      }
+    });
+    return metadataOf(project);
+  }
+});
+
 // src/handlers/style.ts
 var profileOut = () => doc(
   record(string2(), unknown()),
@@ -33009,6 +33555,18 @@ var endpoints = [
   saveGated(saveProjectAs),
   newProject,
   openProject,
+  listTemplates,
+  newFromTemplate,
+  getProjectMetadata,
+  setProjectMetadata,
+  saveGated(exportFragment),
+  importFragment,
+  saveGated(exportXmi),
+  importXmi,
+  getPreference,
+  setPreference,
+  listExtensions,
+  quickFind,
   getElementById,
   findElements,
   createElement,
@@ -33029,6 +33587,8 @@ var endpoints = [
   createDiagram,
   switchDiagram,
   closeDiagram,
+  listWorkingDiagrams,
+  closeDiagrams,
   getViewsOf,
   getEdgeViewsOf,
   getRelationshipsOf,

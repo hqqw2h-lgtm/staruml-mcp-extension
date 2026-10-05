@@ -63,26 +63,27 @@ Clients pass the token as a header, e.g. `curl -H 'Content-Type: application/jso
 
 All `POST` with `Content-Type: application/json` and a JSON object body. Base URL: `http://localhost:58322`; `GET /` lists the endpoints.
 
-| Group         | Endpoints                                                                                                                                                                     |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Catalogue     | `/introspect`, `/search_types`, `/debug`                                                                                                                                      |
-| Commands      | `/get_all_commands`, `/describe_commands`, `/execute_command`                                                                                                                 |
-| Project       | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`                                                                                     |
-| Elements      | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`                                                  |
-| Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                              |
-| Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation` |
-| Diagrams      | `/build_diagram`, `/diff_diagram`, `/describe_diagram`, `/validate_model`, `/lint_diagram`, `/uml_lint`, `/create_diagram`, `/switch_diagram`, `/close_diagram`               |
-| Views         | `/layout_diagram`, `/route_edges`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`, `/create_view_of`, `/divide_fragment`, `/apply_theme`                    |
-| Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                   |
-| Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                  |
-| Export        | `/export_diagram`, `/export_diagrams`, `/export_pdf`, `/export_html`, `/export_text`                                                                                          |
-| Code          | `/list_code_generators`, `/generate_code`, `/reverse_code`                                                                                                                    |
-| Batches       | `/batch`                                                                                                                                                                      |
-| Model         | `/build_model`, `/derive_diagrams`, `/explain_model`, `/model_lint`, `/sync_operations`, `/check_messages`                                                                    |
-| Patterns      | `/list_patterns`, `/describe_pattern`, `/apply_pattern`, `/detect_patterns`, `/apply_preset`, `/describe_type`                                                                |
-| History       | `/undo`, `/redo`, `/is_modified`, `/snapshot`, `/diff_since`, `/restore_snapshot`                                                                                             |
-| Style         | `/get_style_profile`, `/set_style_profile`, `/apply_style_profile`, `/explain_style_violation`                                                                                |
-| Quality       | `/diagram_quality`, `/improve_diagram`                                                                                                                                        |
+| Group         | Endpoints                                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Catalogue     | `/introspect`, `/search_types`, `/debug`                                                                                                                                                   |
+| Commands      | `/get_all_commands`, `/describe_commands`, `/execute_command`                                                                                                                              |
+| Project       | `/get_project_info`, `/save_project`, `/save_project_as`, `/new_project`, `/open_project`, `/list_templates`, `/new_from_template`, `/get_project_metadata`, `/set_project_metadata`       |
+| Workspace     | `/get_preference`, `/set_preference`, `/export_fragment`, `/import_fragment`, `/export_xmi`, `/import_xmi`, `/quick_find`, `/list_working_diagrams`, `/close_diagrams`, `/list_extensions` |
+| Elements      | `/get_element_by_id`, `/find_elements`, `/create_element`, `/update_element`, `/delete_element`, `/create_element_with_view`                                                               |
+| Relationships | `/create_relationship`, `/create_edge_with_view`                                                                                                                                           |
+| Element parts | `/add_attribute`, `/add_operation`, `/add_parameter`, `/add_enumeration_literal`, `/add_template_parameter`, `/add_slot`, `/add_tag`, `/set_stereotype`, `/set_documentation`              |
+| Diagrams      | `/build_diagram`, `/diff_diagram`, `/describe_diagram`, `/validate_model`, `/lint_diagram`, `/uml_lint`, `/create_diagram`, `/switch_diagram`, `/close_diagram`                            |
+| Views         | `/layout_diagram`, `/route_edges`, `/move_views`, `/resize_node`, `/set_view_style`, `/set_z_order`, `/create_view_of`, `/divide_fragment`, `/apply_theme`                                 |
+| Lookups       | `/get_views_of`, `/get_edge_views_of`, `/get_relationships_of`, `/get_refs_to`, `/get_connected_node_views`                                                                                |
+| Editor        | `/get_selection`, `/set_selection`, `/get_editor_state`, `/set_editor_state`                                                                                                               |
+| Export        | `/export_diagram`, `/export_diagrams`, `/export_pdf`, `/export_html`, `/export_text`                                                                                                       |
+| Code          | `/list_code_generators`, `/generate_code`, `/reverse_code`                                                                                                                                 |
+| Batches       | `/batch`                                                                                                                                                                                   |
+| Model         | `/build_model`, `/derive_diagrams`, `/explain_model`, `/model_lint`, `/sync_operations`, `/check_messages`                                                                                 |
+| Patterns      | `/list_patterns`, `/describe_pattern`, `/apply_pattern`, `/detect_patterns`, `/apply_preset`, `/describe_type`                                                                             |
+| History       | `/undo`, `/redo`, `/is_modified`, `/snapshot`, `/diff_since`, `/restore_snapshot`                                                                                                          |
+| Style         | `/get_style_profile`, `/set_style_profile`, `/apply_style_profile`, `/explain_style_violation`                                                                                             |
+| Quality       | `/diagram_quality`, `/improve_diagram`                                                                                                                                                     |
 
 ### References: paths and canonical field names
 
@@ -164,6 +165,17 @@ Every `/build_diagram`, `/apply_pattern` (its class diagram) and `/layout_diagra
 - `/improve_diagram {ref, target?, maxIterations?, relayout?, preset?, dryRun?}` runs the loop on any diagram as one undo step, the layout preset first; `dryRun` answers the score it would reach and leaves the diagram as it was. A strict profile allows it.
 - Visual regression: `tests/integration/visual.live.test.ts` builds a golden spec per kind, exports it as PNG and compares it with `tests/visual/baselines` by difference hash (at most 6 bits) and pixels (at most 1%), and requires the score to be no lower than the baseline's; `npm run visual:update` records new baselines.
 
+### Workspace (issue #28)
+
+- `/get_preference {key}` answers a preference's value, default, type (`check`, `number`, `string`, `color`, `font`, `dropdown`, `combo`), options and whether it is settable; `mcp-ext.token` is never answered. `/set_preference {key, value}` checks the value against the type and answers the previous one; only `view.*`, `diagramEditor.*`, `theme.*`, `validation.*`, each diagram extension's defaults (`uml.*`, `sysml.*`, `bpmn.*`, …), `mcp-ext.limits.*` and `mcp-ext.server.logLevel` are settable, so the API cannot change who may call it.
+- `/export_fragment {ref, filename}` writes an element's tree as a model fragment; `/import_fragment {filename, parent?}` reads one in with fresh ids. StarUML records the import as an operation undo skips (`ProjectManager.importFromFile`), so atomic batches refuse it.
+- `/export_xmi`, `/import_xmi {filename}` run the staruml-xmi extension's `xmi:*` commands with the file; without that extension they answer `404 NOT_FOUND` naming it.
+- `/list_templates` lists the `.mdj` templates of `resources/templates` and of each extension; `/new_from_template {template}` (a name or an absolute path) replaces the project with one, without a file name.
+- `/quick_find {text, limit?}` matches names, documentation and tags case-insensitively, each with its path, the field and the text around the match.
+- `/list_working_diagrams` lists the editor's tabs and the current one; `/close_diagrams {diagrams?, keep?}` closes some, or all but `keep`.
+- `/list_extensions` lists every extension folder (essential, default, dev, user) with name, title, version, description and the registered commands its menus name.
+- `/get_project_metadata` and `/set_project_metadata {name, author, company, copyright, version, documentation}` read and set the project's own fields, the set as one undo step.
+
 ### Commands and code generation
 
 - [`docs/commands.md`](docs/commands.md) lists every command id with its arguments, effect and dialog behaviour; `/describe_commands` answers the same from the running app. `npm run docs:commands` regenerates the file.
@@ -174,7 +186,7 @@ Every `/build_diagram`, `/apply_pattern` (its class diagram) and `/layout_diagra
 
 `{ops: [{path, body, as?}], atomic?}` runs endpoint calls in order. A string `"$name"` anywhere in a later `body` becomes the id of the result saved `as: "name"`; `"$name.view"` and `"$name.model"` pick the parts of a `create_*_with_view` result, and any path into the result works (`.id` means `_id`). `"$$"` escapes a literal `$`.
 
-- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`, `/export_diagrams`, `/generate_code`, `/reverse_code`, and the endpoints that run a batch of their own: `/build_diagram`, `/build_model`, `/sync_operations`, `/apply_pattern`, `/apply_preset`, `/apply_theme`.
+- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/new_from_template`, `/import_fragment`, `/import_xmi`, `/export_xmi`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`, `/export_diagrams`, `/generate_code`, `/reverse_code`, and the endpoints that run a batch of their own: `/build_diagram`, `/build_model`, `/sync_operations`, `/apply_pattern`, `/apply_preset`, `/apply_theme`.
 - `atomic: false`: every op runs; `results` has each op's `data` or `code`/`error`, and `succeeded`/`failed` count them.
 - `result` sets how much of each answer comes back: `terse` (default) gives each op's `success` and `id`, the element it made or acted on (the model of a create with view); `ids` gives `data` cut to its ids (`{_id}`, or `{view: {_id}, model: {_id}}`); `full` the whole answer. A failed op always carries `code`, `error` and `details`.
 - At most `mcp-ext.limits.maxBatchOps` ops (default 500) and `mcp-ext.limits.maxBodyKiB` of body (default 4096, for every endpoint); over either is `413 PAYLOAD_TOO_LARGE`.

@@ -31,6 +31,7 @@
  * - commands.execute returns false for an unknown id.
  */
 import { EventEmitter } from "node:events";
+import { readFileSync, writeFileSync } from "node:fs";
 import introspect from "../fixtures/introspect.7.1.1.json";
 
 export interface MetaAttribute {
@@ -1606,19 +1607,47 @@ export class ProjectManager {
     this.filename = null;
     this.repository.clear();
   }
+
+  /** Writes the element's tree as JSON, as Repository.writeObject does. */
+  exportToFile(elem: MockElement, fullPath: string): MockElement {
+    writeFileSync(fullPath, JSON.stringify(writeElement(elem)));
+    return elem;
+  }
+
+  /** Reads a fragment with fresh ids into parent.ownedElements; undo skips it. */
+  importFromFile(parent: MockElement, fullPath: string): MockElement | null {
+    const data = readFileSync(fullPath, "utf-8");
+    if (!data) return null;
+    const fresh = data.replace(/"(_id|\$ref)":"MOCK/g, '"$1":"MOCKI');
+    const elem = readElement(JSON.parse(fresh) as Json);
+    attach(parent, "ownedElements", elem);
+    const visit = (e: MockElement) => {
+      this.repository.index(e);
+      for (const c of children(e)) visit(c);
+    };
+    visit(elem);
+    this.repository.setModified(true);
+    return elem;
+  }
+
+  /** A project read from a file that keeps no file name. */
+  loadAsTemplate(fullPath: string): Element | null {
+    const data = readFileSync(fullPath, "utf-8");
+    if (!data) return null;
+    this.closeProject();
+    this.project = readElement(JSON.parse(data) as Json) as Element;
+    this.repository.index(this.project);
+    this.repository.setModified(false);
+    return this.project;
+  }
 }
-stub(ProjectManager, [
-  "exportToFile",
-  "importFromFile",
-  "importFromJson",
-  "loadAsTemplate",
-  "loadFromJson",
-]);
+stub(ProjectManager, ["importFromJson", "loadFromJson"]);
 
 interface PreferenceItem {
   text?: string;
   type?: string;
   default?: unknown;
+  options?: { value: unknown; text: string }[];
 }
 
 /** Follows core/preference-manager.js, with a Map in place of localStorage. */
@@ -1659,9 +1688,11 @@ export class PreferenceManager {
   set(key: string, value: unknown): void {
     this.stored.set(key, value);
   }
+  getItem(key: string): PreferenceItem | undefined {
+    return this.itemMap[key];
+  }
 }
 stub(PreferenceManager, [
-  "getItem",
   "getSchema",
   "getSchemaIds",
   "getSchemaName",

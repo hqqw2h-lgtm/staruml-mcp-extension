@@ -52,6 +52,12 @@ export const NOT_ATOMIC = new Set([
   "/restore_snapshot",
   "/new_project",
   "/open_project",
+  // Replaces the project, or inserts what undo skips (a bypass operation),
+  // or runs another extension's command.
+  "/new_from_template",
+  "/import_fragment",
+  "/import_xmi",
+  "/export_xmi",
   "/save_project",
   "/save_project_as",
   "/execute_command",
@@ -418,7 +424,7 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
       atomic: z.optional(
         doc(
           z.boolean(),
-          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme.",
+          "Default true. Atomic batches refuse /undo, /redo, /restore_snapshot, /new_project, /open_project, /new_from_template, /import_fragment, /import_xmi, /export_xmi, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code, /reverse_code, and the endpoints running a batch of their own: /build_diagram, /build_model, /sync_operations, /apply_pattern, /apply_preset, /apply_theme.",
         ),
       ),
       result: z.optional(

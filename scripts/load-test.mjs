@@ -40,7 +40,9 @@
  * spec and /check_messages over the seeded package, /apply_pattern dry
  * runs, /detect_patterns over the seeded package, the pattern, preset and
  * type descriptions, /apply_preset, /apply_theme and /sync_operations dry
- * runs. Exits non-zero on any transport error or
+ * runs, and the workspace reads of issue #28 (/get_preference, /quick_find,
+ * /list_working_diagrams, /list_extensions, /list_templates,
+ * /get_project_metadata). Exits non-zero on any transport error or
  * non-2xx answer, when client p99 exceeds P99_BUDGET_MS, or when any single
  * handler held the renderer thread longer than HANDLER_BUDGET_MS (taken
  * from the Server-Timing header the server sets).
@@ -436,6 +438,13 @@ async function main() {
       { scope: "LoadModel", dryRun: true, kinds: ["class", "sequence"] },
     ],
     () => ["/model_lint", { scope: "LoadModel" }],
+    // Issue #28: preferences, quick find, tabs, extensions, templates, metadata.
+    () => ["/get_preference", { key: "diagramEditor.showGrid" }],
+    (i) => ["/quick_find", { text: `C${i % SEED}`, limit: 10 }],
+    () => ["/list_working_diagrams", {}],
+    () => ["/list_extensions", {}],
+    () => ["/list_templates", {}],
+    () => ["/get_project_metadata", {}],
     () => ["/explain_model", { scope: "LoadModel", maxChars: 2000 }],
     () => ["/explain_style_violation", { ref: "Order" }],
     () => ["/apply_style_profile", { scope: "Export", dryRun: true }],

@@ -77,6 +77,15 @@ export interface ProjectManager {
   /** Synchronous; throws for a missing file and returns null for an empty one. */
   load(fullPath: string): Element | null;
   newProject(): Element;
+  /** Writes `elem` and what it owns as a model fragment (JSON). */
+  exportToFile(elem: Element, fullPath: string): Element;
+  /**
+   * Reads a fragment into parent.ownedElements with fresh ids, as a
+   * bypass operation that undo skips; null for an empty file.
+   */
+  importFromFile(parent: Element, fullPath: string): Element | null;
+  /** Replaces the project with the file's and keeps no file name; null for an empty file. */
+  loadAsTemplate(fullPath: string): Element | null;
 }
 
 /**

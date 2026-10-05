@@ -127,6 +127,22 @@ import {
 } from "./handlers/views.js";
 import { applyThemeEndpoint } from "./handlers/theme.js";
 import {
+  closeDiagrams,
+  exportFragment,
+  exportXmi,
+  getPreference,
+  getProjectMetadata,
+  importFragment,
+  importXmi,
+  listExtensions,
+  listTemplates,
+  listWorkingDiagrams,
+  newFromTemplate,
+  quickFind,
+  setPreference,
+  setProjectMetadata,
+} from "./handlers/workspace.js";
+import {
   applyStyleProfile,
   explainStyleViolation,
   getStyleProfile,
@@ -157,6 +173,18 @@ export const endpoints: readonly Endpoint[] = [
   saveGated(saveProjectAs),
   newProject,
   openProject,
+  listTemplates,
+  newFromTemplate,
+  getProjectMetadata,
+  setProjectMetadata,
+  saveGated(exportFragment),
+  importFragment,
+  saveGated(exportXmi),
+  importXmi,
+  getPreference,
+  setPreference,
+  listExtensions,
+  quickFind,
 
   getElementById,
   findElements,
@@ -180,6 +208,8 @@ export const endpoints: readonly Endpoint[] = [
   createDiagram,
   switchDiagram,
   closeDiagram,
+  listWorkingDiagrams,
+  closeDiagrams,
 
   getViewsOf,
   getEdgeViewsOf,
