@@ -261,6 +261,14 @@ describeLive("views, export and history", () => {
     });
     const jpg = Buffer.from(jpeg.data.base64!, "base64");
     expect([...jpg.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+    // The same canvas as the PNG; the size is read from the JPEG frame header.
+    expect(jpeg.data.width).toBe(res.data.width);
+    const shaded = await call<Image>("/export_diagram", {
+      id: diagramId,
+      format: "jpeg",
+      background: "#336699",
+    });
+    expect(shaded.data.height).toBe(res.data.height);
     const svg = await call<Image>("/export_diagram", {
       id: diagramId,
       format: "svg",

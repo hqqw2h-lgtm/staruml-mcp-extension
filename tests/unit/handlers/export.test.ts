@@ -12,16 +12,14 @@ import {
   exportDiagram,
   exportHtml,
   exportPdf,
+  imageSize,
   waitForPdf,
 } from "../../../src/handlers/export.js";
-import {
-  create,
-  installMockApp,
-  type MockEnvironment,
-} from "../../mock/staruml.js";
+import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
 import { fails, ok } from "../support.js";
 
 const svgExport = vi.hoisted(() => ({
+  getImageData: vi.fn(),
   getSVGImageData: vi.fn(),
   exportToPDF: vi.fn(),
 }));
@@ -31,33 +29,43 @@ vi.mock("../../../src/app-modules.js", () => ({
 
 let env: MockEnvironment;
 let dir: string;
-let fills: string[];
-let drawn: { selection: unknown; ratio: number; origin: unknown }[];
-let watermarks: unknown[][];
+let painted: unknown[][];
+let seen: { ratio: unknown; selection: unknown; mime: string }[];
 
-/** The pixel bytes a fake canvas element encodes. */
-const PIXELS = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+/** A PNG holding only its signature and IHDR, which is all the size needs. */
+function png(width: number, height: number): Buffer {
+  const head = Buffer.alloc(24);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(head);
+  head.writeUInt32BE(13, 8);
+  head.write("IHDR", 12, "latin1");
+  head.writeUInt32BE(width, 16);
+  head.writeUInt32BE(height, 20);
+  return head;
+}
 
-class FakeCanvas {
-  ratio = 1;
-  origin: unknown;
-  zoomFactor: unknown;
-  constructor(readonly context: unknown) {}
+/** SOI, an APP0 segment, then a baseline SOF0 frame header. */
+function jpeg(width: number, height: number): Buffer {
+  const sof = Buffer.from([0xff, 0xc0, 0, 11, 8, 0, 0, 0, 0, 1, 0, 0, 0]);
+  sof.writeUInt16BE(height, 5);
+  sof.writeUInt16BE(width, 7);
+  return Buffer.concat([
+    Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0]),
+    sof,
+  ]);
 }
-class FakePoint {
-  constructor(
-    readonly x: number,
-    readonly y: number,
-  ) {}
-}
+
+const g = globalThis as unknown as Record<string, unknown>;
 
 beforeEach(() => {
   env = installMockApp();
   dir = mkdtempSync(join(tmpdir(), "export-test-"));
-  fills = [];
-  drawn = [];
-  watermarks = [];
-  const g = globalThis as unknown as Record<string, unknown>;
+  painted = [];
+  seen = [];
+  g.window = { devicePixelRatio: 2 };
+  g.createImageBitmap = async (blob: Blob) => {
+    painted.push(["decode", blob.type, (await blob.arrayBuffer()).byteLength]);
+    return { width: 300, height: 120 };
+  };
   g.document = {
     createElement: () => {
       const element = {
@@ -65,56 +73,42 @@ beforeEach(() => {
         height: 0,
         getContext: () => ({
           set fillStyle(v: string) {
-            fills.push(v);
+            painted.push(["fill", v]);
           },
-          fillRect: () => {},
+          fillRect: (...a: number[]) => painted.push(["rect", ...a]),
+          drawImage: (_b: unknown, x: number, y: number) =>
+            painted.push(["draw", x, y]),
         }),
         toDataURL: (mime: string) =>
-          `data:${mime};base64,${PIXELS.toString("base64")}`,
+          `data:${mime};base64,${(mime === "image/png"
+            ? png(element.width, element.height)
+            : jpeg(element.width, element.height)
+          ).toString("base64")}`,
       };
       return element;
     },
   };
-  const t = g.type as Record<string, unknown>;
-  t.Canvas = FakeCanvas;
-  t.Point = FakePoint;
-  t.ZoomFactor = FakePoint;
-  Object.assign(env.mainDiagram, {
-    selectedViews: ["selected"],
-    getBoundingBoxWithChildren: () => ({
-      x1: 40,
-      y1: 60,
-      w: 200,
-      h: 100,
-      expand(m: number) {
-        this.x1 -= m;
-        this.y1 -= m;
-        this.w += 2 * m;
-        this.h += 2 * m;
-      },
-      getWidth() {
-        return this.w;
-      },
-      getHeight() {
-        return this.h;
-      },
-    }),
-    arrangeDiagram: () => {},
-    drawDiagram: (canvas: FakeCanvas, selection: unknown) =>
-      drawn.push({ selection, ratio: canvas.ratio, origin: canvas.origin }),
-    drawWatermark: (...args: unknown[]) => watermarks.push(args.slice(1)),
-  });
+  env.mainDiagram.selectedViews = ["selected"];
+  svgExport.getImageData.mockReset();
+  svgExport.getImageData.mockImplementation(
+    (d: { selectedViews: unknown }, mime: string) => {
+      const ratio = (g.window as { devicePixelRatio: number }).devicePixelRatio;
+      seen.push({ ratio, selection: d.selectedViews, mime });
+      const image =
+        mime === "image/png"
+          ? png(100 * ratio, 50 * ratio)
+          : jpeg(100 * ratio, 50 * ratio);
+      return image.toString("base64");
+    },
+  );
   svgExport.getSVGImageData.mockReset();
   svgExport.exportToPDF.mockReset();
 });
 
 afterEach(() => {
-  const g = globalThis as unknown as Record<string, unknown>;
   delete g.document;
-  const t = g.type as Record<string, unknown>;
-  delete t.Canvas;
-  delete t.Point;
-  delete t.ZoomFactor;
+  delete g.window;
+  delete g.createImageBitmap;
 });
 
 interface Image {
@@ -127,26 +121,26 @@ interface Image {
 }
 
 describe("/export_diagram raster", () => {
-  it("renders the current diagram as PNG at scale 1 without a background", async () => {
+  it("calls StarUML's getImageData at scale 1 with the selection hidden", async () => {
     env.app.diagrams.setCurrentDiagram(env.mainDiagram);
     const data = await ok<Image>(exportDiagram, {});
     expect(data).toMatchObject({
       diagram: env.mainDiagram._id,
       format: "png",
       mimeType: "image/png",
-      width: 250,
-      height: 150,
-      bytes: PIXELS.length,
-      base64: PIXELS.toString("base64"),
+      width: 100,
+      height: 50,
+      bytes: 24,
+      base64: png(100, 50).toString("base64"),
     });
-    expect(fills).toEqual([]);
-    expect(drawn).toEqual([
-      { selection: false, ratio: 1, origin: new FakePoint(-30, -50) },
-    ]);
-    expect(watermarks).toEqual([]);
+    expect(seen).toEqual([{ ratio: 1, selection: [], mime: "image/png" }]);
+    expect(env.mainDiagram.selectedViews).toEqual(["selected"]);
+    expect(g.window).toEqual({ devicePixelRatio: 2 });
+    expect(painted).toEqual([]);
   });
 
-  it("scales, fills JPEG white and writes a file", async () => {
+  it("scales a JPEG through the pixel ratio and writes a file", async () => {
+    delete (g.window as Record<string, unknown>).devicePixelRatio;
     const path = join(dir, "nested", "out.jpg");
     const data = await ok<Image>(exportDiagram, {
       id: env.mainDiagram._id,
@@ -154,32 +148,56 @@ describe("/export_diagram raster", () => {
       scale: 2,
       path,
     });
-    expect(data).toMatchObject({ width: 500, height: 300, path });
+    expect(data).toMatchObject({
+      mimeType: "image/jpeg",
+      width: 200,
+      height: 100,
+      path,
+    });
     expect(data.base64).toBeUndefined();
-    expect(readFileSync(path)).toEqual(PIXELS);
-    expect(fills).toEqual(["#ffffff"]);
-    expect(drawn[0]!.ratio).toBe(2);
+    expect(readFileSync(path)).toEqual(jpeg(200, 100));
+    expect(seen[0]).toMatchObject({ ratio: 2, mime: "image/jpeg" });
+    expect("devicePixelRatio" in (g.window as object)).toBe(false);
   });
 
-  it("paints a requested background", async () => {
-    await ok(exportDiagram, { id: env.mainDiagram._id, background: "#000" });
-    expect(fills).toEqual(["#000"]);
-  });
-
-  it("watermarks as StarUML does for the licence", async () => {
-    env.app.licenseStore.status = { trial: true };
-    await ok(exportDiagram, { id: env.mainDiagram._id });
-    env.app.licenseStore.status = { edition: "STD" };
-    await ok(exportDiagram, { id: env.mainDiagram._id });
-    const bpmn = create("BPMNDiagram");
-    Object.assign(bpmn, env.mainDiagram, { _id: "BPMN1" });
-    bpmn._parent = env.model;
-    env.app.repository.index(bpmn);
-    await ok(exportDiagram, { id: "BPMN1" });
-    expect(watermarks).toEqual([
-      [250, 150, 70, 12, "UNREGISTERED"],
-      [250, 150, 45, 12, "PRO ONLY"],
+  it("paints a background under a transparent rendering", async () => {
+    const pngData = await ok<Image>(exportDiagram, {
+      id: env.mainDiagram._id,
+      background: "#000",
+    });
+    expect(seen[0]!.mime).toBe("image/png");
+    expect(painted).toEqual([
+      ["decode", "image/png", 24],
+      ["fill", "#000"],
+      ["rect", 0, 0, 300, 120],
+      ["draw", 0, 0],
     ]);
+    expect(pngData).toMatchObject({ width: 300, height: 120 });
+    const jpegData = await ok<Image>(exportDiagram, {
+      id: env.mainDiagram._id,
+      format: "jpeg",
+      background: "white",
+    });
+    expect(seen[1]!.mime).toBe("image/png");
+    expect(jpegData).toMatchObject({
+      mimeType: "image/jpeg",
+      width: 300,
+      height: 120,
+    });
+  });
+
+  it("restores the selection and pixel ratio when StarUML throws", async () => {
+    svgExport.getImageData.mockImplementation(() => {
+      throw new Error("raster failed");
+    });
+    await fails(
+      exportDiagram,
+      { id: env.mainDiagram._id, scale: 3 },
+      "STARUML_ERROR",
+      "raster failed",
+    );
+    expect(env.mainDiagram.selectedViews).toEqual(["selected"]);
+    expect(g.window).toEqual({ devicePixelRatio: 2 });
   });
 
   it("needs a diagram", async () => {
@@ -218,6 +236,34 @@ describe("/export_diagram raster", () => {
       "STARUML_ERROR",
       /^Cannot write /,
     );
+  });
+});
+
+describe("imageSize", () => {
+  const seg = (marker: number) => [0xff, marker, 0, 2];
+  it("skips JPEG segments that are not frame headers", () => {
+    const tail = jpeg(7, 9).subarray(2);
+    for (const marker of [0x01, 0xc4, 0xc8, 0xcc, 0xdb]) {
+      const data = Buffer.concat([
+        Buffer.from([0xff, 0xd8, ...seg(marker)]),
+        tail,
+      ]);
+      expect(imageSize(data)).toEqual({ width: 7, height: 9 });
+    }
+    expect(imageSize(jpeg(3, 4))).toEqual({ width: 3, height: 4 });
+  });
+
+  it("gives zero for data it cannot read", () => {
+    expect(imageSize(Buffer.alloc(30))).toEqual({ width: 0, height: 0 });
+    expect(
+      imageSize(
+        Buffer.from([0xff, 0xd8, ...seg(0xe0), 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+      ),
+    ).toEqual({ width: 0, height: 0 });
+    expect(imageSize(Buffer.from([0xff, 0xd8, ...seg(0xe0)]))).toEqual({
+      width: 0,
+      height: 0,
+    });
   });
 });
 

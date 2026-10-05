@@ -99,7 +99,7 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 ### Views and export
 
 - View edits go through StarUML's engine (`layoutDiagram`, `moveViews`, `resizeNode`, `setFillColor`, ...), which needs the editor to show the views' diagram, so they make that diagram current. Each is one undo step; `/set_view_style` is one step per property given.
-- `/export_diagram` renders PNG or JPEG the way **File → Export Diagram As** does (`engine/diagram-export.js`), with `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) and `background` (default transparent, white for JPEG), and SVG through StarUML's own SVG export. It answers base64 or writes `path`. StarUML's licence watermarks apply as in the menu.
+- `/export_diagram` renders PNG and JPEG by calling StarUML's own exporter (`engine/diagram-export.js` `getImageData`, what **File → Export Diagram As** uses) and SVG through its SVG export. `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) is passed as the pixel ratio that exporter reads; `background` (default transparent, white for JPEG) is painted under a transparent rendering. It answers base64 or writes `path`. Whatever the exporter draws for the running licence appears as it does in the menu.
 - `/export_pdf` and `/export_html` write what the CLI's `pdf` and `html` commands write, to an absolute path.
 
 ### `/batch`

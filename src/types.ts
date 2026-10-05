@@ -281,7 +281,7 @@ export interface SelectionManager {
   deselectAll(): void;
 }
 
-/** engine/license-store.js; diagram-export.js decides on watermarks from it. */
+/** engine/license-store.js. */
 export interface LicenseStore {
   getLicenseStatus(): { trial?: boolean; edition?: string };
 }

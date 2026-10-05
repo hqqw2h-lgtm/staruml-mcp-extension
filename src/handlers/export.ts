@@ -36,75 +36,14 @@ import { ApiError, inStarUML } from "../errors.js";
 import { requireDiagram, requireProject } from "../lookup.js";
 import type { Element } from "../types.js";
 
-/** engine/diagram-export.js BOUNDING_BOX_EXPAND and the +30 its getImageData adds. */
-const BOUNDING_BOX_EXPAND = 10;
-const RASTER_MARGIN = 30;
-
-/**
- * diagram-export.js PRO_DIAGRAM_TYPES (7.1.1): diagrams StarUML watermarks
- * "PRO ONLY" when exported without a PRO licence. Copied rather than
- * bypassed, so this export watermarks exactly when File > Export does.
- */
-export const PRO_DIAGRAM_TYPES = [
-  "SysMLRequirementDiagram",
-  "SysMLBlockDefinitionDiagram",
-  "SysMLInternalBlockDiagram",
-  "SysMLParametricDiagram",
-  "BPMNDiagram",
-  "WFWireframeDiagram",
-  "AWSDiagram",
-  "GCPDiagram",
-];
-
 export const MAX_SCALE = 4;
 
 const MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
 
 type Format = keyof typeof MIME;
 
-/** The parts of core/graphics.js and core/core.js the raster path drives. */
-interface Box {
-  x1: number;
-  y1: number;
-  expand(margin: number): void;
-  getWidth(): number;
-  getHeight(): number;
-}
-interface GraphicsCanvas {
-  origin: unknown;
-  zoomFactor: unknown;
-  ratio: number;
-}
-interface DrawableDiagram extends Element {
-  getBoundingBoxWithChildren(canvas: GraphicsCanvas): Box;
-  arrangeDiagram(canvas: GraphicsCanvas): void;
-  drawDiagram(canvas: GraphicsCanvas, drawSelection?: boolean): void;
-  drawWatermark(
-    canvas: GraphicsCanvas,
-    width: number,
-    height: number,
-    xstep: number,
-    ystep: number,
-    text: string,
-  ): void;
+interface SelectableDiagram extends Element {
   selectedViews: Element[];
-}
-
-type Ctor<T> = new (...args: unknown[]) => T;
-
-/** What diagram-export.js draws over a diagram for the running licence. */
-export function watermarkFor(
-  diagram: Element,
-): [number, number, string] | null {
-  const status = app.licenseStore.getLicenseStatus();
-  if (status.trial) return [70, 12, "UNREGISTERED"];
-  if (
-    status.edition !== "PRO" &&
-    PRO_DIAGRAM_TYPES.includes(diagram.constructor.name)
-  ) {
-    return [45, 12, "PRO ONLY"];
-  }
-  return null;
 }
 
 export interface Rendered {
@@ -114,68 +53,124 @@ export interface Rendered {
 }
 
 /**
- * diagram-export.js getImageData (7.1.1) with the device pixel ratio replaced
- * by `scale` and the background made a parameter: it fills only JPEGs, white.
- * Selection handles are not drawn, where exportToPNG deselects all first and
- * so would change what the user has selected.
+ * StarUML's exporters draw the diagram's selection handles. Clearing the
+ * selection for the call, rather than calling deselectAll as File > Export
+ * does, leaves what the user has selected untouched.
  */
-export function renderRaster(
-  diagram: DrawableDiagram,
-  format: "png" | "jpeg",
-  scale: number,
-  background: string | undefined,
-): Rendered {
-  const element = document.createElement("canvas");
-  const Canvas = type.Canvas as unknown as Ctor<GraphicsCanvas>;
-  const Point = type.Point as unknown as Ctor<unknown>;
-  const ZoomFactor = type.ZoomFactor as unknown as Ctor<unknown>;
-  const canvas = new Canvas(element.getContext("2d"));
-  const box = diagram.getBoundingBoxWithChildren(canvas);
-  box.expand(BOUNDING_BOX_EXPAND);
-  canvas.origin = new Point(-box.x1, -box.y1);
-  canvas.zoomFactor = new ZoomFactor(1, 1);
-  canvas.ratio = scale;
-  element.width = Math.ceil((box.getWidth() + RASTER_MARGIN) * scale);
-  element.height = Math.ceil((box.getHeight() + RASTER_MARGIN) * scale);
-
-  const fill = background ?? (format === "jpeg" ? "#ffffff" : undefined);
-  if (fill) {
-    const context = element.getContext("2d")!;
-    context.fillStyle = fill;
-    context.fillRect(0, 0, element.width, element.height);
-  }
-  const mark = watermarkFor(diagram);
-  if (mark) {
-    diagram.drawWatermark(canvas, element.width, element.height, ...mark);
-  }
-  diagram.arrangeDiagram(canvas);
-  diagram.drawDiagram(canvas, false);
-  const base64 = element
-    .toDataURL(MIME[format])
-    .replace(/^data:image\/(png|jpeg);base64,/, "");
-  return {
-    data: Buffer.from(base64, "base64"),
-    width: element.width,
-    height: element.height,
-  };
-}
-
-/**
- * diagram-export.js getSVGImageData, which watermarks itself. It draws the
- * diagram's selection, so the selection is cleared for the call and put back.
- */
-export function renderSvg(
-  diagram: DrawableDiagram,
-  background: string | undefined,
-): Rendered {
+function withoutSelection<T>(diagram: SelectableDiagram, run: () => T): T {
   const selected = diagram.selectedViews;
   diagram.selectedViews = [];
-  let svg: string;
   try {
-    svg = diagramExport().getSVGImageData(diagram);
+    return run();
   } finally {
     diagram.selectedViews = selected;
   }
+}
+
+/**
+ * getImageData (see engine/diagram-export.js) renders at
+ * window.devicePixelRatio, its only resolution input. The HTML spec marks
+ * that attribute [Replaceable], so an own property shadows it for the
+ * synchronous call and the original descriptor is put back afterwards.
+ */
+export function withPixelRatio<T>(ratio: number, run: () => T): T {
+  const original = Object.getOwnPropertyDescriptor(window, "devicePixelRatio");
+  Object.defineProperty(window, "devicePixelRatio", {
+    configurable: true,
+    value: ratio,
+  });
+  try {
+    return run();
+  } finally {
+    if (original) Object.defineProperty(window, "devicePixelRatio", original);
+    else delete (window as { devicePixelRatio?: number }).devicePixelRatio;
+  }
+}
+
+/**
+ * Pixel size from the encoded image: the PNG IHDR chunk follows the 8-byte
+ * signature (RFC 2083 section 3.2); a JPEG's frame header is the first SOFn
+ * marker, 0xC0 to 0xCF other than DHT (C4), JPG (C8) and DAC (CC) (ITU T.81
+ * table B.1).
+ */
+export function imageSize(data: Buffer): { width: number; height: number } {
+  if (data.length >= 24 && data.readUInt32BE(12) === 0x49484452) {
+    return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
+  }
+  let at = 2;
+  while (at + 9 <= data.length && data[at] === 0xff) {
+    const marker = data[at + 1]!;
+    if (
+      marker >= 0xc0 &&
+      marker <= 0xcf &&
+      marker !== 0xc4 &&
+      marker !== 0xc8 &&
+      marker !== 0xcc
+    ) {
+      return {
+        width: data.readUInt16BE(at + 7),
+        height: data.readUInt16BE(at + 5),
+      };
+    }
+    at += 2 + data.readUInt16BE(at + 2);
+  }
+  return { width: 0, height: 0 };
+}
+
+/** Paints `background` and the transparent PNG over it, then encodes `mime`. */
+async function composite(
+  png: Buffer,
+  background: string,
+  mime: string,
+): Promise<Buffer> {
+  const bitmap = await createImageBitmap(
+    new Blob([new Uint8Array(png)], { type: "image/png" }),
+  );
+  const element = document.createElement("canvas");
+  element.width = bitmap.width;
+  element.height = bitmap.height;
+  const context = element.getContext("2d")!;
+  context.fillStyle = background;
+  context.fillRect(0, 0, element.width, element.height);
+  context.drawImage(bitmap, 0, 0);
+  return dataUrlBytes(element.toDataURL(mime));
+}
+
+const dataUrlBytes = (url: string) =>
+  Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
+
+/**
+ * StarUML's own getImageData renders the raster, watermark included, at
+ * `scale` device pixels per diagram unit. It fills only JPEGs (white), so a
+ * requested background is painted under a transparent PNG rendering here.
+ */
+export async function renderRaster(
+  diagram: SelectableDiagram,
+  format: "png" | "jpeg",
+  scale: number,
+  background: string | undefined,
+): Promise<Rendered> {
+  const mime = background === undefined ? MIME[format] : MIME.png;
+  const base64 = inStarUML(() =>
+    withoutSelection(diagram, () =>
+      withPixelRatio(scale, () => diagramExport().getImageData(diagram, mime)),
+    ),
+  );
+  let data: Buffer = Buffer.from(base64, "base64");
+  if (background !== undefined) {
+    data = await composite(data, background, MIME[format]);
+  }
+  return { data, ...imageSize(data) };
+}
+
+/** getSVGImageData (see engine/diagram-export.js) watermarks itself. */
+export function renderSvg(
+  diagram: SelectableDiagram,
+  background: string | undefined,
+): Rendered {
+  let svg = withoutSelection(diagram, () =>
+    diagramExport().getSVGImageData(diagram),
+  );
   if (background) {
     // svgcanvas paints nothing behind the diagram; a first child is the backdrop.
     svg = svg.replace(
@@ -252,29 +247,42 @@ export const exportDiagram = defineEndpoint({
       doc(z.string(), "The image, when 'path' was not given."),
     ),
   }),
-  handle: (input) => {
-    const diagram = currentOr(input.id) as DrawableDiagram;
+  handle: async (input) => {
+    const diagram = currentOr(input.id) as SelectableDiagram;
     const format: Format = input.format ?? "png";
-    const image = inStarUML(() =>
+    const image =
       format === "svg"
-        ? renderSvg(diagram, input.background)
-        : renderRaster(diagram, format, input.scale ?? 1, input.background),
+        ? inStarUML(() => renderSvg(diagram, input.background))
+        : await renderRaster(
+            diagram,
+            format,
+            input.scale ?? 1,
+            input.background,
+          );
+    return deliver(
+      {
+        diagram: diagram._id,
+        format,
+        mimeType: MIME[format],
+        width: image.width,
+        height: image.height,
+        bytes: image.data.length,
+      },
+      image.data,
+      input.path,
     );
-    const meta = {
-      diagram: diagram._id,
-      format,
-      mimeType: MIME[format],
-      width: image.width,
-      height: image.height,
-      bytes: image.data.length,
-    };
-    if (input.path === undefined) {
-      return { ...meta, base64: image.data.toString("base64") };
-    }
-    writeFile(input.path, image.data);
-    return { ...meta, path: input.path };
   },
 });
+
+function deliver<M extends object>(
+  meta: M,
+  data: Buffer,
+  path: string | undefined,
+): M & { base64?: string; path?: string } {
+  if (path === undefined) return { ...meta, base64: data.toString("base64") };
+  writeFile(path, data);
+  return { ...meta, path };
+}
 
 function writeFile(path: string, data: Buffer): void {
   try {

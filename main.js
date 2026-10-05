@@ -6405,69 +6405,80 @@ function diagramExport() {
 }
 
 // src/handlers/export.ts
-var BOUNDING_BOX_EXPAND = 10;
-var RASTER_MARGIN = 30;
-var PRO_DIAGRAM_TYPES = [
-  "SysMLRequirementDiagram",
-  "SysMLBlockDefinitionDiagram",
-  "SysMLInternalBlockDiagram",
-  "SysMLParametricDiagram",
-  "BPMNDiagram",
-  "WFWireframeDiagram",
-  "AWSDiagram",
-  "GCPDiagram"
-];
 var MAX_SCALE = 4;
 var MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
-function watermarkFor(diagram) {
-  const status = app.licenseStore.getLicenseStatus();
-  if (status.trial) return [70, 12, "UNREGISTERED"];
-  if (status.edition !== "PRO" && PRO_DIAGRAM_TYPES.includes(diagram.constructor.name)) {
-    return [45, 12, "PRO ONLY"];
-  }
-  return null;
-}
-function renderRaster(diagram, format, scale, background) {
-  const element = document.createElement("canvas");
-  const Canvas = type.Canvas;
-  const Point = type.Point;
-  const ZoomFactor = type.ZoomFactor;
-  const canvas = new Canvas(element.getContext("2d"));
-  const box = diagram.getBoundingBoxWithChildren(canvas);
-  box.expand(BOUNDING_BOX_EXPAND);
-  canvas.origin = new Point(-box.x1, -box.y1);
-  canvas.zoomFactor = new ZoomFactor(1, 1);
-  canvas.ratio = scale;
-  element.width = Math.ceil((box.getWidth() + RASTER_MARGIN) * scale);
-  element.height = Math.ceil((box.getHeight() + RASTER_MARGIN) * scale);
-  const fill = background ?? (format === "jpeg" ? "#ffffff" : void 0);
-  if (fill) {
-    const context = element.getContext("2d");
-    context.fillStyle = fill;
-    context.fillRect(0, 0, element.width, element.height);
-  }
-  const mark = watermarkFor(diagram);
-  if (mark) {
-    diagram.drawWatermark(canvas, element.width, element.height, ...mark);
-  }
-  diagram.arrangeDiagram(canvas);
-  diagram.drawDiagram(canvas, false);
-  const base642 = element.toDataURL(MIME[format]).replace(/^data:image\/(png|jpeg);base64,/, "");
-  return {
-    data: Buffer.from(base642, "base64"),
-    width: element.width,
-    height: element.height
-  };
-}
-function renderSvg(diagram, background) {
+function withoutSelection(diagram, run) {
   const selected = diagram.selectedViews;
   diagram.selectedViews = [];
-  let svg;
   try {
-    svg = diagramExport().getSVGImageData(diagram);
+    return run();
   } finally {
     diagram.selectedViews = selected;
   }
+}
+function withPixelRatio(ratio, run) {
+  const original = Object.getOwnPropertyDescriptor(window, "devicePixelRatio");
+  Object.defineProperty(window, "devicePixelRatio", {
+    configurable: true,
+    value: ratio
+  });
+  try {
+    return run();
+  } finally {
+    if (original) Object.defineProperty(window, "devicePixelRatio", original);
+    else delete window.devicePixelRatio;
+  }
+}
+function imageSize(data) {
+  if (data.length >= 24 && data.readUInt32BE(12) === 1229472850) {
+    return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
+  }
+  let at = 2;
+  while (at + 9 <= data.length && data[at] === 255) {
+    const marker = data[at + 1];
+    if (marker >= 192 && marker <= 207 && marker !== 196 && marker !== 200 && marker !== 204) {
+      return {
+        width: data.readUInt16BE(at + 7),
+        height: data.readUInt16BE(at + 5)
+      };
+    }
+    at += 2 + data.readUInt16BE(at + 2);
+  }
+  return { width: 0, height: 0 };
+}
+async function composite(png, background, mime) {
+  const bitmap = await createImageBitmap(
+    new Blob([new Uint8Array(png)], { type: "image/png" })
+  );
+  const element = document.createElement("canvas");
+  element.width = bitmap.width;
+  element.height = bitmap.height;
+  const context = element.getContext("2d");
+  context.fillStyle = background;
+  context.fillRect(0, 0, element.width, element.height);
+  context.drawImage(bitmap, 0, 0);
+  return dataUrlBytes(element.toDataURL(mime));
+}
+var dataUrlBytes = (url) => Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
+async function renderRaster(diagram, format, scale, background) {
+  const mime = background === void 0 ? MIME[format] : MIME.png;
+  const base642 = inStarUML(
+    () => withoutSelection(
+      diagram,
+      () => withPixelRatio(scale, () => diagramExport().getImageData(diagram, mime))
+    )
+  );
+  let data = Buffer.from(base642, "base64");
+  if (background !== void 0) {
+    data = await composite(data, background, MIME[format]);
+  }
+  return { data, ...imageSize(data) };
+}
+function renderSvg(diagram, background) {
+  let svg = withoutSelection(
+    diagram,
+    () => diagramExport().getSVGImageData(diagram)
+  );
   if (background) {
     svg = svg.replace(
       /<svg\b[^>]*>/,
@@ -6534,27 +6545,34 @@ var exportDiagram = defineEndpoint({
       doc(string2(), "The image, when 'path' was not given.")
     )
   }),
-  handle: (input) => {
+  handle: async (input) => {
     const diagram = currentOr(input.id);
     const format = input.format ?? "png";
-    const image = inStarUML(
-      () => format === "svg" ? renderSvg(diagram, input.background) : renderRaster(diagram, format, input.scale ?? 1, input.background)
-    );
-    const meta3 = {
-      diagram: diagram._id,
+    const image = format === "svg" ? inStarUML(() => renderSvg(diagram, input.background)) : await renderRaster(
+      diagram,
       format,
-      mimeType: MIME[format],
-      width: image.width,
-      height: image.height,
-      bytes: image.data.length
-    };
-    if (input.path === void 0) {
-      return { ...meta3, base64: image.data.toString("base64") };
-    }
-    writeFile(input.path, image.data);
-    return { ...meta3, path: input.path };
+      input.scale ?? 1,
+      input.background
+    );
+    return deliver(
+      {
+        diagram: diagram._id,
+        format,
+        mimeType: MIME[format],
+        width: image.width,
+        height: image.height,
+        bytes: image.data.length
+      },
+      image.data,
+      input.path
+    );
   }
 });
+function deliver(meta3, data, path) {
+  if (path === void 0) return { ...meta3, base64: data.toString("base64") };
+  writeFile(path, data);
+  return { ...meta3, path };
+}
 function writeFile(path, data) {
   try {
     (0, import_node_fs.mkdirSync)((0, import_node_path2.dirname)(path), { recursive: true });

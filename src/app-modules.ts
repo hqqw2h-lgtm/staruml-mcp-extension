@@ -28,6 +28,8 @@ import type { Element } from "./types.js";
 
 /** engine/diagram-export.js; what the CLI's image and pdf commands call. */
 export interface DiagramExportModule {
+  /** Base64 PNG or JPEG at window.devicePixelRatio; draws the selection. */
+  getImageData(diagram: Element, mime: string): string;
   /** Draws the diagram's current selection unless the caller clears it. */
   getSVGImageData(diagram: Element): string;
   /** Streams the PDF; the file is complete only after pdfkit flushes it. */
