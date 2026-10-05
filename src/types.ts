@@ -95,6 +95,8 @@ export interface OperationBuilder {
 /** core/repository.js */
 export interface Repository {
   get(id: string): Element | undefined;
+  /** Every element by id, views and diagrams included (core/repository.js). */
+  getIdMap(): Record<string, Element>;
   /** Throws a TypeError when `typeName` is not a key of the `type` global. */
   getInstancesOf(typeName: string): Element[];
   findAll(predicate: (elem: Element) => boolean): Element[];

@@ -32,17 +32,17 @@ If you only want to curl StarUML from your own scripts, install just this extens
 
 **File → Preferences → MCP Extension** (`preferences/preference.json`):
 
-| Key                                | Default | Meaning                                                                      |
-| ---------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| `mcp-ext.server.enabled`           | `true`  | Start the HTTP server when StarUML starts                                    |
-| `mcp-ext.server.port`              | `58322` | Loopback port; `0` lets the OS pick a free one                               |
-| `mcp-ext.server.logLevel`          | `info`  | Developer console output: `error`, `info`, or `debug` (one line per request) |
-| `mcp-ext.token`                    | empty   | When set, every request needs `Authorization: Bearer <token>`                |
-| `mcp-ext.security.allowedOrigins`  | empty   | Browser origins let through, comma-separated                                 |
-| `mcp-ext.limits.maxBodyKiB`        | `4096`  | Largest request body                                                         |
-| `mcp-ext.limits.maxBatchOps`       | `500`   | Most ops in one `/batch`                                                     |
-| `mcp-ext.limits.timeoutSeconds`    | `60`    | Answer `504` to a request still waiting after this long                      |
-| `mcp-ext.limits.commandsPerMinute` | `60`    | `/execute_command` calls per minute, all clients together                    |
+| Key                                | Default | Meaning                                                                           |
+| ---------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `mcp-ext.server.enabled`           | `true`  | Start the HTTP server when StarUML starts                                         |
+| `mcp-ext.server.port`              | `58322` | Loopback port; `0` lets the OS pick a free one                                    |
+| `mcp-ext.server.logLevel`          | `info`  | Developer console output: `error`, `info`, or `debug` (one line per request)      |
+| `mcp-ext.token`                    | empty   | When set, every request needs `Authorization: Bearer <token>`                     |
+| `mcp-ext.security.allowedOrigins`  | empty   | Browser origins let through, comma-separated                                      |
+| `mcp-ext.limits.maxBodyKiB`        | `4096`  | Largest request body                                                              |
+| `mcp-ext.limits.maxBatchOps`       | `500`   | Most ops in one `/batch`                                                          |
+| `mcp-ext.limits.timeoutSeconds`    | `60`    | Answer `504` to a request still waiting after this long                           |
+| `mcp-ext.limits.commandsPerMinute` | `60`    | Calls per minute to each of `/execute_command`, `/generate_code`, `/reverse_code` |
 
 Enabled and port take effect after a restart, the others on the next request. **Tools → MCP Extension → Server Info...** shows the bound address, whether a token is required, the allowed origins and the endpoint list; **Generate Access Token...** stores a random token and shows it once.
 
@@ -54,7 +54,7 @@ The server listens on 127.0.0.1 only, but any local process, and any web page th
 2. With `mcp-ext.token` set, a missing or different `Authorization: Bearer` token: `401 UNAUTHORIZED`, also for `GET /`.
 3. A `POST` without `Content-Type: application/json` (parameters such as `charset` are fine): `415 UNSUPPORTED_MEDIA_TYPE`. Browsers cannot send that type cross-origin without a preflight, which is refused.
 4. A body over `maxBodyKiB`: `413 PAYLOAD_TOO_LARGE`.
-5. `/execute_command` over `commandsPerMinute`: `429 RATE_LIMITED` with `Retry-After`.
+5. `/execute_command`, `/generate_code` or `/reverse_code` over `commandsPerMinute`: `429 RATE_LIMITED` with `Retry-After`.
 6. No answer within `timeoutSeconds`: `504 TIMEOUT`. Handlers run on StarUML's UI thread and cannot be cancelled, so the call may still complete; only waits (exports, commands) can time out.
 
 Clients pass the token as a header, e.g. `curl -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d '{}' localhost:58322/get_project_info`. The live tests, load test and `snapshot:introspect` read it from `STARUML_EXT_TOKEN`.
@@ -100,13 +100,20 @@ Returns the StarUML and extension versions and, unless `include` narrows it, fou
 
 - View edits go through StarUML's engine (`layoutDiagram`, `moveViews`, `resizeNode`, `setFillColor`, ...), which needs the editor to show the views' diagram, so they make that diagram current. Each is one undo step; `/set_view_style` is one step per property given.
 - `/export_diagram` renders PNG and JPEG by calling StarUML's own exporter (`engine/diagram-export.js` `getImageData`, what **File → Export Diagram As** uses) and SVG through its SVG export. `scale` (pixels per diagram unit, default 1; the menu uses the display's pixel ratio) is passed as the pixel ratio that exporter reads; `background` (default transparent, white for JPEG) is painted under a transparent rendering. It answers base64 or writes `path`. Whatever the exporter draws for the running licence appears as it does in the menu.
+- `/export_diagrams` writes every diagram (or `ids`) into a directory, one PNG, JPEG or SVG file each, named after the diagram.
 - `/export_pdf` and `/export_html` write what the CLI's `pdf` and `html` commands write, to an absolute path.
+
+### Commands and code generation
+
+- [`docs/commands.md`](docs/commands.md) lists every command id with its arguments, effect and dialog behaviour; `/describe_commands` answers the same from the running app. `npm run docs:commands` regenerates the file.
+- `/execute_command` answers `422 DIALOG_REQUIRED` instead of waiting on a dialog: commands that always open one, or that are missing the arguments that avoid one, are refused before they run; any other command runs with every `app.dialogs.show*` and `app.*Dialog.showDialog` replaced, and is stopped where it would open one. StarUML's message and file boxes are synchronous, so an opened one would freeze StarUML and this server with it.
+- `/generate_code {language, baseId, path, options?}` runs an installed generator extension (`staruml.java`, `staruml.cpp`, `staruml.csharp`, `staruml.python`) and lists the files it wrote; options default to the generator's preferences. `/reverse_code {language, path, options?}` reads a source directory into the project through the extension's analyzer. `/list_code_generators` shows what is installed. All three find the extension wherever StarUML loaded it from.
 
 ### `/batch`
 
 `{ops: [{path, body, as?}], atomic?}` runs endpoint calls in order. A string `"$name"` anywhere in a later `body` becomes the id of the result saved `as: "name"`; `"$name.view"` and `"$name.model"` pick the parts of a `create_*_with_view` result, and any path into the result works (`.id` means `_id`). `"$$"` escapes a literal `$`.
 
-- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`.
+- `atomic: true` (default): the batch is one undo step. If an op fails, everything it ran is undone, nothing is left to redo, and the answer is that op's error code with `details: {index, results}`. Atomic batches refuse `/undo`, `/redo`, `/new_project`, `/open_project`, `/save_project*`, `/execute_command`, `/export_pdf`, `/export_html`, `/export_diagrams`, `/generate_code`, `/reverse_code`.
 - `atomic: false`: every op runs; `results` has each op's `data` or `code`/`error`, and `succeeded`/`failed` count them.
 - At most `mcp-ext.limits.maxBatchOps` ops (default 500) and `mcp-ext.limits.maxBodyKiB` of body (default 4096, for every endpoint); over either is `413 PAYLOAD_TOO_LARGE`.
 
@@ -124,6 +131,7 @@ Success is `{success: true, data}`. Failure is `{success: false, code, error, de
 | `PAYLOAD_TOO_LARGE`                | 413    | Body over `mcp-ext.limits.maxBodyKiB`, or a batch over `mcp-ext.limits.maxBatchOps` |
 | `NO_PROJECT`                       | 409    | No project open, or it has no file yet                                              |
 | `STARUML_ERROR`                    | 422    | StarUML refused, e.g. a factory precondition                                        |
+| `DIALOG_REQUIRED`                  | 422    | The command would open a dialog; `details` says which                               |
 | `INTERNAL`                         | 500    | Defect in the extension                                                             |
 
 ### Elements

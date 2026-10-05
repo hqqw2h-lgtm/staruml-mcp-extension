@@ -48,6 +48,11 @@ export const ERROR_STATUS = {
   NO_PROJECT: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
+  /**
+   * The command would open a modal or native dialog and wait for someone at
+   * StarUML; it was refused, or stopped where the dialog would have opened.
+   */
+  DIALOG_REQUIRED: 422,
   /** Over mcp-ext.limits.commandsPerMinute; Retry-After says when to retry. */
   RATE_LIMITED: 429,
   /** A defect in this extension; details are in StarUML's developer console. */

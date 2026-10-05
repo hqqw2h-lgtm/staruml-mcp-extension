@@ -23,7 +23,16 @@
 
 import type { Endpoint } from "./endpoint.js";
 import { batchEndpoint } from "./handlers/batch.js";
-import { executeCommand, getAllCommands } from "./handlers/commands.js";
+import {
+  describeCommands,
+  executeCommand,
+  getAllCommands,
+} from "./handlers/commands.js";
+import {
+  generateCode,
+  listCodeGenerators,
+  reverseCode,
+} from "./handlers/codegen.js";
 import { debug } from "./handlers/debug.js";
 import { introspectEndpoint } from "./handlers/introspect.js";
 import {
@@ -67,7 +76,12 @@ import {
   setEditorState,
   setSelection,
 } from "./handlers/editor.js";
-import { exportDiagram, exportHtml, exportPdf } from "./handlers/export.js";
+import {
+  exportDiagram,
+  exportDiagrams,
+  exportHtml,
+  exportPdf,
+} from "./handlers/export.js";
 import { isModified, redo, undo } from "./handlers/history.js";
 import {
   getConnectedNodeViews,
@@ -88,6 +102,7 @@ import type { Handler } from "./http-server.js";
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
 export const endpoints: readonly Endpoint[] = [
   getAllCommands,
+  describeCommands,
   executeCommand,
 
   getProjectInfo,
@@ -137,8 +152,13 @@ export const endpoints: readonly Endpoint[] = [
   setEditorState,
 
   exportDiagram,
+  exportDiagrams,
   exportPdf,
   exportHtml,
+
+  listCodeGenerators,
+  generateCode,
+  reverseCode,
 
   undo,
   redo,

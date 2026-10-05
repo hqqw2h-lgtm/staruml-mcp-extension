@@ -296,6 +296,101 @@ function writeFile(path: string, data: Buffer): void {
   }
 }
 
+/** A file name for a diagram: its name with characters Windows and POSIX reserve replaced. */
+export function fileStem(diagram: Element, taken: Set<string>): string {
+  const name = typeof diagram.name === "string" ? diagram.name : "";
+  // eslint-disable-next-line no-control-regex
+  const clean = name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  const stem =
+    clean === "" || taken.has(clean.toLowerCase())
+      ? `${clean || "diagram"}-${diagram._id}`
+      : clean;
+  taken.add(stem.toLowerCase());
+  return stem;
+}
+
+export const exportDiagrams = defineEndpoint({
+  path: "/export_diagrams",
+  description:
+    "Write diagrams as image files into a directory, one per diagram named after it, as File > Export Diagrams does; /export_diagram renders one.",
+  readOnly: false,
+  destructive: true,
+  request: z.object({
+    path: absolutePath(
+      "Absolute directory to write into; created if missing. Files of the same name are overwritten.",
+    ),
+    ids: z.optional(
+      doc(
+        z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
+        "Diagram ids; default every diagram in the project.",
+      ),
+    ),
+    format: z.optional(
+      doc(z.enum(["png", "jpeg", "svg"]), "Image format; default png."),
+    ),
+    scale: z.optional(
+      doc(
+        z.number().check(z.positive(), z.maximum(MAX_SCALE)),
+        "As for /export_diagram.",
+      ),
+    ),
+    background: z.optional(
+      doc(
+        z.string().check(z.regex(/^(#[0-9a-f]{3,8}|[a-z]+)$/i)),
+        "As for /export_diagram.",
+      ),
+    ),
+  }),
+  response: z.object({
+    path: z.string(),
+    format: z.string(),
+    count: z.int(),
+    files: z.array(
+      z.object({
+        diagram: z.string(),
+        file: doc(z.string(), "Absolute path written."),
+        width: z.number(),
+        height: z.number(),
+        bytes: z.int(),
+      }),
+    ),
+  }),
+  handle: async (input) => {
+    requireProject();
+    const diagrams = input.ids
+      ? input.ids.map((i) => requireDiagram(i))
+      : app.repository.getInstancesOf("Diagram");
+    if (diagrams.length === 0) {
+      throw new ApiError("NOT_FOUND", "The project has no diagrams");
+    }
+    const format: Format = input.format ?? "png";
+    const extension = format === "jpeg" ? "jpg" : format;
+    const taken = new Set<string>();
+    const files = [];
+    for (const diagram of diagrams as SelectableDiagram[]) {
+      const image =
+        format === "svg"
+          ? inStarUML(() => renderSvg(diagram, input.background))
+          : await renderRaster(
+              diagram,
+              format,
+              input.scale ?? 1,
+              input.background,
+            );
+      const file = join(input.path, `${fileStem(diagram, taken)}.${extension}`);
+      writeFile(file, image.data);
+      files.push({
+        diagram: diagram._id,
+        file,
+        width: image.width,
+        height: image.height,
+        bytes: image.data.length,
+      });
+    }
+    return { path: input.path, format, count: files.length, files };
+  },
+});
+
 /** pdfkit writes "%%EOF" last (PDFDocument.end), so its presence means the stream was flushed. */
 export const PDF_WAIT_MS = 30_000;
 const PDF_POLL_MS = 50;

@@ -92,6 +92,11 @@ var ERROR_STATUS = {
   NO_PROJECT: 409,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
+  /**
+   * The command would open a modal or native dialog and wait for someone at
+   * StarUML; it was refused, or stopped where the dialog would have opened.
+   */
+  DIALOG_REQUIRED: 422,
   /** Over mcp-ext.limits.commandsPerMinute; Retry-After says when to retry. */
   RATE_LIMITED: 429,
   /** A defect in this extension; details are in StarUML's developer console. */
@@ -3701,7 +3706,11 @@ var DEFAULTS = {
   timeoutSeconds: 60,
   commandsPerMinute: 60
 };
-var THROTTLED = ["/execute_command"];
+var THROTTLED = [
+  "/execute_command",
+  "/generate_code",
+  "/reverse_code"
+];
 function positiveInt(key, fallback) {
   const value = app.preferences.get(key, fallback);
   return Number.isInteger(value) && value > 0 ? value : fallback;
@@ -3780,7 +3789,10 @@ var NOT_ATOMIC = /* @__PURE__ */ new Set([
   "/save_project_as",
   "/execute_command",
   "/export_pdf",
-  "/export_html"
+  "/export_html",
+  "/export_diagrams",
+  "/generate_code",
+  "/reverse_code"
 ]);
 var NAME = /^[A-Za-z_][\w-]*$/;
 var REFERENCE = /^\$([A-Za-z_][\w-]*)((?:\.[A-Za-z_$][\w$]*)*)$/;
@@ -3939,7 +3951,7 @@ function batchEndpoint(endpoints2) {
       atomic: optional(
         doc(
           boolean2(),
-          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf and /export_html."
+          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code and /reverse_code."
         )
       )
     }),
@@ -3988,6 +4000,3903 @@ function batchEndpoint(endpoints2) {
       };
     }
   });
+}
+
+// src/command-catalogue.json
+var command_catalogue_default = {
+  commands: {
+    "alignment:align-bottom": {
+      args: [],
+      dialog: "never",
+      effect: "Aligns the selected node views to the lowest bottom edge.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:409"
+    },
+    "alignment:align-center": {
+      args: [],
+      dialog: "never",
+      effect: "Centers the selected node views horizontally on a common axis.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:399"
+    },
+    "alignment:align-left": {
+      args: [],
+      dialog: "never",
+      effect: "Aligns the selected node views to the leftmost edge.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:389"
+    },
+    "alignment:align-middle": {
+      args: [],
+      dialog: "never",
+      effect: "Centers the selected node views vertically on a common axis.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:414"
+    },
+    "alignment:align-right": {
+      args: [],
+      dialog: "never",
+      effect: "Aligns the selected node views to the rightmost edge.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:394"
+    },
+    "alignment:align-top": {
+      args: [],
+      dialog: "never",
+      effect: "Aligns the selected node views to the topmost edge.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:404"
+    },
+    "alignment:bring-to-front": {
+      args: [],
+      dialog: "never",
+      effect: "Moves the selected views to the top of the diagram z-order.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:384"
+    },
+    "alignment:send-to-back": {
+      args: [],
+      dialog: "never",
+      effect: "Moves the selected views to the bottom of the diagram z-order.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:379"
+    },
+    "alignment:set-height-equally": {
+      args: [],
+      dialog: "never",
+      effect: "Gives all selected node views the same height.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:434"
+    },
+    "alignment:set-size-equally": {
+      args: [],
+      dialog: "never",
+      effect: "Gives all selected node views the same width and height.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:439"
+    },
+    "alignment:set-width-equally": {
+      args: [],
+      dialog: "never",
+      effect: "Gives all selected node views the same width.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:429"
+    },
+    "alignment:space-equally-horizontally": {
+      args: [],
+      dialog: "never",
+      effect: "Distributes the selected node views with equal horizontal spacing.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:419"
+    },
+    "alignment:space-equally-vertically": {
+      args: [],
+      dialog: "never",
+      effect: "Distributes the selected node views with equal vertical spacing.",
+      needs: "selection (node views in current diagram)",
+      source: "extensions/default/alignment/main.js:424"
+    },
+    "api:get_all_diagrams_info": {
+      args: [],
+      dialog: "never",
+      effect: "Returns id, type, name and documentation of every diagram in the repository (empty array if none).",
+      needs: "open project",
+      source: "src/engine/default-commands.js:1699"
+    },
+    "api:get_current_diagram_info": {
+      args: [],
+      dialog: "never",
+      effect: "Returns id, type, name and documentation of the active diagram, or null when none is open.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1700"
+    },
+    "api:get_diagram_image_by_id": {
+      args: [
+        {
+          name: "diagramId",
+          note: "Must resolve to a Diagram, else the command throws.",
+          optional: false,
+          type: "string element _id"
+        }
+      ],
+      dialog: "never",
+      effect: "Renders the given diagram to PNG and returns the image data (null if rendering fails).",
+      needs: "open project",
+      note: "Throws an Error for an unknown or non-diagram id.",
+      source: "src/engine/default-commands.js:1704"
+    },
+    "application:log": {
+      args: [
+        {
+          name: "...args",
+          note: "Forwarded verbatim to console.log.",
+          optional: true,
+          type: "any"
+        }
+      ],
+      dialog: "never",
+      effect: "Writes the arguments to the renderer DevTools console.",
+      source: "src/engine/default-commands.js:1444"
+    },
+    "application:main-log": {
+      args: [
+        {
+          name: "...args",
+          note: "Sent over IPC to the main process.",
+          optional: true,
+          type: "any (structured-cloneable)"
+        }
+      ],
+      dialog: "never",
+      effect: "Prints the arguments on the main process console (stdout), the channel the CLI uses for output.",
+      source: "src/engine/default-commands.js:1445"
+    },
+    "application:preferences": {
+      args: [
+        {
+          name: "preferenceId",
+          note: "Pre-selects that preference section.",
+          optional: true,
+          type: "string preference schema id"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens the Preferences modal dialog.",
+      source: "src/engine/default-commands.js:1439"
+    },
+    "application:quit": {
+      args: [],
+      dialog: "confirm",
+      effect: "Saves working-diagram state and asks the main process to quit the whole application.",
+      note: "Main process closes every window; a window with unsaved changes raises a blocking native Save/Don't Save/Cancel box (window.js close handler). Choosing Save routes to project:save, which opens a native save dialog for an untitled project. Terminates the app, which also stops any in-app server.",
+      source: "src/engine/default-commands.js:1446"
+    },
+    "application:reload": {
+      args: [],
+      dialog: "confirm",
+      effect: "Asks the main process to relaunch the application and then quits it (full app restart, not a window reload).",
+      note: "Kills every window and with it the in-app HTTP server; it does not come back until the relaunched app finishes loading. Shares application:quit's path, so a modified project raises the blocking native Save/Don't Save/Cancel box (window close handler) before the quit proceeds.",
+      source: "src/engine/default-commands.js:1447"
+    },
+    "aws:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/aws/aws-commands.js:90"
+    },
+    "aws:set-icon": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens the icon picker for a AWS element view that has an icon and sets the chosen icon (and a name derived from it).",
+      needs: "target view (options.view) of a AWSElement",
+      note: "Nothing happens when options.view.model is not a AWSElement that has an icon. The picker is an in-app modal; result is applied asynchronously but the handler returns undefined.",
+      source: "extensions/essential/aws/aws-commands.js:91"
+    },
+    "azure:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/azure/azure-commands.js:54"
+    },
+    "azure:set-icon": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens the icon picker for a Azure element view and sets the chosen icon (and a name derived from it).",
+      needs: "target view (options.view) of a AzureElement",
+      note: "Nothing happens when options.view.model is not a AzureElement. The picker is an in-app modal; result is applied asynchronously but the handler returns undefined.",
+      source: "extensions/essential/azure/azure-commands.js:55"
+    },
+    "bpmn:add-boundary-event": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a boundary event at a random spot on the given activity view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/bpmn/bpmn-commands.js:287"
+    },
+    "bpmn:add-choreography-initiating-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a message above the choreography view linked to it with a rectilinear message link.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/bpmn/bpmn-commands.js:301"
+    },
+    "bpmn:add-choreography-return-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a grey (return) message below the choreography view linked to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/bpmn/bpmn-commands.js:305"
+    },
+    "bpmn:add-event-definition": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). command-arg supplies id (e.g. BPMNTimerEventDefinition); spread into factory options.",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Creates an event definition of the given type under the event's model.",
+      needs: "target view (options.view) of a BPMNEvent",
+      source: "extensions/essential/bpmn/bpmn-commands.js:288"
+    },
+    "bpmn:add-lane": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a lane inside the given pool/lane view, below its current bottom.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/bpmn/bpmn-commands.js:286"
+    },
+    "bpmn:add-text-annotation": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a text annotation below the view and associates it with the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/bpmn/bpmn-commands.js:309"
+    },
+    "bpmn:assign-choreography-initiating-participant": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker for a participant and sets it as the choreography activity's initiating participant.",
+      needs: "target view (options.view) of a BPMNChoreographyActivity",
+      note: "No-op when the model is not a BPMNChoreographyActivity.",
+      source: "extensions/essential/bpmn/bpmn-commands.js:297"
+    },
+    "bpmn:assign-choreography-participant": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). options.field names the participant list to append to.",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker for a participant and appends the choice to the choreography activity's participant field.",
+      needs: "target view (options.view) of a BPMNChoreographyActivity",
+      note: "No-op when the model is not a BPMNChoreographyActivity.",
+      source: "extensions/essential/bpmn/bpmn-commands.js:293"
+    },
+    "bpmn:create-choreography-participant": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). options.field is upperParticipants or lowerParticipants (from command-arg).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Creates a new participant next to the choreography activity and adds it to the given participant field.",
+      needs: "target view (options.view) of a BPMNChoreographyActivity",
+      source: "extensions/essential/bpmn/bpmn-commands.js:289"
+    },
+    "bpmn:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/bpmn/bpmn-commands.js:285"
+    },
+    "c4:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/c4/c4-commands.js:57"
+    },
+    "cli:ejs": {
+      args: [
+        {
+          name: "template",
+          optional: false,
+          type: "string .ejs file path"
+        },
+        {
+          name: "select",
+          note: "Passed to app.repository.select.",
+          optional: false,
+          type: "string element selector expression"
+        },
+        {
+          name: "output",
+          note: "When omitted the rendered text is printed to the main console instead of written.",
+          optional: true,
+          type: "string ejs-templated output path"
+        }
+      ],
+      dialog: "never",
+      effect: "Renders an EJS template once per selected element and writes each result to a file (or the main console), then quits the app.",
+      needs: "open project",
+      note: "Designed for CLI mode: after running it schedules an IPC 'quit' 500 ms later, which terminates the whole app (and the HTTP server). Errors are only logged to the main console.",
+      source: "src/engine/default-commands.js:1680"
+    },
+    "cli:exec": {
+      args: [
+        {
+          name: "cmd",
+          optional: false,
+          type: "string command id"
+        },
+        {
+          name: "args",
+          note: "Passed as the single argument to that command.",
+          optional: true,
+          type: "any"
+        }
+      ],
+      dialog: "never",
+      effect: "Executes another registered command by id, then quits the app.",
+      note: "Designed for CLI mode: after running it schedules an IPC 'quit' 500 ms later, which terminates the whole app (and the HTTP server). Errors are only logged to the main console. Any dialog the target command opens is still shown, and the quit fires regardless.",
+      source: "src/engine/default-commands.js:1684"
+    },
+    "cli:html": {
+      args: [
+        {
+          name: "output",
+          optional: false,
+          type: "string directory path"
+        }
+      ],
+      dialog: "never",
+      effect: "Runs html-export:export into the given directory (html-docs subfolder), then quits the app.",
+      needs: "open project",
+      note: "Designed for CLI mode: after running it schedules an IPC 'quit' 500 ms later, which terminates the whole app (and the HTTP server). Errors are only logged to the main console.",
+      source: "src/engine/default-commands.js:1682"
+    },
+    "cli:image": {
+      args: [
+        {
+          name: "format",
+          note: "Other values export nothing.",
+          optional: false,
+          type: "string png|jpeg|svg"
+        },
+        {
+          name: "selector",
+          note: "Non-diagram matches are filtered out.",
+          optional: false,
+          type: "string element selector expression"
+        },
+        {
+          name: "output",
+          note: "Defaults to <diagram name>.<format> in the working directory.",
+          optional: true,
+          type: "string ejs-templated output path"
+        }
+      ],
+      dialog: "never",
+      effect: "Exports each selected diagram as an image file, then quits the app.",
+      needs: "open project",
+      note: "Designed for CLI mode: after running it schedules an IPC 'quit' 500 ms later, which terminates the whole app (and the HTTP server). Errors are only logged to the main console.",
+      source: "src/engine/default-commands.js:1681"
+    },
+    "cli:pdf": {
+      args: [
+        {
+          name: "selector",
+          note: "Non-diagram matches are filtered out.",
+          optional: false,
+          type: "string element selector expression"
+        },
+        {
+          name: "output",
+          optional: false,
+          type: "string .pdf file path"
+        },
+        {
+          name: "options",
+          note: "Forwarded to the PDF exporter (page size, layout, header etc.).",
+          optional: true,
+          type: "object PDF export options"
+        }
+      ],
+      dialog: "never",
+      effect: "Exports the selected diagrams into one PDF file, then quits the app.",
+      needs: "open project",
+      note: "Designed for CLI mode: after running it schedules an IPC 'quit' 500 ms later, which terminates the whole app (and the HTTP server). Errors are only logged to the main console.",
+      source: "src/engine/default-commands.js:1683"
+    },
+    "common:tag": {
+      args: [
+        {
+          name: "options",
+          note: "Accepted but ignored.",
+          optional: true,
+          type: "object"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a new Tag to the currently selected model element.",
+      needs: "selection (ExtensibleModel)",
+      source: "extensions/essential/common/common-commands.js:37"
+    },
+    "debug:reload": {
+      args: [],
+      dialog: "confirm",
+      effect: "Reloads the current window's web contents.",
+      note: "Reload tears down the renderer, killing the in-app HTTP server until extensions re-initialise. When the repository is modified it first shows the blocking Save/Don't Save/Cancel box: Save runs project:save and does NOT reload; Cancel aborts; only Don't Save reloads.",
+      source: "extensions/default/debug/main.js:45"
+    },
+    "debug:show-devtools": {
+      args: [],
+      dialog: "external",
+      effect: "Opens Chromium DevTools for the window in a detached window.",
+      note: "Opens a separate DevTools window; no modal in the app.",
+      source: "extensions/default/debug/main.js:44"
+    },
+    "dfd:add-incoming-external-entity": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an external entity above the view with a data flow into the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/dfd/dfd-commands.js:138"
+    },
+    "dfd:add-incoming-process": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a process above the view with a data flow into the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/dfd/dfd-commands.js:139"
+    },
+    "dfd:add-outgoing-datastore": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a data store below the view connected by a data flow from the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/dfd/dfd-commands.js:137"
+    },
+    "dfd:add-outgoing-process": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a process below the view connected by a data flow from the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/dfd/dfd-commands.js:136"
+    },
+    "diagram-generator:overview": {
+      args: [
+        {
+          name: "base",
+          note: "Package to generate from; defaults to the selected element if it is a UMLPackage.",
+          optional: true,
+          type: "Element (UMLPackage)"
+        },
+        {
+          name: "doNotOpen",
+          note: "When true the generated diagram is not opened.",
+          optional: true,
+          type: "boolean"
+        }
+      ],
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Generates a class diagram 'Overview' of a package's owned elements with compartments suppressed, auto-lays it out and opens it.",
+      needs: "selection (UMLPackage) when base omitted",
+      note: "If base is omitted and the selection is not a UMLPackage, a blocking native info message box is shown and nothing is generated.",
+      source: "extensions/default/diagram-generator/main.js:372"
+    },
+    "diagram-generator:overview-expanded": {
+      args: [
+        {
+          name: "base",
+          note: "Package to generate from; defaults to the selected element if it is a UMLPackage.",
+          optional: true,
+          type: "Element (UMLPackage)"
+        },
+        {
+          name: "doNotOpen",
+          note: "When true the generated diagram is not opened.",
+          optional: true,
+          type: "boolean"
+        }
+      ],
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Generates an 'Overview' class diagram of a package's owned elements with compartments shown, lays it out and opens it.",
+      needs: "selection (UMLPackage) when base omitted",
+      note: "If base is omitted and the selection is not a UMLPackage, a blocking native info message box is shown and nothing is generated.",
+      source: "extensions/default/diagram-generator/main.js:373"
+    },
+    "diagram-generator:package-structure": {
+      args: [
+        {
+          name: "base",
+          note: "Package to generate from; defaults to the selected element if it is a UMLPackage.",
+          optional: true,
+          type: "Element (UMLPackage)"
+        },
+        {
+          name: "doNotOpen",
+          note: "When true the generated diagram is not opened.",
+          optional: true,
+          type: "boolean"
+        }
+      ],
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Generates a package diagram of nested packages under a package and opens it.",
+      needs: "selection (UMLPackage) when base omitted",
+      note: "If base is omitted and the selection is not a UMLPackage, a blocking native info message box is shown and nothing is generated.",
+      source: "extensions/default/diagram-generator/main.js:375"
+    },
+    "diagram-generator:type-hierarchy": {
+      args: [
+        {
+          name: "base",
+          note: "Package to generate from; defaults to the selected element if it is a UMLPackage.",
+          optional: true,
+          type: "Element (UMLPackage)"
+        },
+        {
+          name: "doNotOpen",
+          note: "When true the generated diagram is not opened.",
+          optional: true,
+          type: "boolean"
+        }
+      ],
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Generates a class diagram showing the generalization/realization hierarchy of a package's types and opens it.",
+      needs: "selection (UMLPackage) when base omitted",
+      note: "If base is omitted and the selection is not a UMLPackage, a blocking native info message box is shown and nothing is generated.",
+      source: "extensions/default/diagram-generator/main.js:374"
+    },
+    "diagram-layout:auto": {
+      args: [
+        {
+          name: "direction",
+          note: "Rank direction; default is the diagram's built-in default.",
+          optional: true,
+          type: "string (TB|BT|LR|RL)"
+        },
+        {
+          name: "separations",
+          note: "If given, pass all three fields; missing ones become undefined.",
+          optional: true,
+          type: "object {node,edge,rank} numbers"
+        }
+      ],
+      dialog: "never",
+      effect: "Auto-lays out the current diagram (dagre) with the default direction, as one undoable operation.",
+      needs: "current diagram",
+      source: "extensions/default/diagram-layout/main.js:39"
+    },
+    "diagram-layout:bottom-top": {
+      args: [
+        {
+          name: "separations",
+          note: "Direction is bound; first caller arg becomes separations. If given, pass all three fields.",
+          optional: true,
+          type: "object {node,edge,rank} numbers"
+        }
+      ],
+      dialog: "never",
+      effect: "Auto-lays out the current diagram with rank direction BT, as one undoable operation.",
+      needs: "current diagram",
+      source: "extensions/default/diagram-layout/main.js:41"
+    },
+    "diagram-layout:left-right": {
+      args: [
+        {
+          name: "separations",
+          note: "Direction is bound; first caller arg becomes separations. If given, pass all three fields.",
+          optional: true,
+          type: "object {node,edge,rank} numbers"
+        }
+      ],
+      dialog: "never",
+      effect: "Auto-lays out the current diagram with rank direction LR, as one undoable operation.",
+      needs: "current diagram",
+      source: "extensions/default/diagram-layout/main.js:42"
+    },
+    "diagram-layout:right-left": {
+      args: [
+        {
+          name: "separations",
+          note: "Direction is bound; first caller arg becomes separations. If given, pass all three fields.",
+          optional: true,
+          type: "object {node,edge,rank} numbers"
+        }
+      ],
+      dialog: "never",
+      effect: "Auto-lays out the current diagram with rank direction RL, as one undoable operation.",
+      needs: "current diagram",
+      source: "extensions/default/diagram-layout/main.js:43"
+    },
+    "diagram-layout:top-bottom": {
+      args: [
+        {
+          name: "separations",
+          note: "Direction is bound; first caller arg becomes separations. If given, pass all three fields.",
+          optional: true,
+          type: "object {node,edge,rank} numbers"
+        }
+      ],
+      dialog: "never",
+      effect: "Auto-lays out the current diagram with rank direction TB, as one undoable operation.",
+      needs: "current diagram",
+      source: "extensions/default/diagram-layout/main.js:40"
+    },
+    "diagram-thumbnails:toggle": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the Diagram Thumbnails panel.",
+      source: "extensions/default/diagram-thumbnails/main.js:299"
+    },
+    "edit:copy": {
+      args: [],
+      dialog: "confirm",
+      effect: "Copies the selected model (single) or selected copyable views to the StarUML clipboard; inside a text field forwards a native copy.",
+      needs: "selection",
+      note: "Shows a blocking native info box when selected views cannot be copied (e.g. in sequence/communication diagrams). Deselects non-copyable views as a side effect.",
+      source: "src/engine/default-commands.js:1509"
+    },
+    "edit:copy-diagram-as-image": {
+      args: [],
+      dialog: "never",
+      effect: "Renders the current diagram to an image (PNG on macOS) and writes it to the system clipboard; clears diagram selection.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1510"
+    },
+    "edit:cut": {
+      args: [],
+      dialog: "confirm",
+      effect: "Copies then deletes the selected model or views (text-field focus: native cut).",
+      needs: "selection",
+      note: "View cut goes through edit:delete, which can open the 'Delete Views Only / Delete from Model' modal when the diagram allows neither deleting nor hiding views.",
+      source: "src/engine/default-commands.js:1508"
+    },
+    "edit:delete": {
+      args: [],
+      dialog: "confirm",
+      effect: "Deletes the selected views from the diagram (or hides them where the diagram only allows hiding); models stay.",
+      needs: "selection, current diagram",
+      note: "If the current diagram can neither delete nor hide views (e.g. lifelines in sequence diagrams), opens a renderer modal asking Delete Views Only / Delete from Model / Cancel.",
+      source: "src/engine/default-commands.js:1516"
+    },
+    "edit:delete-from-model": {
+      args: [],
+      dialog: "never",
+      effect: "Deletes the selected models (and models of selected views) from the repository, closing any deleted diagrams; no confirmation.",
+      needs: "selection",
+      note: "Destructive without prompt; undoable via edit:undo.",
+      source: "src/engine/default-commands.js:1517"
+    },
+    "edit:move-down": {
+      args: [],
+      dialog: "never",
+      effect: "Moves the selected element one position down within its parent's collection.",
+      needs: "selection",
+      note: "Throws if nothing is selected.",
+      source: "src/engine/default-commands.js:1523"
+    },
+    "edit:move-up": {
+      args: [],
+      dialog: "never",
+      effect: "Moves the selected element one position up within its parent's collection.",
+      needs: "selection",
+      note: "Throws if nothing is selected.",
+      source: "src/engine/default-commands.js:1522"
+    },
+    "edit:open-sub-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Opens the first diagram owned by the selected element (or its sub-activity/sub-machine); toast if none.",
+      needs: "selection (exactly one model)",
+      source: "src/engine/default-commands.js:1535"
+    },
+    "edit:paste": {
+      args: [],
+      dialog: "confirm",
+      effect: "Pastes the clipboard model under the selected element or clipboard views into the current diagram (text-field focus: native paste).",
+      needs: "selection or current diagram",
+      note: "Shows a blocking native info box when clipboard views cannot be pasted into the current diagram.",
+      source: "src/engine/default-commands.js:1515"
+    },
+    "edit:redo": {
+      args: [],
+      dialog: "never",
+      effect: "Redoes the last undone operation (text-field focus: native redo).",
+      source: "src/engine/default-commands.js:1507"
+    },
+    "edit:select-all": {
+      args: [],
+      dialog: "never",
+      effect: "Selects all views in the current diagram, or all text in a focused input.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1524"
+    },
+    "edit:select-in-diagram": {
+      args: [],
+      dialog: "confirm",
+      effect: "Selects a view of the selected model in a diagram, opening that diagram.",
+      needs: "selection",
+      note: "If the model has views in more than one diagram, opens an element-list picker modal to choose the diagram; toast if none.",
+      source: "src/engine/default-commands.js:1530"
+    },
+    "edit:select-in-explorer": {
+      args: [],
+      dialog: "never",
+      effect: "Reveals and selects the first selected model in the Model Explorer.",
+      needs: "selection",
+      source: "src/engine/default-commands.js:1525"
+    },
+    "edit:undo": {
+      args: [],
+      dialog: "never",
+      effect: "Undoes the last operation (text-field focus: native undo).",
+      source: "src/engine/default-commands.js:1506"
+    },
+    "engine:set-property": {
+      args: [
+        {
+          name: "options",
+          note: "set-model is a lodash path applied to model before setting.",
+          optional: false,
+          type: "object {model, property, value, set-model?}"
+        }
+      ],
+      dialog: "never",
+      effect: "Sets one property of an element through an undoable engine operation.",
+      source: "src/engine/default-commands.js:1695"
+    },
+    "erd:add-many-to-many": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an entity to the right linked by a relationship with 0..* at both ends.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/erd/erd-commands.js:191"
+    },
+    "erd:add-one-to-many": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an entity to the right linked by a relationship whose far end is 0..*.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/erd/erd-commands.js:190"
+    },
+    "erd:add-one-to-one": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an entity to the right of the entity view linked by a one-to-one relationship.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/erd/erd-commands.js:189"
+    },
+    "erd:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/erd/erd-commands.js:187"
+    },
+    "erd:set-column-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses 'name: type(size)' text and sets the ERD column's name, type and length.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/erd/erd-commands.js:188"
+    },
+    "erd:suppress-columns": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles column-compartment suppression on the selected ERD entity views.",
+      needs: "selection (views)",
+      source: "extensions/essential/erd/erd-commands.js:192"
+    },
+    "explorer:collapse-all": {
+      args: [],
+      dialog: "never",
+      effect: "Collapses all nodes in the Model Explorer tree.",
+      source: "src/views/model-explorer-view.js:624"
+    },
+    "explorer:expand-all": {
+      args: [],
+      dialog: "never",
+      effect: "Expands all nodes in the Model Explorer tree.",
+      source: "src/views/model-explorer-view.js:617"
+    },
+    "explorer:show-stereotype-text": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles showing stereotype text in the Model Explorer.",
+      source: "src/views/model-explorer-view.js:610"
+    },
+    "explorer:sort-by-added": {
+      args: [],
+      dialog: "never",
+      effect: "Sorts the Model Explorer in insertion order.",
+      source: "src/views/model-explorer-view.js:596"
+    },
+    "explorer:sort-by-name": {
+      args: [],
+      dialog: "never",
+      effect: "Sorts the Model Explorer alphabetically.",
+      source: "src/views/model-explorer-view.js:603"
+    },
+    "factory:create-diagram": {
+      args: [
+        {
+          name: "options",
+          note: "id is a registered diagram factory id (e.g. UMLClassDiagram). parent defaults to the selection, else the project.",
+          optional: false,
+          type: "object {id, parent?, diagramInitializer?, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Creates a diagram of the given factory id under a parent and returns it.",
+      needs: "open project",
+      note: "Unknown id logs an error and returns null.",
+      source: "src/engine/default-commands.js:1688"
+    },
+    "factory:create-model": {
+      args: [
+        {
+          name: "options",
+          note: "id is a registered model factory id (e.g. UMLClass). parent defaults to the current selection.",
+          optional: false,
+          type: "object {id, parent?, field?, modelInitializer?, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Creates a model element of the given factory id under a parent and returns it.",
+      needs: "open project; selection when parent omitted",
+      note: "Unknown id logs an error and returns null.",
+      source: "src/engine/default-commands.js:1689"
+    },
+    "factory:create-model-and-view": {
+      args: [
+        {
+          name: "options",
+          note: "diagram defaults to the current diagram; parent is always forced to the diagram's owner.",
+          optional: false,
+          type: "object {id, diagram?, x1, y1, x2, y2, tailView?, headView?, containerView?, modelInitializer?, viewInitializer?, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Creates a model element plus its view on a diagram and returns the view.",
+      needs: "current diagram (when options.diagram omitted)",
+      note: "Unknown id logs an error and returns null; factory assertions throw a string.",
+      source: "src/engine/default-commands.js:1690"
+    },
+    "fc:add-incoming-decision": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a decision above the flowchart node with a flow into it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/flowchart/flowchart-commands.js:134"
+    },
+    "fc:add-incoming-process": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a process above the flowchart node with a flow into it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/flowchart/flowchart-commands.js:132"
+    },
+    "fc:add-outgoing-decision": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a decision below the flowchart node connected by a flow from it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/flowchart/flowchart-commands.js:133"
+    },
+    "fc:add-outgoing-process": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a process below the flowchart node connected by a flow from it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/flowchart/flowchart-commands.js:131"
+    },
+    "find:find": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the Find modal; on OK searches elements by keyword and shows results in a bottom panel.",
+      needs: "open project",
+      source: "extensions/default/find/main.js:153"
+    },
+    "format:auto-resize": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles auto-resize on the selected views.",
+      needs: "selection (views)",
+      source: "src/engine/default-commands.js:1572"
+    },
+    "format:fill-color": {
+      args: [
+        {
+          name: "newColor",
+          note: "When omitted a color picker modal opens.",
+          optional: true,
+          type: "string color (e.g. #RRGGBB)"
+        }
+      ],
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Sets the fill color of the selected views.",
+      needs: "selection (views)",
+      source: "src/engine/default-commands.js:1542"
+    },
+    "format:font": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the font modal and applies face/size/color to the selected views.",
+      needs: "selection (views)",
+      source: "src/engine/default-commands.js:1541"
+    },
+    "format:inherit-style": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles parent-style inheritance on the selected views.",
+      needs: "selection (views)",
+      source: "src/engine/default-commands.js:1582"
+    },
+    "format:line-color": {
+      args: [],
+      dialog: "always",
+      effect: "Opens a color picker modal and applies the line color to the selected views.",
+      needs: "selection (views)",
+      note: "Unlike fill-color, no argument bypasses the dialog.",
+      source: "src/engine/default-commands.js:1547"
+    },
+    "format:linestyle-curve": {
+      args: [],
+      dialog: "never",
+      effect: "Sets the line style of the selected edge views to curve.",
+      needs: "selection (edge views)",
+      source: "src/engine/default-commands.js:1567"
+    },
+    "format:linestyle-oblique": {
+      args: [],
+      dialog: "never",
+      effect: "Sets the line style of the selected edge views to oblique.",
+      needs: "selection (edge views)",
+      source: "src/engine/default-commands.js:1557"
+    },
+    "format:linestyle-rectilinear": {
+      args: [],
+      dialog: "never",
+      effect: "Sets the line style of the selected edge views to rectilinear.",
+      needs: "selection (edge views)",
+      source: "src/engine/default-commands.js:1552"
+    },
+    "format:linestyle-roundrect": {
+      args: [],
+      dialog: "never",
+      effect: "Sets the line style of the selected edge views to rounded-rectilinear.",
+      needs: "selection (edge views)",
+      source: "src/engine/default-commands.js:1562"
+    },
+    "format:show-diagram-name": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles diagram-name display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4631"
+    },
+    "format:show-multiplicity": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles multiplicity display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4621"
+    },
+    "format:show-namespace": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles namespace display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4606"
+    },
+    "format:show-operation-signature": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles operation-signature display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4626"
+    },
+    "format:show-property": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles property display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4611"
+    },
+    "format:show-shadow": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles drop shadow on the selected views.",
+      needs: "selection (views)",
+      source: "src/engine/default-commands.js:1577"
+    },
+    "format:show-type": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles type display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4616"
+    },
+    "format:show-visibility": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles visibility display on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4601"
+    },
+    "format:stereotype": {
+      args: [
+        {
+          name: "value",
+          note: "Omitting it sets stereotypeDisplay to undefined.",
+          optional: false,
+          type: "string none|label|decoration|decoration-label|icon|icon-label"
+        }
+      ],
+      dialog: "never",
+      effect: "Sets the stereotype display mode of the selected views to the given value.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4565"
+    },
+    "format:stereotype-decoration": {
+      args: [],
+      dialog: "never",
+      effect: "Sets stereotype display of the selected views to decoration.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4576"
+    },
+    "format:stereotype-decoration-label": {
+      args: [],
+      dialog: "never",
+      effect: "Sets stereotype display of the selected views to decoration with label.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4581"
+    },
+    "format:stereotype-icon": {
+      args: [],
+      dialog: "never",
+      effect: "Sets stereotype display of the selected views to icon.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4586"
+    },
+    "format:stereotype-icon-label": {
+      args: [],
+      dialog: "never",
+      effect: "Sets stereotype display of the selected views to icon with label.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4591"
+    },
+    "format:stereotype-label": {
+      args: [],
+      dialog: "never",
+      effect: "Sets stereotype display of the selected views to label.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4571"
+    },
+    "format:stereotype-none": {
+      args: [],
+      dialog: "never",
+      effect: "Sets stereotype display of the selected views to none.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4566"
+    },
+    "format:suppress-attributes": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles attribute-compartment suppression on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4636"
+    },
+    "format:suppress-constraints": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles constraint-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:362"
+    },
+    "format:suppress-flow-properties": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles flow-property-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:368"
+    },
+    "format:suppress-literals": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles literal-compartment suppression on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4651"
+    },
+    "format:suppress-operations": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles operation-compartment suppression on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4641"
+    },
+    "format:suppress-parts": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles part-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:363"
+    },
+    "format:suppress-ports": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles port-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:364"
+    },
+    "format:suppress-properties": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles property-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:367"
+    },
+    "format:suppress-property-values": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles property-value-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:361"
+    },
+    "format:suppress-receptions": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles reception-compartment suppression on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4646"
+    },
+    "format:suppress-references": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles reference-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:365"
+    },
+    "format:suppress-values": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles value-compartment suppression on the selected SysML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/sysml/sysml-commands.js:366"
+    },
+    "format:word-wrap": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles word wrap on the selected UML views.",
+      needs: "selection (views)",
+      source: "extensions/essential/uml/uml-commands.js:4596"
+    },
+    "gcp:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/gcp/gcp-commands.js:102"
+    },
+    "gcp:set-icon": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens the icon picker for a GCP element view and sets the chosen icon (and a name derived from it).",
+      needs: "target view (options.view) of a GCPElement",
+      note: "Nothing happens when options.view.model is not a GCPElement. The picker is an in-app modal; result is applied asynchronously but the handler returns undefined.",
+      source: "extensions/essential/gcp/gcp-commands.js:103"
+    },
+    "gcp:set-product-icon": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens the icon picker for a GCP element view and sets the chosen icon and the product name derived from it.",
+      needs: "target view (options.view) of a GCPElement",
+      note: "No-op when the model is not a GCPElement.",
+      source: "extensions/essential/gcp/gcp-commands.js:104"
+    },
+    "help:about": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the About modal.",
+      source: "src/engine/default-commands.js:1655"
+    },
+    "help:check-for-updates": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the Check for Updates modal and, if no update is known, asks the main process to check.",
+      note: "Also triggers a network update check (electron autoUpdater).",
+      source: "src/engine/default-commands.js:1656"
+    },
+    "help:documentation": {
+      args: [],
+      dialog: "external",
+      effect: "Opens the online documentation URL in the system browser.",
+      note: "shell.openExternal; no in-app dialog.",
+      source: "src/engine/default-commands.js:1666"
+    },
+    "help:forum": {
+      args: [],
+      dialog: "external",
+      effect: "Opens the community forum URL in the system browser.",
+      note: "shell.openExternal; no in-app dialog.",
+      source: "src/engine/default-commands.js:1671"
+    },
+    "help:license-activation": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the License Activation modal.",
+      source: "src/engine/default-commands.js:1661"
+    },
+    "help:release-notes": {
+      args: [],
+      dialog: "external",
+      effect: "Opens the release notes URL in the system browser.",
+      note: "shell.openExternal; no in-app dialog.",
+      source: "src/engine/default-commands.js:1672"
+    },
+    "html-export:export": {
+      args: [
+        {
+          name: "path",
+          note: "Target folder used as-is; when omitted a folder picker opens and docs go into <picked>/html-docs.",
+          optional: true,
+          type: "string directory path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Exports HTML documentation (with diagram images) for the project into a folder, then shows a toast.",
+      needs: "open project",
+      note: "The folder picker is the synchronous showOpenDialog (blocks the renderer). Shows a success toast even if the picker was cancelled.",
+      source: "extensions/default/html-export/main.js:249"
+    },
+    "java:configure": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the preference dialog on the Java section.",
+      source: "user:staruml.java/main.js (0.9.7) _handleConfigure"
+    },
+    "java:generate": {
+      args: [
+        {
+          name: "base",
+          note: "When omitted an element picker modal opens.",
+          optional: true,
+          type: "Element (UMLPackage or classifier)"
+        },
+        {
+          name: "path",
+          note: "When omitted a folder dialog opens.",
+          optional: true,
+          type: "string output directory"
+        },
+        {
+          name: "options",
+          note: "Defaults to the java.gen.* preferences.",
+          optional: true,
+          type: "object generator options"
+        }
+      ],
+      async: true,
+      avoidWith: 3,
+      dialog: "without-args",
+      effect: "Generates Java sources for the base element into the directory.",
+      note: "Use /generate_code. Not part of StarUML; present when the Java extension is installed.",
+      source: "user:staruml.java/main.js (0.9.7) _handleGenerate"
+    },
+    "java:reverse": {
+      args: [
+        {
+          name: "basePath",
+          note: "Ignored: 0.9.7 analyzes only a folder picked in its dialog.",
+          optional: true,
+          type: "string source directory"
+        }
+      ],
+      async: true,
+      dialog: "always",
+      effect: "Reverse-engineers Java sources into the project.",
+      needs: "open project",
+      note: "Use /reverse_code, which calls the analyzer with a path.",
+      source: "user:staruml.java/main.js (0.9.7) _handleReverse"
+    },
+    "markdown-doc:toggle": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the Markdown documentation panel.",
+      source: "extensions/default/markdown/main.js:197"
+    },
+    "mcp-ext:server-info": {
+      args: [],
+      dialog: "always",
+      effect: "Shows the MCP extension's server status, access policy and endpoint list.",
+      note: "Blocking native info message box (sendSync show-message-box); would stall the renderer, and with it the extension's HTTP server, until dismissed.",
+      source: "src/main.ts"
+    },
+    "mcp-ext:set-token": {
+      args: [
+        {
+          name: "value",
+          note: "Trimmed and stored as the access token; an empty string clears it. Any non-undefined non-string value generates a random token without showing it.",
+          optional: true,
+          type: "string"
+        }
+      ],
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Stores an MCP extension access token in preferences (a random 24-byte base64url one when no string is given) and returns 'set' or 'cleared'.",
+      note: "Without an argument it generates a token and shows it in an info dialog; a string is stored (trimmed), an empty string clears it.",
+      source: "src/main.ts"
+    },
+    "mermaid:example-class-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled class diagram example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:227"
+    },
+    "mermaid:example-er-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled ER diagram example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:247"
+    },
+    "mermaid:example-flowchart": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled flowchart example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:242"
+    },
+    "mermaid:example-mindmap": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled mindmap example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:257"
+    },
+    "mermaid:example-requirement-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled requirement diagram example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:252"
+    },
+    "mermaid:example-sequence-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled sequence diagram example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:232"
+    },
+    "mermaid:example-state-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Replaces the Mermaid dialog editor text with the bundled state diagram example.",
+      needs: "mermaid dialog editor",
+      note: "Only meaningful while the Mermaid dialog is open; throws if the dialog has never been opened in this session.",
+      source: "extensions/default/mermaid/main.js:237"
+    },
+    "mermaid:generate-diagram": {
+      args: [
+        {
+          name: "code",
+          note: "First line must declare a supported type: classDiagram, sequenceDiagram, flowchart, erDiagram, mindmap, requirementDiagram, stateDiagram.",
+          optional: false,
+          type: "string Mermaid source"
+        },
+        {
+          name: "base",
+          note: "Container; when omitted or the Project, a new package is created under the project.",
+          optional: true,
+          type: "Element (e.g. UMLPackage)"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses Mermaid source and creates the corresponding StarUML model and diagram.",
+      needs: "open project",
+      note: "Throws on unsupported type or parse error.",
+      source: "extensions/default/mermaid/main.js:221"
+    },
+    "mermaid:show-mermaid-dialog": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the Mermaid editor modal; on OK generates a diagram from the entered code.",
+      source: "extensions/default/mermaid/main.js:215"
+    },
+    "mindmap:add-node-left": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a mind-map node to the left of the node and links it with an oblique edge.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/mindmap/mindmap-commands.js:79"
+    },
+    "mindmap:add-node-right": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a mind-map node to the right of the node and links it with an oblique edge.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/mindmap/mindmap-commands.js:80"
+    },
+    "minimap:toggle": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the minimap panel.",
+      source: "extensions/default/minimap/main.js:234"
+    },
+    "model:tag-editor": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the Tag Editor modal for the selected element.",
+      needs: "selection",
+      note: "No-op without a selection.",
+      source: "src/engine/default-commands.js:1648"
+    },
+    "project:close": {
+      args: [],
+      dialog: "confirm",
+      effect: "Closes the current window.",
+      note: "Main-process close handler shows a blocking native Save/Don't Save/Cancel box when the project is modified; Save then runs project:save (save dialog if untitled).",
+      source: "src/engine/default-commands.js:1503"
+    },
+    "project:export-diagram-all-to-jpegs": {
+      args: [
+        {
+          name: "basePath",
+          note: "When omitted a folder picker opens.",
+          optional: true,
+          type: "string directory path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Exports every diagram in the project as JPEG files into a folder.",
+      needs: "open project",
+      note: "Folder picker is the synchronous showOpenDialog (blocks the renderer). Shows a blocking native alert if the project has no diagrams.",
+      source: "src/engine/default-commands.js:1488"
+    },
+    "project:export-diagram-all-to-pngs": {
+      args: [
+        {
+          name: "basePath",
+          note: "When omitted a folder picker opens.",
+          optional: true,
+          type: "string directory path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Exports every diagram in the project as PNG files into a folder.",
+      needs: "open project",
+      note: "Folder picker is the synchronous showOpenDialog (blocks the renderer). Shows a blocking native alert if the project has no diagrams.",
+      source: "src/engine/default-commands.js:1483"
+    },
+    "project:export-diagram-all-to-svgs": {
+      args: [
+        {
+          name: "basePath",
+          note: "When omitted a folder picker opens.",
+          optional: true,
+          type: "string directory path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Exports every diagram in the project as SVG files into a folder.",
+      needs: "open project",
+      note: "Folder picker is the synchronous showOpenDialog (blocks the renderer). Shows a blocking native alert if the project has no diagrams.",
+      source: "src/engine/default-commands.js:1493"
+    },
+    "project:export-diagram-to-jpeg": {
+      args: [
+        {
+          name: "diagram",
+          note: "Defaults to the current diagram.",
+          optional: true,
+          type: "Element (Diagram)"
+        },
+        {
+          name: "fullPath",
+          note: "When omitted a native save dialog opens; no extension is appended to a supplied path.",
+          optional: true,
+          type: "string file path"
+        }
+      ],
+      async: true,
+      avoidWith: 2,
+      dialog: "without-args",
+      effect: "Exports one diagram (default: current) as a JPEG file.",
+      needs: "current diagram (if none passed)",
+      note: "Shows a blocking native alert if no diagram is passed and none is current.",
+      source: "src/engine/default-commands.js:1473"
+    },
+    "project:export-diagram-to-png": {
+      args: [
+        {
+          name: "diagram",
+          note: "Defaults to the current diagram.",
+          optional: true,
+          type: "Element (Diagram)"
+        },
+        {
+          name: "fullPath",
+          note: "When omitted a native save dialog opens; no extension is appended to a supplied path.",
+          optional: true,
+          type: "string file path"
+        }
+      ],
+      async: true,
+      avoidWith: 2,
+      dialog: "without-args",
+      effect: "Exports one diagram (default: current) as a PNG file.",
+      needs: "current diagram (if none passed)",
+      note: "Shows a blocking native alert if no diagram is passed and none is current.",
+      source: "src/engine/default-commands.js:1468"
+    },
+    "project:export-diagram-to-svg": {
+      args: [
+        {
+          name: "diagram",
+          note: "Defaults to the current diagram.",
+          optional: true,
+          type: "Element (Diagram)"
+        },
+        {
+          name: "fullPath",
+          note: "When omitted a native save dialog opens; no extension is appended to a supplied path.",
+          optional: true,
+          type: "string file path"
+        }
+      ],
+      async: true,
+      avoidWith: 2,
+      dialog: "without-args",
+      effect: "Exports one diagram (default: current) as a SVG file.",
+      needs: "current diagram (if none passed)",
+      note: "Shows a blocking native alert if no diagram is passed and none is current.",
+      source: "src/engine/default-commands.js:1478"
+    },
+    "project:export-fragment": {
+      args: [
+        {
+          name: "element",
+          note: "When omitted an element-picker modal opens.",
+          optional: true,
+          type: "Element"
+        },
+        {
+          name: "fullPath",
+          note: "When omitted a native save dialog opens.",
+          optional: true,
+          type: "string file path"
+        }
+      ],
+      async: true,
+      avoidWith: 2,
+      dialog: "without-args",
+      effect: "Exports an element subtree to a .mfj model fragment file.",
+      needs: "open project",
+      note: "No dialog only when both element and fullPath are supplied. Rejects with a user-cancelled marker on cancel; file errors show a blocking error box.",
+      source: "src/engine/default-commands.js:1463"
+    },
+    "project:import-fragment": {
+      args: [
+        {
+          name: "fullPath",
+          note: "When omitted a native open dialog (synchronous) opens.",
+          optional: true,
+          type: "string file path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Imports a .mfj model fragment under the project root.",
+      needs: "open project",
+      source: "src/engine/default-commands.js:1458"
+    },
+    "project:new": {
+      args: [
+        {
+          name: "template",
+          note: "Defaults to the configured default template.",
+          optional: true,
+          type: "string template file path"
+        }
+      ],
+      dialog: "confirm",
+      effect: "Replaces the current project with a new one from a template (default template if none given).",
+      note: "If the repository is modified, shows a blocking native Save/Don't Save/Cancel box; Save on an untitled project then opens a save dialog (not awaited). Returns false on cancel.",
+      source: "src/engine/default-commands.js:1450"
+    },
+    "project:open": {
+      args: [
+        {
+          name: "fullPath",
+          note: "When omitted a native open dialog (synchronous) opens.",
+          optional: true,
+          type: "string .mdj file path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Opens a .mdj project: loads it in this window if the window is empty and unmodified, otherwise asks the main process to open it in a new window.",
+      note: "With a path no dialog in practice: a modified or already-named project triggers a new window rather than the save-confirm box. A load failure shows a blocking error box.",
+      source: "src/engine/default-commands.js:1451"
+    },
+    "project:open-recent": {
+      args: [
+        {
+          name: "path",
+          note: "Menu items pass the recent-file path as command-arg.",
+          optional: false,
+          type: "string .mdj file path"
+        }
+      ],
+      dialog: "never",
+      effect: "Opens a recently used project via project:open, or drops it from the recent list with an error toast if the file no longer exists.",
+      note: "Delegates to project:open with a path, which opens in this window when empty/unmodified, otherwise in a new window; only a load failure shows an error box. Missing/omitted path just toasts. The project:open promise is not returned.",
+      source: "extensions/default/open-recent/main.js:84"
+    },
+    "project:print-to-pdf": {
+      args: [],
+      async: true,
+      dialog: "always",
+      effect: "Opens the Print modal, then a save dialog, and writes the chosen diagrams to a PDF.",
+      needs: "open project",
+      note: "Arguments are ignored. Blocking alert if no diagram; error box on failure.",
+      source: "src/engine/default-commands.js:1498"
+    },
+    "project:save": {
+      args: [
+        {
+          name: "fullPath",
+          note: "When omitted and the project is untitled, a native save dialog opens.",
+          optional: true,
+          type: "string .mdj file path"
+        }
+      ],
+      async: true,
+      avoidWith: 0,
+      dialog: "without-args",
+      effect: "Saves the project to the given path, or to its current file.",
+      needs: "open project",
+      note: "File errors show a blocking native error box.",
+      source: "src/engine/default-commands.js:1452"
+    },
+    "project:save-as": {
+      args: [],
+      async: true,
+      dialog: "always",
+      effect: "Asks for a new file name with a native save dialog and saves the project there.",
+      needs: "open project",
+      note: "Path and save-as flag are pre-bound, so caller arguments cannot bypass the dialog.",
+      source: "src/engine/default-commands.js:1453"
+    },
+    "relationship-view:select-related-element": {
+      args: [],
+      dialog: "never",
+      effect: "Selects in the Model Explorer the element at the other end of the row picked in the Relationships panel.",
+      needs: "Relationships panel row selected",
+      source: "extensions/default/relationship-view/main.js:208"
+    },
+    "relationship-view:select-relationship": {
+      args: [],
+      dialog: "never",
+      effect: "Selects in the Model Explorer the relationship of the row picked in the Relationships panel.",
+      needs: "Relationships panel row selected",
+      source: "extensions/default/relationship-view/main.js:209"
+    },
+    "relationship-view:toggle": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the Relationships panel.",
+      source: "extensions/default/relationship-view/main.js:207"
+    },
+    "robustness:create": {
+      args: [
+        {
+          name: "options",
+          note: "id is UMLBoundary, UMLEntity or UMLControl (toolbox passes it); diagram is dereferenced unguarded.",
+          optional: false,
+          type: "object {id, diagram, x1, y1, x2, y2}"
+        }
+      ],
+      dialog: "confirm",
+      effect: "Creates a class stereotyped boundary/entity/control (icon display, compartments hidden) on the diagram.",
+      needs: "current diagram (options.diagram)",
+      note: "If the UML Standard Profile is not applied, shows a blocking confirm asking to apply it; OK applies it and creates the class, Cancel creates nothing. String errors surface as an alert dialog.",
+      source: "extensions/default/robustness/main.js:86"
+    },
+    "staruml-v1:import": {
+      args: [
+        {
+          name: "fullPath",
+          note: "When omitted a native open dialog (synchronous) opens.",
+          optional: true,
+          type: "string .uml file path"
+        }
+      ],
+      async: true,
+      avoidWith: 1,
+      dialog: "without-args",
+      effect: "Imports a StarUML 1 (.uml) file, replacing the current project.",
+      note: "Replaces the open project without any unsaved-changes confirmation.",
+      source: "extensions/default/staruml-v1/main.js:111"
+    },
+    "sysml:add-composited-block": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a block below the view connected by a composite association.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/sysml/sysml-commands.js:349"
+    },
+    "sysml:add-constraint-parameter": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a constraint parameter at a random spot on the constraint view.",
+      needs: "current diagram, target view (options.view)",
+      note: "Logs the options object to the console.",
+      source: "extensions/essential/sysml/sysml-commands.js:358"
+    },
+    "sysml:add-port": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a port at a random spot on the block view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/sysml/sysml-commands.js:350"
+    },
+    "sysml:add-sub-requirement": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a requirement below the requirement view, owned by it, with a containment link.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/sysml/sysml-commands.js:348"
+    },
+    "sysml:create-block": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, creates a Block next to the property's owner and assigns it as the type.",
+      needs: "target view of a SysMLProperty or SysMLPort",
+      note: "No-op unless options.view.model is a SysMLProperty or SysMLPort. Uses an in-app input dialog.",
+      source: "extensions/essential/sysml/sysml-commands.js:352"
+    },
+    "sysml:create-constraint-block": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, creates a ConstraintBlock two levels up from the property and assigns it as the type.",
+      needs: "target view of a SysMLProperty",
+      note: "No-op unless options.view.model is a SysMLProperty. Uses an in-app input dialog.",
+      source: "extensions/essential/sysml/sysml-commands.js:357"
+    },
+    "sysml:create-item-flow": {
+      args: [
+        {
+          name: "options",
+          note: "options.model is a connector whose two end parts/ports are typed.",
+          optional: false,
+          type: "object {model, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Asks for the flow direction and creates an ItemFlow on the connector between the two end types.",
+      needs: "selected connector (options.model)",
+      note: "Throws a string assertion (shown as a toast from quick-edit) when either end is untyped; otherwise always shows the radio dialog.",
+      source: "extensions/essential/sysml/sysml-commands.js:355"
+    },
+    "sysml:create-value-type": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, creates a ValueType next to the property's owner and assigns it as the type.",
+      needs: "target view of a SysMLProperty or SysMLPort",
+      note: "No-op unless options.view.model is a SysMLProperty or SysMLPort. Uses an in-app input dialog.",
+      source: "extensions/essential/sysml/sysml-commands.js:354"
+    },
+    "sysml:select-block": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker and sets the chosen Block as the property's or port's type.",
+      needs: "target view of a SysMLProperty or SysMLPort",
+      note: "No-op unless options.view.model is a SysMLProperty or SysMLPort.",
+      source: "extensions/essential/sysml/sysml-commands.js:351"
+    },
+    "sysml:select-constraint-block": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker and sets the chosen ConstraintBlock as the property's type.",
+      needs: "target view of a SysMLProperty",
+      note: "No-op unless options.view.model is a SysMLProperty.",
+      source: "extensions/essential/sysml/sysml-commands.js:356"
+    },
+    "sysml:select-value-type": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker and sets the chosen ValueType as the property's or port's type.",
+      needs: "target view of a SysMLProperty or SysMLPort",
+      note: "No-op unless options.view.model is a SysMLProperty or SysMLPort.",
+      source: "extensions/essential/sysml/sysml-commands.js:353"
+    },
+    "tools:extension-manager": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the Extension Manager modal.",
+      source: "src/engine/default-commands.js:1589"
+    },
+    "uml:add-activity-fork": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a fork node below the view leading to two new actions.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4557"
+    },
+    "uml:add-activity-join": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a join node above the view fed by two new actions.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4556"
+    },
+    "uml:add-aggregated-class": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a class to the right connected by a shared-aggregation association.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4435"
+    },
+    "uml:add-associated-actor": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an actor to the left of the use case connected by an association.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4454"
+    },
+    "uml:add-associated-class": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a class to the right connected by a plain association.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4434"
+    },
+    "uml:add-associated-usecase": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a use case to the right of the actor connected by an association.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4459"
+    },
+    "uml:add-choice": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a choice pseudostate below the view plus two branch states, all linked by transitions.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4527"
+    },
+    "uml:add-communicating-node": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a node to the right connected by a communication path.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4451"
+    },
+    "uml:add-compartment-item": {
+      args: [
+        {
+          name: "options",
+          note: "Normally built by quick-edit command-arg; type is a metaclass name such as UMLAttribute.",
+          optional: false,
+          type: "object {model, view, type, field, compartment, name-prefix, parent-model?, parent-view?, suppress-property?, model-init?, initializer?}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a new item (e.g. attribute, operation, literal) to the owner's field, un-suppresses the compartment if needed and opens quick-edit on the new item.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4402"
+    },
+    "uml:add-composited-class": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a class to the right connected by a composite association.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4436"
+    },
+    "uml:add-connected-lifeline": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a lifeline to the right connected by a connector (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4493"
+    },
+    "uml:add-connected-part": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a sibling part next to the part view connected by a connector.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4446"
+    },
+    "uml:add-connection-point-reference": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a connection point reference on the submachine state view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4506"
+    },
+    "uml:add-constraint": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a constraint owned by the model, placed left of the view and attached by a constraint link.",
+      needs: "current diagram, target view (options.view)",
+      note: "Errors are logged and set options.result = false.",
+      source: "extensions/essential/uml/uml-commands.js:4401"
+    },
+    "uml:add-create-message-lifeline": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a new lifeline and a create message from the view's lifeline to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4473"
+    },
+    "uml:add-decision": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a decision node below the view plus two branch actions, linked by control flows.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4554"
+    },
+    "uml:add-dependant-package": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a package below the view that depends on it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4442"
+    },
+    "uml:add-depending-package": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a package above the view that the view depends on.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4443"
+    },
+    "uml:add-deployed-artifact": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an artifact below the node view with a deployment to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4452"
+    },
+    "uml:add-deployed-component": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a component below the node view with a deployment to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4453"
+    },
+    "uml:add-do-activity": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Asks for a behavior kind, then adds it to the state's doActivities compartment and opens quick-edit on it.",
+      needs: "current diagram, target view (options.view)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4511"
+    },
+    "uml:add-effect": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Asks for a behavior kind and adds it as an effect of the transition.",
+      needs: "current diagram, target view (options.view)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4531"
+    },
+    "uml:add-entry-activity": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Asks for a behavior kind, then adds it to the state's entryActivities compartment and opens quick-edit on it.",
+      needs: "current diagram, target view (options.view)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4510"
+    },
+    "uml:add-exit-activity": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Asks for a behavior kind, then adds it to the state's exitActivities compartment and opens quick-edit on it.",
+      needs: "current diagram, target view (options.view)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4512"
+    },
+    "uml:add-extended-usecase": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a use case below the view that extends it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4456"
+    },
+    "uml:add-final-node": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an activity final node below the view with a control flow from it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4559"
+    },
+    "uml:add-final-state": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a final state below the view with a transition from it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4526"
+    },
+    "uml:add-fork": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a fork pseudostate below the view leading to two new states.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4529"
+    },
+    "uml:add-forward-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a lifeline below, a connector to it and a forward message on that connector (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4495"
+    },
+    "uml:add-forward-message-comm": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a forward message on the given connector (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4497"
+    },
+    "uml:add-found-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an endpoint and a found message from it to the lifeline.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4478"
+    },
+    "uml:add-included-usecase": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a use case below the view that it includes.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4455"
+    },
+    "uml:add-incoming-control-flow": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an action above the view with a control flow into it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4542"
+    },
+    "uml:add-incoming-object-flow": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an object node above the view with an object flow into it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4550"
+    },
+    "uml:add-incoming-transition": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a state above the view with a transition into the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4521"
+    },
+    "uml:add-initial-node": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an initial node above the view with a control flow into it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4558"
+    },
+    "uml:add-initial-state": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an initial pseudostate above the view with a transition into it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4525"
+    },
+    "uml:add-input-pin": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an input pin on the action view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4536"
+    },
+    "uml:add-internal-transition": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an internal transition to the state's first region and opens quick-edit on it.",
+      needs: "current diagram, target view (options.view)",
+      note: "On a simple state (no regions) shows an info toast instead; no dialog.",
+      source: "extensions/essential/uml/uml-commands.js:4513"
+    },
+    "uml:add-join": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a join pseudostate above the view fed by two new states.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4528"
+    },
+    "uml:add-linked-object": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an object to the right connected by a link.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4447"
+    },
+    "uml:add-lost-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an endpoint and a lost message from the lifeline to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4479"
+    },
+    "uml:add-merge": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a merge node above the view fed by two new actions.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4555"
+    },
+    "uml:add-message-from-gate": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a gate and a message from it to the lifeline.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4480"
+    },
+    "uml:add-message-lifeline": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a new lifeline and a synchronous message from the view's lifeline to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4472"
+    },
+    "uml:add-message-to-gate": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a gate and a message from the lifeline to it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4481"
+    },
+    "uml:add-note": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a note to the right of the view (or edge label) attached by a note link.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4400"
+    },
+    "uml:add-operand": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an interaction operand to the combined fragment.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4492"
+    },
+    "uml:add-outgoing-control-flow": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an action below the view with a control flow from it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4538"
+    },
+    "uml:add-outgoing-object-flow": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an object node below the view with an object flow from it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4546"
+    },
+    "uml:add-outgoing-transition": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a state below the view with a transition from the view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4517"
+    },
+    "uml:add-output-pin": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an output pin on the action view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4537"
+    },
+    "uml:add-part": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a part inside the classifier view, right of existing parts.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4438"
+    },
+    "uml:add-port": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a port on the classifier view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4437"
+    },
+    "uml:add-provided-interface": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an interface next to the view connected by an interface realization (lollipop); for an untyped port also creates and assigns a '<port>Type' class.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4432"
+    },
+    "uml:add-realizing-class": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a class below the interface view that realizes it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4431"
+    },
+    "uml:add-region": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a region to the state.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4505"
+    },
+    "uml:add-reply-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a reply message reversing the given message (sequence diagram) or on the same connector (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      note: "Does nothing on other diagram types or when the sequence message does not join two lifelines.",
+      source: "extensions/essential/uml/uml-commands.js:4486"
+    },
+    "uml:add-required-interface": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an interface next to the view connected by a dependency (socket).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4433"
+    },
+    "uml:add-reverse-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a lifeline below, a connector to it and a reverse message on that connector (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4496"
+    },
+    "uml:add-reverse-message-comm": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a reverse message on the given connector (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4501"
+    },
+    "uml:add-self-connector": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a self connector on the lifeline (communication diagram).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4494"
+    },
+    "uml:add-self-message": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a self message on the lifeline.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4477"
+    },
+    "uml:add-stereotype": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a stereotype below the metaclass view connected by an extension.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4560"
+    },
+    "uml:add-subactor": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an actor below the view generalizing it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4457"
+    },
+    "uml:add-subclass": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a class below the view generalizing it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4427"
+    },
+    "uml:add-subinterface": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an interface below the view generalizing it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4429"
+    },
+    "uml:add-subpackage": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a package below the view owned by it with a containment link.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4441"
+    },
+    "uml:add-substereotype": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a stereotype below the view generalizing it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4561"
+    },
+    "uml:add-superactor": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an actor above the view as its parent actor.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4458"
+    },
+    "uml:add-superclass": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a class above the view as its superclass.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4428"
+    },
+    "uml:add-superinterface": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds an interface above the view as its super-interface.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4430"
+    },
+    "uml:add-superstereotype": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a stereotype above the view as its parent.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4562"
+    },
+    "uml:add-template-parameter-substitution": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a template parameter substitution to the template binding.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4423"
+    },
+    "uml:add-trigger": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a trigger event to the transition.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4530"
+    },
+    "uml:apply-profile": {
+      args: [
+        {
+          name: "fullPath",
+          optional: false,
+          type: "string .mfj profile file path"
+        },
+        {
+          name: "profileName",
+          note: "When given and a profile of that name already exists at project root, toasts and returns false.",
+          optional: true,
+          type: "string"
+        }
+      ],
+      dialog: "never",
+      effect: "Imports a profile model fragment into the project root and returns the imported element.",
+      needs: "open project",
+      source: "extensions/essential/uml/uml-commands.js:4367"
+    },
+    "uml:apply-profile.uml-standard": {
+      args: [],
+      dialog: "never",
+      effect: "Imports the bundled UML Standard Profile into the project (toast if already present).",
+      needs: "open project",
+      source: "extensions/essential/uml/uml-commands.js:4368"
+    },
+    "uml:create-model-and-view.frame": {
+      args: [
+        {
+          name: "options",
+          note: "Toolbox rubber-band rectangle; diagram defaults to the current one.",
+          optional: true,
+          type: "object {diagram?, x1, y1, x2, y2, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Asks which model element the frame represents, then draws a frame for it on the diagram.",
+      needs: "current diagram",
+      note: "Element picker dialog every time; nothing is created on cancel.",
+      source: "extensions/essential/uml/uml-commands.js:4380"
+    },
+    "uml:create-model.constraint": {
+      args: [],
+      dialog: "confirm",
+      effect: "Creates a constraint under the selected element; for operations, behaviors and actions asks which constraint slot (pre/post/body etc.) to use.",
+      needs: "selection",
+      note: "Radio dialog only when the selection is a UMLOperation, UMLBehavior or UMLAction; otherwise it creates a plain owned constraint silently.",
+      source: "extensions/essential/uml/uml-commands.js:4379"
+    },
+    "uml:create-model.do-activity": {
+      args: [],
+      dialog: "always",
+      effect: "Asks for a behavior kind and creates it in the selected state's doActivities.",
+      needs: "selection (UMLState)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4376"
+    },
+    "uml:create-model.effect": {
+      args: [],
+      dialog: "always",
+      effect: "Asks for a behavior kind and creates it as an effect of the selected transition.",
+      needs: "selection (UMLTransition)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4378"
+    },
+    "uml:create-model.entry-activity": {
+      args: [],
+      dialog: "always",
+      effect: "Asks for a behavior kind and creates it in the selected state's entryActivities.",
+      needs: "selection (UMLState)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4375"
+    },
+    "uml:create-model.exit-activity": {
+      args: [],
+      dialog: "always",
+      effect: "Asks for a behavior kind and creates it in the selected state's exitActivities.",
+      needs: "selection (UMLState)",
+      note: "Always opens a radio dialog to choose OpaqueBehavior/Activity/StateMachine/Interaction.",
+      source: "extensions/essential/uml/uml-commands.js:4377"
+    },
+    "uml:create-operation": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, adds the operation to the target lifeline's type and sets it as the message signature.",
+      needs: "target view of a UMLMessage",
+      note: "Shows an alert 'Lifeline should have a type.' when the target lifeline's role is untyped; a dialog appears either way.",
+      source: "extensions/essential/uml/uml-commands.js:4484"
+    },
+    "uml:create-signal": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, creates a signal in the collaboration's owner and sets it as the message signature.",
+      needs: "target view of a UMLMessage",
+      note: "In-app input dialog; skipped only if the message has no owner three levels up.",
+      source: "extensions/essential/uml/uml-commands.js:4485"
+    },
+    "uml:create-state-condition-for-lifeline": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a state/condition inside the timing-diagram lifeline view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4487"
+    },
+    "uml:create-time-segment": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a time segment on the timing-diagram lifeline view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4491"
+    },
+    "uml:create-type": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, creates a class beside the attribute's owner and sets it as the attribute's type.",
+      needs: "target view of a UMLAttribute",
+      note: "No-op unless options.view.model is a UMLAttribute with an owner. In-app input dialog.",
+      source: "extensions/essential/uml/uml-commands.js:4445"
+    },
+    "uml:create-type-for-lifeline": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Prompts for a name, creates a class and sets it as the type of the lifeline's represented role.",
+      needs: "target view of a UMLLifeline",
+      note: "Shows an alert dialog instead when the lifeline does not represent an attribute (role); so some dialog appears either way.",
+      source: "extensions/essential/uml/uml-commands.js:4468"
+    },
+    "uml:delete-compartment-item": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). options.view is the compartment item view.",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Deletes the item's model and moves the quick-edit to a neighbouring item.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4403"
+    },
+    "uml:move-down-compartment-item": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). options.field names the owner field; parent-model optional.",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Moves the compartment item one place down in its owner's list and reopens quick-edit on it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4411"
+    },
+    "uml:move-up-compartment-item": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). options.field names the owner field; parent-model optional.",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Moves the compartment item one place up in its owner's list and reopens quick-edit on it.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4407"
+    },
+    "uml:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        },
+        {
+          name: "basePath",
+          note: "Overrides the base directory the filename is resolved against (default: the UML extension dir).",
+          optional: true,
+          type: "string directory"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/uml/uml-commands.js:4365"
+    },
+    "uml:open-down-compartment-item": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Moves the quick-edit to the next visible compartment item (crossing compartments).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4419"
+    },
+    "uml:open-up-compartment-item": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Moves the quick-edit to the previous visible compartment item (crossing compartments).",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/uml/uml-commands.js:4415"
+    },
+    "uml:select-operation": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Lists the target lifeline type's (inherited) operations and sets the chosen one as the message signature.",
+      needs: "target view of a UMLMessage",
+      note: "Shows an alert 'Lifeline should have a type.' when the target lifeline's role is untyped; a dialog appears either way.",
+      source: "extensions/essential/uml/uml-commands.js:4483"
+    },
+    "uml:select-owner-attribute": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded). options['set-model'] (lodash path) can retarget options.model, normally an association end.",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Lists the attributes of the opposite end's classifier and sets the chosen one as the end's owner attribute.",
+      needs: "association end (options.model)",
+      source: "extensions/essential/uml/uml-commands.js:4439"
+    },
+    "uml:select-signal": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker for a Signal and assigns it to the reception's signal or the message's signature.",
+      needs: "target view of a UMLReception or UMLMessage",
+      source: "extensions/essential/uml/uml-commands.js:4440"
+    },
+    "uml:select-type": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker for a classifier and sets it as the attribute's type.",
+      needs: "target view of a UMLAttribute",
+      note: "No-op unless options.view.model is a UMLAttribute.",
+      source: "extensions/essential/uml/uml-commands.js:4444"
+    },
+    "uml:select-type-for-lifeline": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "always",
+      effect: "Opens an element picker and sets the chosen classifier as the type of the lifeline's represented role.",
+      needs: "target view of a UMLLifeline",
+      note: "Shows an alert dialog instead when the lifeline does not represent an attribute (role); so some dialog appears either way.",
+      source: "extensions/essential/uml/uml-commands.js:4464"
+    },
+    "uml:set-attribute-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses attribute text (visibility, name, type, multiplicity, default) and updates the attribute.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4384"
+    },
+    "uml:set-constraint-specification": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Sets the constraint's specification to the given text.",
+      note: "Errors set options.result = false.",
+      source: "extensions/essential/uml/uml-commands.js:4396"
+    },
+    "uml:set-lifeline-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses lifeline text and sets name, stereotype, selector and the type of the represented role.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4460"
+    },
+    "uml:set-message-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses message text and sets name, stereotype, assignment target and arguments.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4482"
+    },
+    "uml:set-name-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses '<<stereotype>> visibility name' text and sets the element's name, visibility and stereotype.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed. options['set-model'] (lodash path) retargets options.model first.",
+      source: "extensions/essential/uml/uml-commands.js:4383"
+    },
+    "uml:set-note-text": {
+      args: [
+        {
+          name: "options",
+          note: "options.view is the note view.",
+          optional: false,
+          type: "object {view, value}"
+        }
+      ],
+      dialog: "never",
+      effect: "Sets the note view's text.",
+      source: "extensions/essential/uml/uml-commands.js:4448"
+    },
+    "uml:set-object-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses 'name: Classifier' text and sets the object's name, visibility, stereotype and classifier.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4449"
+    },
+    "uml:set-operation-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses operation text and rewrites the operation's name, visibility, stereotype, parameters and return type.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4388"
+    },
+    "uml:set-slot-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses slot text and sets the slot's name, visibility, stereotype, type and value.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4450"
+    },
+    "uml:set-template-parameter-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses template-parameter text and sets its name, stereotype, type and default.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4392"
+    },
+    "uml:set-transition-expression": {
+      args: [
+        {
+          name: "options",
+          note: "options.value is the text typed in the quick-edit; options.model the element to update.",
+          optional: false,
+          type: "object {model, value, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Parses 'triggers [guard] / effect' text and rewrites the transition's triggers, guard and effects.",
+      note: "A parse failure sets options.result = false instead of throwing; nothing is changed.",
+      source: "extensions/essential/uml/uml-commands.js:4532"
+    },
+    "view:actual-size": {
+      args: [],
+      dialog: "never",
+      effect: "Resets diagram zoom to 100%, keeping the view centre.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1625"
+    },
+    "view:close-all-diagrams": {
+      args: [],
+      dialog: "never",
+      effect: "Closes all open diagram tabs.",
+      source: "src/engine/default-commands.js:1608"
+    },
+    "view:close-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Closes the current diagram tab.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1598"
+    },
+    "view:close-other-diagrams": {
+      args: [],
+      dialog: "never",
+      effect: "Closes all diagram tabs except the current one.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1603"
+    },
+    "view:command-palette": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the command palette modal.",
+      source: "src/engine/default-commands.js:1597"
+    },
+    "view:editors": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the right-hand Editors panel (property/style/documentation editors).",
+      source: "src/views/editors-holder-view.js:124"
+    },
+    "view:fit-to-window": {
+      args: [],
+      dialog: "never",
+      effect: "Zooms (max 100%) and scrolls so the whole current diagram fits the viewport.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1630"
+    },
+    "view:navigator": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the Navigator panel.",
+      source: "src/views/navigator-view.js:159"
+    },
+    "view:next-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Switches to the next open diagram tab.",
+      source: "src/engine/default-commands.js:1613"
+    },
+    "view:previous-diagram": {
+      args: [],
+      dialog: "never",
+      effect: "Switches to the previous open diagram tab.",
+      source: "src/engine/default-commands.js:1618"
+    },
+    "view:quick-find": {
+      args: [],
+      dialog: "always",
+      effect: "Opens the Quick Find modal for searching elements by name.",
+      needs: "open project",
+      source: "src/engine/default-commands.js:1596"
+    },
+    "view:rename-diagram": {
+      args: [],
+      dialog: "always",
+      effect: "Opens a text-input modal to rename the current diagram.",
+      needs: "current diagram",
+      note: "Throws if there is no current diagram.",
+      source: "src/engine/default-commands.js:1641"
+    },
+    "view:show-grid": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles grid visibility in the diagram editor.",
+      source: "src/engine/default-commands.js:1635"
+    },
+    "view:sidebar": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the sidebar.",
+      source: "src/views/sidebar-view.js:158"
+    },
+    "view:snap-to-grid": {
+      args: [],
+      dialog: "never",
+      effect: "Toggles snap-to-grid in the diagram editor.",
+      source: "src/engine/default-commands.js:1636"
+    },
+    "view:statusbar": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the status bar.",
+      source: "src/views/statusbar-view.js:201"
+    },
+    "view:toolbar": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the toolbar.",
+      source: "src/views/toolbar-view.js:104"
+    },
+    "view:toolbox": {
+      args: [],
+      dialog: "never",
+      effect: "Shows or hides the toolbox.",
+      source: "src/views/toolbox-view.js:432"
+    },
+    "view:zoom-in": {
+      args: [],
+      dialog: "never",
+      effect: "Increases diagram zoom by 10%, keeping the view centre.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1623"
+    },
+    "view:zoom-out": {
+      args: [],
+      dialog: "never",
+      effect: "Decreases diagram zoom by 10%, keeping the view centre.",
+      needs: "current diagram",
+      source: "src/engine/default-commands.js:1624"
+    },
+    "wireframe:add-tab": {
+      args: [
+        {
+          name: "options",
+          note: "Quick-edit options; options.view is the anchor View on the current diagram (required, dereferenced unguarded).",
+          optional: false,
+          type: "object {view, model, property, ...}"
+        }
+      ],
+      dialog: "never",
+      effect: "Adds a tab inside the given wireframe tab-list view.",
+      needs: "current diagram, target view (options.view)",
+      source: "extensions/essential/wireframe/wireframe-commands.js:63"
+    },
+    "wireframe:new-from-template": {
+      args: [
+        {
+          name: "filename",
+          note: "Menu passes e.g. a bundled .mdj under the extension's templates folder.",
+          optional: false,
+          type: "string template path relative to the extension dir"
+        }
+      ],
+      dialog: "external",
+      effect: "Opens the named bundled template in a new StarUML window.",
+      note: "Asks the main process (application:new-from-template) to open a new StarUML window loaded with the template; nothing changes in this window and no dialog is shown. The new window is a separate renderer.",
+      source: "extensions/essential/wireframe/wireframe-commands.js:62"
+    }
+  },
+  version: "7.1.1"
+};
+
+// src/dialog-guard.ts
+var DialogRefused = class extends Error {
+  constructor(dialog) {
+    super(`Refused to open ${dialog}`);
+    this.dialog = dialog;
+    this.name = "DialogRefused";
+  }
+  dialog;
+};
+function dialogMethods() {
+  const found = [];
+  const dialogs = app.dialogs;
+  for (const name of methodNames(dialogs)) {
+    if (name.startsWith("show")) found.push([dialogs, name, `dialogs.${name}`]);
+  }
+  for (const [key, value] of Object.entries(app)) {
+    const host = value;
+    if (key !== "dialogs" && host !== null && typeof host === "object" && typeof host.showDialog === "function") {
+      found.push([host, "showDialog", `${key}.showDialog`]);
+    }
+  }
+  return found;
+}
+function methodNames(host) {
+  const names = new Set(Object.keys(host));
+  for (const name of Object.getOwnPropertyNames(Object.getPrototypeOf(host))) {
+    names.add(name);
+  }
+  return [...names].filter((n) => typeof host[n] === "function");
+}
+async function withoutDialogs(what, run) {
+  const attempted = [];
+  const restore = [];
+  for (const [host, name, label] of dialogMethods()) {
+    const own2 = Object.getOwnPropertyDescriptor(host, name);
+    host[name] = () => {
+      attempted.push(label);
+      throw new DialogRefused(label);
+    };
+    restore.push(() => {
+      if (own2) Object.defineProperty(host, name, own2);
+      else delete host[name];
+    });
+  }
+  let outcome;
+  try {
+    outcome = { value: await run() };
+  } catch (error2) {
+    outcome = { error: error2 };
+  } finally {
+    for (const undo2 of restore) undo2();
+  }
+  if (attempted.length > 0) {
+    throw new ApiError(
+      "DIALOG_REQUIRED",
+      `${what} opens a dialog (${attempted[0]}) that would wait for someone at StarUML; pass the arguments that avoid it or use a dedicated endpoint`,
+      { dialogs: attempted }
+    );
+  }
+  if ("error" in outcome) throw outcome.error;
+  return outcome.value;
 }
 
 // src/serialize.ts
@@ -4146,9 +8055,93 @@ var getAllCommands = defineEndpoint({
     return { count: ids2.length, ids: ids2 };
   }
 });
+var CATALOGUE_VERSION = command_catalogue_default.version;
+var COMMANDS = command_catalogue_default.commands;
+function commandInfo(id2) {
+  return Object.hasOwn(COMMANDS, id2) ? COMMANDS[id2] : void 0;
+}
+function refuseDialog(id2, args) {
+  const info = commandInfo(id2);
+  if (info?.dialog === "always") {
+    throw new ApiError(
+      "DIALOG_REQUIRED",
+      `${id2} always opens a dialog that would wait for someone at StarUML (${info.effect})${info.note ? ` ${info.note}` : ""}`,
+      { dialog: "always" }
+    );
+  }
+  const needed = info?.avoidWith ?? 0;
+  if (info?.dialog === "without-args" && args.length < needed) {
+    const names = info.args.slice(0, needed).map((a) => a.name);
+    throw new ApiError(
+      "DIALOG_REQUIRED",
+      `${id2} opens a dialog unless given ${names.join(", ")}; pass ${needed} argument${needed === 1 ? "" : "s"}`,
+      { dialog: "without-args", args: names }
+    );
+  }
+}
+var argSchema = () => object({
+  name: string2(),
+  type: string2(),
+  optional: boolean2(),
+  note: optional(string2())
+});
+var describeCommands = defineEndpoint({
+  path: "/describe_commands",
+  description: "Arguments, effect and dialog behaviour of registered commands (docs/commands.md), so /execute_command can be called without opening a dialog.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    ids: optional(
+      doc(
+        array(string2().check(_minLength(1))),
+        "Command ids; default every registered and every catalogued command."
+      )
+    )
+  }),
+  response: object({
+    catalogue: doc(string2(), "StarUML version the catalogue was read from."),
+    count: int(),
+    commands: array(
+      object({
+        id: string2(),
+        registered: boolean2(),
+        dialog: doc(
+          string2(),
+          "never, always, without-args, confirm, external, or unknown for a command not in the catalogue."
+        ),
+        effect: optional(string2()),
+        args: optional(array(argSchema())),
+        avoidWith: optional(
+          doc(int(), "without-args: arguments that avoid the dialog.")
+        ),
+        needs: optional(string2()),
+        async: optional(boolean2()),
+        note: optional(string2()),
+        source: optional(string2())
+      })
+    )
+  }),
+  handle: (input) => {
+    const ids2 = input.ids ?? [
+      .../* @__PURE__ */ new Set([
+        ...Object.keys(app.commands.commands),
+        ...Object.keys(COMMANDS)
+      ])
+    ].sort();
+    const commands = ids2.map((id2) => {
+      const info = commandInfo(id2);
+      return {
+        id: id2,
+        registered: Object.hasOwn(app.commands.commands, id2),
+        ...info ?? { dialog: "unknown" }
+      };
+    });
+    return { catalogue: CATALOGUE_VERSION, count: commands.length, commands };
+  }
+});
 var executeCommand = defineEndpoint({
   path: "/execute_command",
-  description: "Run a registered StarUML command (see /get_all_commands). Commands can do anything the UI can, including deleting data.",
+  description: "Run a registered StarUML command (see /describe_commands for arguments). Commands can do anything the UI can, including deleting data. A command that would open a dialog is refused with DIALOG_REQUIRED instead of waiting for someone at StarUML.",
   readOnly: false,
   destructive: true,
   request: object({
@@ -4167,16 +8160,283 @@ var executeCommand = defineEndpoint({
     if (!Object.hasOwn(app.commands.commands, input.id)) {
       throw new ApiError("NOT_FOUND", `Command not registered: ${input.id}`);
     }
+    const args = input.args ?? [];
+    refuseDialog(input.id, args);
     let result;
     try {
-      result = await app.commands.execute(input.id, ...input.args ?? []);
+      result = await withoutDialogs(
+        `Command ${input.id}`,
+        () => app.commands.execute(input.id, ...args)
+      );
     } catch (err) {
+      if (err instanceof ApiError) throw err;
       throw new ApiError(
         "STARUML_ERROR",
         `Command ${input.id} threw: ${errorMessage(err)}`
       );
     }
     return { id: input.id, result: serializeValue(result, input) };
+  }
+});
+
+// src/handlers/codegen.ts
+var import_node_fs = require("node:fs");
+var import_node_module = require("node:module");
+var import_node_path = require("node:path");
+
+// src/lookup.ts
+function requireElement(id2, role = "Element") {
+  const elem = app.repository.get(id2);
+  if (!elem) throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
+  return elem;
+}
+function requireDiagram(id2, role = "Diagram") {
+  const elem = app.repository.get(id2);
+  if (!elem || !(elem instanceof type.Diagram)) {
+    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
+  }
+  return elem;
+}
+function requireView(id2, role = "View") {
+  const elem = app.repository.get(id2);
+  if (!elem || !(elem instanceof type.View)) {
+    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
+  }
+  return elem;
+}
+function requireTypeName(name) {
+  if (!Object.hasOwn(type, name)) {
+    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name}`);
+  }
+}
+function requireProject() {
+  const project = app.project.getProject();
+  if (!project) throw new ApiError("NO_PROJECT", "No project is open");
+  return project;
+}
+
+// src/handlers/codegen.ts
+var GENERATORS = {
+  java: { extension: "staruml.java", analyzer: "code-analyzer.js" },
+  cpp: { extension: "staruml.cpp", analyzer: "code-analyzer.js" },
+  csharp: { extension: "staruml.csharp", analyzer: "code-analyzer.js" },
+  python: { extension: "staruml.python", analyzer: null }
+};
+var LANGUAGES = Object.keys(GENERATORS);
+var generateCommand = (language) => `${language}:generate`;
+var nodeRequire = (0, import_node_module.createRequire)(__filename);
+function extensionDir(extension) {
+  const suffix = `${import_node_path.sep}${extension}${import_node_path.sep}main.js`;
+  const main = Object.keys(nodeRequire.cache).find((p) => p.endsWith(suffix));
+  return main === void 0 ? null : (0, import_node_path.dirname)(main);
+}
+function preferenceOptions(dir, section) {
+  const file = (0, import_node_path.join)(dir, "preferences", "preference.json");
+  if (!(0, import_node_fs.existsSync)(file)) return {};
+  const { id: prefix, schema = {} } = JSON.parse(
+    (0, import_node_fs.readFileSync)(file, "utf-8")
+  );
+  const start = `${prefix}.${section}.`;
+  return Object.fromEntries(
+    Object.entries(schema).filter(([key, item]) => key.startsWith(start) && item.type !== "section").map(([key]) => [key.slice(start.length), app.preferences.get(key)])
+  );
+}
+function requireGenerator(language) {
+  const dir = extensionDir(GENERATORS[language].extension);
+  if (dir === null) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `The ${language} code generator (${GENERATORS[language].extension}) is not installed; install it from Tools > Extension Manager`
+    );
+  }
+  return dir;
+}
+function snapshot(dir) {
+  const files = /* @__PURE__ */ new Map();
+  const visit = (at) => {
+    for (const entry of (0, import_node_fs.readdirSync)(at, { withFileTypes: true })) {
+      const full = (0, import_node_path.join)(at, entry.name);
+      if (entry.isDirectory()) visit(full);
+      else files.set((0, import_node_path.relative)(dir, full), (0, import_node_fs.statSync)(full).mtimeMs);
+    }
+  };
+  visit(dir);
+  return files;
+}
+var absoluteDir = (description) => doc(
+  string2().check(refine((p) => (0, import_node_path.isAbsolute)(p), "must be an absolute path")),
+  description
+);
+var languageField = () => doc(_enum(LANGUAGES), "Generator language: java, cpp, csharp or python.");
+var optionsField = (description) => optional(doc(record(string2(), unknown()), description));
+var listCodeGenerators = defineEndpoint({
+  path: "/list_code_generators",
+  description: "Which code generator extensions are installed, for /generate_code and /reverse_code, with the options each takes from its preferences.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: object({
+    generators: array(
+      object({
+        language: string2(),
+        extension: string2(),
+        installed: boolean2(),
+        reverse: doc(boolean2(), "Whether /reverse_code supports it."),
+        path: optional(doc(string2(), "Extension directory, if installed.")),
+        generateOptions: optional(record(string2(), unknown())),
+        reverseOptions: optional(record(string2(), unknown()))
+      })
+    )
+  }),
+  handle: () => ({
+    generators: LANGUAGES.map((language) => {
+      const { extension, analyzer } = GENERATORS[language];
+      const dir = extensionDir(extension);
+      return {
+        language,
+        extension,
+        installed: dir !== null,
+        reverse: analyzer !== null,
+        ...dir !== null && {
+          path: dir,
+          generateOptions: preferenceOptions(dir, "gen"),
+          ...analyzer !== null && {
+            reverseOptions: preferenceOptions(dir, "rev")
+          }
+        }
+      };
+    })
+  })
+});
+var generateCode = defineEndpoint({
+  path: "/generate_code",
+  description: "Generate source code from a model element with an installed generator extension (Tools > <Language> > Generate Code) into a directory, and list the files written.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    language: languageField(),
+    baseId: id(
+      "Element to generate from: a package or model generates its whole tree, a class or interface one file."
+    ),
+    path: absoluteDir(
+      "Absolute output directory; created if missing. A package becomes a subdirectory named after it, and the Java generator fails if that already exists."
+    ),
+    options: optionsField(
+      "Generator options by name, e.g. {indentSpaces: 2, javaDoc: false} for Java; the rest come from the generator's preferences (see /list_code_generators)."
+    )
+  }),
+  response: object({
+    language: string2(),
+    base: string2(),
+    path: string2(),
+    count: int(),
+    files: doc(
+      array(string2()),
+      "Files created or rewritten, relative to path, sorted."
+    )
+  }),
+  handle: async (input) => {
+    const dir = requireGenerator(input.language);
+    const command = generateCommand(input.language);
+    if (!Object.hasOwn(app.commands.commands, command)) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `${GENERATORS[input.language].extension} registered no ${command} command`
+      );
+    }
+    const base = requireElement(input.baseId, "Base element");
+    try {
+      (0, import_node_fs.mkdirSync)(input.path, { recursive: true });
+    } catch (err) {
+      throw new ApiError(
+        "STARUML_ERROR",
+        `Cannot create ${input.path}: ${errorMessage(err)}`
+      );
+    }
+    const before = snapshot(input.path);
+    const options = { ...preferenceOptions(dir, "gen"), ...input.options };
+    await guarded(
+      command,
+      () => app.commands.execute(command, base, input.path, options)
+    );
+    const files = [...snapshot(input.path)].filter(([file, mtime]) => before.get(file) !== mtime).map(([file]) => file).sort();
+    return {
+      language: input.language,
+      base: base._id,
+      path: input.path,
+      count: files.length,
+      files
+    };
+  }
+});
+async function guarded(what, run) {
+  try {
+    await withoutDialogs(what, run);
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError("STARUML_ERROR", `${what} failed: ${errorMessage(err)}`);
+  }
+}
+var reverseCode = defineEndpoint({
+  path: "/reverse_code",
+  description: "Reverse-engineer a source directory into the open project with an installed generator extension (Tools > <Language> > Reverse Code), and summarize the elements it added.",
+  readOnly: false,
+  destructive: false,
+  request: object({
+    language: languageField(),
+    path: absoluteDir(
+      "Absolute directory whose source files are read, recursively."
+    ),
+    options: optionsField(
+      "Analyzer options by name, e.g. {association: false, publicOnly: true} for Java; the rest come from its preferences."
+    )
+  }),
+  response: object({
+    language: string2(),
+    path: string2(),
+    created: doc(int(), "Elements added, views and diagrams included."),
+    roots: doc(
+      array(
+        object({
+          _id: string2(),
+          _type: string2(),
+          name: optional(nullable(string2())),
+          _parent: optional(nullable(string2()))
+        })
+      ),
+      "The added elements whose owner existed before, e.g. the top-level packages."
+    )
+  }),
+  handle: async (input) => {
+    const { analyzer } = GENERATORS[input.language];
+    if (analyzer === null) {
+      throw new ApiError(
+        "INVALID_ARGUMENT",
+        `language: the ${input.language} generator has no reverse engineering`
+      );
+    }
+    const dir = requireGenerator(input.language);
+    requireProject();
+    if (!(0, import_node_fs.existsSync)(input.path) || !(0, import_node_fs.statSync)(input.path).isDirectory()) {
+      throw new ApiError("NOT_FOUND", `No such directory: ${input.path}`);
+    }
+    const module2 = (0, import_node_module.createRequire)((0, import_node_path.join)(dir, "main.js"))(
+      `./${analyzer}`
+    );
+    const before = new Set(Object.keys(app.repository.getIdMap()));
+    const options = { ...preferenceOptions(dir, "rev"), ...input.options };
+    await guarded(
+      `${input.language} reverse engineering`,
+      () => module2.analyze(input.path, options)
+    );
+    const added = Object.entries(app.repository.getIdMap()).filter(([key]) => !before.has(key)).map(([, elem]) => elem);
+    const fresh = new Set(added);
+    return {
+      language: input.language,
+      path: input.path,
+      created: added.length,
+      roots: added.filter((e) => !e._parent || !fresh.has(e._parent)).map(summarize)
+    };
   }
 });
 
@@ -4607,37 +8867,6 @@ function introspectEndpoint(endpoints2) {
       return out;
     }
   });
-}
-
-// src/lookup.ts
-function requireElement(id2, role = "Element") {
-  const elem = app.repository.get(id2);
-  if (!elem) throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  return elem;
-}
-function requireDiagram(id2, role = "Diagram") {
-  const elem = app.repository.get(id2);
-  if (!elem || !(elem instanceof type.Diagram)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  }
-  return elem;
-}
-function requireView(id2, role = "View") {
-  const elem = app.repository.get(id2);
-  if (!elem || !(elem instanceof type.View)) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${id2}`);
-  }
-  return elem;
-}
-function requireTypeName(name) {
-  if (!Object.hasOwn(type, name)) {
-    throw new ApiError("UNKNOWN_TYPE", `Unknown element type: ${name}`);
-  }
-}
-function requireProject() {
-  const project = app.project.getProject();
-  if (!project) throw new ApiError("NO_PROJECT", "No project is open");
-  return project;
 }
 
 // src/handlers/diagrams.ts
@@ -6383,13 +10612,13 @@ var setEditorState = defineEndpoint({
 });
 
 // src/handlers/export.ts
-var import_node_fs = require("node:fs");
-var import_node_path2 = require("node:path");
+var import_node_fs2 = require("node:fs");
+var import_node_path3 = require("node:path");
 
 // src/app-modules.ts
-var import_node_module = require("node:module");
-var import_node_path = require("node:path");
-function appModule(relative) {
+var import_node_module2 = require("node:module");
+var import_node_path2 = require("node:path");
+function appModule(relative2) {
   const resources = process.resourcesPath;
   if (!resources) {
     throw new ApiError(
@@ -6397,8 +10626,8 @@ function appModule(relative) {
       "StarUML's modules are only available inside StarUML"
     );
   }
-  const appRequire = (0, import_node_module.createRequire)((0, import_node_path.join)(resources, "app", "src", "index.js"));
-  return appRequire(`./${relative}`);
+  const appRequire = (0, import_node_module2.createRequire)((0, import_node_path2.join)(resources, "app", "src", "index.js"));
+  return appRequire(`./${relative2}`);
 }
 function diagramExport() {
   return appModule("engine/diagram-export.js");
@@ -6493,7 +10722,7 @@ function renderSvg(diagram, background) {
   };
 }
 var absolutePath = (description) => doc(
-  string2().check(refine((p) => (0, import_node_path2.isAbsolute)(p), "must be an absolute path")),
+  string2().check(refine((p) => (0, import_node_path3.isAbsolute)(p), "must be an absolute path")),
   description
 );
 function currentOr(id2) {
@@ -6575,8 +10804,8 @@ function deliver(meta3, data, path) {
 }
 function writeFile(path, data) {
   try {
-    (0, import_node_fs.mkdirSync)((0, import_node_path2.dirname)(path), { recursive: true });
-    (0, import_node_fs.writeFileSync)(path, data);
+    (0, import_node_fs2.mkdirSync)((0, import_node_path3.dirname)(path), { recursive: true });
+    (0, import_node_fs2.writeFileSync)(path, data);
   } catch (err) {
     throw new ApiError(
       "STARUML_ERROR",
@@ -6584,12 +10813,94 @@ function writeFile(path, data) {
     );
   }
 }
+function fileStem(diagram, taken) {
+  const name = typeof diagram.name === "string" ? diagram.name : "";
+  const clean = name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  const stem = clean === "" || taken.has(clean.toLowerCase()) ? `${clean || "diagram"}-${diagram._id}` : clean;
+  taken.add(stem.toLowerCase());
+  return stem;
+}
+var exportDiagrams = defineEndpoint({
+  path: "/export_diagrams",
+  description: "Write diagrams as image files into a directory, one per diagram named after it, as File > Export Diagrams does; /export_diagram renders one.",
+  readOnly: false,
+  destructive: true,
+  request: object({
+    path: absolutePath(
+      "Absolute directory to write into; created if missing. Files of the same name are overwritten."
+    ),
+    ids: optional(
+      doc(
+        array(string2().check(_minLength(1))).check(_minLength(1)),
+        "Diagram ids; default every diagram in the project."
+      )
+    ),
+    format: optional(
+      doc(_enum(["png", "jpeg", "svg"]), "Image format; default png.")
+    ),
+    scale: optional(
+      doc(
+        number2().check(_positive(), _lte(MAX_SCALE)),
+        "As for /export_diagram."
+      )
+    ),
+    background: optional(
+      doc(
+        string2().check(_regex(/^(#[0-9a-f]{3,8}|[a-z]+)$/i)),
+        "As for /export_diagram."
+      )
+    )
+  }),
+  response: object({
+    path: string2(),
+    format: string2(),
+    count: int(),
+    files: array(
+      object({
+        diagram: string2(),
+        file: doc(string2(), "Absolute path written."),
+        width: number2(),
+        height: number2(),
+        bytes: int()
+      })
+    )
+  }),
+  handle: async (input) => {
+    requireProject();
+    const diagrams = input.ids ? input.ids.map((i) => requireDiagram(i)) : app.repository.getInstancesOf("Diagram");
+    if (diagrams.length === 0) {
+      throw new ApiError("NOT_FOUND", "The project has no diagrams");
+    }
+    const format = input.format ?? "png";
+    const extension = format === "jpeg" ? "jpg" : format;
+    const taken = /* @__PURE__ */ new Set();
+    const files = [];
+    for (const diagram of diagrams) {
+      const image = format === "svg" ? inStarUML(() => renderSvg(diagram, input.background)) : await renderRaster(
+        diagram,
+        format,
+        input.scale ?? 1,
+        input.background
+      );
+      const file = (0, import_node_path3.join)(input.path, `${fileStem(diagram, taken)}.${extension}`);
+      writeFile(file, image.data);
+      files.push({
+        diagram: diagram._id,
+        file,
+        width: image.width,
+        height: image.height,
+        bytes: image.data.length
+      });
+    }
+    return { path: input.path, format, count: files.length, files };
+  }
+});
 var PDF_WAIT_MS = 3e4;
 var PDF_POLL_MS = 50;
 async function waitForPdf(path, timeoutMs2) {
   const deadline = Date.now() + timeoutMs2;
   for (; ; ) {
-    if ((0, import_node_fs.existsSync)(path) && (0, import_node_fs.readFileSync)(path).subarray(-32).includes("%%EOF")) {
+    if ((0, import_node_fs2.existsSync)(path) && (0, import_node_fs2.readFileSync)(path).subarray(-32).includes("%%EOF")) {
       return;
     }
     if (Date.now() >= deadline) {
@@ -6650,7 +10961,7 @@ var exportPdf = defineEndpoint({
     return {
       path: input.path,
       pages: diagrams.length,
-      bytes: (0, import_node_fs.readFileSync)(input.path).length
+      bytes: (0, import_node_fs2.readFileSync)(input.path).length
     };
   }
 });
@@ -6674,10 +10985,10 @@ var exportHtml = defineEndpoint({
         "The bundled html-export extension is not loaded"
       );
     }
-    const index = (0, import_node_path2.join)(input.path, "index.html");
-    (0, import_node_fs.rmSync)(index, { force: true });
+    const index = (0, import_node_path3.join)(input.path, "index.html");
+    (0, import_node_fs2.rmSync)(index, { force: true });
     await app.commands.execute(command, input.path);
-    if (!(0, import_node_fs.existsSync)(index)) {
+    if (!(0, import_node_fs2.existsSync)(index)) {
       throw new ApiError("STARUML_ERROR", `HTML export wrote no ${index}`);
     }
     return { path: input.path, index };
@@ -6798,6 +11109,7 @@ var getConnectedNodeViews = defineEndpoint({
 // src/routes.ts
 var endpoints = [
   getAllCommands,
+  describeCommands,
   executeCommand,
   getProjectInfo,
   saveProject,
@@ -6839,8 +11151,12 @@ var endpoints = [
   getEditorState,
   setEditorState,
   exportDiagram,
+  exportDiagrams,
   exportPdf,
   exportHtml,
+  listCodeGenerators,
+  generateCode,
+  reverseCode,
   undo,
   redo,
   isModified,

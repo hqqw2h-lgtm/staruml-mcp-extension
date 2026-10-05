@@ -98,11 +98,17 @@ describe("RateLimiter", () => {
 });
 
 describe("preferencePolicy", () => {
-  it("throttles only /execute_command, by the preference", () => {
+  it("throttles command and code generator calls, each by the preference", () => {
     app.preferences.set(PREF.commandsPerMinute, 1);
     const policy = preferencePolicy();
-    expect(policy.throttle("/execute_command")).toBe(0);
-    expect(policy.throttle("/execute_command")).toBeGreaterThan(0);
+    for (const path of [
+      "/execute_command",
+      "/generate_code",
+      "/reverse_code",
+    ]) {
+      expect(policy.throttle(path)).toBe(0);
+      expect(policy.throttle(path)).toBeGreaterThan(0);
+    }
     expect(policy.throttle("/get_all_commands")).toBe(0);
     expect(policy.maxBodyBytes()).toBe(DEFAULTS.maxBodyKiB * 1024);
     expect(policy.token()).toBe("");

@@ -32,8 +32,10 @@ import type { Operation } from "../types.js";
  * Paths an atomic batch refuses. Nesting and history steps would fight the
  * batch's own undo handling, replacing the project would leave nothing to roll
  * back, saving would persist a state that may be rolled back, and the async
- * ones (command execution, PDF and HTML export) yield to the event loop, where
- * another request's change would be recorded as part of the batch.
+ * ones (command execution, code generation, multi-diagram, PDF and HTML
+ * export) yield to the event loop, where another request's change would be
+ * recorded as part of the batch. /export_diagram yields only to composite a
+ * background, and records no operation of its own.
  */
 export const NOT_ATOMIC = new Set([
   "/batch",
@@ -46,6 +48,9 @@ export const NOT_ATOMIC = new Set([
   "/execute_command",
   "/export_pdf",
   "/export_html",
+  "/export_diagrams",
+  "/generate_code",
+  "/reverse_code",
 ]);
 
 const NAME = /^[A-Za-z_][\w-]*$/;
@@ -289,7 +294,7 @@ export function batchEndpoint(endpoints: () => readonly Endpoint[]): Endpoint {
       atomic: z.optional(
         doc(
           z.boolean(),
-          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf and /export_html.",
+          "Default true. Atomic batches refuse /undo, /redo, /new_project, /open_project, /save_project*, /execute_command, /export_pdf, /export_html, /export_diagrams, /generate_code and /reverse_code.",
         ),
       ),
     }),

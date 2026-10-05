@@ -42,7 +42,8 @@
     "test:coverage": "vitest run --coverage",
     "test:live": "vitest run --mode live",
     "test:load": "node scripts/load-test.mjs",
-    "snapshot:introspect": "node scripts/snapshot-introspect.mjs"
+    "snapshot:introspect": "node scripts/snapshot-introspect.mjs",
+    "docs:commands": "node scripts/commands-doc.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -53,7 +53,11 @@ export const DEFAULTS = {
 } as const;
 
 /** Endpoints that are rate limited: commands can do anything the UI can. */
-export const THROTTLED = ["/execute_command"];
+export const THROTTLED = [
+  "/execute_command",
+  "/generate_code",
+  "/reverse_code",
+];
 
 /**
  * A positive integer preference. The preference dialog stores whatever is

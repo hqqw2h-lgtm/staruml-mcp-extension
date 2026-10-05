@@ -10,13 +10,20 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   exportDiagram,
+  exportDiagrams,
   exportHtml,
+  fileStem,
   exportPdf,
   imageSize,
   waitForPdf,
 } from "../../../src/handlers/export.js";
-import { installMockApp, type MockEnvironment } from "../../mock/staruml.js";
+import {
+  create,
+  installMockApp,
+  type MockEnvironment,
+} from "../../mock/staruml.js";
 import { fails, ok } from "../support.js";
+import type { Element } from "../../../src/types.js";
 
 const svgExport = vi.hoisted(() => ({
   getImageData: vi.fn(),
@@ -315,6 +322,77 @@ describe("/export_diagram svg", () => {
       "svg failed",
     );
     expect(env.mainDiagram.selectedViews).toEqual(["selected"]);
+  });
+});
+
+describe("/export_diagrams", () => {
+  function addDiagram(name: unknown): Element {
+    const d = create("UMLClassDiagram");
+    d.name = name as string;
+    d._parent = env.model;
+    d.selectedViews = [];
+    env.app.repository.index(d);
+    return d;
+  }
+
+  it("writes every diagram as PNG named after it", async () => {
+    addDiagram("Main");
+    addDiagram("a/b: c");
+    const target = join(dir, "imgs");
+    const data = await ok<{
+      count: number;
+      files: { file: string; width: number }[];
+    }>(exportDiagrams, { path: target });
+    expect(data.count).toBe(3);
+    const names = data.files.map((f) => f.file.slice(target.length + 1));
+    expect(names[0]).toBe("Main.png");
+    expect(names[1]).toMatch(/^Main-.+\.png$/);
+    expect(names[2]).toBe("a_b_ c.png");
+    expect(readFileSync(data.files[0]!.file)).toEqual(png(100, 50));
+    expect(data.files[0]!.width).toBe(100);
+  });
+
+  it("exports chosen diagrams as JPEG and SVG", async () => {
+    svgExport.getSVGImageData.mockReturnValue('<svg width="5" height="6"/>');
+    const id = env.mainDiagram._id;
+    const jpg = await ok<{ files: { file: string }[]; format: string }>(
+      exportDiagrams,
+      { path: dir, ids: [id], format: "jpeg", scale: 2 },
+    );
+    expect(jpg.format).toBe("jpeg");
+    expect(jpg.files[0]!.file).toBe(join(dir, "Main.jpg"));
+    const svg = await ok<{ files: { file: string; height: number }[] }>(
+      exportDiagrams,
+      { path: dir, ids: [id], format: "svg", background: "red" },
+    );
+    expect(svg.files[0]).toMatchObject({
+      file: join(dir, "Main.svg"),
+      height: 6,
+    });
+  });
+
+  it("refuses a project without diagrams, unknown ids and no project", async () => {
+    env.app.repository.unindex(env.mainDiagram);
+    await fails(
+      exportDiagrams,
+      { path: dir },
+      "NOT_FOUND",
+      "The project has no diagrams",
+    );
+    await fails(exportDiagrams, { path: dir, ids: ["nope"] }, "NOT_FOUND");
+    env.app.project.closeProject();
+    await fails(exportDiagrams, { path: dir }, "NO_PROJECT");
+  });
+
+  it("names unnamed and colliding diagrams after their id", () => {
+    const taken = new Set<string>();
+    const blank = addDiagram("  ");
+    const none = addDiagram(undefined);
+    expect(fileStem(blank, taken)).toBe(`diagram-${blank._id}`);
+    expect(fileStem(none, taken)).toBe(`diagram-${none._id}`);
+    expect(fileStem(addDiagram("X"), taken)).toBe("X");
+    const again = addDiagram("x");
+    expect(fileStem(again, taken)).toBe(`x-${again._id}`);
   });
 });
 

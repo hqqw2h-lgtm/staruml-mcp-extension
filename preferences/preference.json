@@ -78,7 +78,7 @@
     },
     "mcp-ext.limits.commandsPerMinute": {
       "text": "Commands per Minute",
-      "description": "Most /execute_command calls in any minute, from all clients together; more get 429.",
+      "description": "Most calls to each of /execute_command, /generate_code and /reverse_code in any minute, from all clients together; more get 429.",
       "type": "number",
       "default": 60
     }
