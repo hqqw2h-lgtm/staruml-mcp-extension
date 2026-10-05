@@ -78,6 +78,25 @@ export interface Repository {
   getEdgeViewsOf(view: Element): View[];
 }
 
+/** Options accepted by Factory.createModelAndView in 7.x. */
+export interface ModelAndViewOptions {
+  /** A key of app.factory.getModelAndViewIds(). */
+  id: string;
+  parent: Element;
+  diagram: Element;
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  tailView?: View;
+  headView?: View;
+  tailModel?: Element | null;
+  headModel?: Element | null;
+  containerView?: View;
+  modelInitializer?: (model: Element) => void;
+  viewInitializer?: (view: View) => void;
+}
+
 /**
  * engine/factory.js. Each create function takes a single options object and
  * returns null (after a console.error) when `id` names no registered factory
@@ -95,7 +114,8 @@ export interface Factory {
     parent: Element;
     diagramInitializer?: (diagram: Element) => void;
   }): Element | null;
-  createModelAndView(options: unknown): Element | null;
+  /** Returns the created view; the created model is its `model`. */
+  createModelAndView(options: ModelAndViewOptions): View | null;
 }
 
 /** engine/engine.js */

@@ -22,8 +22,8 @@
  */
 
 import { failure } from "../errors.js";
-import type { Handler } from "../http-server.js";
-import type { Element } from "../types.js";
+import type { Handler, HandlerResult } from "../http-server.js";
+import type { Element, ModelAndViewOptions, View } from "../types.js";
 
 export const getElementById: Handler = (body) => {
   const id = body.id;
@@ -190,19 +190,67 @@ function collectDeletionTargets(root: Element): {
 }
 
 /**
- * Create a model element AND its visual View on a diagram in one call.
- * Wraps app.factory.createModelAndView.
+ * Resolves the ids shared by both create-with-view handlers. createModelAndView
+ * hands `diagram` to the registered factory function without checking its type
+ * (engine/factory.js in 7.1.1), so that is checked here.
  */
+function resolveParentAndDiagram(
+  body: Record<string, unknown>,
+): { parent: Element; diagram: Element } | string {
+  const { parentId, diagramId } = body;
+  if (typeof parentId !== "string" || parentId.length === 0) {
+    return "Required field 'parentId' missing";
+  }
+  if (typeof diagramId !== "string" || diagramId.length === 0) {
+    return "Required field 'diagramId' missing";
+  }
+  const parent = app.repository.get(parentId);
+  if (!parent) return `Parent not found: ${parentId}`;
+  const diagram = app.repository.get(diagramId);
+  if (!diagram || !(diagram instanceof type.Diagram)) {
+    return `Diagram not found: ${diagramId}`;
+  }
+  return { parent, diagram };
+}
+
+/**
+ * createModelAndView takes one options object and returns the view, whose
+ * `model` is the new model element; it returns null for an id that has no
+ * model-and-view factory function (engine/factory.js in 7.1.1, docs:
+ * developing-extensions/creating-deleting-and-modifying-elements).
+ */
+function createModelAndView(options: ModelAndViewOptions): HandlerResult {
+  const view = app.factory.createModelAndView(options);
+  if (!view) {
+    return {
+      success: false,
+      error: `Unknown model-and-view type: ${options.id}`,
+    };
+  }
+  const model = view.model as Element;
+  return {
+    success: true,
+    data: {
+      view: { _id: view._id },
+      model: { _id: model._id, name: model.name },
+    },
+  };
+}
+
+function nameInitializer(
+  name: unknown,
+): Pick<ModelAndViewOptions, "modelInitializer"> {
+  if (typeof name !== "string") return {};
+  return {
+    modelInitializer: (m: Element) => {
+      m.name = name;
+    },
+  };
+}
+
+/** Creates a model element and its view on a diagram, e.g. a UMLClass and its UMLClassView. */
 export const createElementWithView: Handler = (body) => {
   const typeName = body.type;
-  const parentId = body.parentId;
-  const diagramId = body.diagramId;
-  const name = typeof body.name === "string" ? body.name : undefined;
-  const x1 = typeof body.x === "number" ? body.x : 100;
-  const y1 = typeof body.y === "number" ? body.y : 100;
-  const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
-  const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
-
   if (typeof typeName !== "string" || typeName.length === 0) {
     return {
       success: false,
@@ -210,67 +258,36 @@ export const createElementWithView: Handler = (body) => {
         "Required field 'type' missing (e.g. 'UMLUseCase', 'UMLActor', 'UMLAction')",
     };
   }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' missing" };
-  }
-  if (typeof diagramId !== "string" || diagramId.length === 0) {
-    return { success: false, error: "Required field 'diagramId' missing" };
-  }
+  const resolved = resolveParentAndDiagram(body);
+  if (typeof resolved === "string") return { success: false, error: resolved };
 
-  const parent = app.repository.get(parentId);
-  if (!parent)
-    return { success: false, error: `Parent not found: ${parentId}` };
-  const diagram = app.repository.get(diagramId);
-  if (!diagram)
-    return { success: false, error: `Diagram not found: ${diagramId}` };
+  // x1/y1/x2/y2 are the view's bounding box in diagram coordinates.
+  const x1 = typeof body.x === "number" ? body.x : 100;
+  const y1 = typeof body.y === "number" ? body.y : 100;
+  const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
+  const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
 
   try {
-    // Issue #1: the positional call makes the 7.1.1 factory return null, so the
-    // initializer and the success path are unreachable until the call is fixed;
-    // the ignore goes with that fix.
-    /* v8 ignore start */
-    const factory = app.factory as unknown as {
-      createModelAndView: (
-        id: string,
-        parent: unknown,
-        diagram: unknown,
-        options: Record<string, unknown>,
-      ) => Record<string, unknown>;
-    };
-    const options: Record<string, unknown> = { x1, y1, x2, y2 };
-    if (name !== undefined) {
-      options.modelInitializer = (m: Record<string, unknown>) => {
-        m.name = name;
-      };
-    }
-    const view = factory.createModelAndView(typeName, parent, diagram, options);
-    const model = view.model as Record<string, unknown> | undefined;
-    return {
-      success: true,
-      data: {
-        view: { _id: view._id },
-        model: model ? { _id: model._id, name: model.name } : null,
-      },
-    };
-    /* v8 ignore stop */
+    return createModelAndView({
+      id: typeName,
+      ...resolved,
+      x1,
+      y1,
+      x2,
+      y2,
+      ...nameInitializer(body.name),
+    });
   } catch (err) {
     return failure(err);
   }
 };
 
 /**
- * Connect two existing visual Views with a typed edge (UMLAssociation,
- * UMLControlFlow, etc.). Creates both the model relationship and the edge
- * view in one call via app.factory.createModelAndView.
+ * Creates a relationship (UMLAssociation, UMLControlFlow, ...) between the models
+ * of two existing views and the edge view connecting them.
  */
 export const createEdgeWithView: Handler = (body) => {
-  const typeName = body.type;
-  const parentId = body.parentId;
-  const diagramId = body.diagramId;
-  const tailViewId = body.tailViewId;
-  const headViewId = body.headViewId;
-  const name = typeof body.name === "string" ? body.name : undefined;
-
+  const { type: typeName, tailViewId, headViewId } = body;
   if (typeof typeName !== "string" || typeName.length === 0) {
     return {
       success: false,
@@ -278,64 +295,33 @@ export const createEdgeWithView: Handler = (body) => {
         "Required field 'type' missing (e.g. 'UMLAssociation', 'UMLControlFlow')",
     };
   }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' missing" };
-  }
-  if (typeof diagramId !== "string" || diagramId.length === 0) {
-    return { success: false, error: "Required field 'diagramId' missing" };
-  }
+  const resolved = resolveParentAndDiagram(body);
+  if (typeof resolved === "string") return { success: false, error: resolved };
   if (typeof tailViewId !== "string" || typeof headViewId !== "string") {
     return {
       success: false,
       error: "Required fields 'tailViewId' and 'headViewId' missing",
     };
   }
-
-  const parent = app.repository.get(parentId);
-  const diagram = app.repository.get(diagramId);
   const tailView = app.repository.get(tailViewId);
-  const headView = app.repository.get(headViewId);
-  if (!parent)
-    return { success: false, error: `Parent not found: ${parentId}` };
-  if (!diagram)
-    return { success: false, error: `Diagram not found: ${diagramId}` };
-  if (!tailView)
+  if (!tailView || !(tailView instanceof type.View)) {
     return { success: false, error: `Tail view not found: ${tailViewId}` };
-  if (!headView)
+  }
+  const headView = app.repository.get(headViewId);
+  if (!headView || !(headView instanceof type.View)) {
     return { success: false, error: `Head view not found: ${headViewId}` };
+  }
 
   try {
-    // Issue #1, as in createElementWithView.
-    /* v8 ignore start */
-    const factory = app.factory as unknown as {
-      createModelAndView: (
-        id: string,
-        parent: unknown,
-        diagram: unknown,
-        options: Record<string, unknown>,
-      ) => Record<string, unknown>;
-    };
-    const options: Record<string, unknown> = {
-      tailView,
-      headView,
-      tailModel: (tailView as Record<string, unknown>).model,
-      headModel: (headView as Record<string, unknown>).model,
-    };
-    if (name !== undefined) {
-      options.modelInitializer = (m: Record<string, unknown>) => {
-        m.name = name;
-      };
-    }
-    const view = factory.createModelAndView(typeName, parent, diagram, options);
-    const model = view.model as Record<string, unknown> | undefined;
-    return {
-      success: true,
-      data: {
-        view: { _id: view._id },
-        model: model ? { _id: model._id, name: model.name } : null,
-      },
-    };
-    /* v8 ignore stop */
+    return createModelAndView({
+      id: typeName,
+      ...resolved,
+      tailView: tailView as View,
+      headView: headView as View,
+      tailModel: (tailView as View).model,
+      headModel: (headView as View).model,
+      ...nameInitializer(body.name),
+    });
   } catch (err) {
     return failure(err);
   }

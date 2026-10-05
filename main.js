@@ -491,113 +491,109 @@ function collectDeletionTargets(root) {
   }
   return { models, views };
 }
+function resolveParentAndDiagram(body) {
+  const { parentId, diagramId } = body;
+  if (typeof parentId !== "string" || parentId.length === 0) {
+    return "Required field 'parentId' missing";
+  }
+  if (typeof diagramId !== "string" || diagramId.length === 0) {
+    return "Required field 'diagramId' missing";
+  }
+  const parent = app.repository.get(parentId);
+  if (!parent) return `Parent not found: ${parentId}`;
+  const diagram = app.repository.get(diagramId);
+  if (!diagram || !(diagram instanceof type.Diagram)) {
+    return `Diagram not found: ${diagramId}`;
+  }
+  return { parent, diagram };
+}
+function createModelAndView(options) {
+  const view = app.factory.createModelAndView(options);
+  if (!view) {
+    return {
+      success: false,
+      error: `Unknown model-and-view type: ${options.id}`
+    };
+  }
+  const model = view.model;
+  return {
+    success: true,
+    data: {
+      view: { _id: view._id },
+      model: { _id: model._id, name: model.name }
+    }
+  };
+}
+function nameInitializer(name) {
+  if (typeof name !== "string") return {};
+  return {
+    modelInitializer: (m) => {
+      m.name = name;
+    }
+  };
+}
 var createElementWithView = (body) => {
   const typeName = body.type;
-  const parentId = body.parentId;
-  const diagramId = body.diagramId;
-  const name = typeof body.name === "string" ? body.name : void 0;
-  const x1 = typeof body.x === "number" ? body.x : 100;
-  const y1 = typeof body.y === "number" ? body.y : 100;
-  const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
-  const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
   if (typeof typeName !== "string" || typeName.length === 0) {
     return {
       success: false,
       error: "Required field 'type' missing (e.g. 'UMLUseCase', 'UMLActor', 'UMLAction')"
     };
   }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' missing" };
-  }
-  if (typeof diagramId !== "string" || diagramId.length === 0) {
-    return { success: false, error: "Required field 'diagramId' missing" };
-  }
-  const parent = app.repository.get(parentId);
-  if (!parent)
-    return { success: false, error: `Parent not found: ${parentId}` };
-  const diagram = app.repository.get(diagramId);
-  if (!diagram)
-    return { success: false, error: `Diagram not found: ${diagramId}` };
+  const resolved = resolveParentAndDiagram(body);
+  if (typeof resolved === "string") return { success: false, error: resolved };
+  const x1 = typeof body.x === "number" ? body.x : 100;
+  const y1 = typeof body.y === "number" ? body.y : 100;
+  const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
+  const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
   try {
-    const factory = app.factory;
-    const options = { x1, y1, x2, y2 };
-    if (name !== void 0) {
-      options.modelInitializer = (m) => {
-        m.name = name;
-      };
-    }
-    const view = factory.createModelAndView(typeName, parent, diagram, options);
-    const model = view.model;
-    return {
-      success: true,
-      data: {
-        view: { _id: view._id },
-        model: model ? { _id: model._id, name: model.name } : null
-      }
-    };
+    return createModelAndView({
+      id: typeName,
+      ...resolved,
+      x1,
+      y1,
+      x2,
+      y2,
+      ...nameInitializer(body.name)
+    });
   } catch (err) {
     return failure(err);
   }
 };
 var createEdgeWithView = (body) => {
-  const typeName = body.type;
-  const parentId = body.parentId;
-  const diagramId = body.diagramId;
-  const tailViewId = body.tailViewId;
-  const headViewId = body.headViewId;
-  const name = typeof body.name === "string" ? body.name : void 0;
+  const { type: typeName, tailViewId, headViewId } = body;
   if (typeof typeName !== "string" || typeName.length === 0) {
     return {
       success: false,
       error: "Required field 'type' missing (e.g. 'UMLAssociation', 'UMLControlFlow')"
     };
   }
-  if (typeof parentId !== "string" || parentId.length === 0) {
-    return { success: false, error: "Required field 'parentId' missing" };
-  }
-  if (typeof diagramId !== "string" || diagramId.length === 0) {
-    return { success: false, error: "Required field 'diagramId' missing" };
-  }
+  const resolved = resolveParentAndDiagram(body);
+  if (typeof resolved === "string") return { success: false, error: resolved };
   if (typeof tailViewId !== "string" || typeof headViewId !== "string") {
     return {
       success: false,
       error: "Required fields 'tailViewId' and 'headViewId' missing"
     };
   }
-  const parent = app.repository.get(parentId);
-  const diagram = app.repository.get(diagramId);
   const tailView = app.repository.get(tailViewId);
-  const headView = app.repository.get(headViewId);
-  if (!parent)
-    return { success: false, error: `Parent not found: ${parentId}` };
-  if (!diagram)
-    return { success: false, error: `Diagram not found: ${diagramId}` };
-  if (!tailView)
+  if (!tailView || !(tailView instanceof type.View)) {
     return { success: false, error: `Tail view not found: ${tailViewId}` };
-  if (!headView)
+  }
+  const headView = app.repository.get(headViewId);
+  if (!headView || !(headView instanceof type.View)) {
     return { success: false, error: `Head view not found: ${headViewId}` };
+  }
   try {
-    const factory = app.factory;
-    const options = {
+    return createModelAndView({
+      id: typeName,
+      ...resolved,
       tailView,
       headView,
       tailModel: tailView.model,
-      headModel: headView.model
-    };
-    if (name !== void 0) {
-      options.modelInitializer = (m) => {
-        m.name = name;
-      };
-    }
-    const view = factory.createModelAndView(typeName, parent, diagram, options);
-    const model = view.model;
-    return {
-      success: true,
-      data: {
-        view: { _id: view._id },
-        model: model ? { _id: model._id, name: model.name } : null
-      }
-    };
+      headModel: headView.model,
+      ...nameInitializer(body.name)
+    });
   } catch (err) {
     return failure(err);
   }
