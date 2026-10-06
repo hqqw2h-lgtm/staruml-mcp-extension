@@ -39,7 +39,7 @@ async function diagram(name = "D") {
     edges: { view: string }[];
   }>(ep("/build_diagram"), {
     kind: "class",
-    viewpoint: "code",
+    template: "code-classes",
     name,
     result: "full",
     spec: {

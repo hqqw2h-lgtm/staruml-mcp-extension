@@ -1,0 +1,25 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "deployment-nodes",
+  "version": 1,
+  "title": "Deployment",
+  "description": "Nodes, what is deployed on each and the links between them.",
+  "viewpoint": "deployment",
+  "kind": "deployment",
+  "default": true,
+  "content": {
+    "maxElements": 30
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": [
+      "Node: a machine, device or runtime environment",
+      "Artifact: what is deployed on it",
+      "Line: a communication path, labelled with its protocol"
+    ]
+  }
+}

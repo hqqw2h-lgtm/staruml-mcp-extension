@@ -59,6 +59,11 @@
               "gcp"
             ]
           },
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The template the view is drawn with (see /list_templates)."
+          },
           "phrases": {
             "minItems": 1,
             "type": "array",
@@ -94,7 +99,15 @@
             "description": "Why this view answers such an intent."
           }
         },
-        "required": ["id", "viewpoint", "kind", "phrases", "scopes", "reason"],
+        "required": [
+          "id",
+          "viewpoint",
+          "kind",
+          "template",
+          "phrases",
+          "scopes",
+          "reason"
+        ],
         "additionalProperties": false
       }
     },

@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "data-erd",
+  "version": 1,
+  "title": "Entity relationships",
+  "description": "Stored entities with their columns and the relationships between them.",
+  "viewpoint": "data",
+  "kind": "erd",
+  "default": true,
+  "content": {
+    "maxElements": 25
+  },
+  "style": "project",
+  "layout": {
+    "preset": "hierarchy-right"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

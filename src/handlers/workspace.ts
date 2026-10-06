@@ -23,6 +23,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, extname, isAbsolute, join } from "node:path";
+import { templates as diagramTemplates } from "./../templates/index.js";
 import * as z from "zod/mini";
 import { extensionRoots } from "../app-modules.js";
 import { withoutDialogs } from "../dialog-guard.js";
@@ -396,12 +397,42 @@ const templateSchema = () =>
 export const listTemplates = defineEndpoint({
   path: "/list_templates",
   description:
-    "The project templates StarUML offers under File > New From Template, from its resources and its extensions, for /new_from_template.",
+    "The project templates StarUML offers under File > New From Template, from its resources and its extensions, for /new_from_template; and the diagram templates /build_diagram, /derive_diagrams and /request_diagram draw with (issue #43), each a viewpoint drawn as a kind in a house style and layout, for /describe_template.",
   readOnly: true,
   destructive: false,
   request: z.object({}),
-  response: z.object({ templates: z.array(templateSchema()) }),
-  handle: () => ({ templates: templates() }),
+  response: z.object({
+    templates: z.array(templateSchema()),
+    diagramTemplates: z.optional(
+      doc(
+        z.array(
+          z.object({
+            name: z.string(),
+            version: z.int(),
+            title: z.string(),
+            viewpoint: z.string(),
+            kind: z.string(),
+            default: doc(
+              z.boolean(),
+              "Drawn by /derive_diagrams and /request_diagram for its viewpoint and kind.",
+            ),
+          }),
+        ),
+        "Diagram templates, by viewpoint.",
+      ),
+    ),
+  }),
+  handle: () => ({
+    templates: templates(),
+    diagramTemplates: diagramTemplates().map((t) => ({
+      name: t.name,
+      version: t.version,
+      title: t.title,
+      viewpoint: t.viewpoint,
+      kind: t.kind,
+      default: t.default,
+    })),
+  }),
 });
 
 export const newFromTemplate = defineEndpoint({

@@ -104,7 +104,7 @@ describeLive("style profile", () => {
     const built = ok(
       await call<Built>("/build_diagram", {
         kind: "class",
-        viewpoint: "code",
+        template: "code-classes",
         spec: SPEC,
       }),
       "build",

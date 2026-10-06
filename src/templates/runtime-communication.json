@@ -1,0 +1,22 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "runtime-communication",
+  "version": 1,
+  "title": "Scenario as communication",
+  "description": "Who exchanges which messages in one scenario, without the timeline.",
+  "viewpoint": "runtime",
+  "kind": "communication",
+  "default": true,
+  "content": {
+    "maxElements": 30,
+    "maxLifelines": 12
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-right"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

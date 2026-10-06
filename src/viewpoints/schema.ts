@@ -130,6 +130,10 @@ export const decisionRuleSchema = () =>
     id: z.string().check(z.regex(/^D[0-9]{2}$/)),
     viewpoint: z.enum(VIEWPOINT_NAMES),
     kind: z.enum(KINDS),
+    template: doc(
+      z.string().check(z.minLength(1)),
+      "The template the view is drawn with (see /list_templates).",
+    ),
     phrases: doc(
       z.array(text()).check(z.minLength(1)),
       "Words of an intent that ask for this view; each scores its word count.",

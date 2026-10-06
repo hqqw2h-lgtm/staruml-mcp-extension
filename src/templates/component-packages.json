@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "component-packages",
+  "version": 1,
+  "title": "Package dependencies",
+  "description": "Packages of the model and the dependencies between them, used ones on top.",
+  "viewpoint": "component",
+  "kind": "package",
+  "default": true,
+  "content": {
+    "maxElements": 20
+  },
+  "style": "project",
+  "layout": {
+    "preset": "hierarchy-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

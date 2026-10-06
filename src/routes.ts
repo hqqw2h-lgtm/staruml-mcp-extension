@@ -167,6 +167,8 @@ import {
   viewFieldLocked,
   viewpointRequired,
 } from "./style/guard.js";
+import { derivedLocked } from "./templates/lock.js";
+import { describeTemplate } from "./handlers/templates.js";
 import {
   describeViewpoint,
   listViewpoints,
@@ -202,11 +204,11 @@ export const endpoints: readonly Endpoint[] = [
   getElementById,
   findElements,
   createElement,
-  viewFieldLocked(updateElement),
-  deleteElement,
-  profiled(createElementWithView),
-  profiled(createEdgeWithView),
-  createRelationship,
+  derivedLocked(viewFieldLocked(updateElement)),
+  derivedLocked(deleteElement, { deletes: true }),
+  derivedLocked(profiled(createElementWithView)),
+  derivedLocked(profiled(createEdgeWithView)),
+  derivedLocked(createRelationship),
 
   addAttribute,
   addOperation,
@@ -214,9 +216,9 @@ export const endpoints: readonly Endpoint[] = [
   addEnumerationLiteral,
   addTemplateParameter,
   addSlot,
-  addTag,
-  setStereotype,
-  setDocumentation,
+  derivedLocked(addTag),
+  derivedLocked(setStereotype),
+  derivedLocked(setDocumentation),
 
   viewpointRequired(createDiagram),
   switchDiagram,
@@ -230,14 +232,14 @@ export const endpoints: readonly Endpoint[] = [
   getRefsTo,
   getConnectedNodeViews,
 
-  withQuality(layoutDiagram),
-  styleLocked(routeEdges),
-  styleLocked(moveViews),
-  styleLocked(resizeNode),
-  styleLocked(setViewStyle),
-  styleLocked(setZOrder),
-  styleLocked(divideFragment),
-  createViewOf,
+  derivedLocked(withQuality(layoutDiagram), { current: true }),
+  derivedLocked(styleLocked(routeEdges), { current: true }),
+  derivedLocked(styleLocked(moveViews)),
+  derivedLocked(styleLocked(resizeNode)),
+  derivedLocked(styleLocked(setViewStyle)),
+  derivedLocked(styleLocked(setZOrder)),
+  derivedLocked(styleLocked(divideFragment)),
+  derivedLocked(createViewOf),
 
   getSelection,
   setSelection,
@@ -280,6 +282,7 @@ export const endpoints: readonly Endpoint[] = [
 
   listViewpoints,
   describeViewpoint,
+  describeTemplate,
   viewpointLint,
   requestDiagramEndpoint(() => endpoints),
 
@@ -290,7 +293,7 @@ export const endpoints: readonly Endpoint[] = [
   applyPresetEndpoint(() => endpoints),
   describeType,
 
-  styleLocked(applyThemeEndpoint(() => endpoints)),
+  derivedLocked(styleLocked(applyThemeEndpoint(() => endpoints))),
 
   getStyleProfile,
   setStyleProfileEndpoint(() => endpoints),

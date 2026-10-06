@@ -48,6 +48,12 @@ export const ERROR_STATUS = {
    * /request_diagram or /derive_diagrams.
    */
   VIEWPOINT_REQUIRED: 403,
+  /**
+   * The style profile is strict, so diagrams are built and derived only
+   * through a template, with content and no style or layout parameter
+   * (issue #43); details.fields names those given.
+   */
+  TEMPLATE_ONLY: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
@@ -68,6 +74,12 @@ export const ERROR_STATUS = {
    * unset; details.existing is that sibling.
    */
   DUPLICATE_NAME: 409,
+  /**
+   * The diagram is derived from the model (issue #43): its views are the
+   * engine's, so a direct edit is refused; change the model and derive
+   * again. override: true edits it anyway outside a strict profile.
+   */
+  DIAGRAM_DERIVED: 409,
   /**
    * /restore_snapshot or /diff_since on a snapshot the undo history no
    * longer reaches, or one taken of another project.

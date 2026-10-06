@@ -92,6 +92,12 @@ var ERROR_STATUS = {
    * /request_diagram or /derive_diagrams.
    */
   VIEWPOINT_REQUIRED: 403,
+  /**
+   * The style profile is strict, so diagrams are built and derived only
+   * through a template, with content and no style or layout parameter
+   * (issue #43); details.fields names those given.
+   */
+  TEMPLATE_ONLY: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
@@ -112,6 +118,12 @@ var ERROR_STATUS = {
    * unset; details.existing is that sibling.
    */
   DUPLICATE_NAME: 409,
+  /**
+   * The diagram is derived from the model (issue #43): its views are the
+   * engine's, so a direct edit is refused; change the model and derive
+   * again. override: true edits it anyway outside a strict profile.
+   */
+  DIAGRAM_DERIVED: 409,
   /**
    * /restore_snapshot or /diff_since on a snapshot the undo history no
    * longer reaches, or one taken of another project.
@@ -307,7 +319,7 @@ function createRequestListener(handlers, log2, policy = UNLIMITED) {
 function bearerMatches(header, token2) {
   const match = /^Bearer (.+)$/i.exec(header ?? "");
   if (!match) return false;
-  const digest = (text5) => (0, import_node_crypto.createHash)("sha256").update(text5).digest();
+  const digest = (text6) => (0, import_node_crypto.createHash)("sha256").update(text6).digest();
   return (0, import_node_crypto.timingSafeEqual)(digest(match[1]), digest(token2));
 }
 var TIMED_OUT = /* @__PURE__ */ Symbol("timed out");
@@ -402,17 +414,17 @@ function sendError(res, code, error2) {
   sendJson(res, ERROR_STATUS[code], body);
 }
 function sendJson(res, status, body, handlerStarted) {
-  const text5 = JSON.stringify(body);
+  const text6 = JSON.stringify(body);
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(text5)
+    "Content-Length": Buffer.byteLength(text6)
   };
   if (handlerStarted !== void 0) {
     const ms = import_node_perf_hooks.performance.now() - handlerStarted;
     headers["Server-Timing"] = `handler;dur=${ms.toFixed(3)}`;
   }
   res.writeHead(status, headers);
-  res.end(text5);
+  res.end(text6);
 }
 function stackOf(err) {
   return err instanceof Error ? String(err.stack) : String(err);
@@ -4091,12 +4103,12 @@ var SPECIAL = /[\\/.#@(),]/g;
 function escapeName(name4) {
   return name4.replace(SPECIAL, (c) => `\\${c}`);
 }
-function parsePath(text5, dots = true) {
+function parsePath(text6, dots = true) {
   const steps = [];
   let step = { sep: "/", name: "" };
   let absolute = false;
   let i = 0;
-  if (text5.startsWith("/")) {
+  if (text6.startsWith("/")) {
     absolute = true;
     i = 1;
   }
@@ -4104,10 +4116,10 @@ function parsePath(text5, dots = true) {
     steps.push(step);
     step = { sep: sep2, name: "" };
   };
-  while (i < text5.length) {
-    const c = text5[i];
-    if (c === "\\" && i + 1 < text5.length) {
-      step.name += text5[i + 1];
+  while (i < text6.length) {
+    const c = text6[i];
+    if (c === "\\" && i + 1 < text6.length) {
+      step.name += text6[i + 1];
       i += 2;
       continue;
     }
@@ -4115,7 +4127,7 @@ function parsePath(text5, dots = true) {
     else if (c === "#") next("#");
     else if (c === "." && dots) next(".");
     else if (c === "(" && step.sep === "#" && step.params === void 0) {
-      const [params, end] = readParams(text5, i + 1);
+      const [params, end] = readParams(text6, i + 1);
       step.params = params;
       i = end;
     } else step.name += c;
@@ -4124,14 +4136,14 @@ function parsePath(text5, dots = true) {
   steps.push(step);
   return { absolute, steps };
 }
-function readParams(text5, from) {
+function readParams(text6, from) {
   const params = [];
   let current = "";
   let i = from;
-  for (; i < text5.length && text5[i] !== ")"; i++) {
-    const c = text5[i];
-    if (c === "\\" && i + 1 < text5.length) {
-      current += text5[++i];
+  for (; i < text6.length && text6[i] !== ")"; i++) {
+    const c = text6[i];
+    if (c === "\\" && i + 1 < text6.length) {
+      current += text6[++i];
     } else if (c === ",") {
       params.push(current.trim());
       current = "";
@@ -4348,19 +4360,19 @@ function distance(a, b) {
 }
 function lastName(ref3) {
   const at = splitAt(ref3);
-  const text5 = at ? at[0] : ref3;
+  const text6 = at ? at[0] : ref3;
   let start = 0;
   let depth3 = 0;
-  for (let i = 0; i < text5.length; i++) {
-    const c = text5[i];
+  for (let i = 0; i < text6.length; i++) {
+    const c = text6[i];
     if (c === "\\") i++;
     else if (c === "(") depth3++;
     else if (c === ")") depth3 = Math.max(0, depth3 - 1);
     else if (depth3 > 0) continue;
     else if ("/#.".includes(c)) start = i + 1;
-    else if (text5.startsWith("::", i)) start = i + 2;
+    else if (text6.startsWith("::", i)) start = i + 2;
   }
-  return text5.slice(start).replace(/\\(.)/g, "$1").replace(/\(.*$/, "").trim();
+  return text6.slice(start).replace(/\\(.)/g, "$1").replace(/\(.*$/, "").trim();
 }
 function nearest(ref3, kind2) {
   const wanted = lastName(ref3).toLowerCase();
@@ -4400,47 +4412,47 @@ var VISIBILITY = {
   "#": "protected",
   "~": "package"
 };
-function modifiers(text5) {
-  const last = text5.at(-1);
-  if (last === "$") return { text: text5.slice(0, -1).trim(), isStatic: true };
-  if (last === "*") return { text: text5.slice(0, -1).trim(), isAbstract: true };
-  return { text: text5 };
+function modifiers(text6) {
+  const last = text6.at(-1);
+  if (last === "$") return { text: text6.slice(0, -1).trim(), isStatic: true };
+  if (last === "*") return { text: text6.slice(0, -1).trim(), isAbstract: true };
+  return { text: text6 };
 }
-function visibility(text5) {
-  const v = VISIBILITY[text5.charAt(0)];
-  return v ? { text: text5.slice(1).trim(), visibility: v } : { text: text5 };
+function visibility(text6) {
+  const v = VISIBILITY[text6.charAt(0)];
+  return v ? { text: text6.slice(1).trim(), visibility: v } : { text: text6 };
 }
-function typedName(text5) {
-  const colon = text5.indexOf(":");
+function typedName(text6) {
+  const colon = text6.indexOf(":");
   if (colon >= 0) {
-    const type2 = text5.slice(colon + 1).trim();
-    return { name: text5.slice(0, colon).trim(), ...type2 && { type: type2 } };
+    const type2 = text6.slice(colon + 1).trim();
+    return { name: text6.slice(0, colon).trim(), ...type2 && { type: type2 } };
   }
-  const space = text5.lastIndexOf(" ");
-  if (space < 0) return { name: text5 };
+  const space = text6.lastIndexOf(" ");
+  if (space < 0) return { name: text6 };
   return {
-    name: text5.slice(space + 1),
-    type: text5.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
+    name: text6.slice(space + 1),
+    type: text6.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
   };
 }
 function parseAttribute(source) {
   const mod = modifiers(source.trim());
   const vis = visibility(mod.text);
-  let text5 = vis.text;
+  let text6 = vis.text;
   let defaultValue;
-  const eq = text5.indexOf("=");
+  const eq = text6.indexOf("=");
   if (eq >= 0) {
-    defaultValue = text5.slice(eq + 1).trim();
-    text5 = text5.slice(0, eq).trim();
+    defaultValue = text6.slice(eq + 1).trim();
+    text6 = text6.slice(0, eq).trim();
   }
   let multiplicity;
-  const mult = /\[([^\]]*)\]$/.exec(text5);
+  const mult = /\[([^\]]*)\]$/.exec(text6);
   if (mult) {
     multiplicity = mult[1];
-    text5 = text5.slice(0, mult.index).trim();
+    text6 = text6.slice(0, mult.index).trim();
   }
   return {
-    ...typedName(text5),
+    ...typedName(text6),
     ...vis.visibility && { visibility: vis.visibility },
     ...mod.isStatic && { isStatic: true },
     ...defaultValue !== void 0 && { defaultValue },
@@ -4605,8 +4617,8 @@ var str = (value) => multiline(typeof value === "string" ? value : value.name);
 var LINE_HEIGHT = 16;
 var GLYPH_WIDTH = 7;
 var LABEL_PADDING = 20;
-function textWidth(text5) {
-  return GLYPH_WIDTH * Math.max(0, ...text5.split("\n").map((l) => l.length));
+function textWidth(text6) {
+  return GLYPH_WIDTH * Math.max(0, ...text6.split("\n").map((l) => l.length));
 }
 
 // src/build/families.ts
@@ -6314,7 +6326,7 @@ var SEQUENCE = {
   /** Space between the frame and what it holds. */
   frameMargin: 20
 };
-var noteHeight = (text5) => Math.max(40, 16 + 16 * multiline(text5).split("\n").length);
+var noteHeight = (text6) => Math.max(40, 16 + 16 * multiline(text6).split("\n").length);
 function sequencePlan(spec) {
   const b = new Builder("sequence");
   const messages2 = (spec.messages ?? []).map((m) => ({
@@ -6864,25 +6876,25 @@ function mindmapPlan(spec) {
     let top = MIND.margin + (height - rows2(side) * MIND.row) / 2;
     const place2 = (n, key2, d) => {
       const kids = n.children ?? [];
-      let centre3;
+      let centre4;
       if (kids.length === 0) {
-        centre3 = top + MIND.row / 2;
+        centre4 = top + MIND.row / 2;
         top += MIND.row;
       } else {
         const ys = kids.map(
           (c) => place2(c, `${key2}/${multiline(c.name)}`, d + 1)
         );
-        centre3 = (ys[0] + ys.at(-1)) / 2;
+        centre4 = (ys[0] + ys.at(-1)) / 2;
       }
       const w = widthOf(n);
       boxes.set(key2, {
         // A node hugs its column on the root's side.
         x: dir === 1 ? xs[d] : xs[d] + cols[d] - w,
-        y: centre3 - MIND.height / 2,
+        y: centre4 - MIND.height / 2,
         width: w,
         height: MIND.height
       });
-      return centre3;
+      return centre4;
     };
     for (const c of side) place2(c, `${rootKey}/${multiline(c.name)}`, 0);
   };
@@ -7045,14 +7057,14 @@ function decorate(plan, spec) {
           `spec: ${key2} is defined twice; give the node another name or id`
         );
       }
-      const text5 = multiline(n.text);
+      const text6 = multiline(n.text);
       const node2 = {
         key: key2,
         type: "Note",
         name: "",
-        text: text5,
+        text: text6,
         width: 140,
-        height: noteHeight(text5)
+        height: noteHeight(text6)
       };
       plan.nodes.push(node2);
       byKey.set(key2, node2);
@@ -9810,12 +9822,12 @@ function preferred() {
 function effectiveProfile() {
   const tag = profileTag();
   if (!tag) return { profile: preferred(), source: "preferences" };
-  const text5 = String(tag.value ?? "");
-  if (cache?.text === text5) return cache.effective;
+  const text6 = String(tag.value ?? "");
+  if (cache?.text === text6) return cache.effective;
   let effective;
   try {
     effective = {
-      profile: parseProfile(JSON.parse(text5), PROFILE_TAG),
+      profile: parseProfile(JSON.parse(text6), PROFILE_TAG),
       source: "project"
     };
   } catch (err) {
@@ -9825,7 +9837,7 @@ function effectiveProfile() {
       problem: `the project's ${PROFILE_TAG} tag is not a valid profile: ${err.message}`
     };
   }
-  cache = { text: text5, effective };
+  cache = { text: text6, effective };
   return effective;
 }
 var profile = () => effectiveProfile().profile;
@@ -10095,16 +10107,16 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text5, name4, path, results) {
+function lookup(text6, name4, path, results) {
   const result = results.get(name4);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text5}: no earlier op is named ${name4}`
+      `${text6}: no earlier op is named ${name4}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text5}: op ${name4} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text6}: op ${name4} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
@@ -10116,7 +10128,7 @@ function lookup(text5, name4, path, results) {
     value = _id ?? $ref;
   }
   if (!["string", "number", "boolean"].includes(typeof value)) {
-    throw new ApiError("INVALID_ARGUMENT", `${text5} does not name a value`);
+    throw new ApiError("INVALID_ARGUMENT", `${text6} does not name a value`);
   }
   return value;
 }
@@ -10607,11 +10619,11 @@ function parseJsonSchema(source, as) {
 }
 
 // src/build/c4.ts
-function macroArgs(text5) {
+function macroArgs(text6) {
   const parts = [];
   let current = "";
   let quoted3 = false;
-  for (const ch of text5) {
+  for (const ch of text6) {
     if (ch === '"') quoted3 = !quoted3;
     else if (ch === "," && !quoted3) {
       parts.push(current);
@@ -10652,9 +10664,9 @@ function readC4(lines2, fail5, other) {
   let boundaries = 0;
   let open = 0;
   const value = (s) => s ? multiline(s) : void 0;
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     let m;
-    if (m = ELEMENT.exec(text5)) {
+    if (m = ELEMENT.exec(text6)) {
       const [, macro, ext, body] = m;
       const base = macro.replace(/(Db|Queue)$/, "");
       const type2 = TYPES[base];
@@ -10672,7 +10684,7 @@ function readC4(lines2, fail5, other) {
         ...value(description) && { description: value(description) },
         ...ext && { external: true }
       });
-    } else if (m = RELATION.exec(text5)) {
+    } else if (m = RELATION.exec(text6)) {
       const { positional: p, named: named3 } = macroArgs(m[2]);
       if (!p[0] || !p[1]) fail5(no, `${m[1]} needs two aliases`);
       const back = m[1].startsWith("Rel_Back");
@@ -10690,13 +10702,13 @@ function readC4(lines2, fail5, other) {
         ...technology && { technology },
         ...description && { description }
       });
-    } else if (m = BOUNDARY.exec(text5)) {
+    } else if (m = BOUNDARY.exec(text6)) {
       boundaries++;
-      if (text5.endsWith("{")) open++;
-    } else if (text5 === "}") {
+      if (text6.endsWith("{")) open++;
+    } else if (text6 === "}") {
       if (open === 0) fail5(no, "} without a boundary");
       open--;
-    } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text5)) {
+    } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text6)) {
       const { positional: p, named: named3 } = macroArgs(m[1]);
       const style2 = {};
       for (const [arg, field] of Object.entries(STYLE_ARGS)) {
@@ -10708,14 +10720,14 @@ function readC4(lines2, fail5, other) {
       if (Object.keys(style2).length > 0) {
         styles[p[0]] = { ...styles[p[0]], ...style2 };
       }
-    } else if (DEPLOYMENT.test(text5)) {
+    } else if (DEPLOYMENT.test(text6)) {
       fail5(
         no,
         "C4 deployment nodes have no StarUML 7.1.1 element",
         "UNSUPPORTED_SYNTAX"
       );
-    } else if (!IGNORED.test(text5) && !other(text5)) {
-      fail5(no, `cannot read "${text5}"`);
+    } else if (!IGNORED.test(text6) && !other(text6)) {
+      fail5(no, `cannot read "${text6}"`);
     }
   }
   if (open > 0) fail5(lines2.at(-1).no, "a boundary is never closed with }");
@@ -10752,11 +10764,11 @@ function preprocess(source) {
     start = end + 1;
   }
   const lines2 = [];
-  raw.forEach((text5, i) => {
+  raw.forEach((text6, i) => {
     if (i < start) return;
-    const t = text5.replace(/%%.*$/, "").trim();
+    const t = text6.replace(/%%.*$/, "").trim();
     if (t) {
-      const indent = text5.length - text5.trimStart().length;
+      const indent = text6.length - text6.trimStart().length;
       lines2.push({ no: i + 1, text: t, indent });
     }
   });
@@ -10784,14 +10796,14 @@ var Styles = class {
   classes = /* @__PURE__ */ new Map();
   inline = /* @__PURE__ */ new Map();
   /** Reads a classDef, class or style line; false for any other line. */
-  line(text5) {
+  line(text6) {
     let m;
-    if (m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text5)) {
+    if (m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text6)) {
       for (const name4 of m[1].split(","))
         this.defs.set(name4, cssColors(m[2]));
-    } else if (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text5)) {
+    } else if (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text6)) {
       for (const id2 of m[1].split(",")) this.use(id2.trim(), m[2]);
-    } else if (m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text5)) {
+    } else if (m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text6)) {
       this.inline.set(m[1], {
         ...this.inline.get(m[1]),
         ...cssColors(m[2])
@@ -10884,39 +10896,39 @@ function classDiagram(lines2) {
     else if (a === "enumeration" || a === "enum") e.kind = "enum";
     else if (a === "abstract") e.kind = "abstract";
   };
-  const member = (e, text5) => {
-    if (/^<<(.+)>>$/.test(text5)) annotate(e, text5.slice(2, -2));
-    else if (e.kind === "enum") e.literals.push(text5);
-    else if (isOperation(text5)) e.operations.push(text5);
-    else e.attributes.push(text5);
+  const member = (e, text6) => {
+    if (/^<<(.+)>>$/.test(text6)) annotate(e, text6.slice(2, -2));
+    else if (e.kind === "enum") e.literals.push(text6);
+    else if (isOperation(text6)) e.operations.push(text6);
+    else e.attributes.push(text6);
   };
   let open = null;
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     if (open) {
-      if (text5 === "}") open = null;
-      else member(open, text5);
+      if (text6 === "}") open = null;
+      else member(open, text6);
       continue;
     }
     let m;
     if (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(?::::([\w-]+))?\s*(\{)?\s*$/.exec(
-      text5
+      text6
     )) {
       const e = entry(m[1]);
       if (m[2] !== void 0) e.name = multiline(m[2]);
       if (m[3]) styles.use(m[1].replace(/~.*~$/, ""), m[3]);
       if (m[4]) open = e;
-    } else if (m = /^note\s+(?:for\s+([\w.]+)\s+)?"(.*)"$/.exec(text5)) {
+    } else if (m = /^note\s+(?:for\s+([\w.]+)\s+)?"(.*)"$/.exec(text6)) {
       if (m[1] !== void 0) entry(m[1]);
       notes.push({ text: m[2], ...m[1] !== void 0 && { on: [m[1]] } });
-    } else if (styles.line(text5)) {
-    } else if (m = /^namespace\s+([\w.]+)\s*\{$/.exec(text5)) {
+    } else if (styles.line(text6)) {
+    } else if (m = /^namespace\s+([\w.]+)\s*\{$/.exec(text6)) {
       namespace = m[1];
       if (!packages.includes(namespace)) packages.push(namespace);
-    } else if (text5 === "}" && namespace !== void 0) {
+    } else if (text6 === "}" && namespace !== void 0) {
       namespace = void 0;
-    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text5)) {
+    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text6)) {
       annotate(entry(m[2]), m[1]);
-    } else if (m = RELATION2.exec(text5)) {
+    } else if (m = RELATION2.exec(text6)) {
       const [, a, aCard, arrow, bCard, b, label4] = m;
       const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
       entry(a);
@@ -10930,10 +10942,10 @@ function classDiagram(lines2) {
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
-    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text5)) {
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text6)) {
       member(entry(m[1]), m[2].trim());
-    } else if (!/^(direction\s|click\b|link\b|callback\b|})/.test(text5)) {
-      fail2(no, `cannot read "${text5}"`);
+    } else if (!/^(direction\s|click\b|link\b|callback\b|})/.test(text6)) {
+      fail2(no, `cannot read "${text6}"`);
     }
   }
   const nameOf2 = (key2) => classes.get(key2).name;
@@ -10981,17 +10993,17 @@ function sequenceDiagram(lines2) {
   const notes = [];
   const open = [];
   const who = (id2) => aliases2.get(id2.trim()) ?? id2.trim();
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     let m;
-    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text5)) {
+    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text6)) {
       const name4 = multiline(m[3] ?? m[2]);
       aliases2.set(m[2], name4);
       participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text5)) {
+    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text6)) {
       const name4 = multiline(m[3] ?? m[2]);
       aliases2.set(m[2], name4);
       participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text5)) {
+    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text6)) {
       open.push({
         operator: m[1],
         ...m[2] && { guard: m[2] },
@@ -11000,7 +11012,7 @@ function sequenceDiagram(lines2) {
         operands: [],
         starts: []
       });
-    } else if (m = /^(rect|box)\b/.exec(text5)) {
+    } else if (m = /^(rect|box)\b/.exec(text6)) {
       open.push({
         operator: "",
         block: m[1],
@@ -11009,11 +11021,11 @@ function sequenceDiagram(lines2) {
         operands: [],
         starts: []
       });
-    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text5)) {
+    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text6)) {
       const f = open.at(-1) ?? fail2(no, `${m[1]} outside a block`);
       f.operands.push(m[2] || m[1]);
       f.starts.push(messages2.length);
-    } else if (text5 === "end") {
+    } else if (text6 === "end") {
       const f = open.pop() ?? fail2(no, "end without a block");
       const to = messages2.length - 1;
       if (f.operator && to >= f.from) {
@@ -11029,7 +11041,7 @@ function sequenceDiagram(lines2) {
           to
         });
       }
-    } else if (m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:\s*(.*)$/i.exec(text5)) {
+    } else if (m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:\s*(.*)$/i.exec(text6)) {
       const side = m[1].toLowerCase().split(" ")[0];
       notes.push({
         text: m[3],
@@ -11037,7 +11049,7 @@ function sequenceDiagram(lines2) {
         side,
         at: messages2.length
       });
-    } else if (m = MESSAGE.exec(text5)) {
+    } else if (m = MESSAGE.exec(text6)) {
       const kind2 = MESSAGE_ARROWS.find(([a]) => a === m[2])[1];
       messages2.push({
         from: who(m[1]),
@@ -11045,8 +11057,8 @@ function sequenceDiagram(lines2) {
         kind: kind2,
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
-    } else if (!/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text5)) {
-      fail2(no, `cannot read "${text5}"`);
+    } else if (!/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text6)) {
+      fail2(no, `cannot read "${text6}"`);
     }
   }
   if (open.length > 0)
@@ -11120,19 +11132,19 @@ function flowchart(lines2) {
     }
     return [id2, after.trimStart()];
   };
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     let m;
-    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text5)) {
+    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text6)) {
       lanes.push(multiline(unquote(m[2] ?? m[3])));
       continue;
     }
-    if (text5 === "end") {
+    if (text6 === "end") {
       if (lanes.pop() === void 0) fail2(no, "end without a subgraph");
       continue;
     }
-    if (styles.line(text5) || /^(direction\s|linkStyle\b|click\b)/.test(text5))
+    if (styles.line(text6) || /^(direction\s|linkStyle\b|click\b)/.test(text6))
       continue;
-    let [from, rest] = node2(text5, no);
+    let [from, rest] = node2(text6, no);
     while (rest) {
       const link2 = LINK.exec(rest);
       if (!link2) fail2(no, `expected a link at "${rest}"`);
@@ -11214,7 +11226,7 @@ function activitySpec2(lines2) {
 }
 function usecaseSpec2(lines2) {
   const { direction: direction2, nodes, flows, styles } = flowchart(lines2);
-  const round = /* @__PURE__ */ new Set(["connector", "alternate", "terminator"]);
+  const round2 = /* @__PURE__ */ new Set(["connector", "alternate", "terminator"]);
   const names4 = new Map(nodes.map((n) => [n.id, n.name]));
   const colors = styles.resolve(
     nodes.map((n) => n.id),
@@ -11225,8 +11237,8 @@ function usecaseSpec2(lines2) {
     ...direction2 && { direction: direction2 },
     spec: {
       ...system && { system },
-      actors: nodes.filter((n) => !round.has(n.shape)).map((n) => n.name),
-      useCases: nodes.filter((n) => round.has(n.shape)).map((n) => n.name),
+      actors: nodes.filter((n) => !round2.has(n.shape)).map((n) => n.name),
+      useCases: nodes.filter((n) => round2.has(n.shape)).map((n) => n.name),
       relations: flows.map((f) => {
         const label4 = f.label?.replace(/[«»<>]/g, "").trim().toLowerCase();
         const type2 = label4 === "include" || label4 === "extend" || label4 === "generalization" ? label4 : "association";
@@ -11262,11 +11274,11 @@ function erDiagram(lines2) {
     return entities2.get(key2);
   };
   let open = null;
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     if (open) {
-      if (text5 === "}") open = null;
+      if (text6 === "}") open = null;
       else {
-        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text5) ?? fail2(no, `cannot read attribute "${text5}"`);
+        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text6) ?? fail2(no, `cannot read attribute "${text6}"`);
         open.push(
           [
             m2[2],
@@ -11278,10 +11290,10 @@ function erDiagram(lines2) {
       continue;
     }
     let m;
-    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text5)) {
+    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text6)) {
       open = entity2(m[1]);
     } else if (m = /^("[^"]+"|[\w-]+)\s+(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)\s+("[^"]+"|[\w-]+)\s*(?::\s*(.*))?$/.exec(
-      text5
+      text6
     )) {
       entity2(m[1]);
       entity2(m[5]);
@@ -11293,10 +11305,10 @@ function erDiagram(lines2) {
         identifying: m[3] === "--",
         ...m[6] && { name: unquote(m[6]) }
       });
-    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text5)) {
+    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text6)) {
       entity2(m[1]);
-    } else if (!/^direction\s/.test(text5)) {
-      fail2(no, `cannot read "${text5}"`);
+    } else if (!/^direction\s/.test(text6)) {
+      fail2(no, `cannot read "${text6}"`);
     }
   }
   return {
@@ -11338,20 +11350,20 @@ function stateDiagram(lines2) {
     return id2;
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
+    const { no, text: text6 } = lines2[i];
     let m;
-    if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text5)) {
+    if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text6)) {
       const named3 = m[1] !== void 0 || !states.has(m[2]);
       declare(m[2], named3 ? { name: multiline(m[1] ?? m[2]) } : {});
       blocks.push(m[2]);
-    } else if (text5 === "}") {
+    } else if (text6 === "}") {
       if (blocks.pop() === void 0) fail2(no, "} without a state block");
-    } else if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text5)) {
+    } else if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text6)) {
       declare(m[2], { name: multiline(m[1]) });
-    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text5)) {
+    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text6)) {
       declare(m[1], { type: m[2] });
     } else if (m = /^(\[\*\]|[\w-]+(?::::[\w-]+)?)\s*-->\s*(\[\*\]|[\w-]+(?::::[\w-]+)?)\s*(?::\s*(.*))?$/.exec(
-      text5
+      text6
     )) {
       const from = state2(m[1], "from");
       const to = state2(m[2], "to");
@@ -11364,7 +11376,7 @@ function stateDiagram(lines2) {
         ...trigger && { trigger },
         ...guard && { guard: guard[1] }
       });
-    } else if (m = /^note\s+(left|right)\s+of\s+([\w-]+)\s*(?::\s*(.*))?$/i.exec(text5)) {
+    } else if (m = /^note\s+(left|right)\s+of\s+([\w-]+)\s*(?::\s*(.*))?$/i.exec(text6)) {
       let body = m[3];
       if (body === void 0) {
         const read = noteBody(lines2, i + 1);
@@ -11373,14 +11385,14 @@ function stateDiagram(lines2) {
       }
       state2(m[2], "to");
       notes.push({ text: body, on: [m[2]] });
-    } else if (styles.line(text5)) {
-    } else if (m = /^([\w-]+)\s*:(?!::)\s*(.+)$/.exec(text5)) {
+    } else if (styles.line(text6)) {
+    } else if (m = /^([\w-]+)\s*:(?!::)\s*(.+)$/.exec(text6)) {
       state2(m[1], "to");
       states.get(m[1]).name = multiline(m[2]);
-    } else if ((m = /^state\s+([\w-]+)$/.exec(text5)) || (m = /^(\w[\w-]*(?::::[\w-]+)?)$/.exec(text5))) {
+    } else if ((m = /^state\s+([\w-]+)$/.exec(text6)) || (m = /^(\w[\w-]*(?::::[\w-]+)?)$/.exec(text6))) {
       state2(m[1], "to");
-    } else if (!/^(direction\s|--$)/.test(text5)) {
-      fail2(no, `cannot read "${text5}"`);
+    } else if (!/^(direction\s|--$)/.test(text6)) {
+      fail2(no, `cannot read "${text6}"`);
     }
   }
   if (blocks.length > 0) {
@@ -11398,9 +11410,9 @@ var MIND_SHAPE = /^[\w-]*\s*(?:\[\[?|\(\(|\(|\)\)|\)|\{\{)(.*?)(?:\]\]?|\)\)|\)|
 function mindmap(lines2) {
   const stack = [];
   let root;
-  for (const { no, text: text5, indent } of lines2) {
-    if (/^::icon\(/.test(text5)) continue;
-    const bare2 = text5.replace(/\s*:::.*$/, "");
+  for (const { no, text: text6, indent } of lines2) {
+    if (/^::icon\(/.test(text6)) continue;
+    const bare2 = text6.replace(/\s*:::.*$/, "");
     const shaped2 = MIND_SHAPE.exec(bare2);
     const node2 = {
       name: multiline(unquote(shaped2 ? shaped2[1] : bare2)),
@@ -11454,15 +11466,15 @@ function requirementDiagram(lines2) {
     }
     relations.push({ from: unquote(from), to: unquote(to), type: type2 });
   };
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     let m;
     if (open) {
-      if (text5 === "}") {
+      if (text6 === "}") {
         (isElement2 ? elements : requirements).push(open);
         open = null;
         continue;
       }
-      m = /^(\w+)\s*:\s*(.*?)\s*$/.exec(text5) ?? fail2(no, `cannot read "${text5}"`);
+      m = /^(\w+)\s*:\s*(.*?)\s*$/.exec(text6) ?? fail2(no, `cannot read "${text6}"`);
       const key2 = m[1].toLowerCase();
       const value = unquote(m[2]);
       const field = isElement2 ? { type: "type", docref: "docRef" }[key2] : {
@@ -11476,7 +11488,7 @@ function requirementDiagram(lines2) {
       continue;
     }
     if (m = new RegExp(`^(\\w+)\\s+(${NAME2})\\s*(?::::([\\w-]+))?\\s*\\{$`).exec(
-      text5
+      text6
     )) {
       const keyword = m[1].toLowerCase();
       const type2 = REQUIREMENT_KEYWORDS[keyword];
@@ -11487,12 +11499,12 @@ function requirementDiagram(lines2) {
       names4.push(name4);
       isElement2 = keyword === "element";
       open = isElement2 ? { name: name4 } : { name: name4, ...type2 !== "requirement" && { type: type2 } };
-    } else if (m = forward.exec(text5)) {
+    } else if (m = forward.exec(text6)) {
       relation(m[1], m[2], m[3], no);
-    } else if (m = backward.exec(text5)) {
+    } else if (m = backward.exec(text6)) {
       relation(m[3], m[2], m[1], no);
-    } else if (!styles.line(text5) && !/^direction\s/.test(text5)) {
-      fail2(no, `cannot read "${text5}"`);
+    } else if (!styles.line(text6) && !/^direction\s/.test(text6)) {
+      fail2(no, `cannot read "${text6}"`);
     }
   }
   if (open)
@@ -11582,8 +11594,8 @@ var DECLARATION = /^(package|component|node|artifact|interface|port|portin|porto
 var SHORT_COMPONENT = /^\[([^\]]+)\](?:\s+as\s+([\w.$:]+))?\s*(<<[^>]+>>)?$/;
 var SHORT_INTERFACE = /^\(\)\s+(.+)$/;
 var ARROW = /^("[^"]+"|\[[^\]]+\]|[\w.$:]+)\s+(<?[-.]+>?)\s+("[^"]+"|\[[^\]]+\]|[\w.$:]+)\s*(?::\s*(.*))?$/;
-function declared(text5) {
-  let rest = text5;
+function declared(text6) {
+  let rest = text6;
   let st;
   rest = rest.replace(/<<\s*([^>]+?)\s*>>/g, (_, s) => {
     st ??= s;
@@ -11606,8 +11618,8 @@ function declared(text5) {
     ...st !== void 0 && { st }
   };
 }
-function labelled(text5) {
-  const t = text5?.trim();
+function labelled(text6) {
+  const t = text6?.trim();
   if (!t) return {};
   const m = /^<<\s*([^>]+?)\s*>>\s*(.*)$/.exec(t);
   const name4 = m ? m[2] : t;
@@ -11620,8 +11632,8 @@ function readStructure(lines2, kind2, fail5) {
   const entries = [];
   const byRef = /* @__PURE__ */ new Map();
   const stack = [];
-  const add = (type2, text5, no) => {
-    const d = declared(text5);
+  const add = (type2, text6, no) => {
+    const d = declared(text6);
     if (!d.key) fail5(no, `${type2} needs a name`);
     const parent = stack.at(-1);
     const e = {
@@ -11638,37 +11650,37 @@ function readStructure(lines2, kind2, fail5) {
     return e;
   };
   const arrows = [];
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     let m;
     const open = stack.at(-1);
-    if (open?.type === "interface" && text5 !== "}") {
-      (open.operations ??= []).push(text5);
+    if (open?.type === "interface" && text6 !== "}") {
+      (open.operations ??= []).push(text6);
       continue;
     }
-    if (text5 === "}") {
+    if (text6 === "}") {
       if (stack.length === 0) fail5(no, "a } closes nothing");
       stack.pop();
-    } else if (m = DECLARATION.exec(text5)) {
+    } else if (m = DECLARATION.exec(text6)) {
       const type2 = m[1].startsWith("port") ? "port" : m[1];
       const e = add(type2, m[2], no);
       if (m[3]) stack.push(e);
-    } else if (m = SHORT_COMPONENT.exec(text5)) {
+    } else if (m = SHORT_COMPONENT.exec(text6)) {
       add(
         "component",
         `"${m[1]}"${m[2] ? ` as ${m[2]}` : ""} ${m[3] ?? ""}`,
         no
       );
-    } else if (m = SHORT_INTERFACE.exec(text5)) {
+    } else if (m = SHORT_INTERFACE.exec(text6)) {
       add("interface", m[1], no);
-    } else if (m = ARROW.exec(text5)) {
+    } else if (m = ARROW.exec(text6)) {
       arrows.push({ no, m });
     } else {
-      fail5(no, `cannot read "${text5}"`);
+      fail5(no, `cannot read "${text6}"`);
     }
   }
-  const ref3 = (text5, no) => {
-    const bracketed = text5.startsWith("[");
-    const key2 = bracketed ? text5.slice(1, -1) : unquote(text5);
+  const ref3 = (text6, no) => {
+    const bracketed = text6.startsWith("[");
+    const key2 = bracketed ? text6.slice(1, -1) : unquote(text6);
     const found = byRef.get(key2);
     if (found) return found;
     if (bracketed) return add("component", `"${key2}"`, no);
@@ -11817,42 +11829,42 @@ function preprocess2(source) {
   let comment = false;
   let skipUntil = null;
   for (let i = start + 1; i < raw.length; i++) {
-    let text5 = raw[i].trim();
-    if (/^@end\w+/i.test(text5)) break;
+    let text6 = raw[i].trim();
+    if (/^@end\w+/i.test(text6)) break;
     if (comment) {
-      const end = text5.indexOf("'/");
+      const end = text6.indexOf("'/");
       if (end < 0) continue;
       comment = false;
-      text5 = text5.slice(end + 2).trim();
+      text6 = text6.slice(end + 2).trim();
     }
-    if (text5.startsWith("/'")) {
-      const end = text5.indexOf("'/", 2);
+    if (text6.startsWith("/'")) {
+      const end = text6.indexOf("'/", 2);
       if (end < 0) {
         comment = true;
         continue;
       }
-      text5 = text5.slice(end + 2).trim();
+      text6 = text6.slice(end + 2).trim();
     }
     if (skipUntil) {
-      if (skipUntil.test(text5)) skipUntil = null;
+      if (skipUntil.test(text6)) skipUntil = null;
       continue;
     }
-    if (!text5 || text5.startsWith("'")) continue;
+    if (!text6 || text6.startsWith("'")) continue;
     let m;
-    if (m = /^title\s+(.+)$/i.exec(text5)) {
+    if (m = /^title\s+(.+)$/i.exec(text6)) {
       title = multiline(unquote(m[1]));
-    } else if (/^(skinparam\b.*|style)\s*\{$|^<style>$/i.test(text5)) {
+    } else if (/^(skinparam\b.*|style)\s*\{$|^<style>$/i.test(text6)) {
       skipUntil = /^(\}|<\/style>)$/;
-    } else if (/^legend\b/i.test(text5) || /^(title|header|footer)$/i.test(text5)) {
+    } else if (/^legend\b/i.test(text6) || /^(title|header|footer)$/i.test(text6)) {
       skipUntil = /^end\s*(legend|title|header|footer)$/i;
-    } else if (/^left to right direction$/i.test(text5)) {
+    } else if (/^left to right direction$/i.test(text6)) {
       direction2 = "LR";
-    } else if (/^top to bottom direction$/i.test(text5)) {
+    } else if (/^top to bottom direction$/i.test(text6)) {
       direction2 = "TB";
-    } else if (m = /^!include(?:url|sub)?\s+(.+)$/i.exec(text5)) {
+    } else if (m = /^!include(?:url|sub)?\s+(.+)$/i.exec(text6)) {
       includes.push(m[1]);
-    } else if (!STYLING.test(text5)) {
-      lines2.push({ no: i + 1, text: text5 });
+    } else if (!STYLING.test(text6)) {
+      lines2.push({ no: i + 1, text: text6 });
     }
   }
   return {
@@ -11865,19 +11877,19 @@ function preprocess2(source) {
   };
 }
 var ID = String.raw`"[^"]+"|[\w.$:]+`;
-function named(text5) {
-  let m = /^"([^"]+)"\s+as\s+([\w.$:]+)$/.exec(text5);
+function named(text6) {
+  let m = /^"([^"]+)"\s+as\s+([\w.$:]+)$/.exec(text6);
   if (m) return { key: m[2], name: multiline(m[1]) };
-  m = /^([\w.$:]+)\s+as\s+"([^"]+)"$/.exec(text5);
+  m = /^([\w.$:]+)\s+as\s+"([^"]+)"$/.exec(text6);
   if (m) return { key: m[1], name: multiline(m[2]) };
-  m = /^([\w.$:]+)\s+as\s+([\w.$:]+)$/.exec(text5);
+  m = /^([\w.$:]+)\s+as\s+([\w.$:]+)$/.exec(text6);
   if (m) return { key: m[2], name: m[1] };
-  const plain = unquote(text5);
+  const plain = unquote(text6);
   return { key: plain, name: multiline(plain) };
 }
 var HEX = /#([0-9a-f]{3}|[0-9a-f]{6})\b/i;
-function adornments(text5) {
-  let rest = text5;
+function adornments(text6) {
+  let rest = text6;
   let stereotype;
   rest = rest.replace(/<<\s*([^>]+?)\s*>>/g, (_, s) => {
     stereotype ??= s;
@@ -11897,10 +11909,10 @@ function arrowCore(arrow) {
 var RELATION3 = new RegExp(
   String.raw`^(${ID})\s*(?:"([^"]*)"\s*)?((?:<\||[<*o#x+^}])?[-.]+(?:\[[^\]]*\])?[-.]*(?:(?:up|down|left|right|u|d|l|r)[-.]+)?(?:\|>|[>*o#x+^{])?)\s*(?:"([^"]*)"\s*)?(${ID})\s*(?::\s*(.*))?$`
 );
-var label = (text5) => text5?.replace(/^\s*[<>]\s*|\s*[<>]\s*$/g, "").trim() || void 0;
+var label = (text6) => text6?.replace(/^\s*[<>]\s*|\s*[<>]\s*$/g, "").trim() || void 0;
 function readNote(lines2, i) {
-  const { text: text5 } = lines2[i];
-  const m = /^[hr]?note\b\s*(.*?)\s*(?::\s*(.*))?$/i.exec(text5);
+  const { text: text6 } = lines2[i];
+  const m = /^[hr]?note\b\s*(.*?)\s*(?::\s*(.*))?$/i.exec(text6);
   if (!m) return null;
   if (m[2] !== void 0) return { head: m[1], text: m[2], next: i + 1 };
   const quoted3 = /^"(.*)"(.*)$/.exec(m[1]);
@@ -11943,19 +11955,19 @@ function classDiagram2(lines2) {
     }
     return e;
   };
-  const member = (e, text5) => {
-    if (/^(--|\.\.|==|__)/.test(text5)) return;
-    const clean = text5.replace(/\{(field|method)\}\s*/g, "").replace(/^\{static\}\s*(.*)$/, "$1$").replace(/^\{abstract\}\s*(.*)$/, "$1*").replace(/[;,]$/, "");
+  const member = (e, text6) => {
+    if (/^(--|\.\.|==|__)/.test(text6)) return;
+    const clean = text6.replace(/\{(field|method)\}\s*/g, "").replace(/^\{static\}\s*(.*)$/, "$1$").replace(/^\{abstract\}\s*(.*)$/, "$1*").replace(/[;,]$/, "");
     if (e.kind === "enum") e.literals.push(clean.trim());
     else if (isOperation(clean)) e.operations.push(clean);
     else e.attributes.push(clean);
   };
   let body = null;
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
+    const { no, text: text6 } = lines2[i];
     if (body) {
-      if (text5 === "}") body = null;
-      else member(body, text5);
+      if (text6 === "}") body = null;
+      else member(body, text6);
       continue;
     }
     let m;
@@ -11970,10 +11982,10 @@ function classDiagram2(lines2) {
         const target = of[1] ? named(of[1]).key : last;
         if (target !== void 0) n.on = [target];
       } else if (/^on\s+link/.test(note.head)) continue;
-      else if (note.head) fail3(no, `cannot read "${text5}"`);
+      else if (note.head) fail3(no, `cannot read "${text6}"`);
       notes.push(n);
     } else if (m = /^(abstract\s+class|abstract|class|interface|enum|entity|struct|exception)\s+(.+?)\s*(\{)?$/.exec(
-      text5
+      text6
     )) {
       const { rest, stereotype, fill: fill2 } = adornments(m[2]);
       const parents = {
@@ -11997,10 +12009,10 @@ function classDiagram2(lines2) {
       last = key2;
       if (m[3]) body = e;
     } else if (m = /^(annotation|protocol|metaclass|stereotype|circle|diamond|object|map|json|component|node|artifact|usecase)\s/.exec(
-      text5
+      text6
     )) {
       refuse(no, `${m[1]} is not part of a class diagram build_diagram reads`);
-    } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text5)) {
+    } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text6)) {
       const { rest } = adornments(m[2]);
       const { name: name4 } = named(rest);
       if (open.length > 0) {
@@ -12010,9 +12022,9 @@ function classDiagram2(lines2) {
       }
       if (!packages.includes(name4)) packages.push(name4);
       open.push(name4);
-    } else if (text5 === "}" && open.length > 0) {
+    } else if (text6 === "}" && open.length > 0) {
       open.pop();
-    } else if (m = RELATION3.exec(text5)) {
+    } else if (m = RELATION3.exec(text6)) {
       const [, a, aCard, arrow, bCard, b, text22] = m;
       const [ka, kb] = [named(a).key, named(b).key];
       const core = arrowCore(arrow);
@@ -12036,10 +12048,10 @@ function classDiagram2(lines2) {
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
-    } else if (m = new RegExp(String.raw`^(${ID})\s*:\s*(.+)$`).exec(text5)) {
+    } else if (m = new RegExp(String.raw`^(${ID})\s*:\s*(.+)$`).exec(text6)) {
       member(entry(named(m[1]).key), m[2].trim());
     } else {
-      fail3(no, `cannot read "${text5}"`);
+      fail3(no, `cannot read "${text6}"`);
     }
   }
   const nameOf2 = (key2) => classes.get(key2)?.name ?? key2;
@@ -12106,7 +12118,7 @@ function sequenceDiagram2(lines2) {
     return keys2.get(key2);
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
+    const { no, text: text6 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12114,13 +12126,13 @@ function sequenceDiagram2(lines2) {
       const at = /^(left|right|over)(?:\s+of)?\s*(.*)$/i.exec(note.head);
       if (!at) {
         if (/^(across|on\s+link)/i.test(note.head)) continue;
-        fail3(no, `cannot read "${text5}"`);
+        fail3(no, `cannot read "${text6}"`);
       }
       const side = at[1].toLowerCase();
       const on = at[2] ? at[2].split(",").map((p) => who(p.trim())) : messages2.length > 0 ? [String(messages2.at(-1).from)] : [];
       notes.push({ text: note.text, on, side, at: messages2.length });
     } else if (m = /^create\s+(?:(participant|actor|boundary|control|entity|database|collections|queue)\s+)?(.+)$/.exec(
-      text5
+      text6
     )) {
       const { key: key2, name: name4 } = named(adornments(m[2]).rest);
       if (!keys2.has(key2)) {
@@ -12128,16 +12140,16 @@ function sequenceDiagram2(lines2) {
         participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
       }
       creating.add(keys2.get(key2));
-    } else if (m = PARTICIPANT.exec(text5)) {
+    } else if (m = PARTICIPANT.exec(text6)) {
       const rest = adornments(m[2]).rest.replace(/\s+order\s+-?\d+$/, "");
       const { key: key2, name: name4 } = named(rest);
       keys2.set(key2, name4);
       participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^destroy\s+(.+)$/.exec(text5)) {
+    } else if (m = /^destroy\s+(.+)$/.exec(text6)) {
       const target = who(m[1]);
       const last = [...messages2].reverse().find((x) => x.to === target);
       if (last) last.kind = "delete";
-    } else if (m = /^(alt|opt|loop|par2?|break|critical|group)\b\s*(.*)$/.exec(text5)) {
+    } else if (m = /^(alt|opt|loop|par2?|break|critical|group)\b\s*(.*)$/.exec(text6)) {
       let operator = m[1].replace("par2", "par");
       let guard = m[2].trim();
       if (operator === "group") {
@@ -12157,11 +12169,11 @@ function sequenceDiagram2(lines2) {
         operands: [],
         starts: []
       });
-    } else if (m = /^else\b\s*(.*)$/.exec(text5)) {
+    } else if (m = /^else\b\s*(.*)$/.exec(text6)) {
       const f = open.at(-1) ?? fail3(no, "else outside a group");
       f.operands.push(m[1].trim());
       f.starts.push(messages2.length);
-    } else if (text5 === "end") {
+    } else if (text6 === "end") {
       const f = open.pop() ?? fail3(no, "end without a group");
       const to = messages2.length - 1;
       if (to >= f.from) {
@@ -12177,15 +12189,15 @@ function sequenceDiagram2(lines2) {
           to
         });
       }
-    } else if (/^(ref\s+over|return)\b/.test(text5)) {
+    } else if (/^(ref\s+over|return)\b/.test(text6)) {
       refuse(
         no,
-        `${text5.split(/\s/)[0]} has no StarUML sequence element build_diagram makes`
+        `${text6.split(/\s/)[0]} has no StarUML sequence element build_diagram makes`
       );
     } else if (/^(activate|deactivate|autoactivate|box\b|end\s+box|\.\.\.|\|\|\||\|\|\d+\|\||==.*==$|delay\b|space\b)/.test(
-      text5
+      text6
     )) {
-    } else if ((m = MESSAGE2.exec(text5)) && m[1] && m[3]) {
+    } else if ((m = MESSAGE2.exec(text6)) && m[1] && m[3]) {
       if ("[]".includes(m[1]) || "[]".includes(m[3])) {
         refuse(
           no,
@@ -12205,7 +12217,7 @@ function sequenceDiagram2(lines2) {
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
     } else {
-      fail3(no, `cannot read "${text5}"`);
+      fail3(no, `cannot read "${text6}"`);
     }
   }
   if (open.length > 0) {
@@ -12250,7 +12262,7 @@ function usecaseDiagram(lines2) {
     return names4.get(key2) ?? declare(actors, key2, multiline(key2));
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
+    const { no, text: text6 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12261,24 +12273,24 @@ function usecaseDiagram(lines2) {
       if (as) noteAliases.set(as[1], n);
       else if (of) n.on = [end(of[1])];
       notes.push(n);
-    } else if ((m = /^actor\/?\s+(.+)$/.exec(text5)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text5))) {
+    } else if ((m = /^actor\/?\s+(.+)$/.exec(text6)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text6))) {
       const rest = adornments(m[1]).rest;
       const colon = /^:(.+):(?:\s+as\s+(\S+))?$/.exec(rest);
       const { key: key2, name: name4 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
       declare(actors, key2, name4);
-    } else if ((m = /^usecase\/?\s+(.+)$/.exec(text5)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text5))) {
+    } else if ((m = /^usecase\/?\s+(.+)$/.exec(text6)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text6))) {
       const rest = adornments(m[1]).rest;
       const paren = /^\((.+)\)(?:\s+as\s+(\S+))?$/.exec(rest);
       const { key: key2, name: name4 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
       declare(useCases2, key2, name4);
-    } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text5)) {
+    } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text6)) {
       const name4 = named(adornments(m[2]).rest).name;
       if (system === void 0) system = name4;
       else warnings.push(`only one system boundary is drawn; ${name4} is not`);
       depth3++;
-    } else if (text5 === "}" && depth3 > 0) {
+    } else if (text6 === "}" && depth3 > 0) {
       depth3--;
-    } else if (m = UC_RELATION.exec(text5)) {
+    } else if (m = UC_RELATION.exec(text6)) {
       const [, a, arrow, b, text22] = m;
       if (noteAliases.has(a) || noteAliases.has(b)) {
         const [n, other] = noteAliases.has(a) ? [noteAliases.get(a), b] : [noteAliases.get(b), a];
@@ -12299,7 +12311,7 @@ function usecaseDiagram(lines2) {
         ...type2 === "association" && name4 && { name: name4 }
       });
     } else {
-      fail3(no, `cannot read "${text5}"`);
+      fail3(no, `cannot read "${text6}"`);
     }
   }
   return {
@@ -12346,7 +12358,7 @@ function activityDiagram(lines2) {
     return f;
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
+    const { no, text: text6 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12354,38 +12366,38 @@ function activityDiagram(lines2) {
       notes.push({ text: note.text, ...lastNode && { on: [lastNode] } });
       continue;
     }
-    if (text5.startsWith(":")) {
-      let body = text5.slice(1);
+    if (text6.startsWith(":")) {
+      let body = text6.slice(1);
       while (!/[;|<>\]}/]$/.test(body) && i + 1 < lines2.length) {
         body += `
 ${lines2[++i].text}`;
       }
       if (!/[;|<>\]}/]$/.test(body)) fail3(no, "action is never closed with ;");
       node2("action", body.slice(0, -1));
-    } else if (/^start$/.test(text5)) {
+    } else if (/^start$/.test(text6)) {
       node2("initial");
-    } else if (/^(stop|end)$/.test(text5)) {
+    } else if (/^(stop|end)$/.test(text6)) {
       node2("final");
       tails = [];
-    } else if (/^(kill|detach)$/.test(text5)) {
+    } else if (/^(kill|detach)$/.test(text6)) {
       node2("flowFinal");
       tails = [];
-    } else if (m = /^->\s*(.*?);?$/.exec(text5)) {
+    } else if (m = /^->\s*(.*?);?$/.exec(text6)) {
       pending = m[1] || void 0;
-    } else if (m = /^if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text5)) {
+    } else if (m = /^if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text6)) {
       const d = node2("decision", m[1]);
       stack.push({ kind: "if", node: d, ends: [], otherwise: false, no });
       tails = [{ key: d, ...m[2] && { guard: m[2] } }];
-    } else if (m = /^else\s*if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text5)) {
+    } else if (m = /^else\s*if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text6)) {
       const f = top(no, "if");
       f.ends.push(...tails);
       tails = [{ key: f.node, guard: m[2] || m[1] }];
-    } else if (m = /^else\s*(?:\((.*)\))?$/.exec(text5)) {
+    } else if (m = /^else\s*(?:\((.*)\))?$/.exec(text6)) {
       const f = top(no, "if");
       f.ends.push(...tails);
       f.otherwise = true;
       tails = [{ key: f.node, ...m[1] && { guard: m[1] } }];
-    } else if (/^end\s*if$/.test(text5)) {
+    } else if (/^end\s*if$/.test(text6)) {
       const f = top(no, "if");
       stack.pop();
       const ends4 = [
@@ -12395,11 +12407,11 @@ ${lines2[++i].text}`;
       ];
       tails = ends4;
       if (ends4.length > 0) node2("merge");
-    } else if (m = /^while\s*\((.*?)\)\s*(?:is\s*\((.*)\))?$/.exec(text5)) {
+    } else if (m = /^while\s*\((.*?)\)\s*(?:is\s*\((.*)\))?$/.exec(text6)) {
       const d = node2("decision", m[1]);
       stack.push({ kind: "while", node: d, ends: [], otherwise: false, no });
       tails = [{ key: d, ...m[2] && { guard: m[2] } }];
-    } else if (m = /^end\s*while\s*(?:\((.*)\))?$/.exec(text5)) {
+    } else if (m = /^end\s*while\s*(?:\((.*)\))?$/.exec(text6)) {
       const f = top(no, "while");
       stack.pop();
       for (const t of tails) {
@@ -12410,40 +12422,40 @@ ${lines2[++i].text}`;
         });
       }
       tails = [{ key: f.node, ...m[1] && { guard: m[1] } }];
-    } else if (/^repeat$/.test(text5)) {
+    } else if (/^repeat$/.test(text6)) {
       const r = node2("merge");
       stack.push({ kind: "repeat", node: r, ends: [], otherwise: false, no });
     } else if (m = /^repeat\s*while\s*\((.*?)\)\s*(?:is\s*\((.*?)\))?\s*(?:not\s*\((.*)\))?$/.exec(
-      text5
+      text6
     )) {
       const f = top(no, "repeat");
       stack.pop();
       const d = node2("decision", m[1]);
       flows.push({ from: d, to: f.node, ...m[2] && { guard: m[2] } });
       tails = [{ key: d, ...m[3] && { guard: m[3] } }];
-    } else if (/^(fork|split)$/.test(text5)) {
+    } else if (/^(fork|split)$/.test(text6)) {
       const f = node2("fork");
       stack.push({ kind: "fork", node: f, ends: [], otherwise: false, no });
-    } else if (/^(fork|split)\s+again$/.test(text5)) {
+    } else if (/^(fork|split)\s+again$/.test(text6)) {
       const f = top(no, "fork");
       f.ends.push(...tails);
       tails = [{ key: f.node }];
-    } else if (/^end\s*(fork|merge|split)(\s*\{.*\})?$/.test(text5)) {
+    } else if (/^end\s*(fork|merge|split)(\s*\{.*\})?$/.test(text6)) {
       const f = top(no, "fork");
       stack.pop();
       tails = [...f.ends, ...tails];
       node2("join");
-    } else if (m = /^\|(?:[^|]*\|)?([^|]+)\|$/.exec(text5)) {
+    } else if (m = /^\|(?:[^|]*\|)?([^|]+)\|$/.exec(text6)) {
       lane = multiline(m[1].trim());
       if (!lanes.includes(lane)) lanes.push(lane);
-    } else if (/^(partition|group)\b.*\{$/.test(text5) || text5 === "}") {
-    } else if (/^(goto|label|backward|break)\b/.test(text5)) {
+    } else if (/^(partition|group)\b.*\{$/.test(text6) || text6 === "}") {
+    } else if (/^(goto|label|backward|break)\b/.test(text6)) {
       refuse(
         no,
-        `${text5.split(/\s/)[0]} has no activity element build_diagram makes`
+        `${text6.split(/\s/)[0]} has no activity element build_diagram makes`
       );
     } else {
-      fail3(no, `cannot read "${text5}"`);
+      fail3(no, `cannot read "${text6}"`);
     }
   }
   if (stack.length > 0)
@@ -12468,27 +12480,27 @@ function legacyActivity(lines2) {
   let last;
   let starts = 0;
   let ends4 = 0;
-  const ref3 = (text5, side) => {
-    if (/^\(\*/.test(text5)) {
+  const ref3 = (text6, side) => {
+    if (/^\(\*/.test(text6)) {
       const id3 = side === "from" ? `start${++starts}` : `end${++ends4}`;
       nodes.set(id3, { id: id3, type: side === "from" ? "initial" : "final" });
       return id3;
     }
-    let m = /^===([^=]+)===$/.exec(text5);
+    let m = /^===([^=]+)===$/.exec(text6);
     if (m) {
       const id3 = m[1].trim();
       if (!nodes.has(id3)) nodes.set(id3, { id: id3, type: "fork" });
       return id3;
     }
-    m = /^"([^"]+)"(?:\s+as\s+(\w+))?$/.exec(text5);
-    const id2 = m ? m[2] ?? m[1] : text5;
+    m = /^"([^"]+)"(?:\s+as\s+(\w+))?$/.exec(text6);
+    const id2 = m ? m[2] ?? m[1] : text6;
     if (!nodes.has(id2)) {
-      nodes.set(id2, { id: id2, name: multiline(m ? m[1] : text5), type: "action" });
+      nodes.set(id2, { id: id2, name: multiline(m ? m[1] : text6), type: "action" });
     }
     return id2;
   };
-  for (const { no, text: text5 } of lines2) {
-    const m = LEGACY.exec(text5) ?? fail3(no, `cannot read "${text5}"`);
+  for (const { no, text: text6 } of lines2) {
+    const m = LEGACY.exec(text6) ?? fail3(no, `cannot read "${text6}"`);
     const from = m[1] ? ref3(m[1], "from") : last ?? fail3(no, "an arrow needs a start");
     const to = ref3(m[3], "to");
     flows.push({ from, to, ...m[2] && { guard: m[2] } });
@@ -12541,7 +12553,7 @@ function stateDiagram2(lines2) {
     end: { type: "final" }
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
+    const { no, text: text6 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12551,7 +12563,7 @@ function stateDiagram2(lines2) {
       if (of) state2(of[1], "to");
       notes.push({ text: note.text, ...of && { on: [of[1]] } });
     } else if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w.]+)(?:\s+as\s+"([^"]+)")?\s*(<<\s*\w+\s*>>)?\s*(#\S+)?\s*(\{)?$/.exec(
-      text5
+      text6
     )) {
       const id2 = m[2];
       const stereotype = m[4]?.replace(/[<>\s]/g, "");
@@ -12569,14 +12581,14 @@ function stateDiagram2(lines2) {
         );
       }
       if (m[6]) blocks.push(id2);
-    } else if (text5 === "}") {
+    } else if (text6 === "}") {
       if (blocks.pop() === void 0) fail3(no, "} without a state block");
-    } else if (text5 === "--" || text5 === "||") {
+    } else if (text6 === "--" || text6 === "||") {
       refuse(
         no,
         "concurrent regions are not built; a composite state gets one region"
       );
-    } else if (m = TRANSITION.exec(text5)) {
+    } else if (m = TRANSITION.exec(text6)) {
       const from = state2(m[1], "from");
       const to = state2(m[3], "to");
       const labelText = m[4]?.trim() ?? "";
@@ -12589,17 +12601,17 @@ function stateDiagram2(lines2) {
         ...guard && { guard: guard[1] },
         ...effect && { effect }
       });
-    } else if (/^\[H\*?\]/.test(text5) || /\[H\*?\]/.test(text5)) {
+    } else if (/^\[H\*?\]/.test(text6) || /\[H\*?\]/.test(text6)) {
       refuse(no, "history states have no StarUML element build_diagram makes");
-    } else if (m = /^([\w.]+)$/.exec(text5)) {
+    } else if (m = /^([\w.]+)$/.exec(text6)) {
       state2(m[1], "to");
-    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text5)) {
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text6)) {
       state2(m[1], "to");
       warnings.push(
         `line ${no}: the description of ${m[1]} is not written to StarUML`
       );
     } else {
-      fail3(no, `cannot read "${text5}"`);
+      fail3(no, `cannot read "${text6}"`);
     }
   }
   if (blocks.length > 0) {
@@ -12626,14 +12638,14 @@ function erDiagram2(lines2) {
     if (!entities2.has(key2)) entities2.set(key2, { name: name4, columns: [] });
     return entities2.get(key2);
   };
-  for (const { no, text: text5 } of lines2) {
+  for (const { no, text: text6 } of lines2) {
     let m;
     if (open) {
-      if (text5 === "}") open = null;
-      else if (!/^(--|\.\.|==|__)/.test(text5)) {
+      if (text6 === "}") open = null;
+      else if (!/^(--|\.\.|==|__)/.test(text6)) {
         m = /^(\*)?\s*([\w$]+)\s*(?::\s*([^<]*?))?\s*((?:<<\s*\w+\s*>>\s*)*)$/.exec(
-          text5
-        ) ?? fail3(no, `cannot read column "${text5}"`);
+          text6
+        ) ?? fail3(no, `cannot read column "${text6}"`);
         const flags = m[4];
         const type2 = m[3]?.trim();
         const sized2 = type2 ? /^([^(]+)\(([^)]*)\)$/.exec(type2) : null;
@@ -12649,10 +12661,10 @@ function erDiagram2(lines2) {
       }
       continue;
     }
-    if (m = /^entity\s+(.+?)\s*(\{)?$/.exec(text5)) {
+    if (m = /^entity\s+(.+?)\s*(\{)?$/.exec(text6)) {
       const e = entity2(adornments(m[1]).rest);
       if (m[2]) open = e;
-    } else if (m = ERD_RELATION.exec(text5)) {
+    } else if (m = ERD_RELATION.exec(text6)) {
       const from = entity2(m[1]).name;
       const to = entity2(m[5]).name;
       relationships.push({
@@ -12664,7 +12676,7 @@ function erDiagram2(lines2) {
         ...label(m[6]) && { name: label(m[6]) }
       });
     } else {
-      fail3(no, `cannot read "${text5}"`);
+      fail3(no, `cannot read "${text6}"`);
     }
   }
   return {
@@ -12682,8 +12694,8 @@ function mindmap2(lines2) {
   const stack = [];
   let root;
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text5 } = lines2[i];
-    const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text5) ?? fail3(no, `cannot read "${text5}"`);
+    const { no, text: text6 } = lines2[i];
+    const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text6) ?? fail3(no, `cannot read "${text6}"`);
     const depth3 = m[1].length;
     let name4 = m[3];
     if (name4.startsWith(":")) {
@@ -12818,7 +12830,7 @@ var fail4 = (line, message, code = "INVALID_ARGUMENT") => {
 };
 function statements(source) {
   const out = [];
-  let text5 = "";
+  let text6 = "";
   let line = 1;
   let start = 1;
   let quote = null;
@@ -12827,7 +12839,7 @@ function statements(source) {
     const next = source[i + 1];
     if (ch === "\n") line++;
     if (quote) {
-      text5 += ch;
+      text6 += ch;
       if (ch === quote) quote = null;
       continue;
     }
@@ -12844,24 +12856,24 @@ function statements(source) {
       continue;
     }
     if (ch === ";") {
-      if (text5.trim()) out.push({ line: start, text: text5.trim() });
-      text5 = "";
+      if (text6.trim()) out.push({ line: start, text: text6.trim() });
+      text6 = "";
       continue;
     }
-    if (!text5.trim()) start = line;
+    if (!text6.trim()) start = line;
     if (ch === "'" || ch === '"' || ch === "`") quote = ch;
     if (ch === "[") quote = "]";
-    text5 += ch;
+    text6 += ch;
   }
-  if (text5.trim()) out.push({ line: start, text: text5.trim() });
+  if (text6.trim()) out.push({ line: start, text: text6.trim() });
   return out;
 }
-function items(text5) {
+function items(text6) {
   const out = [];
   let depth3 = 0;
   let quote = null;
   let current = "";
-  for (const ch of text5) {
+  for (const ch of text6) {
     if (quote) {
       if (ch === quote) quote = null;
     } else if (ch === "'" || ch === '"' || ch === "`") quote = ch;
@@ -12947,12 +12959,12 @@ function parseSql(source) {
     }
     return true;
   };
-  for (const { line, text: text5 } of statements(source)) {
+  for (const { line, text: text6 } of statements(source)) {
     let m;
     if (m = new RegExp(
       String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp)\s+|unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME3})\s*\(([\s\S]*)\)[^)]*$`,
       "i"
-    ).exec(text5)) {
+    ).exec(text6)) {
       const name4 = bare(m[1]);
       const t = { name: name4, columns: [], primaryKey: [], unique: [] };
       if (table(name4)) fail4(line, `table ${name4} is created twice`);
@@ -12975,7 +12987,7 @@ function parseSql(source) {
     } else if (m = new RegExp(
       String.raw`^alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?(${NAME3})\s+([\s\S]+)$`,
       "i"
-    ).exec(text5)) {
+    ).exec(text6)) {
       const t = table(bare(m[1])) ?? fail4(line, `ALTER TABLE ${bare(m[1])} before CREATE TABLE`);
       for (const action of items(m[2])) {
         const add = /^add\s+(?:column\s+)?(?:if\s+not\s+exists\s+)?([\s\S]+)$/i.exec(
@@ -12987,17 +12999,17 @@ function parseSql(source) {
           column(t, add[1], line);
         }
       }
-    } else if (REFUSED.test(text5)) {
+    } else if (REFUSED.test(text6)) {
       fail4(
         line,
-        `${text5.split(/\s+/).slice(0, text5.match(/^create\s+or\s+replace/i) ? 4 : 2).join(" ").toUpperCase()} has no ERD element; only tables and their keys are drawn`,
+        `${text6.split(/\s+/).slice(0, text6.match(/^create\s+or\s+replace/i) ? 4 : 2).join(" ").toUpperCase()} has no ERD element; only tables and their keys are drawn`,
         "UNSUPPORTED_SYNTAX"
       );
-    } else if (SKIPPED.test(text5)) {
-      const what = text5.split(/\s+/).slice(0, 2).join(" ").toUpperCase();
+    } else if (SKIPPED.test(text6)) {
+      const what = text6.split(/\s+/).slice(0, 2).join(" ").toUpperCase();
       skipped.set(what, (skipped.get(what) ?? 0) + 1);
     } else {
-      fail4(line, `cannot read "${text5.split("\n")[0]}"`);
+      fail4(line, `cannot read "${text6.split("\n")[0]}"`);
     }
   }
   if (tables.size === 0) fail4(1, "no CREATE TABLE statement");
@@ -13062,17 +13074,17 @@ function parseSql(source) {
 
 // src/build/source.ts
 var FORMATS = ["mermaid", "plantuml", "sql", "jsonschema"];
-function detectFormat(text5) {
-  const body = text5.replace(/^\s*(?:(?:'|--|%%).*\n\s*)*/, "");
-  if (/^@start\w+/im.test(text5)) return "plantuml";
+function detectFormat(text6) {
+  const body = text6.replace(/^\s*(?:(?:'|--|%%).*\n\s*)*/, "");
+  if (/^@start\w+/im.test(text6)) return "plantuml";
   if (body.startsWith("{")) return "jsonschema";
-  if (/\bcreate\s+(?:\w+\s+)*?table\b/i.test(text5)) return "sql";
+  if (/\bcreate\s+(?:\w+\s+)*?table\b/i.test(text6)) return "sql";
   return "mermaid";
 }
-function parseSource(text5, format = detectFormat(text5), kind2) {
+function parseSource(text6, format = detectFormat(text6), kind2) {
   switch (format) {
     case "plantuml":
-      return { ...parsePlantUml(text5, kind2), format };
+      return { ...parsePlantUml(text6, kind2), format };
     case "sql":
       if (kind2 !== void 0 && kind2 !== "erd") {
         throw new ApiError(
@@ -13080,11 +13092,11 @@ function parseSource(text5, format = detectFormat(text5), kind2) {
           `sql: DDL is read as an ERD, not ${kind2}`
         );
       }
-      return { ...parseSql(text5), format };
+      return { ...parseSql(text6), format };
     case "jsonschema":
-      return { ...parseJsonSchema(text5, kind2), format };
+      return { ...parseJsonSchema(text6, kind2), format };
     default:
-      return { ...parseMermaid(text5, kind2), format };
+      return { ...parseMermaid(text6, kind2), format };
   }
 }
 
@@ -13108,7 +13120,7 @@ function ranks(keys2, edges) {
   for (const k of keys2) if (!state2.has(k)) walk2(k);
   const forward = edges.filter((e) => !back.has(e));
   const rank = new Map(keys2.map((k) => [k, 0]));
-  for (let round = 0; round < keys2.length; round++) {
+  for (let round2 = 0; round2 < keys2.length; round2++) {
     let changed = false;
     for (const e of forward) {
       const next = rank.get(e.from) + 1;
@@ -13824,6 +13836,85 @@ var styleReportSchema = () => doc(
   "What the style profile changed in this call."
 );
 
+// src/viewpoints/mark.ts
+var MARK_TAG = "mcp.viewpoint";
+var list = (value) => Array.isArray(value) ? value : [];
+var markTag = (diagram) => list(diagram.tags).find((t) => t.name === MARK_TAG) ?? null;
+var isObject3 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+function readMark(diagram) {
+  const tag = markTag(diagram);
+  if (!tag) return null;
+  const text6 = String(tag.value ?? "").trim();
+  if (!text6.startsWith("{")) return text6 ? { viewpoint: text6 } : null;
+  let value;
+  try {
+    value = JSON.parse(text6);
+  } catch {
+    return null;
+  }
+  if (typeof value.viewpoint !== "string") return null;
+  const parts = isObject3(value.parts) ? value.parts : {};
+  const id2 = (v) => typeof v === "string" ? v : void 0;
+  const title = id2(parts.title);
+  const legend = id2(parts.legend);
+  return {
+    viewpoint: value.viewpoint,
+    ...typeof value.template === "string" && { template: value.template },
+    ...typeof value.version === "number" && { version: value.version },
+    ...value.derived === true && { derived: true },
+    ...(title !== void 0 || legend !== void 0) && {
+      parts: {
+        ...title !== void 0 && { title },
+        ...legend !== void 0 && { legend }
+      }
+    }
+  };
+}
+function writeMark(mark) {
+  return JSON.stringify({
+    viewpoint: mark.viewpoint,
+    ...mark.template !== void 0 && { template: mark.template },
+    ...mark.version !== void 0 && { version: mark.version },
+    ...mark.derived && { derived: true },
+    ...mark.parts && Object.keys(mark.parts).length > 0 && {
+      parts: {
+        ...mark.parts.title !== void 0 && { title: mark.parts.title },
+        ...mark.parts.legend !== void 0 && {
+          legend: mark.parts.legend
+        }
+      }
+    }
+  });
+}
+function markOps(diagram, mark) {
+  const value = writeMark(mark);
+  const tag = typeof diagram === "string" ? null : markTag(diagram);
+  if (tag) {
+    return String(tag.value) === value ? [] : [
+      {
+        path: "/update_element",
+        body: { ref: tag._id, field: "value", value }
+      }
+    ];
+  }
+  return [
+    {
+      path: "/add_tag",
+      body: {
+        ref: typeof diagram === "string" ? diagram : diagram._id,
+        name: MARK_TAG,
+        kind: "string",
+        value,
+        hidden: true
+      }
+    }
+  ];
+}
+function partViews(diagram, mark) {
+  const ids2 = Object.values(mark?.parts ?? {});
+  return diagram.ownedViews.filter((v) => ids2.includes(v._id));
+}
+
 // src/handlers/lint.ts
 var SEVERITIES = ["error", "warning", "info"];
 var LAYOUT_RULES = {
@@ -13877,11 +13968,11 @@ var area = (b) => AREA.test(kind(b.view));
 function edgePoints(edge) {
   const points2 = edge.points?.points;
   if (Array.isArray(points2) && points2.length >= 2) return points2;
-  const centre3 = (v) => {
+  const centre4 = (v) => {
     const b = boxOf(v);
     return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
   };
-  return [centre3(edge.tail), centre3(edge.head)];
+  return [centre4(edge.tail), centre4(edge.head)];
 }
 function crosses(p, q2, box3) {
   const [x0, y0, x1, y1] = [
@@ -14244,8 +14335,11 @@ var lintDiagram = defineEndpoint({
 var AREA2 = /Frame|Subject|Swimlane|Partition|CombinedFragment|Operand|Region|Boundary|Lane|Pool/;
 var THROUGH = /Lifeline/;
 function nodeViews(diagram) {
+  const parts = new Set(
+    partViews(diagram, readMark(diagram)).map((v) => v._id)
+  );
   return diagram.ownedViews.filter(
-    (v) => v instanceof type.NodeView && v.visible !== false && !(v.model instanceof type.Diagram)
+    (v) => v instanceof type.NodeView && v.visible !== false && !(v.model instanceof type.Diagram) && !parts.has(v._id)
   );
 }
 function edgeViewsOf(diagram) {
@@ -14613,6 +14707,27 @@ function sequence(diagram, m) {
     });
   }
 }
+function fitFrame(diagram, m) {
+  const frame = diagram.ownedViews.find(
+    (v) => v.model === diagram && v instanceof type.UMLFrameView
+  );
+  const inner = nodeViews(diagram);
+  if (!frame || inner.length === 0) return;
+  const left = Math.max(0, Math.min(...inner.map((v) => box(v).left)) - GAP3);
+  const top = Math.max(
+    0,
+    Math.min(...inner.map((v) => box(v).top)) - FRAME_HEADER
+  );
+  const right = Math.max(...inner.map((v) => box(v).left + box(v).width));
+  const bottom = Math.max(...inner.map((v) => box(v).top + box(v).height));
+  m.resize(frame, {
+    left,
+    top,
+    width: right + GAP3 - left,
+    height: bottom + GAP3 - top
+  });
+}
+var FRAME_HEADER = 40;
 function fitFragments(diagram, lifelines, m) {
   const fragments = nodeViews(diagram).filter(
     (v) => v instanceof type.UMLCombinedFragmentView
@@ -15132,6 +15247,9 @@ function improve(diagram, profile2, options = {}) {
       attempt("unbundle", () => unbundle(diagram));
       attempt("place labels", () => placeLabels(diagram, score3, strip, m));
     }
+    if (kind2 === "communication") {
+      attempt("fit frame", () => fitFrame(diagram, m), true);
+    }
     const now = score3();
     if (now >= target || now <= start) break;
   }
@@ -15378,12 +15496,13 @@ var data_default = {
 // src/viewpoints/decisions.json
 var decisions_default = {
   $schema: "./decisions.schema.json",
-  version: 1,
+  version: 2,
   rules: [
     {
       id: "D01",
       viewpoint: "lifecycle",
       kind: "statemachine",
+      template: "lifecycle-states",
       phrases: [
         "lifecycle",
         "life cycle",
@@ -15405,6 +15524,7 @@ var decisions_default = {
       id: "D02",
       viewpoint: "data",
       kind: "erd",
+      template: "data-erd",
       phrases: [
         "data model",
         "database",
@@ -15430,6 +15550,7 @@ var decisions_default = {
       id: "D03",
       viewpoint: "deployment",
       kind: "deployment",
+      template: "deployment-nodes",
       phrases: [
         "deployment",
         "deployed",
@@ -15459,6 +15580,7 @@ var decisions_default = {
       id: "D04",
       viewpoint: "runtime",
       kind: "communication",
+      template: "runtime-communication",
       phrases: [
         "communication diagram",
         "who talks to whom",
@@ -15474,6 +15596,7 @@ var decisions_default = {
       id: "D05",
       viewpoint: "runtime",
       kind: "activity",
+      template: "runtime-activity",
       phrases: [
         "activity",
         "workflow",
@@ -15503,6 +15626,7 @@ var decisions_default = {
       id: "D06",
       viewpoint: "runtime",
       kind: "sequence",
+      template: "runtime-sequence",
       phrases: [
         "sequence",
         "interaction",
@@ -15532,6 +15656,7 @@ var decisions_default = {
       id: "D07",
       viewpoint: "actors-goals",
       kind: "mindmap",
+      template: "actors-goals-features",
       phrases: [
         "feature",
         "features",
@@ -15548,6 +15673,7 @@ var decisions_default = {
       id: "D08",
       viewpoint: "actors-goals",
       kind: "usecase",
+      template: "actors-goals-usecases",
       phrases: [
         "use case",
         "use cases",
@@ -15576,6 +15702,7 @@ var decisions_default = {
       id: "D09",
       viewpoint: "context",
       kind: "c4",
+      template: "context-landscape",
       phrases: [
         "context",
         "system context",
@@ -15597,6 +15724,7 @@ var decisions_default = {
       id: "D10",
       viewpoint: "container",
       kind: "c4",
+      template: "container-overview",
       phrases: [
         "container",
         "containers",
@@ -15620,6 +15748,7 @@ var decisions_default = {
       id: "D11",
       viewpoint: "component",
       kind: "package",
+      template: "component-packages",
       phrases: [
         "component",
         "components",
@@ -15644,6 +15773,7 @@ var decisions_default = {
       id: "D12",
       viewpoint: "code",
       kind: "class",
+      template: "code-classes",
       phrases: [
         "class",
         "classes",
@@ -15860,6 +15990,10 @@ var decisionRuleSchema = () => strictObject({
   id: string2().check(_regex(/^D[0-9]{2}$/)),
   viewpoint: _enum(VIEWPOINT_NAMES),
   kind: _enum(KINDS),
+  template: doc(
+    string2().check(_minLength(1)),
+    "The template the view is drawn with (see /list_templates)."
+  ),
   phrases: doc(
     array(text3()).check(_minLength(1)),
     "Words of an intent that ask for this view; each scores its word count."
@@ -15961,85 +16095,6 @@ function findViewpoint(name4) {
   return found;
 }
 var elementLimit = (v, kind2) => v.limits.kinds?.[kind2] ?? v.limits.maxElements;
-
-// src/viewpoints/mark.ts
-var MARK_TAG = "mcp.viewpoint";
-var list = (value) => Array.isArray(value) ? value : [];
-var markTag = (diagram) => list(diagram.tags).find((t) => t.name === MARK_TAG) ?? null;
-var isObject3 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
-function readMark(diagram) {
-  const tag = markTag(diagram);
-  if (!tag) return null;
-  const text5 = String(tag.value ?? "").trim();
-  if (!text5.startsWith("{")) return text5 ? { viewpoint: text5 } : null;
-  let value;
-  try {
-    value = JSON.parse(text5);
-  } catch {
-    return null;
-  }
-  if (typeof value.viewpoint !== "string") return null;
-  const parts = isObject3(value.parts) ? value.parts : {};
-  const id2 = (v) => typeof v === "string" ? v : void 0;
-  const title = id2(parts.title);
-  const legend = id2(parts.legend);
-  return {
-    viewpoint: value.viewpoint,
-    ...typeof value.template === "string" && { template: value.template },
-    ...typeof value.version === "number" && { version: value.version },
-    ...value.derived === true && { derived: true },
-    ...(title !== void 0 || legend !== void 0) && {
-      parts: {
-        ...title !== void 0 && { title },
-        ...legend !== void 0 && { legend }
-      }
-    }
-  };
-}
-function writeMark(mark) {
-  return JSON.stringify({
-    viewpoint: mark.viewpoint,
-    ...mark.template !== void 0 && { template: mark.template },
-    ...mark.version !== void 0 && { version: mark.version },
-    ...mark.derived && { derived: true },
-    ...mark.parts && Object.keys(mark.parts).length > 0 && {
-      parts: {
-        ...mark.parts.title !== void 0 && { title: mark.parts.title },
-        ...mark.parts.legend !== void 0 && {
-          legend: mark.parts.legend
-        }
-      }
-    }
-  });
-}
-function markOps(diagram, mark) {
-  const value = writeMark(mark);
-  const tag = typeof diagram === "string" ? null : markTag(diagram);
-  if (tag) {
-    return String(tag.value) === value ? [] : [
-      {
-        path: "/update_element",
-        body: { ref: tag._id, field: "value", value }
-      }
-    ];
-  }
-  return [
-    {
-      path: "/add_tag",
-      body: {
-        ref: typeof diagram === "string" ? diagram : diagram._id,
-        name: MARK_TAG,
-        kind: "string",
-        value,
-        hidden: true
-      }
-    }
-  ];
-}
-function partViews(diagram, mark) {
-  const ids2 = Object.values(mark?.parts ?? {});
-  return diagram.ownedViews.filter((v) => ids2.includes(v._id));
-}
 
 // src/viewpoints/lint.ts
 var VIEWPOINT_RULES = {
@@ -16295,6 +16350,858 @@ function conformity(diagram) {
   };
 }
 
+// src/templates/exemplars.json
+var exemplars_default = {
+  "context-landscape": {
+    diagram: "ThingsBoard context",
+    score: 99,
+    fingerprint: {
+      nodes: { C4Person: 0.5, C4SoftwareSystem: 0.5 },
+      edges: { C4Relationship: 1 },
+      aspect: 0.734,
+      flow: 1,
+      density: 1
+    }
+  },
+  "container-overview": {
+    diagram: "ThingsBoard containers",
+    score: 90,
+    fingerprint: {
+      nodes: {
+        C4Container: 0.833,
+        C4Person: 0.111,
+        C4SoftwareSystem: 0.056
+      },
+      edges: { C4Relationship: 1 },
+      aspect: 1.288,
+      flow: 0.5,
+      density: 1.333
+    }
+  },
+  "component-packages": {
+    diagram: "ThingsBoard packages",
+    score: 90,
+    fingerprint: {
+      nodes: { UMLPackage: 1 },
+      edges: { UMLDependency: 1 },
+      aspect: 2.203,
+      flow: 0.357,
+      density: 1.867
+    }
+  },
+  "component-c4": {
+    diagram: "TB Node components",
+    score: 100,
+    fingerprint: {
+      nodes: { C4Component: 1 },
+      edges: { C4Relationship: 1 },
+      aspect: 0.44,
+      flow: 1,
+      density: 0.857
+    }
+  },
+  "component-uml": {
+    diagram: "Transport wiring",
+    score: 99,
+    fingerprint: {
+      nodes: { UMLComponent: 0.5, UMLInterface: 0.5 },
+      edges: { UMLDependency: 0.4, UMLInterfaceRealization: 0.6 },
+      aspect: 0.729,
+      flow: 0.2,
+      density: 0.833
+    }
+  },
+  "code-classes": {
+    diagram: "Class - Actor System",
+    score: 98,
+    fingerprint: {
+      nodes: { UMLClass: 0.75, UMLInterface: 0.25 },
+      edges: {
+        UMLAssociation: 0.563,
+        UMLDependency: 0.188,
+        UMLGeneralization: 0.063,
+        UMLInterfaceRealization: 0.188
+      },
+      aspect: 1.406,
+      flow: 0.438,
+      density: 1
+    }
+  },
+  "runtime-sequence": {
+    diagram: "Seq - Telemetry ingestion over MQTT",
+    score: 94,
+    fingerprint: {
+      nodes: { UMLCombinedFragment: 0.1, UMLLifeline: 0.9 },
+      edges: { UMLMessage: 1 },
+      aspect: 2.899,
+      flow: 0,
+      density: 1.5
+    }
+  },
+  "runtime-communication": {
+    diagram: "Server-side RPC communication",
+    score: 85,
+    fingerprint: {
+      nodes: { UMLLifeline: 1 },
+      edges: { UMLConnector: 0.5, UMLMessage: 0.5 },
+      aspect: 0.631,
+      flow: 0.25,
+      density: 1.6
+    }
+  },
+  "runtime-activity": {
+    diagram: "Activity - Rule chain execution",
+    score: 82,
+    fingerprint: {
+      nodes: {
+        UMLAction: 0.524,
+        UMLActivityFinalNode: 0.048,
+        UMLActivityPartition: 0.19,
+        UMLDecisionNode: 0.095,
+        UMLForkNode: 0.048,
+        UMLInitialNode: 0.048,
+        UMLJoinNode: 0.048
+      },
+      edges: { UMLControlFlow: 1 },
+      aspect: 0.856,
+      flow: 0.55,
+      density: 0.952
+    }
+  },
+  "lifecycle-states": {
+    diagram: "State - Alarm lifecycle",
+    score: 98,
+    fingerprint: {
+      nodes: {
+        UMLFinalState: 0.167,
+        UMLPseudostate: 0.167,
+        UMLState: 0.667
+      },
+      edges: { UMLTransition: 1 },
+      aspect: 1.26,
+      flow: 0.286,
+      density: 1.167
+    }
+  },
+  "actors-goals-usecases": {
+    diagram: "Use Cases - Customer User",
+    score: 96,
+    fingerprint: {
+      nodes: {
+        UMLActor: 0.222,
+        UMLUseCase: 0.667,
+        UMLUseCaseSubject: 0.111
+      },
+      edges: { UMLAssociation: 0.875, UMLInclude: 0.125 },
+      aspect: 1.422,
+      flow: 0,
+      density: 0.889
+    }
+  },
+  "actors-goals-features": {
+    diagram: "ThingsBoard Features",
+    score: 86,
+    fingerprint: {
+      nodes: { MMNode: 1 },
+      edges: { MMEdge: 1 },
+      aspect: 1.329,
+      flow: 0.093,
+      density: 0.982
+    }
+  },
+  "deployment-nodes": {
+    diagram: "Deployment - Monolith",
+    score: 94,
+    fingerprint: {
+      nodes: { UMLArtifact: 0.625, UMLNode: 0.375 },
+      edges: { UMLCommunicationPath: 0.286, UMLDeployment: 0.714 },
+      aspect: 1.985,
+      flow: 0.714,
+      density: 0.875
+    }
+  },
+  "data-erd": {
+    diagram: "ThingsBoard data model",
+    score: 94,
+    fingerprint: {
+      nodes: { ERDEntity: 1 },
+      edges: { ERDRelationship: 1 },
+      aspect: 1.566,
+      flow: 0.1,
+      density: 1.111
+    }
+  }
+};
+
+// src/templates/exemplar.ts
+var round = (n) => Math.round(n * 1e3) / 1e3;
+function shares2(types) {
+  const out = {};
+  for (const t of [...types].sort()) out[t] = (out[t] ?? 0) + 1;
+  for (const t of Object.keys(out)) out[t] = round(out[t] / types.length);
+  return out;
+}
+var centre2 = (v) => ({
+  x: Number(v.left) + Number(v.width) / 2,
+  y: Number(v.top) + Number(v.height) / 2
+});
+function fingerprint(diagram, skip) {
+  const views = diagram.ownedViews.filter(
+    (v) => v.visible !== false && v.model && !(v.model instanceof type.Diagram) && !skip.has(v._id)
+  );
+  const related = views.filter((v) => v.model instanceof type.Relationship);
+  const nodes = views.filter(
+    (v) => !related.includes(v) && v instanceof type.NodeView
+  );
+  const lines2 = related.filter(
+    (v) => v instanceof type.EdgeView && v.tail && v.head
+  );
+  const left = Math.min(...nodes.map((v) => Number(v.left)));
+  const top = Math.min(...nodes.map((v) => Number(v.top)));
+  const right = Math.max(...nodes.map((v) => Number(v.left) + Number(v.width)));
+  const bottom = Math.max(
+    ...nodes.map((v) => Number(v.top) + Number(v.height))
+  );
+  const upright = lines2.filter((e) => {
+    const a = centre2(ownerNode(e.tail));
+    const b = centre2(ownerNode(e.head));
+    return Math.abs(b.y - a.y) > Math.abs(b.x - a.x);
+  });
+  return {
+    nodes: shares2(nodes.map((v) => v.model.constructor.name)),
+    edges: shares2(related.map((v) => v.model.constructor.name)),
+    aspect: nodes.length > 0 ? round((right - left) / (bottom - top)) : 1,
+    flow: lines2.length > 0 ? round(upright.length / lines2.length) : 0.5,
+    density: round(related.length / Math.max(1, nodes.length))
+  };
+}
+function overlap(a, b) {
+  const keys2 = /* @__PURE__ */ new Set([...Object.keys(a), ...Object.keys(b)]);
+  let diff = 0;
+  for (const k of keys2) diff += Math.abs((a[k] ?? 0) - (b[k] ?? 0));
+  return keys2.size === 0 ? 1 : 1 - diff / 2;
+}
+var ratio = (a, b) => Math.min(a, b) / Math.max(a, b);
+function similarity(a, b) {
+  return round(
+    0.3 * overlap(a.nodes, b.nodes) + 0.15 * overlap(a.edges, b.edges) + 0.2 * ratio(a.aspect, b.aspect) + 0.2 * (1 - Math.abs(a.flow - b.flow)) + 0.15 * ratio(a.density + 0.1, b.density + 0.1)
+  );
+}
+var MIN_SIMILARITY = 0.6;
+var SCORE_TOLERANCE = 15;
+var SCORE_FLOOR = 60;
+var KNOWN = exemplars_default;
+var exemplarOf = (t) => Object.hasOwn(KNOWN, t.name) ? KNOWN[t.name] : void 0;
+function accepts(t, diagram, score3, skip, known = exemplarOf) {
+  const ex = known(t);
+  if (!ex) return score3 >= SCORE_FLOOR;
+  return similarity(fingerprint(diagram, skip), ex.fingerprint) >= MIN_SIMILARITY && score3 >= Math.max(SCORE_FLOOR, ex.score - SCORE_TOLERANCE);
+}
+
+// src/templates/actors-goals-features.json
+var actors_goals_features_default = {
+  $schema: "./template.schema.json",
+  name: "actors-goals-features",
+  version: 1,
+  title: "Feature tree",
+  description: "What the system offers, grouped, growing to the right.",
+  viewpoint: "actors-goals",
+  kind: "mindmap",
+  default: true,
+  content: {
+    maxElements: 60
+  },
+  style: "project",
+  layout: {
+    preset: "flow-right"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/actors-goals-usecases.json
+var actors_goals_usecases_default = {
+  $schema: "./template.schema.json",
+  name: "actors-goals-usecases",
+  version: 1,
+  title: "Use cases",
+  description: "Actors and their goals inside the system boundary.",
+  viewpoint: "actors-goals",
+  kind: "usecase",
+  default: true,
+  content: {
+    maxElements: 25
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/code-classes.json
+var code_classes_default = {
+  $schema: "./template.schema.json",
+  name: "code-classes",
+  version: 1,
+  title: "Class diagram",
+  description: "Classes of one area with their structural relationships, general types on top.",
+  viewpoint: "code",
+  kind: "class",
+  default: true,
+  content: {
+    maxElements: 30
+  },
+  style: "project",
+  layout: {
+    preset: "hierarchy-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/component-c4.json
+var component_c4_default = {
+  $schema: "./template.schema.json",
+  name: "component-c4",
+  version: 1,
+  title: "Components of a container",
+  description: "The components inside one container and how they depend on each other.",
+  viewpoint: "component",
+  kind: "c4",
+  default: true,
+  content: {
+    maxElements: 20
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/component-packages.json
+var component_packages_default = {
+  $schema: "./template.schema.json",
+  name: "component-packages",
+  version: 1,
+  title: "Package dependencies",
+  description: "Packages of the model and the dependencies between them, used ones on top.",
+  viewpoint: "component",
+  kind: "package",
+  default: true,
+  content: {
+    maxElements: 20
+  },
+  style: "project",
+  layout: {
+    preset: "hierarchy-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/component-uml.json
+var component_uml_default = {
+  $schema: "./template.schema.json",
+  name: "component-uml",
+  version: 1,
+  title: "Component wiring",
+  description: "UML components with the interfaces they provide and require.",
+  viewpoint: "component",
+  kind: "component",
+  default: true,
+  content: {
+    maxElements: 20
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/container-overview.json
+var container_overview_default = {
+  $schema: "./template.schema.json",
+  name: "container-overview",
+  version: 1,
+  title: "Container overview",
+  description: "The running parts of the system with their technology and how they talk, people and outside systems around them.",
+  viewpoint: "container",
+  kind: "c4",
+  default: true,
+  content: {
+    maxElements: 25
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: [
+      "Person: someone who uses the system",
+      "Container: an application, service or data store that runs on its own",
+      "Grey: outside the system",
+      "Arrow: a call or data flow, labelled with its purpose and technology"
+    ]
+  }
+};
+
+// src/templates/context-landscape.json
+var context_landscape_default = {
+  $schema: "./template.schema.json",
+  name: "context-landscape",
+  version: 1,
+  title: "System landscape",
+  description: "The system as one box among its people and neighbouring systems, for readers outside the team.",
+  viewpoint: "context",
+  kind: "c4",
+  default: true,
+  content: {
+    maxElements: 15
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: [
+      "Person: someone who uses the system",
+      "Software system: the system in scope, or one it works with",
+      "Grey: outside the system's ownership",
+      "Arrow: who relies on whom, labelled with what for and how"
+    ]
+  }
+};
+
+// src/templates/data-erd.json
+var data_erd_default = {
+  $schema: "./template.schema.json",
+  name: "data-erd",
+  version: 1,
+  title: "Entity relationships",
+  description: "Stored entities with their columns and the relationships between them.",
+  viewpoint: "data",
+  kind: "erd",
+  default: true,
+  content: {
+    maxElements: 25
+  },
+  style: "project",
+  layout: {
+    preset: "hierarchy-right"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/deployment-nodes.json
+var deployment_nodes_default = {
+  $schema: "./template.schema.json",
+  name: "deployment-nodes",
+  version: 1,
+  title: "Deployment",
+  description: "Nodes, what is deployed on each and the links between them.",
+  viewpoint: "deployment",
+  kind: "deployment",
+  default: true,
+  content: {
+    maxElements: 30
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: [
+      "Node: a machine, device or runtime environment",
+      "Artifact: what is deployed on it",
+      "Line: a communication path, labelled with its protocol"
+    ]
+  }
+};
+
+// src/templates/lifecycle-states.json
+var lifecycle_states_default = {
+  $schema: "./template.schema.json",
+  name: "lifecycle-states",
+  version: 1,
+  title: "Lifecycle",
+  description: "The states of one kind of object and the events between them, left to right.",
+  viewpoint: "lifecycle",
+  kind: "statemachine",
+  default: true,
+  content: {
+    maxElements: 20
+  },
+  style: "project",
+  layout: {
+    preset: "flow-right"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/runtime-activity.json
+var runtime_activity_default = {
+  $schema: "./template.schema.json",
+  name: "runtime-activity",
+  version: 1,
+  title: "Steps as an activity",
+  description: "The steps of a process, its decisions and parallel branches, a lane per part.",
+  viewpoint: "runtime",
+  kind: "activity",
+  default: true,
+  content: {
+    maxElements: 30
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/runtime-communication.json
+var runtime_communication_default = {
+  $schema: "./template.schema.json",
+  name: "runtime-communication",
+  version: 1,
+  title: "Scenario as communication",
+  description: "Who exchanges which messages in one scenario, without the timeline.",
+  viewpoint: "runtime",
+  kind: "communication",
+  default: true,
+  content: {
+    maxElements: 30,
+    maxLifelines: 12
+  },
+  style: "project",
+  layout: {
+    preset: "flow-right"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/runtime-sequence.json
+var runtime_sequence_default = {
+  $schema: "./template.schema.json",
+  name: "runtime-sequence",
+  version: 1,
+  title: "Scenario as a sequence",
+  description: "One scenario's messages in time order, the initiator leftmost.",
+  viewpoint: "runtime",
+  kind: "sequence",
+  default: true,
+  content: {
+    maxElements: 30,
+    maxLifelines: 12
+  },
+  style: "project",
+  layout: {
+    preset: "flow-down"
+  },
+  parts: {
+    titleBlock: true,
+    legend: []
+  }
+};
+
+// src/templates/schema.ts
+var text4 = () => string2().check(_minLength(1));
+var templateSchema = () => strictObject({
+  $schema: optional(string2()),
+  name: doc(
+    string2().check(_regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/)),
+    "Lower case words joined by hyphens."
+  ),
+  version: doc(
+    int().check(_gte(1)),
+    "Raised when what the template draws changes; stored on each diagram made with it."
+  ),
+  title: text4(),
+  description: text4(),
+  viewpoint: _enum(VIEWPOINT_NAMES),
+  kind: _enum(KINDS),
+  default: doc(
+    boolean2(),
+    "The template /derive_diagrams and /request_diagram use for its viewpoint and kind."
+  ),
+  content: doc(
+    strictObject({
+      maxElements: int().check(_gte(1), _lte(500)),
+      maxLifelines: optional(int().check(_gte(1), _lte(100))),
+      hideAccessors: optional(
+        doc(
+          boolean2(),
+          "Classes whose operations are all accessors keep them folded."
+        )
+      )
+    }),
+    "What a diagram made with it may hold; /build_diagram refuses more."
+  ),
+  style: doc(
+    _enum(["project", ...BUILT_IN_NAMES]),
+    "The house style: project (the project's style profile) or a built-in profile, whose visuals, layout and quality settings apply while naming, rules and policy stay the project's."
+  ),
+  layout: strictObject({ preset: _enum(PRESET_NAMES) }),
+  parts: doc(
+    strictObject({
+      titleBlock: doc(
+        boolean2(),
+        "A note below the drawing naming it, its viewpoint's question and the template."
+      ),
+      legend: doc(
+        array(text4()),
+        "Lines of a legend note under 'Legend'; none for no legend."
+      )
+    }),
+    "Notes the engine adds and keeps, below or beside the drawing."
+  )
+});
+
+// src/templates/index.ts
+var TEMPLATE_FILES = [
+  context_landscape_default,
+  container_overview_default,
+  component_packages_default,
+  component_c4_default,
+  component_uml_default,
+  code_classes_default,
+  runtime_sequence_default,
+  runtime_communication_default,
+  runtime_activity_default,
+  lifecycle_states_default,
+  actors_goals_usecases_default,
+  actors_goals_features_default,
+  deployment_nodes_default,
+  data_erd_default
+];
+function crossCheckTemplates(templates3, catalogue4) {
+  const problems = [];
+  const names4 = /* @__PURE__ */ new Set();
+  for (const t of templates3) {
+    if (names4.has(t.name)) problems.push(`template ${t.name}: defined twice`);
+    names4.add(t.name);
+    const vp = catalogue4.byName.get(t.viewpoint);
+    if (!vp.kinds.includes(t.kind)) {
+      problems.push(
+        `template ${t.name}: ${t.viewpoint} is not drawn as ${t.kind}`
+      );
+    }
+    if (vp.required.includes("legend") && t.parts.legend.length === 0) {
+      problems.push(`template ${t.name}: ${t.viewpoint} requires a legend`);
+    }
+  }
+  for (const vp of catalogue4.viewpoints) {
+    for (const kind2 of vp.kinds) {
+      const defaults = templates3.filter(
+        (t) => t.default && t.viewpoint === vp.name && t.kind === kind2
+      );
+      if (defaults.length !== 1) {
+        problems.push(
+          `${vp.name} as ${kind2}: ${defaults.length} default templates, not one`
+        );
+      }
+    }
+  }
+  for (const r of catalogue4.table.rules) {
+    const t = templates3.find((x) => x.name === r.template);
+    if (!t) problems.push(`rule ${r.id}: no template ${r.template}`);
+    else if (t.viewpoint !== r.viewpoint || t.kind !== r.kind) {
+      problems.push(
+        `rule ${r.id}: template ${r.template} draws ${t.viewpoint} as ${t.kind}`
+      );
+    }
+  }
+  return problems;
+}
+function loadTemplates(files) {
+  const templates3 = files.map((t) => parse(templateSchema(), t));
+  const problems = crossCheckTemplates(templates3, viewpointCatalogue());
+  if (problems.length > 0) {
+    throw new Error(`template catalogue: ${problems.join("; ")}`);
+  }
+  return templates3;
+}
+var catalogue2 = null;
+function templates() {
+  catalogue2 ??= loadTemplates(TEMPLATE_FILES);
+  return catalogue2;
+}
+function findTemplate(name4) {
+  const found = templates().find((t) => t.name === name4);
+  if (!found) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `No template ${name4}; the templates are ${templates().map((t) => t.name).join(", ")}`
+    );
+  }
+  return found;
+}
+var defaultTemplate = (viewpoint, kind2) => templates().find(
+  (t) => t.default && t.viewpoint === viewpoint && t.kind === kind2
+);
+function templateProfile(project, t) {
+  if (t.style === "project") return project;
+  const house = builtInProfiles()[t.style];
+  return {
+    ...house,
+    strict: project.strict,
+    blockSaveOnErrors: project.blockSaveOnErrors,
+    naming: project.naming,
+    rules: project.rules,
+    policy: project.policy
+  };
+}
+function scopeText(parent, name4) {
+  const names4 = [];
+  for (let e = parent; e?._parent; e = e._parent) {
+    names4.unshift(String(e.name));
+  }
+  const steps = names4.filter((n, i) => n !== names4[i - 1]);
+  while (steps.length > 1 && name4?.startsWith(steps.at(-1))) steps.pop();
+  return steps.join(" / ");
+}
+function templateParts(t, name4, parent) {
+  const vp = findViewpoint(t.viewpoint);
+  const where2 = scopeText(parent, name4);
+  return {
+    ...t.parts.titleBlock && {
+      title: [
+        name4 || vp.title,
+        `${vp.title}: ${vp.question}`,
+        ...where2 ? [`Scope: ${where2}`] : [],
+        `Template: ${t.name} v${t.version}`
+      ].join("\n")
+    },
+    ...t.parts.legend.length > 0 && {
+      legend: ["Legend", ...t.parts.legend].join("\n")
+    }
+  };
+}
+
+// src/templates/lock.ts
+var REF_FIELDS = [
+  "ref",
+  "refs",
+  "id",
+  "ids",
+  "elementId",
+  "diagram",
+  "diagramId",
+  "container",
+  "containerViewId",
+  "tail",
+  "head",
+  "tailViewId",
+  "headViewId",
+  "tailId",
+  "headId"
+];
+var DIAGRAM_FIELDS = ["diagram", "diagramId", "id"];
+function refsIn(body) {
+  return REF_FIELDS.flatMap((f) => {
+    const v = body[f];
+    if (typeof v === "string") return [v];
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+  });
+}
+function derivedDiagramOf(elem) {
+  const diagram = elem instanceof type.View ? diagramOf2(elem) : elem instanceof type.Diagram ? elem : elem instanceof type.Tag && elem._parent instanceof type.Diagram ? elem._parent : null;
+  return diagram && readMark(diagram)?.derived ? diagram : null;
+}
+function derivedRefusal(path, diagram) {
+  const mark = readMark(diagram);
+  const strict = profile().strict;
+  return new ApiError(
+    "DIAGRAM_DERIVED",
+    `${path}: ${pathOf(diagram)} is derived from the model${mark.template ? ` with the template ${mark.template}` : ""}; change the model and derive it again (/derive_diagrams or /request_diagram)${strict ? "" : ", or pass override: true"}`,
+    {
+      diagram: diagram._id,
+      path: pathOf(diagram),
+      ...mark.template !== void 0 && { template: mark.template }
+    }
+  );
+}
+var overridden = (override) => override === true && !profile().strict;
+function derivedLocked(endpoint, options = {}) {
+  const shape = endpoint.request.shape;
+  const takesOverride = Object.hasOwn(shape, "override");
+  const request = takesOverride ? endpoint.request : extend2(endpoint.request, {
+    override: optional(
+      doc(
+        boolean2(),
+        "Edit a diagram derived from the model anyway; refused under a strict profile."
+      )
+    )
+  });
+  const refuses = (body) => {
+    if (overridden(body.override)) return null;
+    const targets = refsIn(body).flatMap((r) => {
+      try {
+        const e = tryResolve(r);
+        return e ? [e] : [];
+      } catch {
+        return [];
+      }
+    });
+    if (options.current && !DIAGRAM_FIELDS.some((f) => body[f] !== void 0)) {
+      const current = app.diagrams.getCurrentDiagram();
+      if (current) targets.push(current);
+    }
+    for (const t of targets) {
+      if (options.deletes && t instanceof type.Diagram) continue;
+      const derived = derivedDiagramOf(t);
+      if (derived) return derivedRefusal(endpoint.path, derived);
+    }
+    return null;
+  };
+  return {
+    ...endpoint,
+    request,
+    handler: async (body) => {
+      const given = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+      if (!isTrusted()) {
+        const refusal = refuses(given);
+        if (refusal) return refusal.toBody();
+      }
+      if (takesOverride || body !== given) return endpoint.handler(body);
+      const { override: _, ...rest } = given;
+      return endpoint.handler(rest);
+    }
+  };
+}
+
 // src/viewpoints/parts.ts
 var GAP4 = 30;
 function extent(diagram, skip) {
@@ -16312,10 +17219,10 @@ function extent(diagram, skip) {
     bottom: Math.max(...boxes.map((b) => b.bottom))
   };
 }
-function noteBox(text5) {
+function noteBox(text6) {
   return {
-    width: Math.max(140, Math.min(420, labelWidth(text5))),
-    height: noteHeight(text5)
+    width: Math.max(140, Math.min(420, labelWidth(text6))),
+    height: noteHeight(text6)
   };
 }
 async function placeParts(diagram, texts2, mark, endpoints2) {
@@ -16328,12 +17235,12 @@ async function placeParts(diagram, texts2, mark, endpoints2) {
   let x = at.left;
   for (const part of ["title", "legend"]) {
     const view = byPart(part);
-    const text5 = texts2[part];
-    if (text5 === void 0) {
+    const text6 = texts2[part];
+    if (text6 === void 0) {
       if (view) ops.push({ path: "/delete_element", body: { ref: view._id } });
       continue;
     }
-    const size2 = noteBox(text5);
+    const size2 = noteBox(text6);
     const place2 = {
       left: Math.round(x),
       top: Math.round(at.bottom + GAP4),
@@ -16358,17 +17265,17 @@ async function placeParts(diagram, texts2, mark, endpoints2) {
         },
         {
           path: "/update_element",
-          body: { ref: `$${as}.view`, field: "text", value: text5 }
+          body: { ref: `$${as}.view`, field: "text", value: text6 }
         }
       );
       ids2[part] = `$${as}`;
       continue;
     }
     ids2[part] = view._id;
-    if (String(view.text) !== text5) {
+    if (String(view.text) !== text6) {
       ops.push({
         path: "/update_element",
-        body: { ref: view._id, field: "text", value: text5 }
+        body: { ref: view._id, field: "text", value: text6 }
       });
     }
     for (const [field, value] of Object.entries(place2)) {
@@ -17293,7 +18200,19 @@ var buildRequest = () => object({
   viewpoint: optional(
     doc(
       _enum(VIEWPOINT_NAMES),
-      "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as. Required under a strict profile."
+      "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as."
+    )
+  ),
+  template: optional(
+    doc(
+      string2().check(_minLength(1)),
+      "A diagram template (see /list_templates): its viewpoint and kind (kind may be left out), house style, layout preset, title block and legend, and its content limits. Required under a strict profile."
+    )
+  ),
+  override: optional(
+    doc(
+      boolean2(),
+      "Rebuild a diagram /derive_diagrams owns anyway; refused under a strict profile."
     )
   ),
   result: resultField(
@@ -17354,7 +18273,8 @@ var buildResponse = () => object({
   plan: optional(doc(planSchema(), "With dryRun: what applying runs.")),
   style: optional(styleReportSchema()),
   quality: optional(qualitySchema()),
-  viewpoint: optional(viewpointReportSchema())
+  viewpoint: optional(viewpointReportSchema()),
+  template: optional(templateReportSchema())
 });
 var viewpointReportSchema = () => doc(
   object({
@@ -17367,32 +18287,93 @@ var viewpointReportSchema = () => doc(
   }),
   "The viewpoint the diagram declares and whether it keeps to it (issue #42)."
 );
-function checkViewpoint(input, kind2) {
-  if (input.viewpoint === void 0) {
-    if (effectiveProfile().profile.strict && !isTrusted()) {
+var templateReportSchema = () => doc(
+  object({
+    name: string2(),
+    version: int(),
+    accepted: doc(
+      boolean2(),
+      "The diagram passes as one of its template: structurally like the template's approved exemplar, and scoring near it."
+    )
+  }),
+  "The template the diagram was made with (issue #43)."
+);
+var FREE_FORM = [
+  "layout",
+  "direction",
+  "autoLayout",
+  "showNamespace"
+];
+function checkBuild(input) {
+  const profile2 = effectiveProfile().profile;
+  const strict = profile2.strict && !isTrusted();
+  const t = input.template === void 0 ? void 0 : findTemplate(input.template);
+  if (strict) {
+    const fields = [
+      ...FREE_FORM.filter((f) => input[f] !== void 0),
+      ...input.spec && "styles" in input.spec ? ["spec.styles"] : []
+    ];
+    if (t === void 0 || fields.length > 0) {
       throw new ApiError(
-        "VIEWPOINT_REQUIRED",
-        `build_diagram: the style profile '${effectiveProfile().profile.name}' is strict, so every diagram declares the viewpoint it is a view of; pass viewpoint, or use /request_diagram or /derive_diagrams`,
-        { profile: effectiveProfile().profile.name }
+        "TEMPLATE_ONLY",
+        `build_diagram: the style profile '${profile2.name}' is strict, so diagrams are built through a template from content alone${fields.length > 0 ? `, without ${fields.join(", ")}` : "; pass template (see /list_templates)"}`,
+        { profile: profile2.name, fields }
       );
     }
-    return;
   }
-  const vp = findViewpoint(input.viewpoint);
-  if (!vp.kinds.includes(kind2)) {
-    throw new ApiError(
-      "VIEWPOINT_MISMATCH",
-      `build_diagram: the ${vp.name} viewpoint is drawn as ${vp.kinds.join(", ")}, not ${kind2}`,
-      {
-        reason: "kind",
-        alternatives: vp.kinds.map((k) => ({
-          viewpoint: vp.name,
-          kind: k,
-          why: vp.question
-        }))
-      }
+  const kind2 = input.kind ?? t?.kind;
+  if (t && kind2 !== t.kind) {
+    throw mismatch(
+      `the template ${t.name} draws ${t.kind}, not ${kind2}`,
+      t.viewpoint,
+      [t.kind]
     );
   }
+  if (t && input.viewpoint !== void 0 && input.viewpoint !== t.viewpoint) {
+    throw mismatch(
+      `the template ${t.name} draws the ${t.viewpoint} viewpoint, not ${input.viewpoint}`,
+      t.viewpoint,
+      [t.kind]
+    );
+  }
+  const viewpoint = t?.viewpoint ?? input.viewpoint;
+  if (viewpoint !== void 0) {
+    const vp = findViewpoint(viewpoint);
+    const drawn2 = readSource({ ...input, kind: kind2 }).kind;
+    if (!vp.kinds.includes(drawn2)) {
+      throw mismatch(
+        `the ${vp.name} viewpoint is drawn as ${vp.kinds.join(", ")}, not ${drawn2}`,
+        vp.name,
+        vp.kinds
+      );
+    }
+  }
+  if (input.upsert && !isTrusted() && !overridden(input.override)) {
+    const { kind: drawn2, title } = readSource({ ...input, kind: kind2 });
+    const raw = input.name ?? title;
+    const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
+    const found = findDiagram(
+      drawn2,
+      raw === void 0 ? void 0 : multiline(raw),
+      parent
+    );
+    if (found && readMark(found)?.derived) {
+      throw derivedRefusal("/build_diagram", found);
+    }
+  }
+  return t;
+}
+function mismatch(message, viewpoint, kinds) {
+  const vp = findViewpoint(viewpoint);
+  return new ApiError("VIEWPOINT_MISMATCH", `build_diagram: ${message}`, {
+    reason: "kind",
+    alternatives: kinds.map((k) => ({
+      viewpoint: vp.name,
+      kind: k,
+      why: vp.question,
+      template: defaultTemplate(vp.name, k).name
+    }))
+  });
 }
 function partsFor(viewpoint) {
   const vp = findViewpoint(viewpoint);
@@ -17401,27 +18382,49 @@ function partsFor(viewpoint) {
 function buildDiagramEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/build_diagram",
-    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4, package, component, deployment, and the families composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
+    description: "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4, package, component, deployment, and the families composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. template (see /list_templates) draws it as that template's viewpoint and kind, in its house style and layout, with its title block and legend, and refuses content past its limits; under a strict profile a template is required and layout, direction, autoLayout, showNamespace and spec.styles are refused (TEMPLATE_ONLY). A diagram /derive_diagrams owns is not rebuilt from here (DIAGRAM_DERIVED). Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: buildRequest(),
     aliases: { parentId: "parent" },
     response: buildResponse(),
     handle: (input) => {
-      checkViewpoint(input, readSource(input).kind);
-      return buildDiagram(input, endpoints2);
+      const template = checkBuild(input);
+      return buildDiagram(
+        { ...input, kind: input.kind ?? template?.kind },
+        endpoints2,
+        { enforce: true }
+      );
     }
   });
 }
+function checkContent(t, plan) {
+  const nodes = plan.nodes.filter((n) => n.type !== "Note");
+  const lifelines = nodes.filter((n) => n.type === "UMLLifeline").length;
+  const over = nodes.length > t.content.maxElements ? `${nodes.length} elements, more than the ${t.content.maxElements}` : t.content.maxLifelines !== void 0 && lifelines > t.content.maxLifelines ? `${lifelines} lifelines, more than the ${t.content.maxLifelines}` : null;
+  if (over === null) return;
+  const vp = findViewpoint(t.viewpoint);
+  throw new ApiError(
+    "VIEWPOINT_MISMATCH",
+    `build_diagram: ${over} the template ${t.name} holds`,
+    {
+      reason: "limits",
+      alternatives: [{ viewpoint: vp.name, kind: t.kind, why: vp.split }]
+    }
+  );
+}
 async function buildDiagram(input, endpoints2, extras = {}) {
   const { kind: kind2, spec, title, direction: direction2, parsed } = readSource(input);
-  const profile2 = effectiveProfile().profile;
+  const template = extras.template ?? (input.template === void 0 ? void 0 : findTemplate(input.template));
+  const base = effectiveProfile().profile;
+  const profile2 = template ? templateProfile(base, template) : base;
   const renames = new Renames(profile2);
   const styleWarnings = [];
   const plan = normalizePlan(
     profile2.strict ? withoutStyles(planFor(kind2, spec), styleWarnings) : planFor(kind2, spec),
     renames
   );
+  if (template && extras.enforce) checkContent(template, plan);
   const parent = input.parent === void 0 ? requireProject() : requireElement(input.parent, "Parent");
   const raw = input.name ?? title;
   const name4 = raw === void 0 ? void 0 : multiline(raw);
@@ -17429,8 +18432,16 @@ async function buildDiagram(input, endpoints2, extras = {}) {
     throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
   }
   const diagram = input.upsert ? findDiagram(kind2, name4, parent) : null;
-  const mark = extras.mark ?? (input.viewpoint !== void 0 ? { viewpoint: input.viewpoint } : void 0);
-  const parts = mark && (extras.parts ?? partsFor(mark.viewpoint));
+  const viewpoint = template?.viewpoint ?? input.viewpoint;
+  const mark = viewpoint === void 0 ? void 0 : {
+    viewpoint,
+    ...template && {
+      template: template.name,
+      version: template.version
+    },
+    ...extras.derived && { derived: true }
+  };
+  const parts = mark && (template ? templateParts(template, name4, parent) : partsFor(mark.viewpoint));
   const skip = new Set(
     diagram ? partViews(diagram, readMark(diagram)).map((v) => v._id) : []
   );
@@ -17439,7 +18450,7 @@ async function buildDiagram(input, endpoints2, extras = {}) {
     { diagram, parent, name: name4 },
     direction2 ?? defaultDirection(kind2),
     input.autoLayout ?? true,
-    input.layout ?? (input.direction === void 0 && parsed?.direction === void 0 ? presetFor(profile2, kind2) : void 0),
+    input.layout ?? template?.layout.preset ?? (input.direction === void 0 && parsed?.direction === void 0 ? presetFor(profile2, kind2) : void 0),
     {
       prune: input.prune,
       reuse: input.reuse ?? true,
@@ -17494,7 +18505,7 @@ async function buildDiagram(input, endpoints2, extras = {}) {
     };
   }
   const specStyled = plan.nodes.filter(coloured).map((n) => n.key);
-  const { byName, target, styled, quality } = await oneStep(
+  const { byName, target, styled, quality, accepted } = await oneStep(
     "build diagram",
     async () => {
       let data = { results: [] };
@@ -17518,29 +18529,30 @@ async function buildDiagram(input, endpoints2, extras = {}) {
         styledViews(target2).filter((v) => !keep.has(v._id)),
         profile2
       );
-      return {
-        byName: byName2,
-        target: target2,
-        styled: styled2,
-        // An upsert that changed nothing leaves the picture as it was
-        // arranged; it is only scored.
-        quality: await (async () => {
-          const q2 = built.ops.length > 0 ? improve(target2, profile2) : scoredAsIs(target2, profile2);
-          deselect(target2);
-          if (!mark || !await placeParts(target2, parts, mark, endpoints2)) {
-            return q2;
-          }
-          const {
-            before: _before,
-            target: _target,
-            iterations: _iterations,
-            steps: _steps,
-            ...now
-          } = scoredAsIs(target2, profile2);
-          const { failures: _failures, ...rest } = q2;
-          return { ...rest, ...now };
-        })()
+      const loop = built.ops.length > 0 ? improve(target2, profile2) : scoredAsIs(target2, profile2);
+      deselect(target2);
+      const placed = async () => {
+        if (!mark || !await placeParts(target2, parts, mark, endpoints2)) {
+          return loop;
+        }
+        styleViews(target2, partViews(target2, readMark(target2)), profile2);
+        return withParts(loop, target2, profile2);
       };
+      let quality2 = await placed();
+      if (!template) return { byName: byName2, target: target2, styled: styled2, quality: quality2 };
+      const partIds = () => new Set(partViews(target2, readMark(target2)).map((v) => v._id));
+      let accepted2 = accepts(template, target2, quality2.score, partIds());
+      if (!accepted2 && built.ops.length > 0) {
+        improve(target2, profile2, {
+          relayout: true,
+          preset: template.layout.preset
+        });
+        deselect(target2);
+        await placeParts(target2, parts, mark, endpoints2);
+        quality2 = withParts(loop, target2, profile2);
+        accepted2 = accepts(template, target2, quality2.score, partIds());
+      }
+      return { byName: byName2, target: target2, styled: styled2, quality: quality2, accepted: accepted2 };
     }
   );
   const ids2 = {};
@@ -17563,8 +18575,26 @@ async function buildDiagram(input, endpoints2, extras = {}) {
     quality,
     ...mark && {
       viewpoint: { name: mark.viewpoint, ...conformity(target) }
+    },
+    ...template && {
+      template: {
+        name: template.name,
+        version: template.version,
+        accepted
+      }
     }
   };
+}
+function withParts(loop, target, profile2) {
+  const {
+    before: _before,
+    target: _target,
+    iterations: _iterations,
+    steps: _steps,
+    ...now
+  } = scoredAsIs(target, profile2);
+  const { failures: _failures, ...rest } = loop;
+  return { ...rest, ...now };
 }
 
 // src/command-catalogue.json
@@ -22100,24 +23130,24 @@ var describeDiagram = defineEndpoint({
       ...nodes.length > 0 ? ["Nodes:", ...nodes.map(nodeLine)] : [],
       ...edges.length > 0 ? ["Edges:", ...edges.map(edgeLine)] : []
     ];
-    let text5 = "";
+    let text6 = "";
     let shown2 = 0;
     for (const line of lines2) {
-      const next = shown2 === 0 ? line : `${text5}
+      const next = shown2 === 0 ? line : `${text6}
 ${line}`;
       if (next.length > max - 30) break;
-      text5 = next;
+      text6 = next;
       shown2++;
     }
     const truncated = shown2 < lines2.length;
-    if (truncated) text5 += `
+    if (truncated) text6 += `
 ... ${lines2.length - shown2} more lines`;
     const { _id, _type, name: name4 } = summarize(diagram);
     return {
       diagram: { _id, _type, name: name4 },
       nodes: nodes.length,
       edges: edges.length,
-      text: text5,
+      text: text6,
       truncated
     };
   }
@@ -22202,12 +23232,12 @@ function kindOf2(diagram) {
   return found ? found[0] : null;
 }
 var box2 = (view) => view;
-var centre2 = (view) => ({
+var centre3 = (view) => ({
   x: box2(view).left + box2(view).width / 2,
   y: box2(view).top + box2(view).height / 2
 });
 function inside2(view, container) {
-  const c = centre2(view);
+  const c = centre3(view);
   const b = box2(container);
   return c.x >= b.left && c.x <= b.left + b.width && c.y >= b.top && c.y <= b.top + b.height;
 }
@@ -22215,8 +23245,8 @@ function flowDirection(edges) {
   let dx = 0;
   let dy = 0;
   for (const e of edges) {
-    const t = centre2(e.tail);
-    const h = centre2(e.head);
+    const t = centre3(e.tail);
+    const h = centre3(e.head);
     dx += h.x - t.x;
     dy += h.y - t.y;
   }
@@ -22402,15 +23432,15 @@ function sequenceNotes(v) {
   const lifelines = v.nodes.filter((n) => typeOf2(n.model) === "UMLLifeline");
   return v.notes.map((note) => {
     const b = box2(note);
-    const x = centre2(note).x;
+    const x = centre3(note).x;
     const over = lifelines.filter(
-      (l) => centre2(l).x >= b.left && centre2(l).x <= b.left + b.width
+      (l) => centre3(l).x >= b.left && centre3(l).x <= b.left + b.width
     );
     const near = [...lifelines].sort(
-      (p, q2) => Math.abs(centre2(p).x - x) - Math.abs(centre2(q2).x - x)
+      (p, q2) => Math.abs(centre3(p).x - x) - Math.abs(centre3(q2).x - x)
     )[0];
     const on = over.length > 0 ? over : near ? [near] : [];
-    const side = over.length > 0 ? "over" : near && x < centre2(near).x ? "left" : "right";
+    const side = over.length > 0 ? "over" : near && x < centre3(near).x ? "left" : "right";
     return {
       text: str2(note.text),
       on: on.map((l) => nameOf(l.model)),
@@ -22967,7 +23997,7 @@ function c4Macros(spec) {
 }
 
 // src/text/mermaid-writer.ts
-var text4 = (name4) => name4.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
+var text5 = (name4) => name4.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
 var isWord = (name4) => /^[A-Za-z_][\w.]*$/.test(name4);
 var Ids = class {
   constructor(prefix) {
@@ -23003,7 +24033,7 @@ function classDiagram3(spec, notes) {
       ...c.operations,
       ...c.literals
     ];
-    const head = `${indent}class ${id2}${id2 === c.name ? "" : `["${text4(c.name)}"]`}`;
+    const head = `${indent}class ${id2}${id2 === c.name ? "" : `["${text5(c.name)}"]`}`;
     if (members3.length === 0) {
       lines2.push(head);
       return;
@@ -23023,7 +24053,7 @@ function classDiagram3(spec, notes) {
     const to = ids2.get(r.to);
     const card = (m) => m ? ` "${m}"` : "";
     const cardAfter = (m) => m ? `"${m}" ` : "";
-    const label4 = r.name ? ` : ${text4(r.name)}` : "";
+    const label4 = r.name ? ` : ${text5(r.name)}` : "";
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
@@ -23038,7 +24068,7 @@ function classDiagram3(spec, notes) {
     if (n.on.length > 1)
       warnings.push(`a note on ${n.on.length} classes is written on the first`);
     lines2.push(
-      `  note ${n.on[0] !== void 0 ? `for ${ids2.get(n.on[0])} ` : ""}"${text4(n.text)}"`
+      `  note ${n.on[0] !== void 0 ? `for ${ids2.get(n.on[0])} ` : ""}"${text5(n.text)}"`
     );
   }
   return { lines: lines2, warnings };
@@ -23064,7 +24094,7 @@ function sequenceDiagram3(spec, notes) {
   const ids2 = new Ids("P");
   for (const p of spec.participants) {
     const id2 = ids2.get(p);
-    lines2.push(`  participant ${id2}${id2 === p ? "" : ` as ${text4(p)}`}`);
+    lines2.push(`  participant ${id2}${id2 === p ? "" : ` as ${text5(p)}`}`);
   }
   const fragments = spec.fragments.filter((f) => {
     if (BLOCKS[f.operator]) return true;
@@ -23080,11 +24110,11 @@ function sequenceDiagram3(spec, notes) {
     }
     const where2 = n.side === "over" ? "over" : `${n.side} of`;
     lines2.push(
-      `${depth3()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text4(n.text)}`
+      `${depth3()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text5(n.text)}`
     );
   };
   const operand = (f, k, level) => lines2.push(
-    `${"  ".repeat(level)}${BLOCKS[f.operator]} ${text4(f.operands[k])}`.trimEnd()
+    `${"  ".repeat(level)}${BLOCKS[f.operator]} ${text5(f.operands[k])}`.trimEnd()
   );
   spec.messages.forEach((m, i) => {
     for (const n of notes) if (n.at === i) note(n);
@@ -23096,12 +24126,12 @@ function sequenceDiagram3(spec, notes) {
     fragments.forEach((f, j) => {
       if (f.from !== i) return;
       lines2.push(
-        `${depth3()}${f.operator}${f.guard ? ` ${text4(f.guard)}` : ""}`
+        `${depth3()}${f.operator}${f.guard ? ` ${text5(f.guard)}` : ""}`
       );
       open.push(j);
     });
     lines2.push(
-      `${depth3()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text4(m.text)}`
+      `${depth3()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text5(m.text)}`
     );
     while (open.length > 0 && fragments[open.at(-1)].to === i) {
       const f = fragments[open.pop()];
@@ -23126,15 +24156,15 @@ function usecase2(spec, direction2) {
   const ids2 = /* @__PURE__ */ new Map();
   spec.actors.forEach((a, i) => {
     ids2.set(a, `A${i}`);
-    lines2.push(`  A${i}["${text4(a)}"]`);
+    lines2.push(`  A${i}["${text5(a)}"]`);
   });
   const useCase = (u, i, indent) => {
     ids2.set(u.name, `U${i}`);
-    lines2.push(`${indent}U${i}(["${text4(u.name)}"])`);
+    lines2.push(`${indent}U${i}(["${text5(u.name)}"])`);
   };
   const inner = spec.useCases.filter((u) => u.inSystem);
   if (spec.system !== void 0 && inner.length > 0) {
-    lines2.push(`  subgraph S["${text4(spec.system)}"]`);
+    lines2.push(`  subgraph S["${text5(spec.system)}"]`);
     spec.useCases.forEach((u, i) => u.inSystem && useCase(u, i, "    "));
     lines2.push("  end");
   }
@@ -23142,7 +24172,7 @@ function usecase2(spec, direction2) {
   for (const r of spec.relations) {
     const label4 = r.type === "association" ? r.name : r.type;
     lines2.push(
-      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label4 ? `|${text4(label4)}|` : ""} ${ids2.get(r.to)}`
+      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label4 ? `|${text5(label4)}|` : ""} ${ids2.get(r.to)}`
     );
   }
   return lines2;
@@ -23170,16 +24200,16 @@ function activity(spec, direction2) {
   const node2 = (n, indent) => {
     const [open, close] = ACTIVITY_SHAPES[n.type];
     const label4 = n.name || ACTIVITY_LABELS[n.type] || " ";
-    lines2.push(`${indent}${n.id}${open}"${text4(label4)}"${close}`);
+    lines2.push(`${indent}${n.id}${open}"${text5(label4)}"${close}`);
   };
   for (const lane of spec.lanes) {
-    lines2.push(`  subgraph ${laneId(spec.lanes, lane)}["${text4(lane)}"]`);
+    lines2.push(`  subgraph ${laneId(spec.lanes, lane)}["${text5(lane)}"]`);
     for (const n of spec.nodes) if (n.lane === lane) node2(n, "    ");
     lines2.push("  end");
   }
   for (const n of spec.nodes) if (n.lane === void 0) node2(n, "  ");
   for (const f of spec.flows) {
-    lines2.push(`  ${f.from} -->${f.guard ? `|${text4(f.guard)}|` : ""} ${f.to}`);
+    lines2.push(`  ${f.from} -->${f.guard ? `|${text5(f.guard)}|` : ""} ${f.to}`);
   }
   return lines2;
 }
@@ -23199,7 +24229,7 @@ function stateDiagram3(spec, direction2, notes) {
     for (const s of spec.states) {
       if (s.parent !== parent) continue;
       if (s.type === "state") {
-        lines2.push(`${indent}state "${text4(s.name || s.id)}" as ${s.id}`);
+        lines2.push(`${indent}state "${text5(s.name || s.id)}" as ${s.id}`);
       } else if (s.type !== "initial" && s.type !== "final") {
         lines2.push(`${indent}state ${s.id} <<${s.type}>>`);
       }
@@ -23212,8 +24242,8 @@ function stateDiagram3(spec, direction2, notes) {
     for (const t of spec.transitions) {
       if (scope(t) !== parent) continue;
       const label4 = [
-        t.trigger ? text4(t.trigger) : "",
-        t.guard ? `[${text4(t.guard)}]` : ""
+        t.trigger ? text5(t.trigger) : "",
+        t.guard ? `[${text5(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines2.push(
         `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label4 ? ` : ${label4}` : ""}`
@@ -23223,7 +24253,7 @@ function stateDiagram3(spec, direction2, notes) {
   block(void 0, "  ");
   for (const n of notes) {
     for (const id2 of n.on.slice(0, 1)) {
-      const body = text4(n.text);
+      const body = text5(n.text);
       lines2.push(`  note right of ${id2} : ${body}`);
     }
   }
@@ -23241,7 +24271,7 @@ var RIGHT = {
   "0..*": "o{",
   "1..*": "|{"
 };
-var entity = (name4) => /^[\w-]+$/.test(name4) ? name4 : `"${text4(name4)}"`;
+var entity = (name4) => /^[\w-]+$/.test(name4) ? name4 : `"${text5(name4)}"`;
 function erDiagram3(spec) {
   const lines2 = ["erDiagram"];
   for (const e of spec.entities) {
@@ -23264,7 +24294,7 @@ function erDiagram3(spec) {
   }
   for (const r of spec.relationships) {
     lines2.push(
-      `  ${entity(r.from)} ${LEFT[r.fromCardinality] ?? "||"}${r.identifying ? "--" : ".."}${RIGHT[r.toCardinality] ?? "||"} ${entity(r.to)} : "${text4(r.name ?? "")}"`
+      `  ${entity(r.from)} ${LEFT[r.fromCardinality] ?? "||"}${r.identifying ? "--" : ".."}${RIGHT[r.toCardinality] ?? "||"} ${entity(r.to)} : "${text5(r.name ?? "")}"`
     );
   }
   return lines2;
@@ -23289,10 +24319,10 @@ function flowchart2(spec, direction2) {
     const shape = FLOW_SHAPES[n.type];
     if (!shape) warnings.push(`${n.id} (${n.type}) is written as a process`);
     const [open, close] = shape ?? FLOW_SHAPES.process;
-    lines2.push(`  ${n.id}${open}"${text4(n.name) || " "}"${close}`);
+    lines2.push(`  ${n.id}${open}"${text5(n.name) || " "}"${close}`);
   }
   for (const f of spec.flows) {
-    lines2.push(`  ${f.from} -->${f.label ? `|${text4(f.label)}|` : ""} ${f.to}`);
+    lines2.push(`  ${f.from} -->${f.label ? `|${text5(f.label)}|` : ""} ${f.to}`);
   }
   return { lines: lines2, warnings };
 }
@@ -23300,7 +24330,7 @@ function mindmap3(roots) {
   const lines2 = ["mindmap"];
   const warnings = [];
   const write = (node2, depth3) => {
-    const name4 = text4(node2.name);
+    const name4 = text5(node2.name);
     const label4 = /[()[\]{}]/.test(name4) ? `n["${name4}"]` : name4 || '[" "]';
     lines2.push(`${"  ".repeat(depth3)}${label4}`);
     for (const child of node2.children) write(child, depth3 + 1);
@@ -23319,21 +24349,21 @@ var REQUIREMENT_KEYWORDS2 = {
   physical: "physicalRequirement",
   design: "designConstraint"
 };
-var reqName = (name4) => /^\w+$/.test(name4) ? name4 : `"${text4(name4)}"`;
+var reqName = (name4) => /^\w+$/.test(name4) ? name4 : `"${text5(name4)}"`;
 function requirementDiagram2(spec) {
   const lines2 = ["requirementDiagram"];
   for (const r of spec.requirements) {
     lines2.push(`  ${REQUIREMENT_KEYWORDS2[r.type]} ${reqName(r.name)} {`);
-    if (r.id) lines2.push(`    id: "${text4(r.id)}"`);
-    if (r.text) lines2.push(`    text: "${text4(r.text)}"`);
+    if (r.id) lines2.push(`    id: "${text5(r.id)}"`);
+    if (r.text) lines2.push(`    text: "${text5(r.text)}"`);
     if (r.risk) lines2.push(`    risk: ${r.risk}`);
     if (r.verifyMethod) lines2.push(`    verifymethod: ${r.verifyMethod}`);
     lines2.push("  }");
   }
   for (const e of spec.elements) {
     lines2.push(`  element ${reqName(e.name)} {`);
-    if (e.type !== void 0) lines2.push(`    type: "${text4(e.type)}"`);
-    if (e.docRef !== void 0) lines2.push(`    docref: "${text4(e.docRef)}"`);
+    if (e.type !== void 0) lines2.push(`    type: "${text5(e.type)}"`);
+    if (e.docRef !== void 0) lines2.push(`    docref: "${text5(e.docRef)}"`);
     lines2.push("  }");
   }
   for (const r of spec.relations) {
@@ -23346,7 +24376,7 @@ function c4(spec) {
 }
 var NO_MERMAID = ["package", "component", "deployment"];
 function toMermaid(x, title = "") {
-  const front = title ? ["---", `title: "${text4(title)}"`, "---"] : [];
+  const front = title ? ["---", `title: "${text5(title)}"`, "---"] : [];
   const done = (lines2, warnings = []) => ({
     text: `${[...front, ...lines2].join("\n")}
 `,
@@ -24136,10 +25166,10 @@ var LINE_NAMES = Object.fromEntries(
 var typeOf3 = (e) => e.constructor.name;
 var str3 = (value) => typeof value === "string" ? value : "";
 var num = (n) => String(Math.round(n * 100) / 100);
-function xmlAttr(text5) {
-  return text5.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\r?\n/g, "&#xa;").replace(/\t/g, "&#x9;");
+function xmlAttr(text6) {
+  return text6.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\r?\n/g, "&#xa;").replace(/\t/g, "&#x9;");
 }
-var html = (text5) => text5.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
+var html = (text6) => text6.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
 var guillemets = (s) => `\xAB${html(s)}\xBB`;
 function stereotypeOf4(model) {
   const st = model?.stereotype;
@@ -24318,8 +25348,8 @@ function edgeLabel(m, spec, number3) {
     }
     case "message": {
       const args = str3(m.arguments);
-      const text5 = html(str3(m.name) + (args ? `(${args})` : ""));
-      return number3 === void 0 ? text5 : `${number3} : ${text5}`;
+      const text6 = html(str3(m.name) + (args ? `(${args})` : ""));
+      return number3 === void 0 ? text6 : `${number3} : ${text6}`;
     }
     case "c4": {
       const tech = str3(m.technology);
@@ -24352,15 +25382,15 @@ function endLabels(id2, m) {
   ];
   for (const [e, side, x] of ends4) {
     const align = x < 0 ? "left" : "right";
-    for (const [text5, suffix, vertical2, dy] of [
+    for (const [text6, suffix, vertical2, dy] of [
       [str3(e.name), "role", "top", 4],
       [str3(e.multiplicity), "multiplicity", "bottom", -4]
     ]) {
-      if (!text5) continue;
+      if (!text6) continue;
       out.push({
         id: `${id2}#${side}-${suffix}`,
         parent: id2,
-        value: html(text5),
+        value: html(text6),
         style: `${drawio_styles_default.edgeLabel}align=${align};verticalAlign=${vertical2};`,
         kind: "vertex",
         label: true,
@@ -24530,7 +25560,7 @@ ${waypoints.map(
   const right = Math.max(0, ...[...rects.values()].map((r) => r.x + r.w));
   const bottom = Math.max(0, ...[...rects.values()].map((r) => r.y + r.h));
   const page = profile2.layout.page;
-  const text5 = [
+  const text6 = [
     `<mxfile host="staruml-mcp-extension" type="device" compressed="false">`,
     `  <diagram id="${xmlAttr(diagram._id)}" name="${xmlAttr(str3(diagram.name))}">`,
     `    <mxGraphModel grid="1" gridSize="${profile2.visuals.grid.size}" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${Math.max(page.width, Math.ceil(right))}" pageHeight="${Math.max(page.height, Math.ceil(bottom))}" math="0" shadow="0">`,
@@ -24545,7 +25575,7 @@ ${waypoints.map(
     ``
   ].join("\n");
   return {
-    text: text5,
+    text: text6,
     warnings: [...skipped].map(
       ([t, n]) => `${n} ${t} ${n === 1 ? "view is" : "views are"} not drawn`
     ),
@@ -25101,12 +26131,12 @@ var exportText = defineEndpoint({
     }
     const { _id, _type, name: name4 } = summarize(diagram);
     if (input.format === "drawio") {
-      const { text: text5, warnings: warnings2 } = toDrawio(diagram, profile());
+      const { text: text6, warnings: warnings2 } = toDrawio(diagram, profile());
       return {
         diagram: { _id, _type, name: name4 },
         kind: kind2,
         format: "drawio",
-        text: text5,
+        text: text6,
         warnings: warnings2
       };
     }
@@ -25710,8 +26740,8 @@ function edgesOf(pattern2) {
     next: (elem, toSide) => neighbours(r, elem, toSide)
   }));
   for (const role of pattern2.roles) {
-    const typed2 = (text5, read) => {
-      const target = text5 === void 0 ? void 0 : ROLE_TYPE.exec(text5)?.[1];
+    const typed2 = (text6, read) => {
+      const target = text6 === void 0 ? void 0 : ROLE_TYPE.exec(text6)?.[1];
       if (target === void 0 || target === role.name) return;
       edges.push({
         from: role.name,
@@ -29224,7 +30254,7 @@ function patterns() {
   library ??= PATTERN_FILES.map((data) => parse(patternSchema(), data));
   return library;
 }
-var key = (text5) => text5.toLowerCase().replace(/[\s_-]+/g, "");
+var key = (text6) => text6.toLowerCase().replace(/[\s_-]+/g, "");
 function findPattern(name4) {
   const found = patterns().find((p) => key(p.name) === key(name4));
   if (!found) {
@@ -29546,8 +30576,8 @@ var Planner = class {
 };
 
 // src/patterns/apply.ts
-function fill(text5, names4) {
-  return text5.replace(
+function fill(text6, names4) {
+  return text6.replace(
     /\{([^{}]+)\}/g,
     (all, role) => names4.get(role) ?? all
   );
@@ -29640,14 +30670,14 @@ function planPattern(pattern2, options) {
       ([role, list10]) => list10.length > 0 ? [[role, list10[0].name]] : []
     )
   );
-  const typeOf4 = (text5) => {
-    if (text5 === void 0) return void 0;
-    const role = ROLE_REF.exec(text5)?.[1];
+  const typeOf4 = (text6) => {
+    if (text6 === void 0) return void 0;
+    const role = ROLE_REF.exec(text6)?.[1];
     if (role !== void 0) {
       const first = bound.get(role)?.[0];
       if (first) return { $ref: first.node.ref };
     }
-    return fill(text5, names4);
+    return fill(text6, names4);
   };
   for (const { name: roleName2 } of pattern2.roles) {
     for (const { node: node2, name: name4, role } of bound.get(roleName2)) {
@@ -30014,8 +31044,8 @@ var STATE_TYPES2 = {
   fork: ["UMLPseudostate", "fork"],
   join: ["UMLPseudostate", "join"]
 };
-function calledName(text5) {
-  const name4 = text5.replace(/\(.*$/s, "").trim();
+function calledName(text6) {
+  const name4 = text6.replace(/\(.*$/s, "").trim();
   return /^[A-Za-z_$][\w$]*$/.test(name4) ? name4 : null;
 }
 function attributeProps(a, type2) {
@@ -30213,10 +31243,10 @@ function planModel(spec, options) {
     }
     return found;
   };
-  const typeOf4 = (text5) => {
-    if (text5 === void 0) return void 0;
-    const node2 = classes.get(text5)?.node;
-    return node2 ? { $ref: node2.ref } : text5;
+  const typeOf4 = (text6) => {
+    if (text6 === void 0) return void 0;
+    const node2 = classes.get(text6)?.node;
+    return node2 ? { $ref: node2.ref } : text6;
   };
   const operations = /* @__PURE__ */ new Map();
   for (const { node: node2, spec: c } of classes.values()) {
@@ -30977,8 +32007,8 @@ function parseModelSpec(input) {
         (a) => parseAttribute(memberText(a))
       ),
       operations: (c.operations ?? []).map((o) => {
-        const text5 = memberText(o);
-        return parseOperation(text5.includes("(") ? text5 : `${text5}()`);
+        const text6 = memberText(o);
+        return parseOperation(text6.includes("(") ? text6 : `${text6}()`);
       }),
       literals: c.literals ?? [],
       ...c.isLeaf !== void 0 && { isLeaf: c.isLeaf },
@@ -31050,7 +32080,7 @@ function parseModelSpec(input) {
             kind: m.kind ?? "sync"
           };
         }
-        const [from, to, text5, kind2] = m;
+        const [from, to, text6, kind2] = m;
         if (!from || !to) {
           throw new ApiError(
             "INVALID_ARGUMENT",
@@ -31066,7 +32096,7 @@ function parseModelSpec(input) {
         return {
           from: multiline(from),
           to: multiline(to),
-          text: text5 ?? "",
+          text: text6 ?? "",
           kind: kind2 ?? "sync"
         };
       });
@@ -31388,11 +32418,11 @@ function messagesOn(diagram) {
   }
   return diagram.ownedViews.filter((v) => v.model instanceof type.UMLMessage).map((v) => v.model);
 }
-function argumentsOf(text5) {
-  const open = text5.indexOf("(");
-  const close = text5.lastIndexOf(")");
+function argumentsOf(text6) {
+  const open = text6.indexOf("(");
+  const close = text6.lastIndexOf(")");
   if (open < 0 || close < open) return [];
-  return text5.slice(open + 1, close).split(",").map((a) => a.trim()).filter(Boolean).map((a) => {
+  return text6.slice(open + 1, close).split(",").map((a) => a.trim()).filter(Boolean).map((a) => {
     const colon = a.indexOf(":");
     return colon < 0 ? { name: a } : { name: a.slice(0, colon).trim(), type: a.slice(colon + 1).trim() };
   });
@@ -32560,7 +33590,7 @@ function ownAttributes(name4) {
 function relationshipText(model) {
   return relationshipKind(model) === "directed" ? "directed relationship (source -> target)" : "undirected relationship (end1 -- end2)";
 }
-var article = (text5) => /^[aeiou]/.test(text5) ? "an" : "a";
+var article = (text6) => /^[aeiou]/.test(text6) ? "an" : "a";
 function groupDiagrams(groupId) {
   const group = app.toolbox.groups[groupId];
   if (!group) return "";
@@ -33027,7 +34057,7 @@ function manifest(endpoints2) {
   }
   return manifestCache.entries;
 }
-var catalogue2 = null;
+var catalogue3 = null;
 function cached2(name4, compute) {
   const key2 = [
     meta,
@@ -33037,11 +34067,11 @@ function cached2(name4, compute) {
     Object.keys(app.toolbox.items).length,
     app.factory.getModelAndViewIds().length
   ];
-  if (!catalogue2 || catalogue2.key.some((k, i) => k !== key2[i])) {
-    catalogue2 = { key: key2, sections: /* @__PURE__ */ new Map() };
+  if (!catalogue3 || catalogue3.key.some((k, i) => k !== key2[i])) {
+    catalogue3 = { key: key2, sections: /* @__PURE__ */ new Map() };
   }
-  if (!catalogue2.sections.has(name4)) catalogue2.sections.set(name4, compute());
-  return catalogue2.sections.get(name4);
+  if (!catalogue3.sections.has(name4)) catalogue3.sections.set(name4, compute());
+  return catalogue3.sections.get(name4);
 }
 function introspectEndpoint(endpoints2) {
   return defineEndpoint({
@@ -34124,9 +35154,9 @@ function labelsFor(diagram, mode, scale) {
   const element = document.createElement("canvas");
   const context = element.getContext("2d");
   const canvas = new (graphics()).Canvas(context);
-  const measure2 = (text5) => {
+  const measure2 = (text6) => {
     context.font = `${LABEL.font}px sans-serif`;
-    return context.measureText(text5).width;
+    return context.measureText(text6).width;
   };
   const box3 = (v) => v.getBoundingBox(
     canvas
@@ -34141,14 +35171,14 @@ function labelsFor(diagram, mode, scale) {
   ];
   for (const [view, edge] of views) {
     const model = view.model;
-    const text5 = mode === "ids" ? model._id : alias(model);
+    const text6 = mode === "ids" ? model._id : alias(model);
     const r = box3(view);
     const label4 = {
-      text: text5,
+      text: text6,
       ref: model._id,
       x: Math.round(((edge ? (r.x1 + r.x2) / 2 : r.x1) - left) * scale),
       y: Math.round(((edge ? (r.y1 + r.y2) / 2 : r.y1) - top) * scale),
-      width: Math.ceil((measure2(text5) + 2 * LABEL.padding) * scale),
+      width: Math.ceil((measure2(text6) + 2 * LABEL.padding) * scale),
       height: Math.ceil(LABEL.height * scale)
     };
     while (placed.some((p) => overlaps2(p, label4))) label4.y += label4.height + 1;
@@ -34173,7 +35203,7 @@ function paint(context, labels, scale) {
     );
   }
 }
-var xml = (text5) => text5.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+var xml = (text6) => text6.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 function svgLabels(svg, labels) {
   const marks = labels.map(
     (l) => `<rect x="${l.x}" y="${l.y}" width="${l.width}" height="${l.height}" fill="${LABEL.fill}" stroke="${LABEL.line}"/><text x="${l.x + LABEL.padding}" y="${l.y + LABEL.height - 3}" font-family="sans-serif" font-size="${LABEL.font}" fill="${LABEL.text}">${xml(l.text)}</text>`
@@ -34202,11 +35232,11 @@ function withoutSelection(diagram, run) {
     diagram.selectedViews = selected;
   }
 }
-function withPixelRatio(ratio, run) {
+function withPixelRatio(ratio2, run) {
   const original = Object.getOwnPropertyDescriptor(window, "devicePixelRatio");
   Object.defineProperty(window, "devicePixelRatio", {
     configurable: true,
-    value: ratio
+    value: ratio2
   });
   try {
     return run();
@@ -34284,8 +35314,8 @@ function renderSvg(diagram, background) {
   };
 }
 function renderDrawio(diagram) {
-  const { text: text5, width, height } = toDrawio(diagram, profile());
-  return { data: Buffer.from(text5, "utf-8"), width, height };
+  const { text: text6, width, height } = toDrawio(diagram, profile());
+  return { data: Buffer.from(text6, "utf-8"), width, height };
 }
 var absolutePath = (description) => doc(
   string2().check(refine((p) => (0, import_node_path3.isAbsolute)(p), "must be an absolute path")),
@@ -35212,7 +36242,7 @@ var importXmi = defineEndpoint({
     return { filename: input.filename, command };
   }
 });
-function templates() {
+function templates2() {
   return scanned("templates", scanTemplates);
 }
 var scans = /* @__PURE__ */ new Map();
@@ -35244,15 +36274,45 @@ function scanTemplates() {
   }
   return out;
 }
-var templateSchema = () => object({ name: string2(), source: string2(), path: string2() });
+var templateSchema2 = () => object({ name: string2(), source: string2(), path: string2() });
 var listTemplates = defineEndpoint({
   path: "/list_templates",
-  description: "The project templates StarUML offers under File > New From Template, from its resources and its extensions, for /new_from_template.",
+  description: "The project templates StarUML offers under File > New From Template, from its resources and its extensions, for /new_from_template; and the diagram templates /build_diagram, /derive_diagrams and /request_diagram draw with (issue #43), each a viewpoint drawn as a kind in a house style and layout, for /describe_template.",
   readOnly: true,
   destructive: false,
   request: object({}),
-  response: object({ templates: array(templateSchema()) }),
-  handle: () => ({ templates: templates() })
+  response: object({
+    templates: array(templateSchema2()),
+    diagramTemplates: optional(
+      doc(
+        array(
+          object({
+            name: string2(),
+            version: int(),
+            title: string2(),
+            viewpoint: string2(),
+            kind: string2(),
+            default: doc(
+              boolean2(),
+              "Drawn by /derive_diagrams and /request_diagram for its viewpoint and kind."
+            )
+          })
+        ),
+        "Diagram templates, by viewpoint."
+      )
+    )
+  }),
+  handle: () => ({
+    templates: templates2(),
+    diagramTemplates: templates().map((t) => ({
+      name: t.name,
+      version: t.version,
+      title: t.title,
+      viewpoint: t.viewpoint,
+      kind: t.kind,
+      default: t.default
+    }))
+  })
 });
 var newFromTemplate = defineEndpoint({
   path: "/new_from_template",
@@ -35266,11 +36326,11 @@ var newFromTemplate = defineEndpoint({
     )
   }),
   response: object({
-    template: templateSchema(),
+    template: templateSchema2(),
     project: elementSchema()
   }),
   handle: (input) => {
-    const all = templates();
+    const all = templates2();
     const found = (0, import_node_path4.isAbsolute)(input.template) ? (0, import_node_fs4.existsSync)(input.template) ? {
       name: (0, import_node_path4.basename)(input.template, ".mdj"),
       source: "file",
@@ -35301,10 +36361,10 @@ function texts(elem) {
     )
   ];
 }
-function snippet(text5, at, length2) {
+function snippet(text6, at, length2) {
   const from = Math.max(0, at - 40);
-  const to = Math.min(text5.length, at + length2 + 40);
-  return `${from > 0 ? "\u2026" : ""}${text5.slice(from, to).replace(/\s+/g, " ")}${to < text5.length ? "\u2026" : ""}`;
+  const to = Math.min(text6.length, at + length2 + 40);
+  return `${from > 0 ? "\u2026" : ""}${text6.slice(from, to).replace(/\s+/g, " ")}${to < text6.length ? "\u2026" : ""}`;
 }
 var quickFind = defineEndpoint({
   path: "/quick_find",
@@ -35616,20 +36676,20 @@ function setStyleProfileEndpoint(endpoints2) {
       const next = parseProfile(
         input.patch === void 0 ? base : mergePatch(base, input.patch)
       );
-      const text5 = JSON.stringify(next);
-      const changed = String(tag?.value ?? "") !== text5;
+      const text6 = JSON.stringify(next);
+      const changed = String(tag?.value ?? "") !== text6;
       if (changed) {
         await batchRunner.run(endpoints2(), [
           tag ? {
             path: "/update_element",
-            body: { ref: tag._id, field: "value", value: text5 }
+            body: { ref: tag._id, field: "value", value: text6 }
           } : {
             path: "/add_tag",
             body: {
               ref: project._id,
               name: PROFILE_TAG,
               kind: "string",
-              value: text5,
+              value: text6,
               hidden: true
             }
           }
@@ -36658,6 +37718,13 @@ var derivedSchema = () => object({
       boolean2(),
       "It keeps to its viewpoint: no error or warning of /viewpoint_lint."
     )
+  ),
+  template: optional(doc(string2(), "The template it is drawn with.")),
+  accepted: optional(
+    doc(
+      boolean2(),
+      "It passes as one of its template: like the template's approved exemplar, scoring near it."
+    )
   )
 });
 var derivedCountsSchema = () => object({
@@ -36690,6 +37757,7 @@ function hideAccessors(diagram, classes) {
   app.repository.doOperation(builder.getOperation());
 }
 async function buildDerived(derived, endpoints2, run) {
+  const templateOf = (d) => run.template ?? defaultTemplate(d.viewpoint, d.kind);
   const one2 = async (d) => {
     const home = d.home === void 0 ? null : homeOf(d, !run.dryRun);
     if (home) bindShared(d, home);
@@ -36711,7 +37779,8 @@ async function buildDerived(derived, endpoints2, run) {
         bindEdges: d.bindEdges,
         pruneViewsOnly: true,
         opsOnly: true,
-        mark: { viewpoint: d.viewpoint }
+        template: templateOf(d),
+        derived: true
       });
     } catch (err) {
       throw naming2(`derive_diagrams: ${d.kind} diagram ${d.name}`, err);
@@ -36725,7 +37794,8 @@ async function buildDerived(derived, endpoints2, run) {
         const again = await one2(d);
         built.deleted = built.deleted + again.deleted;
       }
-      if (!run.dryRun && run.profile.policy.hideGetters && d.kind === "class") {
+      const hide2 = run.profile.policy.hideGetters || templateOf(d).content.hideAccessors === true;
+      if (!run.dryRun && hide2 && d.kind === "class") {
         hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
       }
       results.push(built);
@@ -36752,7 +37822,9 @@ async function buildDerived(derived, endpoints2, run) {
         }
       },
       viewpoint: d.viewpoint,
-      ...b.viewpoint && { conforms: b.viewpoint.conforms }
+      ...b.viewpoint && { conforms: b.viewpoint.conforms },
+      template: templateOf(d).name,
+      ...b.template && { accepted: b.template.accepted }
     };
   });
   const sum = (f) => diagrams.reduce((n, d) => n + f(d), 0);
@@ -36805,10 +37877,16 @@ function deriveDiagramsEndpoint(endpoints2) {
           "Only the views of these viewpoints; default all but context, which is drawn only when named."
         )
       ),
+      template: optional(
+        doc(
+          string2().check(_minLength(1)),
+          "Only the diagrams of this template's viewpoint and kind, drawn with it; default each diagram with the default template of its viewpoint and kind (see /list_templates)."
+        )
+      ),
       policy: optional(
         doc(
           record(string2(), unknown()),
-          "Fields of the style profile's policy for this call: classDiagrams (views|perPackage), hideGetters, neighbours, packageOverview."
+          "Fields of the style profile's policy for this call: classDiagrams (views|perPackage), hideGetters, neighbours, packageOverview. Refused under a strict profile (TEMPLATE_ONLY)."
         )
       ),
       dryRun: optional(boolean2())
@@ -36822,16 +37900,28 @@ function deriveDiagramsEndpoint(endpoints2) {
       dryRun: optional(boolean2())
     }),
     handle: async (input) => {
+      const current = effectiveProfile().profile;
+      if (current.strict && input.policy !== void 0 && !isTrusted()) {
+        throw new ApiError(
+          "TEMPLATE_ONLY",
+          `derive_diagrams: the style profile '${current.name}' is strict, so what a derived diagram shows is its template's; policy is refused`,
+          { profile: current.name, fields: ["policy"] }
+        );
+      }
       const scope = requireElement(input.scope, "Scope");
       const profile2 = deriveProfile(input.policy);
+      const template = input.template === void 0 ? void 0 : findTemplate(input.template);
       const kinds = input.kinds && new Set(input.kinds);
       const wanted = input.viewpoints && new Set(input.viewpoints);
       const derived = derive(scope, profile2, kinds, {
-        context: wanted?.has("context") === true
-      }).filter((d) => !wanted || wanted.has(d.viewpoint));
+        context: wanted?.has("context") === true || template?.viewpoint === "context"
+      }).filter(
+        (d) => (!wanted || wanted.has(d.viewpoint)) && (!template || d.viewpoint === template.viewpoint && d.kind === template.kind)
+      );
       const out = await buildDerived(derived, endpoints2, {
         dryRun: input.dryRun,
-        profile: profile2
+        profile: profile2,
+        ...template && { template }
       });
       return {
         model: pathOf(scope),
@@ -36854,7 +37944,7 @@ function homeOf(d, make) {
     }
   });
 }
-var lines = (text5) => String(text5).split("\n").map((l) => l.trim()).filter(Boolean);
+var lines = (text6) => String(text6).split("\n").map((l) => l.trim()).filter(Boolean);
 var list8 = (value) => Array.isArray(value) ? value : [];
 function within5(elem, scope) {
   for (let e = elem; e; e = e._parent) {
@@ -36989,16 +38079,16 @@ function explain(scope) {
   };
 }
 function joined(parts, sections) {
-  let text5 = "";
+  let text6 = "";
   const starts = [];
   for (const name4 of sections) {
     const body = parts[name4];
     if (body.length === 0) continue;
-    if (text5) text5 += "\n";
-    starts.push([name4, text5.length]);
-    text5 += body.join("\n");
+    if (text6) text6 += "\n";
+    starts.push([name4, text6.length]);
+    text6 += body.join("\n");
   }
-  return { text: text5, starts };
+  return { text: text6, starts };
 }
 var explainModel = defineEndpoint({
   path: "/explain_model",
@@ -37041,13 +38131,13 @@ var explainModel = defineEndpoint({
   handle: (input) => {
     const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
     const wanted = new Set(input.sections ?? EXPLAIN_SECTIONS);
-    const { text: text5, starts } = joined(
+    const { text: text6, starts } = joined(
       explain(scope),
       EXPLAIN_SECTIONS.filter((s) => wanted.has(s))
     );
     const max = input.maxChars ?? 2e4;
-    const from = Math.min(input.cursor ?? 0, text5.length);
-    const rest = text5.slice(from);
+    const from = Math.min(input.cursor ?? 0, text6.length);
+    const rest = text6.slice(from);
     if (rest.length <= max) return { text: rest, truncated: false };
     const end = rest.lastIndexOf("\n", max);
     const atLine = end >= max / 2;
@@ -37056,11 +38146,11 @@ var explainModel = defineEndpoint({
     const stoppedIn = starts.filter(([, at]) => at <= next).at(-1)[0];
     return {
       text: `${body}
-[truncated in ${stoppedIn} at ${next} of ${text5.length} chars; call again with cursor: ${next}, or narrow sections or scope]`,
+[truncated in ${stoppedIn} at ${next} of ${text6.length} chars; call again with cursor: ${next}, or narrow sections or scope]`,
       truncated: true,
       next,
       stoppedIn,
-      total: text5.length
+      total: text6.length
     };
   }
 });
@@ -37404,9 +38494,35 @@ function withQuality(endpoint) {
   };
 }
 
+// src/handlers/templates.ts
+var describeTemplate = defineEndpoint({
+  path: "/describe_template",
+  description: "One diagram template (see /list_templates): the viewpoint it draws and the question that viewpoint answers, the diagram kind, the content it takes (element and lifeline limits), its house style (the project's style profile or a built-in), its layout preset, and the parts every diagram made with it carries (title block, legend). /build_diagram {template, spec}, /derive_diagrams {template} and /request_diagram draw with it. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    name: doc(string2().check(_minLength(1)), "The template.")
+  }),
+  aliases: { template: "name" },
+  response: object({
+    template: doc(
+      record(string2(), unknown()),
+      "name, version, title, description, viewpoint, kind, default, content, style, layout, parts."
+    ),
+    question: doc(string2(), "What a diagram made with it answers.")
+  }),
+  handle: (input) => {
+    const { $schema: _, ...template } = findTemplate(input.name);
+    return {
+      template,
+      question: findViewpoint(template.viewpoint).question
+    };
+  }
+});
+
 // src/viewpoints/decide.ts
-function normalizeIntent(text5) {
-  return text5.normalize("NFKD").replace(new RegExp("\\p{M}", "gu"), "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function normalizeIntent(text6) {
+  return text6.normalize("NFKD").replace(new RegExp("\\p{M}", "gu"), "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 var wordCount = (phrase) => phrase.split(" ").length;
 var occurs = (intent, phrase) => phrase !== "" && ` ${intent} `.includes(` ${phrase} `);
@@ -37431,6 +38547,7 @@ var fits3 = (rule, scope) => rule.scopes.includes(scope);
 var alternative = (rule, why) => ({
   viewpoint: rule.viewpoint,
   kind: rule.kind,
+  template: rule.template,
   rule: rule.id,
   scopes: [...rule.scopes],
   why
@@ -37514,6 +38631,7 @@ function decide(input, table = viewpointCatalogue().table, byName = viewpointCat
     rule: rule.id,
     viewpoint: rule.viewpoint,
     kind: rule.kind,
+    template: rule.template,
     reason: chosen.matched.length > 0 ? `${rule.reason} (the intent says ${chosen.matched.map((m) => `'${m}'`).join(", ")})` : `${rule.reason} (no phrase of the table is in the intent; a ${input.scope} scope is shown so by default)`,
     matched: chosen.matched
   };
@@ -37577,9 +38695,14 @@ var describeViewpoint = defineEndpoint({
       object({
         id: string2(),
         kind: string2(),
+        template: string2(),
         phrases: array(string2()),
         scopes: array(string2())
       })
+    ),
+    templates: doc(
+      array(string2()),
+      "Templates drawing it (see /describe_template)."
     )
   }),
   handle: (input) => {
@@ -37589,9 +38712,11 @@ var describeViewpoint = defineEndpoint({
       rules: viewpointCatalogue().table.rules.filter((r) => r.viewpoint === input.name).map((r) => ({
         id: r.id,
         kind: r.kind,
+        template: r.template,
         phrases: [...r.phrases],
         scopes: [...r.scopes]
-      }))
+      })),
+      templates: templates().filter((t) => t.viewpoint === input.name).map((t) => t.name)
     };
   }
 });
@@ -37702,7 +38827,7 @@ function scopeOf2(elem, intent) {
       return { elem: models2[0], kind: "model", model: models2[0] };
     }
     const choice = decide({ intent, scope: "model" });
-    throw mismatch(
+    throw mismatch2(
       `the project holds ${models2.length} models; pass the one the diagram is about as scope`,
       {
         reason: "scope",
@@ -37780,7 +38905,7 @@ var STOP = new Set(
     " "
   )
 );
-var tokens = (text5) => normalizeIntent(text5).split(" ").filter((w) => w.length > 2 && !STOP.has(w));
+var tokens = (text6) => normalizeIntent(text6).split(" ").filter((w) => w.length > 2 && !STOP.has(w));
 function narrow(candidates, intent) {
   const wanted = new Set(tokens(intent));
   const scores = candidates.map(
@@ -37789,7 +38914,7 @@ function narrow(candidates, intent) {
   const best = Math.max(0, ...scores);
   return best === 0 ? candidates : candidates.filter((_, i) => scores[i] === best);
 }
-function mismatch(message, details) {
+function mismatch2(message, details) {
   return new ApiError(
     "VIEWPOINT_MISMATCH",
     `request_diagram: ${message}; details.alternatives lists the views that fit`,
@@ -37839,6 +38964,7 @@ function requestDiagramEndpoint(endpoints2) {
         object({
           viewpoint: _enum(VIEWPOINT_NAMES),
           kind: string2(),
+          template: doc(string2(), "The template it is drawn with."),
           rule: doc(string2(), "The decision rule applied."),
           reason: string2(),
           question: doc(string2(), "What the view answers."),
@@ -37866,7 +38992,7 @@ function requestDiagramEndpoint(endpoints2) {
       if (!decision.ok) {
         const wanted = decision.wanted;
         const offered = decision.alternatives.map((a) => ({ ...a, candidates: scopesWith(scope, a, profile2) })).filter((a) => a.candidates.length > 0);
-        throw mismatch(decision.reason, {
+        throw mismatch2(decision.reason, {
           reason: decision.problem,
           ...wanted && { wanted },
           alternatives: offered.length > 0 ? offered : available(scope, profile2)
@@ -37880,7 +39006,7 @@ function requestDiagramEndpoint(endpoints2) {
         profile2
       );
       if (found.length === 0) {
-        throw mismatch(
+        throw mismatch2(
           `${pathOf(scope.elem)} holds nothing a ${vp.title.toLowerCase()} view (${decision.kind}) draws`,
           {
             reason: "empty",
@@ -37894,7 +39020,7 @@ function requestDiagramEndpoint(endpoints2) {
         const { nodes, lifelines } = countNodes(d);
         const max = vp.limits.maxLifelines;
         if (max !== void 0 && lifelines > max) {
-          throw mismatch(
+          throw mismatch2(
             `${d.name} has ${lifelines} lifelines, more than the ${max} a ${vp.title.toLowerCase()} view stays readable with`,
             {
               reason: "limits",
@@ -37916,7 +39042,7 @@ function requestDiagramEndpoint(endpoints2) {
         }
         const limit = elementLimit(vp, d.kind);
         if (nodes > limit) {
-          throw mismatch(
+          throw mismatch2(
             `${d.name} has ${nodes} elements, more than the ${limit} a ${vp.title.toLowerCase()} view holds`,
             {
               reason: "limits",
@@ -37930,12 +39056,14 @@ function requestDiagramEndpoint(endpoints2) {
       }
       const out = await buildDerived(chosen, endpoints2, {
         dryRun: input.dryRun,
-        profile: profile2
+        profile: profile2,
+        template: findTemplate(decision.template)
       });
       return {
         choice: {
           viewpoint: decision.viewpoint,
           kind: decision.kind,
+          template: decision.template,
           rule: decision.rule,
           reason: decision.reason,
           question: vp.question,
@@ -37974,20 +39102,20 @@ var endpoints = [
   getElementById,
   findElements,
   createElement,
-  viewFieldLocked(updateElement),
-  deleteElement,
-  profiled(createElementWithView),
-  profiled(createEdgeWithView),
-  createRelationship,
+  derivedLocked(viewFieldLocked(updateElement)),
+  derivedLocked(deleteElement, { deletes: true }),
+  derivedLocked(profiled(createElementWithView)),
+  derivedLocked(profiled(createEdgeWithView)),
+  derivedLocked(createRelationship),
   addAttribute,
   addOperation,
   addParameter,
   addEnumerationLiteral,
   addTemplateParameter,
   addSlot,
-  addTag,
-  setStereotype,
-  setDocumentation,
+  derivedLocked(addTag),
+  derivedLocked(setStereotype),
+  derivedLocked(setDocumentation),
   viewpointRequired(createDiagram),
   switchDiagram,
   closeDiagram,
@@ -37998,14 +39126,14 @@ var endpoints = [
   getRelationshipsOf,
   getRefsTo,
   getConnectedNodeViews,
-  withQuality(layoutDiagram),
-  styleLocked(routeEdges),
-  styleLocked(moveViews),
-  styleLocked(resizeNode),
-  styleLocked(setViewStyle),
-  styleLocked(setZOrder),
-  styleLocked(divideFragment),
-  createViewOf,
+  derivedLocked(withQuality(layoutDiagram), { current: true }),
+  derivedLocked(styleLocked(routeEdges), { current: true }),
+  derivedLocked(styleLocked(moveViews)),
+  derivedLocked(styleLocked(resizeNode)),
+  derivedLocked(styleLocked(setViewStyle)),
+  derivedLocked(styleLocked(setZOrder)),
+  derivedLocked(styleLocked(divideFragment)),
+  derivedLocked(createViewOf),
   getSelection,
   setSelection,
   getEditorState,
@@ -38040,6 +39168,7 @@ var endpoints = [
   modelLint,
   listViewpoints,
   describeViewpoint,
+  describeTemplate,
   viewpointLint,
   requestDiagramEndpoint(() => endpoints),
   listPatterns,
@@ -38048,7 +39177,7 @@ var endpoints = [
   detectPatterns,
   applyPresetEndpoint(() => endpoints),
   describeType,
-  styleLocked(applyThemeEndpoint(() => endpoints)),
+  derivedLocked(styleLocked(applyThemeEndpoint(() => endpoints))),
   getStyleProfile,
   setStyleProfileEndpoint(() => endpoints),
   applyStyleProfile,

@@ -52,6 +52,7 @@ export interface DecisionInput {
 export interface Alternative {
   viewpoint: ViewpointName;
   kind: Kind;
+  template: string;
   rule: string;
   /** Scope kinds that view is drawn for. */
   scopes: ScopeKind[];
@@ -64,6 +65,7 @@ export type Decision =
       rule: string;
       viewpoint: ViewpointName;
       kind: Kind;
+      template: string;
       reason: string;
       /** The table's phrases found in the intent, strongest rule's only. */
       matched: string[];
@@ -130,6 +132,7 @@ const fits = (rule: DecisionRule, scope: ScopeKind) =>
 const alternative = (rule: DecisionRule, why: string): Alternative => ({
   viewpoint: rule.viewpoint,
   kind: rule.kind,
+  template: rule.template,
   rule: rule.id,
   scopes: [...rule.scopes],
   why,
@@ -233,6 +236,7 @@ export function decide(
     rule: rule.id,
     viewpoint: rule.viewpoint,
     kind: rule.kind,
+    template: rule.template,
     reason:
       chosen.matched.length > 0
         ? `${rule.reason} (the intent says ${chosen.matched.map((m) => `'${m}'`).join(", ")})`

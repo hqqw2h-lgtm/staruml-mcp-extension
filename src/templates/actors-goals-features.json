@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "actors-goals-features",
+  "version": 1,
+  "title": "Feature tree",
+  "description": "What the system offers, grouped, growing to the right.",
+  "viewpoint": "actors-goals",
+  "kind": "mindmap",
+  "default": true,
+  "content": {
+    "maxElements": 60
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-right"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

@@ -1,37 +1,37 @@
 {
   "/add_attribute": [
-    { "ref": "AAAAAAGhDpJVkoYQVPM=", "name": "amount", "type": "int" },
+    { "ref": "AAAAAAGhEg7XwvhLm3g=", "name": "amount", "type": "int" },
     {
-      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "title",
       "type": "String",
       "visibility": "private",
       "multiplicity": "1"
     },
     {
-      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "writtenBy",
-      "type": { "$ref": "AAAAAAGhDpOYFf6mUrc=" },
+      "type": { "$ref": "AAAAAAGhEhCgN+sMhY4=" },
       "multiplicity": "1..*",
       "aggregation": "shared",
       "isReadOnly": true
     }
   ],
   "/add_enumeration_literal": [
-    { "enumerationId": "AAAAAAGhDpOYYP7CNk0=", "name": "RED" }
+    { "enumerationId": "AAAAAAGhEhCgbOso/vY=", "name": "RED" }
   ],
   "/add_operation": [
     {
-      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "temporary",
       "parameters": [{ "name": "x" }]
     },
     {
-      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "lend",
       "isQuery": false,
       "parameters": [
-        { "name": "to", "type": { "$ref": "AAAAAAGhDpOYFf6mUrc=" } },
+        { "name": "to", "type": { "$ref": "AAAAAAGhEhCgN+sMhY4=" } },
         { "name": "days", "type": "int", "defaultValue": "14" }
       ],
       "returnType": "boolean",
@@ -41,7 +41,7 @@
   ],
   "/add_parameter": [
     {
-      "operationId": "AAAAAAGhDpOYPv6vRQQ=",
+      "operationId": "AAAAAAGhEhCgUesVg5A=",
       "name": "note",
       "type": "String",
       "direction": "in"
@@ -49,30 +49,30 @@
   ],
   "/add_slot": [
     {
-      "instanceId": "AAAAAAGhDpOYd/7Li7o=",
+      "instanceId": "AAAAAAGhEhCge+sxBSQ=",
       "name": "title",
-      "definingFeature": "AAAAAAGhDpOYIf6p+MU=",
+      "definingFeature": "AAAAAAGhEhCgPusPraE=",
       "value": "\"Dune\"",
       "fields": ["definingFeature", "value", "_parent"]
     }
   ],
   "/add_tag": [
     {
-      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "t-number",
       "kind": "number",
       "value": 412,
       "fields": ["kind", "number"]
     },
     {
-      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "t-boolean",
       "kind": "boolean",
       "value": true,
       "fields": ["kind", "checked"]
     },
     {
-      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
       "name": "t-string",
       "kind": "string",
       "value": "fiction",
@@ -80,28 +80,24 @@
     }
   ],
   "/add_template_parameter": [
-    { "ownerId": "AAAAAAGhDpOYCv6j4MY=", "name": "T", "parameterType": "class" }
+    { "ownerId": "AAAAAAGhEhCgMusJ9wc=", "name": "T", "parameterType": "class" }
   ],
   "/apply_pattern": [
-    { "pattern": "DTO", "parent": "AAAAAAGhDpJOy4NDzBY=", "diagram": "DTO" },
-    {
-      "pattern": "Proxy",
-      "parent": "AAAAAAGhDpH8hkiVgC8=",
-      "diagram": "Proxy"
-    },
-    { "pattern": "State", "parent": "AAAAAAGhDpIhIWhhTMI=", "diagram": "State" }
+    { "pattern": "DTO", "parent": "AAAAAAGhEg7UBfV+SLA=", "diagram": "DTO" },
+    { "pattern": "Strategy", "parent": "Model/Handles", "diagram": "Handles" },
+    { "pattern": "Proxy", "parent": "AAAAAAGhEg6Ddz+qdjM=", "diagram": "Proxy" }
   ],
   "/apply_preset": [
     { "ref": "Loans/Copy", "preset": "entity", "dryRun": true },
-    { "ref": "AAAAAAGhDpJVkoYQVPM=", "preset": "value-object" }
+    { "ref": "AAAAAAGhEg7XwvhLm3g=", "preset": "value-object" }
   ],
   "/apply_style_profile": [
     { "dryRun": true },
-    { "scope": "AAAAAAGhDpNSH+oKz/Y=" }
+    { "scope": "AAAAAAGhEgTdS1yfr/8=" }
   ],
   "/apply_theme": [
-    { "ref": "AAAAAAGhDpNmP+0yaBQ=", "theme": "blueprint" },
-    { "ref": "AAAAAAGhDpNmP+0yaBQ=", "theme": "by-stereotype", "dryRun": true }
+    { "ref": "AAAAAAGhEhB9DdYs+YY=", "theme": "blueprint" },
+    { "ref": "AAAAAAGhEhB9DdYs+YY=", "theme": "by-stereotype", "dryRun": true }
   ],
   "/batch": [
     {
@@ -137,13 +133,13 @@
           "as": "k",
           "body": {
             "type": "UMLClass",
-            "parentId": "AAAAAAGhDpORJ/tzkUo=",
+            "parentId": "AAAAAAGhEhCbyuatFDA=",
             "name": "Kept"
           }
         },
         {
           "path": "/create_element",
-          "body": { "type": "Nope", "parentId": "AAAAAAGhDpORJ/tzkUo=" }
+          "body": { "type": "Nope", "parentId": "AAAAAAGhEhCbyuatFDA=" }
         },
         {
           "path": "/get_element_by_id",
@@ -155,14 +151,7 @@
   "/build_diagram": [
     { "result": "full", "text": "flowchart\n  A --> B" },
     { "result": "full", "kind": "class", "reuse": false, "spec": {} },
-    { "result": "full", "text": "@startuml\nA -> B : hi\n@enduml" },
-    {
-      "result": "full",
-      "kind": "class",
-      "name": "Declared",
-      "viewpoint": "code",
-      "spec": { "classes": [{ "name": "A" }] }
-    }
+    { "result": "full", "text": "@startuml\nA -> B : hi\n@enduml" }
   ],
   "/build_model": [
     {
@@ -192,94 +181,73 @@
     },
     {
       "spec": {
-        "system": "Lending",
-        "contexts": [
+        "system": "Crowd",
+        "collaborations": [
           {
-            "id": "loans",
-            "name": "Loans",
-            "responsibility": "Who borrowed which copy, until when"
+            "name": "Rush",
+            "messages": [
+              ["Part0", "Part1", "step0()"],
+              ["Part1", "Part2", "step1()"],
+              ["Part2", "Part3", "step2()"],
+              ["Part3", "Part4", "step3()"],
+              ["Part4", "Part5", "step4()"],
+              ["Part5", "Part6", "step5()"],
+              ["Part6", "Part7", "step6()"],
+              ["Part7", "Part8", "step7()"],
+              ["Part8", "Part9", "step8()"],
+              ["Part9", "Part10", "step9()"],
+              ["Part10", "Part11", "step10()"],
+              ["Part11", "Part12", "step11()"],
+              ["Part12", "Part13", "step12()"]
+            ]
           }
-        ],
-        "classes": [
-          {
-            "name": "Member",
-            "context": "loans",
-            "responsibility": "A person allowed to borrow",
-            "attributes": ["+name: String"]
-          },
-          {
-            "name": "Loan",
-            "context": "loans",
-            "responsibility": "One copy lent to one member until a due date",
-            "attributes": ["+due: Date"],
-            "operations": ["+renew(days: int): void"]
-          },
-          {
-            "name": "Copy",
-            "context": "loans",
-            "responsibility": "A physical book on the shelf"
-          },
-          {
-            "name": "Fine",
-            "context": "loans",
-            "responsibility": "What a late return costs",
-            "operations": ["+amount(): double"]
-          }
-        ],
-        "relationships": [
-          {
-            "from": "Member",
-            "to": "Loan",
-            "type": "owns",
-            "fromMult": "1",
-            "toMult": "0..*"
-          },
-          { "from": "Loan", "to": "Copy", "type": "knows", "toMult": "1" },
-          { "from": "Loan", "to": "Fine", "type": "has", "toMult": "0..1" }
         ]
       }
     }
   ],
-  "/check_messages": [{ "diagram": "AAAAAAGhDpLZoqvPLdY=" }],
-  "/close_diagram": [{ "id": "AAAAAAGhDpOe+P7vpLE=" }],
-  "/close_diagrams": [{ "diagrams": ["AAAAAAGhDpN3HPGvfDk="] }],
+  "/check_messages": [{ "diagram": "AAAAAAGhEg+3BhNxMUE=" }],
+  "/close_diagram": [{ "id": "AAAAAAGhEhCoGuxpLCs=" }],
+  "/close_diagrams": [
+    { "keep": ["Ordering"] },
+    { "diagrams": ["AAAAAAGhEhCCWdhvGSc="] }
+  ],
   "/create_diagram": [
-    { "type": "C4Diagram", "parentId": "AAAAAAGhDpJb9YYdgZc=" },
-    { "type": "C4Diagram", "parentId": "AAAAAAGhDpLh2ay1/Tc=" },
-    { "type": "AWSDiagram", "parentId": "AAAAAAGhDpJb9YYdgZc=" }
+    { "type": "C4Diagram", "parentId": "AAAAAAGhEg/Xg0xpQuE=" },
+    { "type": "C4Diagram", "parentId": "AAAAAAGhEhA4l54E930=" },
+    { "type": "AWSDiagram", "parentId": "AAAAAAGhEg/Xg0xpQuE=" }
   ],
   "/create_edge_with_view": [
     {
       "type": "UMLGeneralization",
-      "diagramId": "AAAAAAGhDpNJJujJzvs=",
-      "tailViewId": "AAAAAAGhDpNJTOj4MOg=",
-      "headViewId": "AAAAAAGhDpNJN+jODTY="
+      "diagramId": "AAAAAAGhEhBxrtBgVtg=",
+      "tailViewId": "AAAAAAGhEhBx1NCPwzA=",
+      "headViewId": "AAAAAAGhEhBxy9Blf+M="
     },
     {
       "type": "UMLAssociation",
-      "parentId": "AAAAAAGhDpN9TvdyNSY=",
-      "diagramId": "AAAAAAGhDpN9Vfd1h3g=",
-      "tailViewId": "AAAAAAGhDpN9efd65BM=",
-      "headViewId": "AAAAAAGhDpN9iPekw+o="
+      "parentId": "AAAAAAGhEhCGYd4ySnA=",
+      "diagramId": "AAAAAAGhEhCGZt41b2E=",
+      "tailViewId": "AAAAAAGhEhCGdd46H8g=",
+      "headViewId": "AAAAAAGhEhCGkt5kuq8="
     },
     {
       "type": "UMLAssociation",
-      "parentId": "AAAAAAGhDpOsD//Ay1g=",
-      "diagramId": "AAAAAAGhDpOsG//D35U=",
-      "tailViewId": "AAAAAAGhDpOsRf/IcHM=",
-      "headViewId": "AAAAAAGhDpOsTv/yrk8=",
+      "parentId": "AAAAAAGhEhCkJ+tSnkA=",
+      "diagramId": "AAAAAAGhEhCkLutVY0A=",
+      "tailViewId": "AAAAAAGhEhCkR+ta5s8=",
+      "headViewId": "AAAAAAGhEhCkT+uEbEs=",
       "name": "wrote"
     }
   ],
   "/create_element": [
-    { "type": "Tag", "parentId": "AAAAAAGhDpJb9YYdgZc=" },
+    { "type": "Tag", "parentId": "AAAAAAGhEg/Xg0xpQuE=" },
     { "type": "UMLClass", "parent": "Model", "name": "Money" },
     { "type": "UMLClass", "parent": "Other", "name": "Order" }
   ],
   "/create_element_with_view": [
-    { "type": "UMLClass", "diagram": "AAAAAAGhDpM1ldgys6c=", "name": "P0" },
-    { "type": "UMLClass", "diagram": "AAAAAAGhDpM1ldgys6c=", "name": "P1" },
-    { "type": "UMLClass", "diagram": "AAAAAAGhDpM1ldgys6c=", "name": "P2" }
+    { "type": "UMLClass", "diagram": "AAAAAAGhEhBkMMUBf4M=", "name": "P0" },
+    { "type": "UMLClass", "diagram": "AAAAAAGhEhBkMMUBf4M=", "name": "P1" },
+    { "type": "UMLClass", "diagram": "AAAAAAGhEhBkMMUBf4M=", "name": "P2" }
   ],
   "/create_relationship": [
     {
@@ -290,82 +258,53 @@
     },
     {
       "type": "UMLDependency",
-      "tail": "AAAAAAGhDpNBYubBHrU=",
-      "head": "AAAAAAGhDpNBReZsIo8="
+      "tail": "AAAAAAGhEhBexsFDuzM=",
+      "head": "AAAAAAGhEhBetcDuJNM="
     },
     {
       "type": "UMLMessage",
-      "tailId": "AAAAAAGhDpL9/b7dG7c=",
-      "headId": "AAAAAAGhDpL+Db771MI=",
+      "tailId": "AAAAAAGhEhBG/LAs/R0=",
+      "headId": "AAAAAAGhEhBHCrBK9O0=",
       "fields": ["_parent"]
     }
   ],
   "/create_view_of": [
-    { "modelId": "AAAAAAGhDpFR08yB89I=", "diagramId": "AAAAAAGhDpFR/8zp8po=" },
-    { "modelId": "AAAAAAGhDpFR2cyq7U8=", "diagramId": "AAAAAAGhDpFR/8zp8po=" },
-    { "modelId": "AAAAAAGhDpFR3szTxdY=", "diagramId": "AAAAAAGhDpFR/8zp8po=" }
+    { "modelId": "AAAAAAGhEg9Ef34KbP4=", "diagramId": "AAAAAAGhEg9Es35yo2g=" },
+    { "modelId": "AAAAAAGhEg9EhH4zIqg=", "diagramId": "AAAAAAGhEg9Es35yo2g=" },
+    { "modelId": "AAAAAAGhEg9EiH5c2Oo=", "diagramId": "AAAAAAGhEg9Es35yo2g=" }
   ],
   "/debug": [{}],
   "/delete_element": [
-    { "id": "AAAAAAGhDpOfIP7y+M0=" },
-    { "id": "AAAAAAGhDpOLLvtsdzE=" },
-    { "ref": "AAAAAAGhDpM1/djNDO8=" }
+    { "id": "AAAAAAGhEhCLqOIKn+Q=" },
+    { "id": "AAAAAAGhEhCoQuxs8Cw=" },
+    { "ref": "AAAAAAGhEhBk+8dQRFM=" }
   ],
   "/derive_diagrams": [
     { "scope": "Clinic" },
-    { "scope": "AAAAAAGhDo+7wJyFuzc=" },
-    { "scope": "AAAAAAGhDpNv6u/vjms=", "kinds": ["communication"] },
-    {
-      "scope": "AAAAAAGhEdt2gAXOAWs=",
-      "kinds": [
-        "package",
-        "class",
-        "sequence",
-        "usecase",
-        "statemachine",
-        "activity",
-        "erd",
-        "c4",
-        "deployment",
-        "mindmap",
-        "communication"
-      ],
-      "viewpoints": [
-        "context",
-        "container",
-        "component",
-        "code",
-        "runtime",
-        "lifecycle",
-        "actors-goals",
-        "deployment",
-        "data"
-      ]
-    }
+    { "scope": "AAAAAAGhEg2Btjpfz1I=" },
+    { "scope": "AAAAAAGhEgu/Vo5xv5c=" }
   ],
   "/describe_commands": [
     { "ids": ["edit:undo", "project:save-as", "project:open"] }
   ],
   "/describe_diagram": [
     { "diagram": "@current" },
-    { "diagramId": "AAAAAAGhDpOKmfp8DNg=" },
-    { "diagramId": "AAAAAAGhDpOKTvmvglg=" }
+    { "diagramId": "AAAAAAGhEhCK5N8hzPo=" },
+    { "diagramId": "AAAAAAGhEhCLOOCEg98=" }
   ],
   "/describe_pattern": [{ "name": "Strategy" }],
+  "/describe_template": [{ "name": "lifecycle-states" }],
   "/describe_type": [{ "type": "UMLAssociationEnd" }],
   "/describe_viewpoint": [{ "name": "context" }],
   "/detect_patterns": [
-    { "scope": "Lending", "patterns": ["Strategy"] },
-    { "patterns": ["Observer"], "minConfidence": 0.99 },
-    {
-      "scope": "AAAAAAGhDpJOy4NDzBY=",
-      "patterns": ["DTO"],
-      "minConfidence": 0.99
-    }
+    {},
+    { "patterns": ["Observer"] },
+    { "scope": "Lending", "patterns": ["Strategy"] }
   ],
   "/diagram_quality": [
     { "ref": "Ordering" },
-    { "ref": "AAAAAAGhDpHHbiW5jKI=" }
+    { "ref": "AAAAAAGhEg+Zm/hk3NY=" },
+    { "ref": "AAAAAAGhEga+wMAjtOw=" }
   ],
   "/diff_diagram": [
     {
@@ -394,7 +333,7 @@
     }
   ],
   "/diff_since": [{ "snapshot": "before" }],
-  "/divide_fragment": [{ "ref": "AAAAAAGhDpWoXxVrkMw=", "at": [255] }],
+  "/divide_fragment": [{ "ref": "AAAAAAGhEhCxGuzIVIk=", "at": [255] }],
   "/execute_command": [
     { "id": "edit:undo" },
     { "id": "view:actual-size" },
@@ -402,7 +341,8 @@
   ],
   "/explain_model": [
     { "scope": "Clinic" },
-    { "scope": "AAAAAAGhDo+7wJyFuzc=", "maxChars": 400000 }
+    { "scope": "AAAAAAGhEgu/Vo5xv5c=", "maxChars": 400000 },
+    { "scope": "AAAAAAGhEhAj3YgUr/w=", "maxChars": 1000000 }
   ],
   "/explain_style_violation": [
     { "ref": "Model/bad_name" },
@@ -411,34 +351,35 @@
   "/export_diagram": [
     {},
     { "format": "png", "scale": 2 },
-    { "id": "AAAAAAGhDpNJJujJzvs=" }
+    { "id": "AAAAAAGhEhB4ltK8JbI=" }
   ],
   "/export_diagrams": [
     {
-      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-3QbA1F/images"
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IT4c7o/images"
     }
   ],
   "/export_fragment": [
+    { "ref": "Billing", "filename": "/tmp/billing.mfj" },
     {
-      "ref": "AAAAAAGhDpN2y/Fe/yc=",
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-boINqU/exported.mfj"
+      "ref": "AAAAAAGhEhCB+tgevds=",
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-juyfN4/exported.mfj"
     }
   ],
   "/export_html": [
     {
-      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-47nHEU/html"
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-GcwQHk/html"
     }
   ],
   "/export_pdf": [
     {
-      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-47nHEU/shapes.pdf",
-      "ids": ["AAAAAAGhDpNJJujJzvs="]
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-GcwQHk/shapes.pdf",
+      "ids": ["AAAAAAGhEhBxrtBgVtg="]
     }
   ],
   "/export_text": [
     { "format": "mermaid", "diagram": "Ordering" },
-    { "diagram": "AAAAAAGhDo+JTJLziq4=", "format": "spec" },
-    { "diagram": "AAAAAAGhDo+XgpVBHZM=", "format": "spec" }
+    { "format": "spec", "diagram": "Order processing" },
+    { "diagram": "AAAAAAGhEgt3XlilTfw=", "format": "spec" }
   ],
   "/find_elements": [
     { "limit": 1 },
@@ -448,16 +389,16 @@
   "/generate_code": [
     {
       "language": "java",
-      "baseId": "AAAAAAGhDpOlO/7/HZc=",
-      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-3QbA1F/java",
+      "baseId": "AAAAAAGhEhCX2eXslAs=",
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IT4c7o/java",
       "options": { "javaDoc": false }
     }
   ],
   "/get_all_commands": [{}],
   "/get_connected_node_views": [
-    { "id": "AAAAAAGhDpNJN+jODTY=", "edgeType": "UMLGeneralizationView" }
+    { "id": "AAAAAAGhEhBxy9Blf+M=", "edgeType": "UMLGeneralizationView" }
   ],
-  "/get_edge_views_of": [{ "id": "AAAAAAGhDpNJN+jODTY=" }],
+  "/get_edge_views_of": [{ "id": "AAAAAAGhEhBxy9Blf+M=" }],
   "/get_editor_state": [{}],
   "/get_element_by_id": [
     { "ref": "Old" },
@@ -470,27 +411,28 @@
   ],
   "/get_project_info": [{}, { "fields": ["ownedElements"] }],
   "/get_project_metadata": [{}],
-  "/get_refs_to": [{ "id": "AAAAAAGhDpNJN+jMO9M=" }],
-  "/get_relationships_of": [{ "id": "AAAAAAGhDpNJN+jMO9M=" }],
+  "/get_refs_to": [{ "id": "AAAAAAGhEhBxy9BjumU=" }],
+  "/get_relationships_of": [{ "id": "AAAAAAGhEhBxy9BjumU=" }],
   "/get_selection": [{}],
   "/get_style_profile": [{}],
-  "/get_views_of": [{ "id": "AAAAAAGhDpNJN+jMO9M=", "fields": ["model"] }],
+  "/get_views_of": [{ "id": "AAAAAAGhEhBxy9BjumU=", "fields": ["model"] }],
   "/import_fragment": [
+    { "filename": "/tmp/billing.mfj", "parent": "@project" },
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-boINqU/exported.mfj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-juyfN4/exported.mfj"
     }
   ],
   "/improve_diagram": [
     { "ref": "Ordering" },
-    { "ref": "AAAAAAGhDpHHbiW5jKI=" },
-    { "ref": "AAAAAAGhDpHNsyloCYQ=" }
+    { "ref": "AAAAAAGhEg+c1/6DMYg=" },
+    { "ref": "AAAAAAGhEg+fHP+1R/Y=" }
   ],
   "/introspect": [{}, { "include": ["factory"] }, { "include": ["endpoints"] }],
   "/is_modified": [{}],
   "/layout_diagram": [
-    { "diagram": "AAAAAAGhDpHNsyloCYQ=" },
-    { "id": "AAAAAAGhDpNJJujJzvs=", "direction": "TB" },
-    { "diagramId": "AAAAAAGhDpNdnexSTxY=", "preset": "flow-down" }
+    { "diagram": "AAAAAAGhEg+c1/6DMYg=" },
+    { "id": "AAAAAAGhEhBxrtBgVtg=", "direction": "TB" },
+    { "diagramId": "AAAAAAGhEhBsmc94EnM=", "preset": "flow-down" }
   ],
   "/lint_diagram": [
     { "diagram": "Messy" },
@@ -505,28 +447,32 @@
   "/list_working_diagrams": [{}],
   "/model_lint": [
     { "scope": "Clinic" },
-    { "scope": "AAAAAAGhDo+7wJyFuzc=", "limit": 1000 }
+    { "scope": "AAAAAAGhEgu/Vo5xv5c=", "limit": 1000 }
   ],
   "/move_views": [
-    { "ids": ["AAAAAAGhDpNJN+jODTY="], "dx": 20, "dy": 30 },
-    { "refs": ["AAAAAAGhDpM/tuJA0Pc="], "dx": 70, "dy": 0 },
-    { "refs": ["AAAAAAGhDpHH8iYRjiQ="], "dx": 30, "dy": 140 }
+    { "ids": ["AAAAAAGhEhBxy9Blf+M="], "dx": 20, "dy": 30 },
+    { "refs": ["AAAAAAGhEhBdoLzCxXc="], "dx": 70, "dy": 0 },
+    { "refs": ["AAAAAAGhEg+Z+fjl+hw="], "dx": 260, "dy": 30 }
   ],
   "/new_from_template": [{ "template": "UMLConventional" }],
   "/new_project": [{}],
   "/open_project": [
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-0UkUge/profile.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-iB7IV2/profile.mdj"
     },
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-9RwZ8S/endpoints.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-NrfjbE/endpoints.mdj"
     },
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IUxJIJ/class-diagram.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-DMdnLD/class-diagram.mdj"
     }
   ],
   "/performance_stats": [{}],
-  "/quick_find": [{ "text": "ZEBRA" }, { "text": "quarterl" }],
+  "/quick_find": [
+    { "text": "ZEBRA" },
+    { "text": "invoice" },
+    { "text": "quarterl" }
+  ],
   "/redo": [{}],
   "/request_diagram": [
     {
@@ -546,38 +492,38 @@
   ],
   "/resize_node": [
     { "ref": "Line", "width": 220, "height": 80 },
-    { "id": "AAAAAAGhDpNeN+zIqVs=", "width": 600, "height": 400 },
-    { "id": "AAAAAAGhDpNJN+jODTY=", "width": 220, "height": 120 }
+    { "id": "AAAAAAGhEhBtL8/uTX4=", "width": 600, "height": 400 },
+    { "id": "AAAAAAGhEhBxy9Blf+M=", "width": 220, "height": 120 }
   ],
   "/restore_snapshot": [{ "snapshot": "loop" }, { "snapshot": "before" }],
   "/reverse_code": [
     {
       "language": "java",
-      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-3QbA1F/java",
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IT4c7o/java",
       "options": { "typeHierarchy": false, "packageOverview": false }
     }
   ],
   "/route_edges": [
-    { "diagramId": "AAAAAAGhDpNfBuzppSg=", "lineStyle": "curve" }
+    { "diagramId": "AAAAAAGhEhBtj9APXig=", "lineStyle": "curve" }
   ],
   "/save_project": [
     {},
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-0UkUge/blocked.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-iB7IV2/blocked.mdj"
     },
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-0UkUge/profile.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-iB7IV2/profile.mdj"
     }
   ],
   "/save_project_as": [
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-a34gk7/features.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-cZ6noL/patterns.mdj"
     },
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-q73giT/patterns.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-YCxHdN/features.mdj"
     },
     {
-      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-9sLzRL/project-first.mdj"
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-8qBs6s/project-first.mdj"
     }
   ],
   "/search_types": [
@@ -587,27 +533,34 @@
   ],
   "/set_documentation": [
     {
-      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "ref": "ThingsBoard/Domain Model \\(common\\.data\\)/Device",
+      "documentation": "A connected thing."
+    },
+    {
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
       "documentation": "A published work.",
       "fields": ["documentation"]
     }
   ],
   "/set_editor_state": [
     { "zoom": 1, "gridVisible": true, "center": { "x": 0, "y": 0 } },
-    { "diagramId": "AAAAAAGhDpNJJujJzvs=", "zoom": 1.5, "gridVisible": false }
+    { "diagramId": "AAAAAAGhEhBxrtBgVtg=", "zoom": 1.5, "gridVisible": false }
   ],
   "/set_preference": [
     { "key": "diagramEditor.showGrid", "value": true },
     { "key": "diagramEditor.showGrid", "value": false }
   ],
-  "/set_project_metadata": [{ "author": "Ada", "version": "2.1" }],
+  "/set_project_metadata": [
+    { "author": "Ada", "version": "2.1" },
+    { "author": "Modelling team", "version": "1.2" }
+  ],
   "/set_selection": [
     {},
-    { "viewIds": ["AAAAAAGhDpNJN+jODTY=", "AAAAAAGhDpNJTOj4MOg="] }
+    { "viewIds": ["AAAAAAGhEhBxy9Blf+M=", "AAAAAAGhEhBx1NCPwzA="] }
   ],
   "/set_stereotype": [
     {
-      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
       "stereotype": "entity",
       "fields": ["stereotype"]
     }
@@ -618,14 +571,14 @@
     { "patch": { "strict": true } }
   ],
   "/set_view_style": [
-    { "ids": ["AAAAAAGhDpNJVukiUxw="], "lineStyle": "rectilinear" },
+    { "ids": ["AAAAAAGhEhBx3NC5Ny8="], "lineStyle": "rectilinear" },
     {
-      "refs": ["AAAAAAGhDpNSM+oQOS4="],
+      "refs": ["AAAAAAGhEgTdVFyloXY="],
       "fillColor": "#ff0000",
       "override": true
     },
     {
-      "ids": ["AAAAAAGhDpNJN+jODTY=", "AAAAAAGhDpNJTOj4MOg="],
+      "ids": ["AAAAAAGhEhBxy9Blf+M=", "AAAAAAGhEhBx1NCPwzA="],
       "fillColor": "#ffcc00",
       "lineColor": "#336699",
       "fontColor": "#990000",
@@ -636,27 +589,27 @@
     }
   ],
   "/set_z_order": [
-    { "ids": ["AAAAAAGhDpNJTOj4MOg="], "position": "back" },
-    { "ids": ["AAAAAAGhDpNJTOj4MOg="], "position": "front" }
+    { "ids": ["AAAAAAGhEhBx1NCPwzA="], "position": "back" },
+    { "ids": ["AAAAAAGhEhBx1NCPwzA="], "position": "front" }
   ],
   "/snapshot": [{ "label": "loop" }, { "label": "before" }],
   "/switch_diagram": [
     { "diagram": "Shop" },
-    { "id": "AAAAAAGhDpOe+P7vpLE=" },
-    { "id": "AAAAAAGhDpOsG//D35U=" }
+    { "id": "AAAAAAGhEhCkLutVY0A=" },
+    { "id": "AAAAAAGhEhCoGuxpLCs=" }
   ],
-  "/sync_operations": [{ "diagram": "AAAAAAGhDpLZoqvPLdY=" }],
+  "/sync_operations": [{ "diagram": "AAAAAAGhEg+3BhNxMUE=" }],
   "/uml_lint": [{}, { "limit": 1000 }, { "scope": "Shop" }],
   "/undo": [{}],
   "/update_element": [
     { "ref": "Line", "field": "name", "value": "OrderLine" },
-    { "id": "AAAAAAGhDpL617vhlsQ=", "field": "width", "value": 700 },
-    { "id": "AAAAAAGhDpLo4rPW9fI=", "field": "width", "value": 700 }
+    { "id": "AAAAAAGhEhA73KSE4/w=", "field": "width", "value": 700 },
+    { "id": "AAAAAAGhEhA8MqUlyJE=", "field": "width", "value": 700 }
   ],
   "/validate_model": [
     {},
-    { "scope": "AAAAAAGhDpOKTvmuoCg=" },
-    { "scope": "AAAAAAGhDpOLLvtsdzE=" }
+    { "scope": "AAAAAAGhEhCK5N8g/+Q=" },
+    { "scope": "AAAAAAGhEhCLqOIKn+Q=" }
   ],
-  "/viewpoint_lint": [{ "scope": "AAAAAAGhEdt2gAXOAWs=", "limit": 1000 }]
+  "/viewpoint_lint": [{ "scope": "AAAAAAGhEgmko+Y+Ess=", "limit": 1000 }]
 }

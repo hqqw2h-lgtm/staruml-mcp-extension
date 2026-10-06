@@ -1,0 +1,26 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "context-landscape",
+  "version": 1,
+  "title": "System landscape",
+  "description": "The system as one box among its people and neighbouring systems, for readers outside the team.",
+  "viewpoint": "context",
+  "kind": "c4",
+  "default": true,
+  "content": {
+    "maxElements": 15
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": [
+      "Person: someone who uses the system",
+      "Software system: the system in scope, or one it works with",
+      "Grey: outside the system's ownership",
+      "Arrow: who relies on whom, labelled with what for and how"
+    ]
+  }
+}

@@ -411,6 +411,37 @@ function sequence(diagram: Element, m: Mover): void {
 }
 
 /**
+ * The frame of a communication diagram around everything it shows: the
+ * engine's layout moves the lifelines and leaves the frame where the
+ * factory put it (UMLCommunicationDiagram, 7.1.1), so it cut through the
+ * drawing. The header takes HEADER above the topmost box.
+ */
+export function fitFrame(diagram: Element, m: Mover): void {
+  const frame = (diagram.ownedViews as View[]).find(
+    (v) => v.model === diagram && v instanceof type.UMLFrameView,
+  );
+  const inner = nodeViews(diagram);
+  if (!frame || inner.length === 0) return;
+  // Never past the canvas origin, where an export would cut it.
+  const left = Math.max(0, Math.min(...inner.map((v) => box(v).left)) - GAP);
+  const top = Math.max(
+    0,
+    Math.min(...inner.map((v) => box(v).top)) - FRAME_HEADER,
+  );
+  const right = Math.max(...inner.map((v) => box(v).left + box(v).width));
+  const bottom = Math.max(...inner.map((v) => box(v).top + box(v).height));
+  m.resize(frame, {
+    left,
+    top,
+    width: right + GAP - left,
+    height: bottom + GAP - top,
+  });
+}
+
+/** Room for a frame's name tab above what it holds. */
+const FRAME_HEADER = 40;
+
+/**
  * Each combined fragment spans the lifelines of the messages it holds
  * (those whose line runs between its top and bottom), 30 beyond the
  * outermost, 10 further in per fragment around it: moving the lifelines
@@ -1211,6 +1242,9 @@ export function improve(
       // A foldable diagram is never a sequence diagram.
       attempt("unbundle", () => unbundle(diagram));
       attempt("place labels", () => placeLabels(diagram, score, strip, m));
+    }
+    if (kind === "communication") {
+      attempt("fit frame", () => fitFrame(diagram, m), true);
     }
     const now = score();
     if (now >= target || now <= start) break;

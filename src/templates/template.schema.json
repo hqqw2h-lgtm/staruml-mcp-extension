@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "description": "Lower case words joined by hyphens."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991,
+      "description": "Raised when what the template draws changes; stored on each diagram made with it."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "viewpoint": {
+      "type": "string",
+      "enum": [
+        "context",
+        "container",
+        "component",
+        "code",
+        "runtime",
+        "lifecycle",
+        "actors-goals",
+        "deployment",
+        "data"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "class",
+        "sequence",
+        "usecase",
+        "activity",
+        "statemachine",
+        "erd",
+        "flowchart",
+        "mindmap",
+        "requirement",
+        "c4",
+        "package",
+        "component",
+        "deployment",
+        "composite",
+        "object",
+        "communication",
+        "timing",
+        "overview",
+        "infoflow",
+        "profile",
+        "dfd",
+        "bdd",
+        "ibd",
+        "parametric",
+        "bpmn",
+        "wireframe",
+        "aws",
+        "azure",
+        "gcp"
+      ]
+    },
+    "default": {
+      "type": "boolean",
+      "description": "The template /derive_diagrams and /request_diagram use for its viewpoint and kind."
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "maxElements": { "type": "integer", "minimum": 1, "maximum": 500 },
+        "maxLifelines": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "hideAccessors": {
+          "type": "boolean",
+          "description": "Classes whose operations are all accessors keep them folded."
+        }
+      },
+      "required": ["maxElements"],
+      "additionalProperties": false,
+      "description": "What a diagram made with it may hold; /build_diagram refuses more."
+    },
+    "style": {
+      "type": "string",
+      "enum": ["project", "uml-standard", "minimal", "presentation", "print"],
+      "description": "The house style: project (the project's style profile) or a built-in profile, whose visuals, layout and quality settings apply while naming, rules and policy stay the project's."
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "enum": [
+            "flow-down",
+            "flow-up",
+            "flow-right",
+            "flow-left",
+            "hierarchy-down",
+            "hierarchy-up",
+            "hierarchy-right",
+            "hierarchy-left"
+          ]
+        }
+      },
+      "required": ["preset"],
+      "additionalProperties": false
+    },
+    "parts": {
+      "type": "object",
+      "properties": {
+        "titleBlock": {
+          "type": "boolean",
+          "description": "A note below the drawing naming it, its viewpoint's question and the template."
+        },
+        "legend": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Lines of a legend note under 'Legend'; none for no legend."
+        }
+      },
+      "required": ["titleBlock", "legend"],
+      "additionalProperties": false,
+      "description": "Notes the engine adds and keeps, below or beside the drawing."
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "title",
+    "description",
+    "viewpoint",
+    "kind",
+    "default",
+    "content",
+    "style",
+    "layout",
+    "parts"
+  ],
+  "additionalProperties": false
+}

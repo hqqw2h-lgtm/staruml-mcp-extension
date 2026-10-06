@@ -270,13 +270,17 @@ describe("templates", () => {
     (env.app as { extensionLoader?: unknown }).extensionLoader = {
       getUserExtensionPath: () => user,
     };
-    const { templates } = await ok<{ templates: { name: string }[] }>(
-      ep("/list_templates"),
-    );
+    const { templates, diagramTemplates } = await ok<{
+      templates: { name: string }[];
+      diagramTemplates: { name: string; default: boolean }[];
+    }>(ep("/list_templates"));
     expect(templates.map((t) => t.name)).toEqual([
       "Default",
       "UMLConventional",
     ]);
+    // The diagram templates of issue #43 come along.
+    expect(diagramTemplates).toHaveLength(14);
+    expect(diagramTemplates.every((t) => t.default)).toBe(true);
     const made = await ok<{
       template: { source: string };
       project: { name: string };

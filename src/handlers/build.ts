@@ -48,10 +48,15 @@ import {
   styleReportSchema,
   styleViews,
 } from "../style/apply.js";
-import { effectiveProfile, presetFor } from "../style/profile.js";
+import { effectiveProfile, presetFor, type Profile } from "../style/profile.js";
 import { oneStep } from "../undo.js";
 import { deselect } from "../quality/geometry.js";
-import { improve, qualitySchema, scoredAsIs } from "../quality/loop.js";
+import {
+  improve,
+  type Quality,
+  qualitySchema,
+  scoredAsIs,
+} from "../quality/loop.js";
 import { batchRunner } from "./batch.js";
 import { byId, pathOf, tryResolve } from "../refs.js";
 import { requireElement, requireProject } from "../lookup.js";
@@ -63,6 +68,15 @@ import type { Element, View } from "../types.js";
 import { findViewpoint } from "../viewpoints/index.js";
 import { conformity } from "../viewpoints/lint.js";
 import { type Mark, partViews, readMark } from "../viewpoints/mark.js";
+import { accepts } from "../templates/exemplar.js";
+import {
+  defaultTemplate,
+  findTemplate,
+  templateParts,
+  templateProfile,
+} from "../templates/index.js";
+import { derivedRefusal, overridden } from "../templates/lock.js";
+import type { Template } from "../templates/schema.js";
 import { type PartTexts, placeParts } from "../viewpoints/parts.js";
 import { VIEWPOINT_NAMES } from "../viewpoints/schema.js";
 import { isTrusted } from "../style/guard.js";
@@ -1387,7 +1401,19 @@ const buildRequest = () =>
     viewpoint: z.optional(
       doc(
         z.enum(VIEWPOINT_NAMES),
-        "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as. Required under a strict profile.",
+        "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as.",
+      ),
+    ),
+    template: z.optional(
+      doc(
+        z.string().check(z.minLength(1)),
+        "A diagram template (see /list_templates): its viewpoint and kind (kind may be left out), house style, layout preset, title block and legend, and its content limits. Required under a strict profile.",
+      ),
+    ),
+    override: z.optional(
+      doc(
+        z.boolean(),
+        "Rebuild a diagram /derive_diagrams owns anyway; refused under a strict profile.",
       ),
     ),
     result: resultField(
@@ -1451,6 +1477,7 @@ const buildResponse = () =>
     style: z.optional(styleReportSchema()),
     quality: z.optional(qualitySchema()),
     viewpoint: z.optional(viewpointReportSchema()),
+    template: z.optional(templateReportSchema()),
   });
 
 export const viewpointReportSchema = () =>
@@ -1466,37 +1493,109 @@ export const viewpointReportSchema = () =>
     "The viewpoint the diagram declares and whether it keeps to it (issue #42).",
   );
 
+export const templateReportSchema = () =>
+  doc(
+    z.object({
+      name: z.string(),
+      version: z.int(),
+      accepted: doc(
+        z.boolean(),
+        "The diagram passes as one of its template: structurally like the template's approved exemplar, and scoring near it.",
+      ),
+    }),
+    "The template the diagram was made with (issue #43).",
+  );
+
+/** Request fields that style or lay out a diagram, which a strict profile leaves to templates. */
+const FREE_FORM = [
+  "layout",
+  "direction",
+  "autoLayout",
+  "showNamespace",
+] as const;
+
 /**
- * A build request refused before anything is made: under a strict profile
- * every diagram declares its viewpoint, and a viewpoint is drawn only as
- * its kinds.
+ * A build request refused before anything is made (issues #42, #43): under
+ * a strict profile a diagram is built only through a template, from
+ * content alone; a template draws one viewpoint as one kind; a viewpoint
+ * is drawn only as its kinds; a derived diagram is not rebuilt from
+ * outside. Answers the template, if any.
  */
-export function checkViewpoint(input: BuildInput, kind: Kind): void {
-  if (input.viewpoint === undefined) {
-    if (effectiveProfile().profile.strict && !isTrusted()) {
+export function checkBuild(input: BuildInput): Template | undefined {
+  const profile = effectiveProfile().profile;
+  const strict = profile.strict && !isTrusted();
+  const t =
+    input.template === undefined ? undefined : findTemplate(input.template);
+  if (strict) {
+    const fields = [
+      ...FREE_FORM.filter((f) => input[f] !== undefined),
+      ...(input.spec && "styles" in input.spec ? ["spec.styles"] : []),
+    ];
+    if (t === undefined || fields.length > 0) {
       throw new ApiError(
-        "VIEWPOINT_REQUIRED",
-        `build_diagram: the style profile '${effectiveProfile().profile.name}' is strict, so every diagram declares the viewpoint it is a view of; pass viewpoint, or use /request_diagram or /derive_diagrams`,
-        { profile: effectiveProfile().profile.name },
+        "TEMPLATE_ONLY",
+        `build_diagram: the style profile '${profile.name}' is strict, so diagrams are built through a template from content alone${fields.length > 0 ? `, without ${fields.join(", ")}` : "; pass template (see /list_templates)"}`,
+        { profile: profile.name, fields },
       );
     }
-    return;
   }
-  const vp = findViewpoint(input.viewpoint);
-  if (!(vp.kinds as string[]).includes(kind)) {
-    throw new ApiError(
-      "VIEWPOINT_MISMATCH",
-      `build_diagram: the ${vp.name} viewpoint is drawn as ${vp.kinds.join(", ")}, not ${kind}`,
-      {
-        reason: "kind",
-        alternatives: vp.kinds.map((k) => ({
-          viewpoint: vp.name,
-          kind: k,
-          why: vp.question,
-        })),
-      },
+  const kind = input.kind ?? t?.kind;
+  if (t && kind !== t.kind) {
+    throw mismatch(
+      `the template ${t.name} draws ${t.kind}, not ${kind}`,
+      t.viewpoint,
+      [t.kind],
     );
   }
+  if (t && input.viewpoint !== undefined && input.viewpoint !== t.viewpoint) {
+    throw mismatch(
+      `the template ${t.name} draws the ${t.viewpoint} viewpoint, not ${input.viewpoint}`,
+      t.viewpoint,
+      [t.kind],
+    );
+  }
+  const viewpoint = t?.viewpoint ?? input.viewpoint;
+  if (viewpoint !== undefined) {
+    const vp = findViewpoint(viewpoint);
+    const drawn = readSource({ ...input, kind }).kind;
+    if (!(vp.kinds as string[]).includes(drawn)) {
+      throw mismatch(
+        `the ${vp.name} viewpoint is drawn as ${vp.kinds.join(", ")}, not ${drawn}`,
+        vp.name,
+        vp.kinds,
+      );
+    }
+  }
+  if (input.upsert && !isTrusted() && !overridden(input.override)) {
+    const { kind: drawn, title } = readSource({ ...input, kind });
+    const raw = input.name ?? title;
+    const parent =
+      input.parent === undefined
+        ? requireProject()
+        : requireElement(input.parent, "Parent");
+    const found = findDiagram(
+      drawn,
+      raw === undefined ? undefined : multiline(raw),
+      parent,
+    );
+    if (found && readMark(found)?.derived) {
+      throw derivedRefusal("/build_diagram", found);
+    }
+  }
+  return t;
+}
+
+function mismatch(message: string, viewpoint: string, kinds: readonly Kind[]) {
+  const vp = findViewpoint(viewpoint);
+  return new ApiError("VIEWPOINT_MISMATCH", `build_diagram: ${message}`, {
+    reason: "kind",
+    alternatives: kinds.map((k) => ({
+      viewpoint: vp.name,
+      kind: k,
+      why: vp.question,
+      template: defaultTemplate(vp.name, k).name,
+    })),
+  });
 }
 
 /** The parts a viewpoint requires that the engine draws: its legend. */
@@ -1513,15 +1612,19 @@ export function buildDiagramEndpoint(
   return defineEndpoint({
     path: "/build_diagram",
     description:
-      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4, package, component, deployment, and the families composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. Answers the ids of what it made, not the model.",
+      "Build a whole diagram in one call from a compact spec per kind (class, sequence, usecase, activity, statemachine, erd, flowchart, mindmap, requirement, c4, package, component, deployment, and the families composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp) or from text: Mermaid (classDiagram, sequenceDiagram, flowchart, erDiagram, stateDiagram with composite state blocks, mindmap, requirementDiagram, C4Context/C4Container/C4Component; notes and classDef/style colours; a flowchart also as activity or usecase; /export_text writes this Mermaid back), PlantUML, SQL DDL or JSON Schema. One undo step; laid out by Format > Layout where the kind allows. Elements named like existing ones are shown again rather than copied (reuse). upsert updates the diagram of the same name instead of adding another, and prune removes what the spec no longer has. template (see /list_templates) draws it as that template's viewpoint and kind, in its house style and layout, with its title block and legend, and refuses content past its limits; under a strict profile a template is required and layout, direction, autoLayout, showNamespace and spec.styles are refused (TEMPLATE_ONLY). A diagram /derive_diagrams owns is not rebuilt from here (DIAGRAM_DERIVED). Answers the ids of what it made, not the model.",
     readOnly: false,
     destructive: false,
     request: buildRequest(),
     aliases: { parentId: "parent" },
     response: buildResponse(),
     handle: (input) => {
-      checkViewpoint(input, readSource(input).kind);
-      return buildDiagram(input, endpoints);
+      const template = checkBuild(input);
+      return buildDiagram(
+        { ...input, kind: input.kind ?? template?.kind },
+        endpoints,
+        { enforce: true },
+      );
     },
   });
 }
@@ -1537,13 +1640,38 @@ export interface BuildExtras {
    * repository once per op.
    */
   opsOnly?: boolean;
-  /** What the diagram declares about itself, stored as its mark (issue #42). */
-  mark?: Mark;
-  /** The parts drawn below it; default the ones its viewpoint requires. */
-  parts?: PartTexts;
+  /** The template, when the caller picked it rather than the request. */
+  template?: Template;
+  /** The diagram is the model's, derived: marked so, and locked (issue #43). */
+  derived?: boolean;
+  /** Refuse content past the template's limits (a request; a derivation reports them). */
+  enforce?: boolean;
 }
 
 export type BuildInput = z.output<ReturnType<typeof buildRequest>>;
+
+/** Content past a template's limits, refused as VIEWPOINT_MISMATCH. */
+function checkContent(t: Template, plan: Plan): void {
+  const nodes = plan.nodes.filter((n) => n.type !== "Note");
+  const lifelines = nodes.filter((n) => n.type === "UMLLifeline").length;
+  const over =
+    nodes.length > t.content.maxElements
+      ? `${nodes.length} elements, more than the ${t.content.maxElements}`
+      : t.content.maxLifelines !== undefined &&
+          lifelines > t.content.maxLifelines
+        ? `${lifelines} lifelines, more than the ${t.content.maxLifelines}`
+        : null;
+  if (over === null) return;
+  const vp = findViewpoint(t.viewpoint);
+  throw new ApiError(
+    "VIEWPOINT_MISMATCH",
+    `build_diagram: ${over} the template ${t.name} holds`,
+    {
+      reason: "limits",
+      alternatives: [{ viewpoint: vp.name, kind: t.kind, why: vp.split }],
+    },
+  );
+}
 
 /** /build_diagram's work, which /derive_diagrams runs once per diagram. */
 export async function buildDiagram(
@@ -1552,7 +1680,11 @@ export async function buildDiagram(
   extras: BuildExtras = {},
 ) {
   const { kind, spec, title, direction, parsed } = readSource(input);
-  const profile = effectiveProfile().profile;
+  const template =
+    extras.template ??
+    (input.template === undefined ? undefined : findTemplate(input.template));
+  const base = effectiveProfile().profile;
+  const profile = template ? templateProfile(base, template) : base;
   const renames = new Renames(profile);
   const styleWarnings: string[] = [];
   const plan = normalizePlan(
@@ -1561,6 +1693,7 @@ export async function buildDiagram(
       : planFor(kind, spec),
     renames,
   );
+  if (template && extras.enforce) checkContent(template, plan);
   const parent =
     input.parent === undefined
       ? requireProject()
@@ -1571,12 +1704,23 @@ export async function buildDiagram(
     throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
   }
   const diagram = input.upsert ? findDiagram(kind, name, parent) : null;
-  const mark =
-    extras.mark ??
-    (input.viewpoint !== undefined
-      ? { viewpoint: input.viewpoint }
-      : undefined);
-  const parts = mark && (extras.parts ?? partsFor(mark.viewpoint));
+  const viewpoint = template?.viewpoint ?? input.viewpoint;
+  const mark: Mark | undefined =
+    viewpoint === undefined
+      ? undefined
+      : {
+          viewpoint,
+          ...(template && {
+            template: template.name,
+            version: template.version,
+          }),
+          ...(extras.derived && { derived: true }),
+        };
+  const parts =
+    mark &&
+    (template
+      ? templateParts(template, name, parent)
+      : partsFor(mark.viewpoint));
   const skip = new Set(
     diagram ? partViews(diagram, readMark(diagram)).map((v) => v._id) : [],
   );
@@ -1586,6 +1730,7 @@ export async function buildDiagram(
     direction ?? defaultDirection(kind),
     input.autoLayout ?? true,
     input.layout ??
+      template?.layout.preset ??
       (input.direction === undefined && parsed?.direction === undefined
         ? presetFor(profile, kind)
         : undefined),
@@ -1650,7 +1795,7 @@ export async function buildDiagram(
     };
   }
   const specStyled = plan.nodes.filter(coloured).map((n) => n.key);
-  const { byName, target, styled, quality } = await oneStep(
+  const { byName, target, styled, quality, accepted } = await oneStep(
     "build diagram",
     async () => {
       let data: BatchData = { results: [] };
@@ -1676,34 +1821,39 @@ export async function buildDiagram(
         styledViews(target).filter((v) => !keep.has(v._id)),
         profile,
       );
-      return {
-        byName,
-        target,
-        styled,
-        // An upsert that changed nothing leaves the picture as it was
-        // arranged; it is only scored.
-        quality: await (async () => {
-          const q =
-            built.ops.length > 0
-              ? improve(target, profile)
-              : scoredAsIs(target, profile);
-          deselect(target);
-          if (!mark || !(await placeParts(target, parts!, mark, endpoints))) {
-            return q;
-          }
-          // The parts sit below the drawing; the score is of what is shown,
-          // the loop's own record (before, steps) as the loop left it.
-          const {
-            before: _before,
-            target: _target,
-            iterations: _iterations,
-            steps: _steps,
-            ...now
-          } = scoredAsIs(target, profile);
-          const { failures: _failures, ...rest } = q;
-          return { ...rest, ...now };
-        })(),
+      // An upsert that changed nothing leaves the picture as it was
+      // arranged; it is only scored.
+      const loop =
+        built.ops.length > 0
+          ? improve(target, profile)
+          : scoredAsIs(target, profile);
+      deselect(target);
+      const placed = async () => {
+        if (!mark || !(await placeParts(target, parts!, mark, endpoints))) {
+          return loop;
+        }
+        // Notes the engine adds take the profile's look like the rest.
+        styleViews(target, partViews(target, readMark(target)), profile);
+        return withParts(loop, target, profile);
       };
+      let quality = await placed();
+      if (!template) return { byName, target, styled, quality };
+      const partIds = () =>
+        new Set(partViews(target, readMark(target)).map((v) => v._id));
+      let accepted = accepts(template, target, quality.score, partIds());
+      if (!accepted && built.ops.length > 0) {
+        // Once more from the template's own layout: a first pass that
+        // misses its exemplar is often a crossing the preset resolves.
+        improve(target, profile, {
+          relayout: true,
+          preset: template.layout.preset,
+        });
+        deselect(target);
+        await placeParts(target, parts!, mark!, endpoints);
+        quality = withParts(loop, target, profile);
+        accepted = accepts(template, target, quality.score, partIds());
+      }
+      return { byName, target, styled, quality, accepted };
     },
   );
   const ids: Record<string, { model: string | null; view: string }> = {};
@@ -1727,5 +1877,28 @@ export async function buildDiagram(
     ...(mark && {
       viewpoint: { name: mark.viewpoint, ...conformity(target) },
     }),
+    ...(template && {
+      template: {
+        name: template.name,
+        version: template.version,
+        accepted: accepted!,
+      },
+    }),
   };
+}
+
+/**
+ * The loop's result scored again with the parts drawn: the score is of
+ * what is shown, the loop's own record (before, steps) as it left it.
+ */
+function withParts(loop: Quality, target: Element, profile: Profile): Quality {
+  const {
+    before: _before,
+    target: _target,
+    iterations: _iterations,
+    steps: _steps,
+    ...now
+  } = scoredAsIs(target, profile);
+  const { failures: _failures, ...rest } = loop;
+  return { ...rest, ...now };
 }

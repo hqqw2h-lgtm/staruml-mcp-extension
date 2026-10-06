@@ -1,11 +1,12 @@
 {
   "$schema": "./decisions.schema.json",
-  "version": 1,
+  "version": 2,
   "rules": [
     {
       "id": "D01",
       "viewpoint": "lifecycle",
       "kind": "statemachine",
+      "template": "lifecycle-states",
       "phrases": [
         "lifecycle",
         "life cycle",
@@ -27,6 +28,7 @@
       "id": "D02",
       "viewpoint": "data",
       "kind": "erd",
+      "template": "data-erd",
       "phrases": [
         "data model",
         "database",
@@ -52,6 +54,7 @@
       "id": "D03",
       "viewpoint": "deployment",
       "kind": "deployment",
+      "template": "deployment-nodes",
       "phrases": [
         "deployment",
         "deployed",
@@ -81,6 +84,7 @@
       "id": "D04",
       "viewpoint": "runtime",
       "kind": "communication",
+      "template": "runtime-communication",
       "phrases": [
         "communication diagram",
         "who talks to whom",
@@ -96,6 +100,7 @@
       "id": "D05",
       "viewpoint": "runtime",
       "kind": "activity",
+      "template": "runtime-activity",
       "phrases": [
         "activity",
         "workflow",
@@ -125,6 +130,7 @@
       "id": "D06",
       "viewpoint": "runtime",
       "kind": "sequence",
+      "template": "runtime-sequence",
       "phrases": [
         "sequence",
         "interaction",
@@ -154,6 +160,7 @@
       "id": "D07",
       "viewpoint": "actors-goals",
       "kind": "mindmap",
+      "template": "actors-goals-features",
       "phrases": [
         "feature",
         "features",
@@ -170,6 +177,7 @@
       "id": "D08",
       "viewpoint": "actors-goals",
       "kind": "usecase",
+      "template": "actors-goals-usecases",
       "phrases": [
         "use case",
         "use cases",
@@ -198,6 +206,7 @@
       "id": "D09",
       "viewpoint": "context",
       "kind": "c4",
+      "template": "context-landscape",
       "phrases": [
         "context",
         "system context",
@@ -219,6 +228,7 @@
       "id": "D10",
       "viewpoint": "container",
       "kind": "c4",
+      "template": "container-overview",
       "phrases": [
         "container",
         "containers",
@@ -242,6 +252,7 @@
       "id": "D11",
       "viewpoint": "component",
       "kind": "package",
+      "template": "component-packages",
       "phrases": [
         "component",
         "components",
@@ -266,6 +277,7 @@
       "id": "D12",
       "viewpoint": "code",
       "kind": "class",
+      "template": "code-classes",
       "phrases": [
         "class",
         "classes",

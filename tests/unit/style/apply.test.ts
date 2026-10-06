@@ -276,25 +276,40 @@ describe("visuals", () => {
       offProfile(order as View, builtInProfiles()["presentation"]!),
     ).toEqual([]);
     await ok(ep("/set_style_profile"), { patch: { strict: true } });
-    const strict = await ok<{
-      ids: Record<string, { view: string }>;
-      warnings: string[];
-    }>(ep("/build_diagram"), {
-      kind: "class",
-      viewpoint: "code",
-      result: "ids",
-      spec: {
-        classes: [
-          { name: "Ledger" },
-          { name: "Port", kind: "interface" },
-          { name: "Plain" },
-        ],
-        styles: {
-          Ledger: { fillColor: "#123456" },
-          Port: { fillColor: "#123456" },
+    // From outside a strict profile takes content only (issue #43); the
+    // extension's own builds still have the spec's colours dropped.
+    await fails(
+      ep("/build_diagram"),
+      {
+        template: "code-classes",
+        spec: {
+          classes: [{ name: "A" }],
+          styles: { A: { fillColor: "#123456" } },
         },
       },
-    });
+      "TEMPLATE_ONLY",
+      /without spec\.styles/,
+    );
+    const strict = await trusted(() =>
+      ok<{
+        ids: Record<string, { view: string }>;
+        warnings: string[];
+      }>(ep("/build_diagram"), {
+        kind: "class",
+        result: "ids",
+        spec: {
+          classes: [
+            { name: "Ledger" },
+            { name: "Port", kind: "interface" },
+            { name: "Plain" },
+          ],
+          styles: {
+            Ledger: { fillColor: "#123456" },
+            Port: { fillColor: "#123456" },
+          },
+        },
+      }),
+    );
     expect(get(strict.ids.Ledger!.view).fillColor).toBe("#fdf6e3");
     // An interface keeps the box display it needs to show its operations.
     expect(get(strict.ids.Port!.view)).toMatchObject({

@@ -297,6 +297,14 @@ const VIEWPOINTS = [
   "data",
 ];
 
+const TEMPLATES = [
+  "context-landscape",
+  "code-classes",
+  "runtime-sequence",
+  "lifecycle-states",
+  "data-erd",
+];
+
 /** Intents /request_diagram plans (dry run) against DERIVE_SPEC, in turn. */
 const INTENTS = [
   "which classes make up the carts",
@@ -475,6 +483,22 @@ async function main() {
     () => [
       "/derive_diagrams",
       { scope: "LoadModel", dryRun: true, viewpoints: ["code", "runtime"] },
+    ],
+    // Issue #43: templates described and applied (dry run).
+    (i) => ["/describe_template", { name: TEMPLATES[i % TEMPLATES.length] }],
+    () => [
+      "/build_diagram",
+      {
+        template: "code-classes",
+        name: "Templated",
+        spec: BUILD_SPEC,
+        upsert: true,
+        dryRun: true,
+      },
+    ],
+    () => [
+      "/derive_diagrams",
+      { scope: "LoadModel", dryRun: true, template: "runtime-sequence" },
     ],
     // Issue #28: preferences, quick find, tabs, extensions, templates, metadata.
     () => ["/get_preference", { key: "diagramEditor.showGrid" }],

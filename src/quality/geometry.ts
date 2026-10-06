@@ -21,6 +21,7 @@
  *
  */
 
+import { partViews, readMark } from "../viewpoints/mark.js";
 import { DIAGRAM_TYPES, type Kind } from "../build/spec.js";
 import { edgePoints } from "../handlers/lint.js";
 import type { Element, View } from "../types.js";
@@ -41,13 +42,21 @@ export const AREA =
 /** Messages run across every lifeline between their ends. */
 const THROUGH = /Lifeline/;
 
-/** Node views drawn on their own: visible, not the diagram's frame. */
+/**
+ * Node views drawn on their own: visible, not the diagram's frame, and not
+ * the title block or legend the engine keeps below the drawing (issues
+ * #42, #43), which are the sheet's furniture rather than its content.
+ */
 export function nodeViews(diagram: Element): View[] {
+  const parts = new Set(
+    partViews(diagram, readMark(diagram)).map((v) => v._id),
+  );
   return (diagram.ownedViews as View[]).filter(
     (v) =>
       v instanceof type.NodeView &&
       v.visible !== false &&
-      !(v.model instanceof type.Diagram),
+      !(v.model instanceof type.Diagram) &&
+      !parts.has(v._id),
   );
 }
 

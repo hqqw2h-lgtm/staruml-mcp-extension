@@ -14,6 +14,8 @@ interface Derived {
     diagram: string;
     viewpoint: string;
     conforms?: boolean;
+    template?: string;
+    accepted?: boolean;
     quality?: { score: number };
   }[];
   counts: { created: number; deleted: number };
@@ -89,6 +91,12 @@ describeLive("viewpoints: ThingsBoard by viewpoint and by intent", () => {
     expect(
       out.data.diagrams.filter((d) => !d.conforms).map((d) => d.name),
     ).toEqual([]);
+    // Issue #43: each drawn with its viewpoint's default template, and
+    // each passing against that template's golden exemplar.
+    expect(
+      out.data.diagrams.filter((d) => !d.accepted).map((d) => d.name),
+    ).toEqual([]);
+    expect(out.data.diagrams.every((d) => d.template)).toBe(true);
     const lint = await call<{
       diagrams: number;
       counts: Record<string, number>;
@@ -254,22 +262,22 @@ describeLive("viewpoints: ThingsBoard by viewpoint and by intent", () => {
     });
   }, 120_000);
 
-  it("refuses a diagram without a viewpoint under a strict profile", async () => {
+  it("refuses a diagram without a template under a strict profile", async () => {
     await call("/set_style_profile", { patch: { strict: true } });
     const free = await call("/build_diagram", {
       kind: "class",
       name: "Free",
+      viewpoint: "code",
       spec: { classes: [{ name: "A" }] },
     });
-    expect(free).toMatchObject({ status: 403, code: "VIEWPOINT_REQUIRED" });
+    expect(free).toMatchObject({ status: 403, code: "TEMPLATE_ONLY" });
     const empty = await call("/create_diagram", { type: "UMLClassDiagram" });
     expect(empty).toMatchObject({ status: 403, code: "VIEWPOINT_REQUIRED" });
     const declared = await call<{ viewpoint: { conforms: boolean } }>(
       "/build_diagram",
       {
-        kind: "class",
         name: "Declared",
-        viewpoint: "code",
+        template: "code-classes",
         spec: { classes: [{ name: "A" }] },
       },
     );

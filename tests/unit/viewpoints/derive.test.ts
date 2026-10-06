@@ -81,17 +81,30 @@ describe("derive by viewpoint", () => {
     for (const d of all.diagrams) {
       expect(readMark(get(d.diagram))!.viewpoint).toBe(d.viewpoint);
     }
-    // A legend under the views that require one, and nowhere else.
-    const legends = all.diagrams.filter((d) => notes(d.diagram).length > 0);
+    // A title block on every one; a legend under the views that require one.
+    const legendOf = (d: string) =>
+      notes(d).filter((n) => String(n.text).startsWith("Legend\n"));
+    const legends = all.diagrams.filter((d) => legendOf(d.diagram).length > 0);
     expect(legends.map((d) => d.name)).toEqual([
       "Kiosk containers",
       "Shop floor",
     ]);
-    const legend = notes(legends[0]!.diagram)[0]!;
+    const legend = legendOf(legends[0]!.diagram)[0]!;
     expect(String(legend.text)).toMatch(/^Legend\nPerson: /);
-    expect(readMark(get(legends[0]!.diagram))!.parts).toEqual({
-      legend: legend._id,
+    const mark = readMark(get(legends[0]!.diagram))!;
+    expect(mark).toMatchObject({
+      viewpoint: "container",
+      template: "container-overview",
+      version: 1,
+      derived: true,
+      parts: { legend: legend._id },
     });
+    for (const d of all.diagrams) {
+      const title = notes(d.diagram).find(
+        (n) => n._id === readMark(get(d.diagram))!.parts!.title,
+      )!;
+      expect(String(title.text).split("\n")[0]).toBe(d.name);
+    }
     const context = await ok<Out>(ep("/derive_diagrams"), {
       scope: "Kiosk",
       viewpoints: ["context", "container"],
@@ -321,9 +334,14 @@ describe("/build_diagram with a viewpoint", () => {
     expect(refused.details).toMatchObject({ reason: "kind" });
   });
 
-  it("refuses a diagram without a viewpoint under a strict profile, from outside only", async () => {
+  it("refuses a diagram without a template under a strict profile, from outside only", async () => {
     await ok(ep("/set_style_profile"), { patch: { strict: true } });
-    await fails(ep("/build_diagram"), C4, "VIEWPOINT_REQUIRED", /strict/);
+    await fails(ep("/build_diagram"), C4, "TEMPLATE_ONLY", /pass template/);
+    await fails(
+      ep("/build_diagram"),
+      { ...C4, viewpoint: "container" },
+      "TEMPLATE_ONLY",
+    );
     await fails(
       ep("/create_diagram"),
       { type: "UMLClassDiagram", parent: "@project" },
@@ -337,6 +355,6 @@ describe("/build_diagram with a viewpoint", () => {
         parent: "@project",
       });
     });
-    await build({ ...C4, name: "Strict", viewpoint: "container" });
+    await build({ ...C4, name: "Strict", template: "container-overview" });
   });
 });

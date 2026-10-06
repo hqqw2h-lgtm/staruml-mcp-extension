@@ -37,7 +37,9 @@ import {
 import type { ModelViews } from "../model/spec.js";
 import { pathOf } from "../refs.js";
 import { ref } from "../schemas.js";
-import { saveChecks } from "../style/guard.js";
+import { isTrusted, saveChecks } from "../style/guard.js";
+import { defaultTemplate, findTemplate } from "../templates/index.js";
+import type { Template } from "../templates/schema.js";
 import {
   effectiveProfile,
   mergePatch,
@@ -80,6 +82,7 @@ interface Built {
   quality?: { score: number; rating: number; passes: boolean };
   plan?: { ops: unknown[] };
   viewpoint?: { name: string; conforms: boolean };
+  template?: { name: string; version: number; accepted: boolean };
 }
 
 export const derivedSchema = () =>
@@ -102,6 +105,13 @@ export const derivedSchema = () =>
       doc(
         z.boolean(),
         "It keeps to its viewpoint: no error or warning of /viewpoint_lint.",
+      ),
+    ),
+    template: z.optional(doc(z.string(), "The template it is drawn with.")),
+    accepted: z.optional(
+      doc(
+        z.boolean(),
+        "It passes as one of its template: like the template's approved exemplar, scoring near it.",
       ),
     ),
   });
@@ -147,6 +157,8 @@ function hideAccessors(diagram: Element, classes: readonly Element[]): void {
 export interface DeriveRun {
   dryRun?: boolean;
   profile: Profile;
+  /** The template every diagram is drawn with; default each one's viewpoint and kind's. */
+  template?: Template;
 }
 
 /**
@@ -159,6 +171,8 @@ export async function buildDerived(
   endpoints: () => readonly Endpoint[],
   run: DeriveRun,
 ) {
+  const templateOf = (d: Derived) =>
+    run.template ?? defaultTemplate(d.viewpoint, d.kind);
   const one = async (d: Derived): Promise<Built> => {
     const home = d.home === undefined ? null : homeOf(d, !run.dryRun);
     if (home) bindShared(d, home);
@@ -180,7 +194,8 @@ export async function buildDerived(
         bindEdges: d.bindEdges,
         pruneViewsOnly: true,
         opsOnly: true,
-        mark: { viewpoint: d.viewpoint },
+        template: templateOf(d),
+        derived: true,
       })) as Built;
     } catch (err) {
       throw naming(`derive_diagrams: ${d.kind} diagram ${d.name}`, err);
@@ -199,7 +214,10 @@ export async function buildDerived(
         // Every derived build prunes, so each answers what it deleted.
         built.deleted = built.deleted! + again.deleted!;
       }
-      if (!run.dryRun && run.profile.policy.hideGetters && d.kind === "class") {
+      const hide =
+        run.profile.policy.hideGetters ||
+        templateOf(d).content.hideAccessors === true;
+      if (!run.dryRun && hide && d.kind === "class") {
         hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
       }
       results.push(built);
@@ -227,6 +245,8 @@ export async function buildDerived(
       }),
       viewpoint: d.viewpoint,
       ...(b.viewpoint && { conforms: b.viewpoint.conforms }),
+      template: templateOf(d).name,
+      ...(b.template && { accepted: b.template.accepted }),
     };
   });
   const sum = (f: (d: (typeof diagrams)[number]) => number) =>
@@ -290,10 +310,16 @@ export function deriveDiagramsEndpoint(
           "Only the views of these viewpoints; default all but context, which is drawn only when named.",
         ),
       ),
+      template: z.optional(
+        doc(
+          z.string().check(z.minLength(1)),
+          "Only the diagrams of this template's viewpoint and kind, drawn with it; default each diagram with the default template of its viewpoint and kind (see /list_templates).",
+        ),
+      ),
       policy: z.optional(
         doc(
           z.record(z.string(), z.unknown()),
-          "Fields of the style profile's policy for this call: classDiagrams (views|perPackage), hideGetters, neighbours, packageOverview.",
+          "Fields of the style profile's policy for this call: classDiagrams (views|perPackage), hideGetters, neighbours, packageOverview. Refused under a strict profile (TEMPLATE_ONLY).",
         ),
       ),
       dryRun: z.optional(z.boolean()),
@@ -307,16 +333,33 @@ export function deriveDiagramsEndpoint(
       dryRun: z.optional(z.boolean()),
     }),
     handle: async (input) => {
+      const current = effectiveProfile().profile;
+      if (current.strict && input.policy !== undefined && !isTrusted()) {
+        throw new ApiError(
+          "TEMPLATE_ONLY",
+          `derive_diagrams: the style profile '${current.name}' is strict, so what a derived diagram shows is its template's; policy is refused`,
+          { profile: current.name, fields: ["policy"] },
+        );
+      }
       const scope = requireElement(input.scope, "Scope");
       const profile = deriveProfile(input.policy);
+      const template =
+        input.template === undefined ? undefined : findTemplate(input.template);
       const kinds = input.kinds && new Set<DerivedKind>(input.kinds);
       const wanted = input.viewpoints && new Set(input.viewpoints);
       const derived = derive(scope, profile, kinds, {
-        context: wanted?.has("context") === true,
-      }).filter((d) => !wanted || wanted.has(d.viewpoint));
+        context:
+          wanted?.has("context") === true || template?.viewpoint === "context",
+      }).filter(
+        (d) =>
+          (!wanted || wanted.has(d.viewpoint)) &&
+          (!template ||
+            (d.viewpoint === template.viewpoint && d.kind === template.kind)),
+      );
       const out = await buildDerived(derived, endpoints, {
         dryRun: input.dryRun,
         profile,
+        ...(template && { template }),
       });
       return {
         model: pathOf(scope),

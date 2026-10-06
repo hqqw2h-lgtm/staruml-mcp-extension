@@ -37,6 +37,7 @@ import { pathOf } from "../refs.js";
 import { ref } from "../schemas.js";
 import { effectiveProfile, type Profile } from "../style/profile.js";
 import type { Element } from "../types.js";
+import { findTemplate, templates } from "../templates/index.js";
 import { decide, normalizeIntent } from "../viewpoints/decide.js";
 import {
   elementLimit,
@@ -141,9 +142,14 @@ export const describeViewpoint = defineEndpoint({
       z.object({
         id: z.string(),
         kind: z.string(),
+        template: z.string(),
         phrases: z.array(z.string()),
         scopes: z.array(z.string()),
       }),
+    ),
+    templates: doc(
+      z.array(z.string()),
+      "Templates drawing it (see /describe_template).",
     ),
   }),
   handle: (input) => {
@@ -155,9 +161,13 @@ export const describeViewpoint = defineEndpoint({
         .map((r) => ({
           id: r.id,
           kind: r.kind,
+          template: r.template,
           phrases: [...r.phrases],
           scopes: [...r.scopes],
         })),
+      templates: templates()
+        .filter((t) => t.viewpoint === input.name)
+        .map((t) => t.name),
     };
   },
 });
@@ -503,6 +513,7 @@ export function requestDiagramEndpoint(
         z.object({
           viewpoint: z.enum(VIEWPOINT_NAMES),
           kind: z.string(),
+          template: doc(z.string(), "The template it is drawn with."),
           rule: doc(z.string(), "The decision rule applied."),
           reason: z.string(),
           question: doc(z.string(), "What the view answers."),
@@ -599,11 +610,13 @@ export function requestDiagramEndpoint(
       const out = await buildDerived(chosen, endpoints, {
         dryRun: input.dryRun,
         profile,
+        template: findTemplate(decision.template),
       });
       return {
         choice: {
           viewpoint: decision.viewpoint,
           kind: decision.kind,
+          template: decision.template,
           rule: decision.rule,
           reason: decision.reason,
           question: vp.question,

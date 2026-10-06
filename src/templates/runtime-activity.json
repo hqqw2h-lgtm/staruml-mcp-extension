@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "runtime-activity",
+  "version": 1,
+  "title": "Steps as an activity",
+  "description": "The steps of a process, its decisions and parallel branches, a lane per part.",
+  "viewpoint": "runtime",
+  "kind": "activity",
+  "default": true,
+  "content": {
+    "maxElements": 30
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

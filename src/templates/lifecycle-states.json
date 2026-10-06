@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "lifecycle-states",
+  "version": 1,
+  "title": "Lifecycle",
+  "description": "The states of one kind of object and the events between them, left to right.",
+  "viewpoint": "lifecycle",
+  "kind": "statemachine",
+  "default": true,
+  "content": {
+    "maxElements": 20
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-right"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "component-c4",
+  "version": 1,
+  "title": "Components of a container",
+  "description": "The components inside one container and how they depend on each other.",
+  "viewpoint": "component",
+  "kind": "c4",
+  "default": true,
+  "content": {
+    "maxElements": 20
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

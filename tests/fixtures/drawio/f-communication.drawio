@@ -5,7 +5,7 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="ID2" value="Checkout talk" style="shape=umlFrame;width=120;height=20;html=1;whiteSpace=wrap;verticalAlign=top;align=left;spacingLeft=4;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
-          <mxGeometry x="20" y="20" width="520" height="110" as="geometry" />
+          <mxGeometry x="0" y="0" width="560" height="150" as="geometry" />
         </mxCell>
         <mxCell id="ID3" value="client" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;outlineConnect=0;size=40;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
           <mxGeometry x="40" y="70" width="120" height="40" as="geometry" />
