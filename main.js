@@ -557,8 +557,8 @@ function isPlainObject(o) {
   return true;
 }
 var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
-function escapeRegex(str4) {
-  return str4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str5) {
+  return str5.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -713,13 +713,13 @@ function finalizeIssue(iss, ctx, config2) {
   return full;
 }
 var highSurrogate = /[\uD800-\uDBFF]/;
-function codePointLength(str4) {
-  const units = str4.length;
-  if (!highSurrogate.test(str4))
+function codePointLength(str5) {
+  const units = str5.length;
+  if (!highSurrogate.test(str5))
     return units;
   let count = units;
   for (let i = 0; i < units - 1; i++) {
-    if ((str4.charCodeAt(i) & 64512) === 55296 && (str4.charCodeAt(i + 1) & 64512) === 56320) {
+    if ((str5.charCodeAt(i) & 64512) === 55296 && (str5.charCodeAt(i + 1) & 64512) === 56320) {
       count--;
       i++;
     }
@@ -5075,7 +5075,7 @@ function familyPlan(kind2, spec) {
     return key2;
   };
   const keys2 = entries.map(keyOf);
-  const typeOf2 = (n) => f.nodes[n.type ?? f.node];
+  const typeOf3 = (n) => f.nodes[n.type ?? f.node];
   const order = [];
   const state2 = /* @__PURE__ */ new Map();
   const visit = (i) => {
@@ -5104,7 +5104,7 @@ function familyPlan(kind2, spec) {
   entries.forEach((_, i) => visit(i));
   for (const i of order) {
     const n = entries[i];
-    const t = typeOf2(n);
+    const t = typeOf3(n);
     const key2 = keys2[i];
     const label4 = n.name !== void 0 ? multiline(n.name) : "";
     const into = n.in !== void 0 ? multiline(n.in) : void 0;
@@ -8695,8 +8695,8 @@ function segmentsCross(a, b, c, d) {
   const d4 = cross(a, b, d);
   return (d1 > EPS && d2 < -EPS || d1 < -EPS && d2 > EPS) && (d3 > EPS && d4 < -EPS || d3 < -EPS && d4 > EPS);
 }
-var segments = (points) => points.slice(1).map((p, i) => [points[i], p]);
-var length = (points) => segments(points).reduce(
+var segments = (points2) => points2.slice(1).map((p, i) => [points2[i], p]);
+var length = (points2) => segments(points2).reduce(
   (n, [a, b]) => n + Math.hypot(b.x - a.x, b.y - a.y),
   0
 );
@@ -8707,9 +8707,9 @@ function pointToSegment(p, a, b) {
   const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
-function labelGap(label4, points) {
-  if (points.length === 0) return Infinity;
-  const segs = points.length > 1 ? segments(points) : [[points[0], points[0]]];
+function labelGap(label4, points2) {
+  if (points2.length === 0) return Infinity;
+  const segs = points2.length > 1 ? segments(points2) : [[points2[0], points2[0]]];
   if (segs.some(([p, q2]) => segmentCrossesBox(p, q2, label4))) return 0;
   const { left: l, top: t, width: w, height: h } = label4;
   const probes = [
@@ -8726,7 +8726,7 @@ function labelGap(label4, points) {
     ...probes.flatMap((p) => segs.map(([a, b]) => pointToSegment(p, a, b)))
   );
   const toBox = Math.min(
-    ...points.map(
+    ...points2.map(
       (p) => Math.hypot(
         Math.max(l - p.x, 0, p.x - (l + w)),
         Math.max(t - p.y, 0, p.y - (t + h))
@@ -8735,8 +8735,8 @@ function labelGap(label4, points) {
   );
   return Math.min(fromBox, toBox);
 }
-function runs(points) {
-  return segments(points).flatMap(([p, q2]) => {
+function runs(points2) {
+  return segments(points2).flatMap(([p, q2]) => {
     if (Math.abs(p.y - q2.y) <= 1 && Math.abs(p.x - q2.x) > 1) {
       return [
         {
@@ -13636,10 +13636,10 @@ var NAMED_OPS = {
 };
 function normalizeOps(ops, renames) {
   return ops.map((op) => {
-    const typeOf2 = NAMED_OPS[op.path];
+    const typeOf3 = NAMED_OPS[op.path];
     const name4 = op.body.name;
-    if (!typeOf2 || typeof name4 !== "string") return op;
-    const typeName5 = typeOf2(op.body);
+    if (!typeOf3 || typeof name4 !== "string") return op;
+    const typeName5 = typeOf3(op.body);
     const kind2 = typeName5 === "UMLAttribute" ? attributeKind(name4, op.body.isStatic) : namingKindOf(typeName5);
     const fixed = renames.name(name4, kind2);
     return fixed === name4 ? op : { ...op, body: { ...op.body, name: fixed } };
@@ -13847,8 +13847,8 @@ function heldBy(a, b) {
 }
 var area = (b) => AREA.test(kind(b.view));
 function edgePoints(edge) {
-  const points = edge.points?.points;
-  if (Array.isArray(points) && points.length >= 2) return points;
+  const points2 = edge.points?.points;
+  if (Array.isArray(points2) && points2.length >= 2) return points2;
   const centre3 = (v) => {
     const b = boxOf(v);
     return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2 };
@@ -13995,12 +13995,12 @@ function crossings(f, boxes, edges) {
     (b) => !area(b) && !PASSED_THROUGH.test(kind(b.view))
   );
   for (const edge of edges) {
-    const points = edgePoints(edge);
+    const points2 = edgePoints(edge);
     for (const b of obstacles) {
       if (attached(edge, b)) continue;
       const ends4 = [edge.tail, edge.head].map((e) => boxOf(e));
       if (ends4.some((e) => heldBy(e, b))) continue;
-      if (!points.some((p, i) => i > 0 && crosses(points[i - 1], p, b))) {
+      if (!points2.some((p, i) => i > 0 && crosses(points2[i - 1], p, b))) {
         continue;
       }
       f.add(
@@ -14380,8 +14380,8 @@ var Mover = class {
       )
     );
   }
-  modifyEdge(edge, points) {
-    inStarUML(() => app.engine.modifyEdge(this.ed(), edge, points));
+  modifyEdge(edge, points2) {
+    inStarUML(() => app.engine.modifyEdge(this.ed(), edge, points2));
   }
   assign(view, field, value) {
     const builder = app.repository.getOperationBuilder();
@@ -14513,9 +14513,9 @@ function rows(views) {
 }
 function orderRanks(diagram, m) {
   const views = solids(diagram);
-  const geometry = geometryOf(diagram);
+  const geometry2 = geometryOf(diagram);
   const neighbours2 = /* @__PURE__ */ new Map();
-  for (const e of geometry.edges) {
+  for (const e of geometry2.edges) {
     const [a, b] = e.ends;
     neighbours2.set(a, [...neighbours2.get(a) ?? [], b]);
     neighbours2.set(b, [...neighbours2.get(b) ?? [], a]);
@@ -14609,8 +14609,8 @@ function fitFragments(diagram, lifelines, m) {
   }
 }
 function edgeY(edge) {
-  const points = edge.points?.points;
-  return points && points.length > 0 ? points[0].y : 0;
+  const points2 = edge.points?.points;
+  return points2 && points2.length > 0 ? points2[0].y : 0;
 }
 function usecase(diagram, m) {
   const views = nodeViews(diagram);
@@ -14831,11 +14831,11 @@ function unstrip(diagram, preset, limits, score2, m) {
     return result;
   });
   const now = score2();
-  const within5 = tried.filter((t) => t.aspect <= maxAspect);
-  if (measure(geometryOf(diagram)).aspect <= maxAspect * 1.15 && within5.every((t) => t.score < now - 15)) {
+  const within6 = tried.filter((t) => t.aspect <= maxAspect);
+  if (measure(geometryOf(diagram)).aspect <= maxAspect * 1.15 && within6.every((t) => t.score < now - 15)) {
     return;
   }
-  const best = within5.length > 0 ? within5.sort((a, b) => b.score - a.score)[0] : tried.sort((a, b) => a.aspect - b.aspect)[0];
+  const best = within6.length > 0 ? within6.sort((a, b) => b.score - a.score)[0] : tried.sort((a, b) => a.aspect - b.aspect)[0];
   ways[best.i]();
 }
 var UNFOLDED = /* @__PURE__ */ new Set(["sequence", "timing", "mindmap"]);
@@ -14847,9 +14847,9 @@ function straighten(diagram, moved, m) {
     if (!moved.has(ownerNode(e.tail)) && !moved.has(ownerNode(e.head))) {
       continue;
     }
-    const points = e.points;
-    if ((points?.points?.length ?? 0) <= 2) continue;
-    const next = points.copy();
+    const points2 = e.points;
+    if ((points2?.points?.length ?? 0) <= 2) continue;
+    const next = points2.copy();
     const [a, b] = [next.points[0], next.points.at(-1)];
     const mid = next.points[1];
     mid.x = Math.round((a.x + b.x) / 2);
@@ -21040,8 +21040,8 @@ var MESSAGE_KINDS2 = {
   deleteMessage: "delete"
 };
 function edgeY2(view) {
-  const points = view.points?.points;
-  return points?.[0]?.y ?? Number.POSITIVE_INFINITY;
+  const points2 = view.points?.points;
+  return points2?.[0]?.y ?? Number.POSITIVE_INFINITY;
 }
 function sequenceSpec2(v) {
   const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline").sort((a, b) => box2(a).left - box2(b).left);
@@ -22229,6 +22229,1035 @@ function extractFamily(diagram, kind2) {
   };
 }
 
+// src/text/drawio-styles.json
+var drawio_styles_default = {
+  visual: {
+    fillColor: "fillColor",
+    lineColor: "strokeColor",
+    fontColor: "fontColor",
+    fontFace: "fontFamily",
+    fontSize: "fontSize"
+  },
+  lineStyles: {
+    rectilinear: "",
+    oblique: "",
+    roundrect: "rounded=1;",
+    curve: "curved=1;"
+  },
+  node: "rounded=0;whiteSpace=wrap;html=1;",
+  container: "container=1;pointerEvents=0;collapsible=0;recursiveResize=0;",
+  nodes: {
+    UMLClass: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "classifier"
+    },
+    UMLInterface: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "classifier"
+    },
+    UMLEnumeration: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "classifier"
+    },
+    UMLDataType: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "classifier"
+    },
+    UMLPrimitiveType: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "classifier"
+    },
+    UMLSignal: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "classifier"
+    },
+    UMLPackage: {
+      style: "shape=folder;tabWidth=80;tabHeight=20;tabPosition=left;verticalAlign=top;align=left;spacingTop=20;spacingLeft=6;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    UMLModel: {
+      style: "shape=folder;tabWidth=80;tabHeight=20;tabPosition=left;verticalAlign=top;align=left;spacingTop=20;spacingLeft=6;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true,
+      stereotype: "model"
+    },
+    UMLSubsystem: {
+      style: "shape=folder;tabWidth=80;tabHeight=20;tabPosition=left;verticalAlign=top;align=left;spacingTop=20;spacingLeft=6;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true,
+      stereotype: "subsystem"
+    },
+    UMLComponent: {
+      style: "shape=component;align=left;spacingLeft=36;verticalAlign=top;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    UMLPort: {
+      style: "rounded=0;html=1;labelPosition=right;verticalLabelPosition=bottom;align=left;verticalAlign=top;"
+    },
+    UMLNode: {
+      style: "shape=cube;size=12;flipH=1;verticalAlign=top;align=left;spacingLeft=6;spacingTop=12;boundedLbl=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    UMLArtifact: {
+      style: "shape=note;size=14;verticalAlign=top;html=1;whiteSpace=wrap;",
+      stereotype: "artifact"
+    },
+    UMLActor: {
+      style: "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;html=1;"
+    },
+    UMLUseCase: {
+      style: "ellipse;whiteSpace=wrap;html=1;"
+    },
+    UMLUseCaseSubject: {
+      style: "rounded=0;verticalAlign=top;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    UMLActivityPartition: {
+      style: "swimlane;startSize=24;horizontal=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    UMLAction: {
+      style: "rounded=1;arcSize=30;whiteSpace=wrap;html=1;"
+    },
+    UMLOpaqueAction: {
+      style: "rounded=1;arcSize=30;whiteSpace=wrap;html=1;"
+    },
+    UMLCallBehaviorAction: {
+      style: "rounded=1;arcSize=30;whiteSpace=wrap;html=1;"
+    },
+    UMLObjectNode: {
+      style: "rounded=0;whiteSpace=wrap;html=1;"
+    },
+    UMLCentralBufferNode: {
+      style: "rounded=0;whiteSpace=wrap;html=1;",
+      stereotype: "centralBuffer"
+    },
+    UMLInitialNode: {
+      style: "ellipse;shape=startState;fillColor=#000000;strokeColor=#000000;html=1;",
+      fixed: true
+    },
+    UMLActivityFinalNode: {
+      style: "ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;",
+      fixed: true
+    },
+    UMLFlowFinalNode: {
+      style: "shape=sumEllipse;perimeter=ellipsePerimeter;html=1;"
+    },
+    UMLDecisionNode: {
+      style: "rhombus;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;labelPosition=right;align=left;"
+    },
+    UMLMergeNode: {
+      style: "rhombus;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;labelPosition=right;align=left;"
+    },
+    UMLForkNode: {
+      style: "html=1;fillColor=#000000;strokeColor=none;",
+      fixed: true
+    },
+    UMLJoinNode: {
+      style: "html=1;fillColor=#000000;strokeColor=none;",
+      fixed: true
+    },
+    UMLState: {
+      style: "rounded=1;arcSize=20;verticalAlign=top;whiteSpace=wrap;html=1;"
+    },
+    UMLFinalState: {
+      style: "ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;",
+      fixed: true
+    },
+    UMLLifeline: {
+      style: "shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;outlineConnect=0;",
+      label: "lifeline",
+      container: true
+    },
+    UMLCombinedFragment: {
+      style: "shape=umlFrame;width=60;height=20;html=1;whiteSpace=wrap;verticalAlign=top;align=left;spacingLeft=4;",
+      label: "fragment",
+      container: true
+    },
+    UMLInteractionOperand: {
+      style: "shape=partialRectangle;top=1;left=0;right=0;bottom=0;dashed=1;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;html=1;whiteSpace=wrap;"
+    },
+    ERDEntity: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "entity"
+    },
+    FCProcess: {
+      style: "rounded=0;whiteSpace=wrap;html=1;"
+    },
+    FCDecision: {
+      style: "rhombus;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;"
+    },
+    FCTerminator: {
+      style: "rounded=1;arcSize=50;whiteSpace=wrap;html=1;"
+    },
+    FCData: {
+      style: "shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;"
+    },
+    FCDocument: {
+      style: "shape=document;whiteSpace=wrap;html=1;boundedLbl=1;"
+    },
+    FCPredefinedProcess: {
+      style: "shape=process;whiteSpace=wrap;html=1;"
+    },
+    FCAlternateProcess: {
+      style: "rounded=1;whiteSpace=wrap;html=1;"
+    },
+    FCDatabase: {
+      style: "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=10;"
+    },
+    FCManualInput: {
+      style: "shape=manualInput;size=12;whiteSpace=wrap;html=1;"
+    },
+    FCPreparation: {
+      style: "shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;"
+    },
+    FCConnector: {
+      style: "ellipse;whiteSpace=wrap;html=1;"
+    },
+    FCDelay: {
+      style: "shape=delay;whiteSpace=wrap;html=1;"
+    },
+    FCDisplay: {
+      style: "shape=display;whiteSpace=wrap;html=1;"
+    },
+    MMNode: {
+      style: "rounded=1;arcSize=50;whiteSpace=wrap;html=1;"
+    },
+    C4Person: {
+      style: "shape=mxgraph.c4.person2;whiteSpace=wrap;html=1;align=center;metaEdit=1;points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];resizable=0;",
+      label: "c4"
+    },
+    C4SoftwareSystem: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      label: "c4"
+    },
+    C4Container: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      label: "c4"
+    },
+    C4Component: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      label: "c4"
+    },
+    SysMLRequirement: {
+      style: "verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;",
+      label: "requirement"
+    },
+    DFDExternalEntity: {
+      style: "rounded=0;whiteSpace=wrap;html=1;"
+    },
+    DFDProcess: {
+      style: "ellipse;whiteSpace=wrap;html=1;"
+    },
+    DFDDataStore: {
+      style: "shape=partialRectangle;top=1;bottom=1;left=1;right=0;whiteSpace=wrap;html=1;"
+    },
+    BPMNParticipant: {
+      style: "swimlane;horizontal=0;startSize=30;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    BPMNLane: {
+      style: "swimlane;horizontal=0;startSize=30;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    BPMNTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;"
+    },
+    BPMNUserTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "user"
+    },
+    BPMNServiceTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "service"
+    },
+    BPMNScriptTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "script"
+    },
+    BPMNSendTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "send"
+    },
+    BPMNReceiveTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "receive"
+    },
+    BPMNManualTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "manual"
+    },
+    BPMNBusinessRuleTask: {
+      style: "rounded=1;arcSize=10;whiteSpace=wrap;html=1;",
+      stereotype: "business rule"
+    },
+    BPMNCallActivity: {
+      style: "rounded=1;arcSize=10;strokeWidth=3;whiteSpace=wrap;html=1;"
+    },
+    BPMNSubProcess: {
+      style: "rounded=1;arcSize=10;verticalAlign=top;whiteSpace=wrap;html=1;",
+      container: true
+    },
+    BPMNStartEvent: {
+      style: "ellipse;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNEndEvent: {
+      style: "ellipse;strokeWidth=3;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNIntermediateCatchEvent: {
+      style: "ellipse;shape=doubleEllipse;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNIntermediateThrowEvent: {
+      style: "ellipse;shape=doubleEllipse;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNExclusiveGateway: {
+      style: "rhombus;perimeter=rhombusPerimeter;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNParallelGateway: {
+      style: "rhombus;perimeter=rhombusPerimeter;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNInclusiveGateway: {
+      style: "rhombus;perimeter=rhombusPerimeter;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNComplexGateway: {
+      style: "rhombus;perimeter=rhombusPerimeter;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNEventBasedGateway: {
+      style: "rhombus;perimeter=rhombusPerimeter;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNDataObject: {
+      style: "shape=note;size=12;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNDataStore: {
+      style: "shape=datastore;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+    },
+    BPMNTextAnnotation: {
+      style: "shape=partialRectangle;top=1;bottom=1;left=1;right=0;fillColor=none;align=left;spacingLeft=4;whiteSpace=wrap;html=1;",
+      label: "text"
+    },
+    WFDesktopFrame: {
+      style: "rounded=0;verticalAlign=top;align=left;spacingLeft=6;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    WFWebFrame: {
+      style: "rounded=0;verticalAlign=top;align=left;spacingLeft=6;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    WFMobileFrame: {
+      style: "rounded=1;arcSize=6;verticalAlign=top;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    WFFrame: {
+      style: "rounded=0;verticalAlign=top;align=left;spacingLeft=6;fontStyle=1;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    WFPanel: {
+      style: "rounded=0;verticalAlign=top;align=left;spacingLeft=6;html=1;whiteSpace=wrap;",
+      container: true
+    },
+    WFButton: {
+      style: "rounded=1;arcSize=20;whiteSpace=wrap;html=1;"
+    },
+    WFInput: {
+      style: "rounded=0;align=left;spacingLeft=6;whiteSpace=wrap;html=1;"
+    },
+    WFDropdown: {
+      style: "rounded=0;align=left;spacingLeft=6;whiteSpace=wrap;html=1;",
+      label: "suffixed",
+      suffix: " \u25BE"
+    },
+    WFCheckbox: {
+      style: "text;align=left;whiteSpace=wrap;html=1;",
+      label: "checked",
+      on: "\u2611 ",
+      off: "\u2610 ",
+      fixed: true
+    },
+    WFRadio: {
+      style: "text;align=left;whiteSpace=wrap;html=1;",
+      label: "checked",
+      on: "\u25C9 ",
+      off: "\u25CB ",
+      fixed: true
+    },
+    WFSwitch: {
+      style: "text;align=left;whiteSpace=wrap;html=1;",
+      label: "checked",
+      on: "\u2B24 on ",
+      off: "\u25EF off ",
+      fixed: true
+    },
+    WFText: {
+      style: "text;align=left;whiteSpace=wrap;html=1;",
+      fixed: true
+    },
+    WFLink: {
+      style: "text;align=left;fontStyle=4;whiteSpace=wrap;html=1;",
+      fixed: true
+    },
+    WFImage: {
+      style: "rounded=0;whiteSpace=wrap;html=1;dashed=1;"
+    },
+    WFAvatar: {
+      style: "ellipse;whiteSpace=wrap;html=1;"
+    },
+    WFSeparator: {
+      style: "line;strokeWidth=1;html=1;"
+    },
+    WFSlider: {
+      style: "line;strokeWidth=2;html=1;"
+    },
+    WFTabList: {
+      style: "rounded=0;whiteSpace=wrap;html=1;",
+      container: true
+    },
+    WFTab: {
+      style: "rounded=0;whiteSpace=wrap;html=1;"
+    }
+  },
+  pseudostates: {
+    initial: {
+      style: "ellipse;shape=startState;fillColor=#000000;strokeColor=#000000;html=1;",
+      fixed: true
+    },
+    choice: {
+      style: "rhombus;perimeter=rhombusPerimeter;html=1;labelPosition=right;align=left;"
+    },
+    junction: {
+      style: "ellipse;fillColor=#000000;strokeColor=#000000;html=1;",
+      fixed: true
+    },
+    fork: {
+      style: "html=1;fillColor=#000000;strokeColor=none;",
+      fixed: true
+    },
+    join: {
+      style: "html=1;fillColor=#000000;strokeColor=none;",
+      fixed: true
+    },
+    shallowHistory: {
+      style: "ellipse;html=1;",
+      label: "fixed",
+      text: "H"
+    },
+    deepHistory: {
+      style: "ellipse;html=1;",
+      label: "fixed",
+      text: "H*"
+    },
+    entryPoint: {
+      style: "ellipse;html=1;labelPosition=right;align=left;"
+    },
+    exitPoint: {
+      style: "shape=sumEllipse;perimeter=ellipsePerimeter;html=1;labelPosition=right;align=left;"
+    },
+    terminate: {
+      style: "shape=umlDestroy;html=1;"
+    }
+  },
+  views: {
+    UMLFrameView: {
+      style: "shape=umlFrame;width=120;height=20;html=1;whiteSpace=wrap;verticalAlign=top;align=left;spacingLeft=4;",
+      label: "frame"
+    },
+    UMLNoteView: {
+      style: "shape=note;size=12;align=left;verticalAlign=top;spacingLeft=4;whiteSpace=wrap;html=1;",
+      label: "text"
+    },
+    UMLTextView: {
+      style: "text;align=left;verticalAlign=top;whiteSpace=wrap;html=1;",
+      label: "text",
+      fixed: true
+    },
+    UMLActivationView: {
+      style: "html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;"
+    }
+  },
+  edge: "html=1;labelBackgroundColor=default;endArrow=open;endSize=12;",
+  edges: {
+    UMLGeneralization: {
+      style: "html=1;labelBackgroundColor=default;endArrow=block;endFill=0;endSize=14;"
+    },
+    UMLInterfaceRealization: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=block;endFill=0;endSize=14;"
+    },
+    UMLRealization: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=block;endFill=0;endSize=14;"
+    },
+    UMLComponentRealization: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=block;endFill=0;endSize=14;"
+    },
+    UMLDependency: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;"
+    },
+    UMLAbstraction: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;"
+    },
+    UMLUsage: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;"
+    },
+    UMLDeployment: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "deploy"
+    },
+    UMLInclude: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "include"
+    },
+    UMLExtend: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "extend"
+    },
+    UMLAssociation: {
+      style: "html=1;labelBackgroundColor=default;endArrow=none;startArrow=none;",
+      label: "association"
+    },
+    UMLCommunicationPath: {
+      style: "html=1;labelBackgroundColor=default;endArrow=none;"
+    },
+    UMLConnector: {
+      style: "html=1;labelBackgroundColor=default;endArrow=none;"
+    },
+    UMLControlFlow: {
+      style: "html=1;labelBackgroundColor=default;endArrow=open;endSize=12;",
+      label: "flow"
+    },
+    UMLObjectFlow: {
+      style: "html=1;labelBackgroundColor=default;endArrow=open;endSize=12;",
+      label: "flow"
+    },
+    UMLTransition: {
+      style: "html=1;labelBackgroundColor=default;endArrow=open;endSize=12;",
+      label: "transition"
+    },
+    UMLMessage: {
+      style: "html=1;labelBackgroundColor=default;endArrow=block;endFill=1;endSize=8;verticalAlign=bottom;",
+      label: "message"
+    },
+    ERDRelationship: {
+      style: "html=1;labelBackgroundColor=default;endArrow=none;startArrow=none;endSize=12;startSize=12;endFill=0;startFill=0;",
+      label: "erd"
+    },
+    FCFlow: {
+      style: "html=1;labelBackgroundColor=default;endArrow=block;endFill=1;"
+    },
+    MMEdge: {
+      style: "html=1;labelBackgroundColor=default;endArrow=none;curved=1;"
+    },
+    C4Relationship: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      label: "c4"
+    },
+    SysMLDeriveReqt: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "deriveReqt"
+    },
+    SysMLSatisfy: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "satisfy"
+    },
+    SysMLVerify: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "verify"
+    },
+    SysMLRefine: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "refine"
+    },
+    SysMLCopy: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;",
+      stereotype: "copy"
+    },
+    DFDDataFlow: {
+      style: "html=1;labelBackgroundColor=default;endArrow=block;endFill=1;"
+    },
+    BPMNSequenceFlow: {
+      style: "html=1;labelBackgroundColor=default;endArrow=block;endFill=1;"
+    },
+    BPMNMessageFlow: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;startArrow=oval;startFill=0;endArrow=block;endFill=0;"
+    },
+    BPMNAssociation: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;dashPattern=1 3;endArrow=none;"
+    },
+    BPMNDataAssociation: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;dashPattern=1 3;endArrow=open;"
+    }
+  },
+  edgeViews: {
+    UMLNoteLinkView: {
+      style: "html=1;labelBackgroundColor=default;dashed=1;endArrow=none;"
+    },
+    UMLContainmentView: {
+      style: "html=1;labelBackgroundColor=default;endArrow=circlePlus;endFill=0;"
+    }
+  },
+  messages: {
+    synchCall: "endArrow=block;endFill=1;",
+    asynchCall: "endArrow=open;endFill=0;",
+    asynchSignal: "endArrow=open;endFill=0;",
+    reply: "dashed=1;endArrow=open;endFill=0;",
+    createMessage: "dashed=1;endArrow=open;endFill=0;",
+    deleteMessage: "endArrow=block;endFill=1;"
+  },
+  aggregation: {
+    shared: "endArrow=diamondThin;endFill=0;endSize=16;",
+    composite: "endArrow=diamondThin;endFill=1;endSize=16;"
+  },
+  cardinalities: {
+    "1": "ERmandOne",
+    "0..1": "ERzeroToOne",
+    "1..*": "ERoneToMany",
+    "0..*": "ERzeroToMany"
+  },
+  edgeLabel: "edgeLabel;resizable=0;html=1;",
+  navigable: "endArrow=open;endFill=0;endSize=12;",
+  identifying: {
+    true: "",
+    false: "dashed=1;"
+  }
+};
+
+// src/text/drawio-writer.ts
+var NODES = drawio_styles_default.nodes;
+var PSEUDOSTATES = drawio_styles_default.pseudostates;
+var VIEWS = drawio_styles_default.views;
+var EDGES = drawio_styles_default.edges;
+var EDGE_VIEWS = drawio_styles_default.edgeViews;
+var MESSAGES = drawio_styles_default.messages;
+var AGGREGATION = drawio_styles_default.aggregation;
+var CARDINALITIES2 = drawio_styles_default.cardinalities;
+var LINE = drawio_styles_default.lineStyles;
+var VISUAL = drawio_styles_default.visual;
+var LINE_NAMES = Object.fromEntries(
+  Object.entries(LINE_STYLES).map(([name4, n]) => [n, name4])
+);
+var typeOf2 = (e) => e.constructor.name;
+var str3 = (value) => typeof value === "string" ? value : "";
+var num = (n) => String(Math.round(n * 100) / 100);
+function xmlAttr(text4) {
+  return text4.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\r?\n/g, "&#xa;").replace(/\t/g, "&#x9;");
+}
+var html = (text4) => text4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
+var guillemets = (s) => `\xAB${html(s)}\xBB`;
+function stereotypeOf4(model) {
+  const st = model?.stereotype;
+  return typeof st === "string" ? st : st ? str3(st.name) : "";
+}
+var rectOf = (v) => ({
+  x: v.left,
+  y: v.top,
+  w: v.width,
+  h: v.height
+});
+var within3 = (a, b) => a.x >= b.x - 0.5 && a.y >= b.y - 0.5 && a.x + a.w <= b.x + b.w + 0.5 && a.y + a.h <= b.y + b.h + 0.5;
+var points = (v) => v.points?.points ?? [];
+function nodeStyle(view) {
+  const m = view.model;
+  if (VIEWS[typeOf2(view)]) return VIEWS[typeOf2(view)];
+  if (!m) return void 0;
+  if (typeOf2(m) === "UMLPseudostate") return PSEUDOSTATES[str3(m.kind)];
+  return NODES[typeOf2(m)];
+}
+var FALLBACK2 = { style: drawio_styles_default.node };
+function visualStyle(visual, skipColours) {
+  return Object.keys(VISUAL).filter((k) => visual[k] !== void 0).filter((k) => !skipColours || k !== "fillColor" && k !== "lineColor").map((k) => `${VISUAL[k]}=${String(visual[k])};`).join("");
+}
+function ownVisual(view) {
+  const font = fontOf(view);
+  const colour3 = (k) => str3(view[k]) ? { [k]: str3(view[k]) } : {};
+  return {
+    ...colour3("fillColor"),
+    ...colour3("lineColor"),
+    ...colour3("fontColor"),
+    ...font && { fontFace: font.face, fontSize: font.size }
+  };
+}
+function classifierLabel(view, m) {
+  const keyword = {
+    UMLInterface: "interface",
+    UMLEnumeration: "enumeration",
+    UMLDataType: "dataType",
+    UMLPrimitiveType: "primitive",
+    UMLSignal: "signal"
+  };
+  const stereotypes = [keyword[typeOf2(m)], stereotypeOf4(m)].filter(
+    (s) => Boolean(s)
+  );
+  const name4 = m.isAbstract ? `<i>${html(str3(m.name))}</i>` : html(str3(m.name));
+  const head = [...stereotypes.map(guillemets), `<b>${name4}</b>`].join("<br>");
+  const compartments = [];
+  if (!view.suppressAttributes) {
+    compartments.push(list(m.attributes).map((a) => formatAttribute(a)));
+  }
+  if (!view.suppressOperations) {
+    compartments.push(list(m.operations).map((o) => formatOperation(o)));
+  }
+  if (typeOf2(m) === "UMLEnumeration" && !view.suppressLiterals) {
+    compartments.push(list(m.literals).map((l) => str3(l.name)));
+  }
+  return `<p style="margin:0;margin-top:4px;text-align:center;">${head}</p>` + compartments.map(
+    (lines2) => `<hr size="1" style="border-style:solid;"><p style="margin:0;margin-left:4px;">${lines2.map(html).join("<br>")}</p>`
+  ).join("");
+}
+function entityLabel(m) {
+  const rows2 = list(m.columns).map((c) => {
+    const keys2 = [
+      c.primaryKey === true && "PK",
+      c.foreignKey === true && "FK",
+      c.unique === true && "U",
+      c.nullable === true && "N"
+    ].filter(Boolean);
+    const length2 = str3(c.length) && str3(c.length) !== "0" ? `(${str3(c.length)})` : "";
+    const name4 = html(str3(c.name));
+    return `<tr><td>${keys2.join(", ")}</td><td>${c.primaryKey === true ? `<u>${name4}</u>` : name4}</td><td>${html(typeText(c.type) + length2)}</td></tr>`;
+  });
+  return `<p style="margin:0;margin-top:4px;text-align:center;"><b>${html(str3(m.name))}</b></p><hr size="1" style="border-style:solid;"><table style="width:100%;font-size:1em;" cellpadding="2" cellspacing="0">${rows2.join("")}</table>`;
+}
+var C4_KINDS2 = {
+  C4Person: "Person",
+  C4SoftwareSystem: "Software System",
+  C4Container: "Container",
+  C4Component: "Component"
+};
+function c4Label(m) {
+  const tech = str3(m.technology);
+  const kind2 = C4_KINDS2[typeOf2(m)];
+  const description = str3(m.description);
+  return `<b>${html(str3(m.name))}</b><br><span style="font-size:0.8em;">[${kind2}${tech ? `: ${html(tech)}` : ""}]</span>` + (description ? `<br><br>${html(description)}` : "");
+}
+function requirementLabel(m) {
+  const st = stereotypeOf4(m) || "requirement";
+  return `<p style="margin:0;margin-top:4px;text-align:center;">${guillemets(st)}<br><b>${html(str3(m.name))}</b></p><hr size="1" style="border-style:solid;"><p style="margin:0;margin-left:4px;">id = ${html(str3(m.id))}<br>text = ${html(str3(m.text))}</p>`;
+}
+function namedLabel(m, fixed) {
+  const lines2 = [fixed, stereotypeOf4(m)].filter((s) => Boolean(s)).map(guillemets);
+  return [...lines2, html(str3(m.name))].filter(Boolean).join("<br>");
+}
+function nodeLabel(view, spec, diagram) {
+  const m = view.model;
+  switch (spec.label) {
+    case "text":
+      return html(str3(view.text) || str3(m?.text));
+    case "frame": {
+      const kind2 = str3(view.frameTypeLabel?.text);
+      const name4 = html(str3((m ?? diagram).name));
+      return kind2 ? `<b>${html(kind2)}</b> ${name4}` : name4;
+    }
+    case "fixed":
+      return html(spec.text);
+  }
+  if (!m) return html(str3(view.text));
+  const model = m;
+  switch (spec.label) {
+    case "classifier":
+      return classifierLabel(view, model);
+    case "entity":
+      return entityLabel(model);
+    case "c4":
+      return c4Label(model);
+    case "requirement":
+      return requirementLabel(model);
+    case "lifeline": {
+      const type2 = typeText(
+        model.represent?.type
+      );
+      return html(str3(model.name) + (type2 ? ` : ${type2}` : ""));
+    }
+    case "fragment":
+      return `<b>${html(str3(model.interactionOperator))}</b>`;
+    case "checked":
+      return html((model.checked ? spec.on : spec.off) + str3(model.name));
+    case "suffixed":
+      return html(str3(model.name) + spec.suffix);
+    default:
+      return namedLabel(model, spec.stereotype);
+  }
+}
+function geometry(r, origin) {
+  const x = r.x - (origin?.x ?? 0);
+  const y = r.y - (origin?.y ?? 0);
+  return `<mxGeometry x="${num(x)}" y="${num(y)}" width="${num(r.w)}" height="${num(r.h)}" as="geometry" />`;
+}
+function writeCell(c) {
+  const attrs = [
+    `id="${xmlAttr(c.id)}"`,
+    `value="${xmlAttr(c.value)}"`,
+    `style="${xmlAttr(c.style)}"`,
+    c.kind === "vertex" ? `vertex="1"` : `edge="1"`,
+    ...c.label ? [`connectable="0"`] : [],
+    `parent="${xmlAttr(c.parent)}"`,
+    ...c.source !== void 0 ? [`source="${xmlAttr(c.source)}"`] : [],
+    ...c.target !== void 0 ? [`target="${xmlAttr(c.target)}"`] : []
+  ];
+  return `        <mxCell ${attrs.join(" ")}>
+          ${c.geometry}
+        </mxCell>`;
+}
+function anchor(p, r, flipped) {
+  const f = (v, from, size2) => Math.min(1, Math.max(0, size2 > 0 ? (v - from) / size2 : 0.5));
+  const x = f(p.x, r.x, r.w);
+  return { x: num(flipped ? 1 - x : x), y: num(f(p.y, r.y, r.h)) };
+}
+function edgeLabel(m, spec, number3) {
+  const named3 = namedLabel(m, spec.stereotype);
+  const guard = str3(m.guard) ? `[${html(str3(m.guard))}]` : "";
+  switch (spec.label) {
+    case "flow":
+      return [html(str3(m.name)), guard].filter(Boolean).join(" ");
+    case "transition": {
+      const triggers = list(m.triggers).map((t) => str3(t.name));
+      const trigger = html(triggers.join(", ") || str3(m.name));
+      const effects = list(m.effects).map((e) => html(str3(e.name)));
+      return [
+        trigger,
+        guard,
+        effects.length > 0 ? `/ ${effects.join(", ")}` : ""
+      ].filter(Boolean).join(" ");
+    }
+    case "message": {
+      const args = str3(m.arguments);
+      const text4 = html(str3(m.name) + (args ? `(${args})` : ""));
+      return number3 === void 0 ? text4 : `${number3} : ${text4}`;
+    }
+    case "c4": {
+      const tech = str3(m.technology);
+      return `<b>${html(str3(m.name))}</b>${tech ? `<br>[${html(tech)}]` : ""}`;
+    }
+    default:
+      return named3;
+  }
+}
+function associationEnds(m) {
+  const end = (e, at, other) => {
+    const aggregation2 = AGGREGATION[str3(e.aggregation)];
+    const navigable = e.navigable === "navigable" && other.navigable !== "navigable";
+    const keys2 = aggregation2 ?? (navigable ? drawio_styles_default.navigable : "");
+    return at === "start" ? keys2.replace(/end/g, "start") : keys2;
+  };
+  const [a, b] = [m.end1, m.end2];
+  return end(a, "start", b) + end(b, "end", a);
+}
+function erdEnds(m) {
+  const arrow = (e) => CARDINALITIES2[str3(e.cardinality)] ?? "none";
+  const dashed = m.identifying === false ? "dashed=1;" : "";
+  return `startArrow=${arrow(m.end1)};endArrow=${arrow(m.end2)};${dashed}`;
+}
+function endLabels(id2, m) {
+  const out = [];
+  const ends4 = [
+    [m.end1, "tail", -1],
+    [m.end2, "head", 1]
+  ];
+  for (const [e, side, x] of ends4) {
+    const align = x < 0 ? "left" : "right";
+    for (const [text4, suffix, vertical2, dy] of [
+      [str3(e.name), "role", "top", 4],
+      [str3(e.multiplicity), "multiplicity", "bottom", -4]
+    ]) {
+      if (!text4) continue;
+      out.push({
+        id: `${id2}#${side}-${suffix}`,
+        parent: id2,
+        value: html(text4),
+        style: `${drawio_styles_default.edgeLabel}align=${align};verticalAlign=${vertical2};`,
+        kind: "vertex",
+        label: true,
+        geometry: `<mxGeometry x="${x}" relative="1" as="geometry">
+            <mxPoint x="${-x * 6}" y="${dy}" as="offset" />
+          </mxGeometry>`
+      });
+    }
+  }
+  return out;
+}
+var messageY = (v) => points(v)[0]?.y ?? Number.POSITIVE_INFINITY;
+function descendants(view) {
+  return view.subViews.flatMap((s) => [s, ...descendants(s)]);
+}
+function toDrawio(diagram, profile2) {
+  const owned2 = diagram.ownedViews;
+  const skipped = /* @__PURE__ */ new Map();
+  const skip = (v) => skipped.set(typeOf2(v), (skipped.get(typeOf2(v)) ?? 0) + 1);
+  const nodes = [];
+  const edges = [];
+  for (const v of owned2) {
+    if (v.visible === false) skip(v);
+    else if (v instanceof type.NodeView && typeof v.left === "number")
+      nodes.push(v);
+    else if (v instanceof type.EdgeView) edges.push(v);
+    else skip(v);
+  }
+  const rects = new Map(nodes.map((v) => [v, rectOf(v)]));
+  const styles = new Map(nodes.map((v) => [v, nodeStyle(v) ?? FALLBACK2]));
+  const area2 = (v) => rects.get(v).w * rects.get(v).h;
+  const parents = /* @__PURE__ */ new Map();
+  for (const v of nodes) {
+    const declared2 = v.containerView;
+    const parent = declared2 && rects.has(declared2) ? declared2 : nodes.filter(
+      (c) => c !== v && styles.get(c).container === true && area2(c) > area2(v) && within3(rects.get(v), rects.get(c))
+    ).sort((a, b) => area2(a) - area2(b))[0];
+    if (parent) parents.set(v, parent);
+  }
+  const cycle = (v) => {
+    const seen = /* @__PURE__ */ new Set([v]);
+    for (let p = parents.get(v); p; p = parents.get(p)) {
+      if (seen.has(p)) return true;
+      seen.add(p);
+    }
+    return false;
+  };
+  for (const v of nodes.filter(cycle)) parents.delete(v);
+  const messages2 = edges.filter((e) => e.model && typeOf2(e.model) === "UMLMessage").sort((a, b) => messageY(a) - messageY(b));
+  const others = edges.filter((e) => !messages2.includes(e));
+  const owners = /* @__PURE__ */ new Map();
+  for (const v of nodes) for (const s of descendants(v)) owners.set(s, v);
+  const terminal = (t) => t && owners.has(t) ? owners.get(t) : t;
+  const activations = /* @__PURE__ */ new Map();
+  for (const m of messages2) {
+    const head = terminal(m.head);
+    if (!head || !rects.has(head)) continue;
+    for (const a of m.subViews.filter(
+      (s) => s instanceof type.UMLActivationView && s.visible !== false
+    )) {
+      activations.set(head, [...activations.get(head) ?? [], a]);
+    }
+  }
+  const cells = [];
+  const written = [];
+  const nodeCell = (v) => {
+    const spec = styles.get(v);
+    const r = rects.get(v);
+    const parent = parents.get(v);
+    const visual = { ...ownVisual(v), ...visualFor(v, profile2) };
+    const extra = spec.label === "lifeline" ? `size=${num(lifelineHead(v))};` : "";
+    cells.push({
+      id: v._id,
+      parent: parent ? parent._id : "1",
+      value: nodeLabel(v, spec, diagram),
+      style: spec.style + extra + (spec.container ? drawio_styles_default.container : "") + visualStyle(visual, spec.fixed === true),
+      kind: "vertex",
+      geometry: geometry(r, parent && rects.get(parent))
+    });
+    written.push(v._id);
+    for (const a of activations.get(v) ?? []) {
+      cells.push({
+        id: a._id,
+        parent: v._id,
+        value: "",
+        style: drawio_styles_default.views.UMLActivationView.style + visualStyle(ownVisual(a), false),
+        kind: "vertex",
+        geometry: geometry(rectOf(a), r)
+      });
+    }
+    if (v.model && typeOf2(v.model) === "UMLCombinedFragment") {
+      const operands = descendants(v).filter((s) => s instanceof type.UMLInteractionOperandView).sort((a, b) => a.top - b.top);
+      operands.forEach((o, i) => {
+        const guard = str3(o.model?.guard);
+        cells.push({
+          id: o._id,
+          parent: v._id,
+          value: guard ? `[${html(guard)}]` : "",
+          // The fragment draws the first operand's top edge itself.
+          style: NODES.UMLInteractionOperand.style + (i === 0 ? "top=0;" : ""),
+          kind: "vertex",
+          geometry: geometry(rectOf(o), r)
+        });
+      });
+    }
+    for (const c of nodes.filter((n) => parents.get(n) === v)) nodeCell(c);
+  };
+  for (const v of nodes.filter((n) => !parents.has(n))) nodeCell(v);
+  const ids2 = new Set(written);
+  const edgeIds = new Set(edges.map((e) => e._id));
+  const lineStyle2 = profile2.visuals.edges.lineStyle;
+  const number3 = diagram.showSequenceNumber !== false;
+  const edgeCell = (e, index) => {
+    const tail = terminal(e.tail);
+    const head = terminal(e.head);
+    const known = (t) => t !== null && (ids2.has(t._id) || edgeIds.has(t._id));
+    if (!known(tail) || !known(head)) {
+      skip(e);
+      return;
+    }
+    const m = e.model;
+    const spec = EDGE_VIEWS[typeOf2(e)] ?? (m && EDGES[typeOf2(m)]) ?? { style: drawio_styles_default.edge };
+    const pts = points(e);
+    const ends4 = (t, p, at) => {
+      const r = rects.get(t);
+      if (!r || !p) return "";
+      const flipped = styles.get(t).style.includes("flipH=1");
+      const { x, y } = anchor(p, r, flipped);
+      return `${at}X=${x};${at}Y=${y};${at}Dx=0;${at}Dy=0;${at}Perimeter=0;`;
+    };
+    const kindStyle = m && typeOf2(m) === "UMLMessage" ? MESSAGES[str3(m.messageSort)] ?? "" : m && typeOf2(m) === "UMLAssociation" ? associationEnds(m) : m && typeOf2(m) === "ERDRelationship" ? erdEnds(m) : "";
+    const own2 = ownVisual(e);
+    const visual = {
+      ...own2.lineColor && { lineColor: own2.lineColor },
+      ...own2.fontColor && { fontColor: own2.fontColor },
+      ...own2.fontFace && { fontFace: own2.fontFace, fontSize: own2.fontSize },
+      ...profile2.visuals.edges.lineColor && {
+        lineColor: profile2.visuals.edges.lineColor
+      },
+      ...profile2.visuals.edges.fontColor && {
+        fontColor: profile2.visuals.edges.fontColor
+      }
+    };
+    const line = LINE[lineStyle2 ?? LINE_NAMES[e.lineStyle] ?? ""] ?? "";
+    const waypoints = pts.slice(1, -1);
+    cells.push({
+      id: e._id,
+      parent: "1",
+      value: m ? edgeLabel(m, spec, index) : "",
+      style: spec.style + kindStyle + line + visualStyle(visual, false) + ends4(tail, pts[0], "exit") + ends4(head, pts.at(-1), "entry"),
+      kind: "edge",
+      source: tail._id,
+      target: head._id,
+      geometry: waypoints.length === 0 ? `<mxGeometry relative="1" as="geometry" />` : `<mxGeometry relative="1" as="geometry">
+            <Array as="points">
+${waypoints.map(
+        (p) => `              <mxPoint x="${num(p.x)}" y="${num(p.y)}" />`
+      ).join("\n")}
+            </Array>
+          </mxGeometry>`
+    });
+    written.push(e._id);
+    if (m && typeOf2(m) === "UMLAssociation") cells.push(...endLabels(e._id, m));
+  };
+  for (const e of others) edgeCell(e, void 0);
+  messages2.forEach((e, i) => edgeCell(e, number3 ? i + 1 : void 0));
+  const right = Math.max(0, ...[...rects.values()].map((r) => r.x + r.w));
+  const bottom = Math.max(0, ...[...rects.values()].map((r) => r.y + r.h));
+  const page = profile2.layout.page;
+  const text4 = [
+    `<mxfile host="staruml-mcp-extension" type="device" compressed="false">`,
+    `  <diagram id="${xmlAttr(diagram._id)}" name="${xmlAttr(str3(diagram.name))}">`,
+    `    <mxGraphModel grid="1" gridSize="${profile2.visuals.grid.size}" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${Math.max(page.width, Math.ceil(right))}" pageHeight="${Math.max(page.height, Math.ceil(bottom))}" math="0" shadow="0">`,
+    `      <root>`,
+    `        <mxCell id="0" />`,
+    `        <mxCell id="1" parent="0" />`,
+    ...cells.map(writeCell),
+    `      </root>`,
+    `    </mxGraphModel>`,
+    `  </diagram>`,
+    `</mxfile>`,
+    ``
+  ].join("\n");
+  return {
+    text: text4,
+    warnings: [...skipped].map(
+      ([t, n]) => `${n} ${t} ${n === 1 ? "view is" : "views are"} not drawn`
+    ),
+    views: written,
+    width: Math.ceil(right),
+    height: Math.ceil(bottom)
+  };
+}
+function lifelineHead(view) {
+  const head = view.subViews.find(
+    (s) => s instanceof type.UMLNameCompartmentView
+  );
+  return typeof head?.height === "number" ? head.height : 40;
+}
+
 // src/text/plantuml-writer.ts
 var q = (name4) => `"${name4.replace(/"/g, "'").replace(/\r?\n/g, "\\n")}"`;
 var one = (name4) => name4.replace(/\r?\n/g, " ");
@@ -22730,14 +23759,14 @@ function toPlantUml(x, title = "") {
 var isFamily = (kind2) => FAMILY_KINDS.includes(kind2);
 var exportText = defineEndpoint({
   path: "/export_text",
-  description: "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, as PlantUML only package, component and deployment diagrams, and every other diagram family (composite structure, object, communication, timing, interaction overview, information flow, profile, DFD, SysML block definition, internal block and parametric, BPMN, wireframe, AWS, Azure, GCP) as its /build_diagram spec in JSON (format spec). Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+  description: "Write a diagram as a draw.io file (format drawio, every kind), or as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, as PlantUML only package, component and deployment diagrams, and every other diagram family (composite structure, object, communication, timing, interaction overview, information flow, profile, DFD, SysML block definition, internal block and parametric, BPMN, wireframe, AWS, Azure, GCP) as its /build_diagram spec in JSON (format spec). Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
   readOnly: true,
   destructive: false,
   request: object({
     diagram: ref2("Diagram."),
     format: doc(
-      _enum(["mermaid", "plantuml", "spec"]),
-      "Text format. spec: the /build_diagram spec as JSON, the text form of the kinds no Mermaid or PlantUML diagram holds (composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp); build it again with that kind."
+      _enum(["mermaid", "plantuml", "spec", "drawio"]),
+      "Text format. drawio: an uncompressed .drawio file of any diagram, every view at its StarUML bounds, shapes and colours from the project style profile. spec: the /build_diagram spec as JSON, the text form of the kinds no Mermaid or PlantUML diagram holds (composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp); build it again with that kind."
     )
   }),
   aliases: { diagramId: "diagram" },
@@ -22768,6 +23797,16 @@ var exportText = defineEndpoint({
       );
     }
     const { _id, _type, name: name4 } = summarize(diagram);
+    if (input.format === "drawio") {
+      const { text: text4, warnings: warnings2 } = toDrawio(diagram, profile());
+      return {
+        diagram: { _id, _type, name: name4 },
+        kind: kind2,
+        format: "drawio",
+        text: text4,
+        warnings: warnings2
+      };
+    }
     if (isFamily(kind2)) {
       if (input.format !== "spec") {
         throw new ApiError(
@@ -23473,7 +24512,7 @@ var signature = (binding) => [...binding].map(
 ).sort().join(";");
 function detect2(pattern2, classifiers, min, variant) {
   const scope = new Set(classifiers);
-  const anchor = anchorOf(pattern2);
+  const anchor2 = anchorOf(pattern2);
   const edges = edgesOf(pattern2);
   const found = /* @__PURE__ */ new Map();
   const optional2 = new Set(
@@ -23481,11 +24520,11 @@ function detect2(pattern2, classifiers, min, variant) {
   );
   const needed = new Set(
     pattern2.relationships.filter(
-      (r) => r.from === anchor.name && !optional2.has(r.to) || r.to === anchor.name && !optional2.has(r.from)
+      (r) => r.from === anchor2.name && !optional2.has(r.to) || r.to === anchor2.name && !optional2.has(r.from)
     ).flatMap(familyOf)
   );
   for (const elem of classifiers) {
-    if (!fits(pattern2, anchor, elem)) continue;
+    if (!fits(pattern2, anchor2, elem)) continue;
     if (needed.size > 0 && !relationshipsOf(elem).some((r) => needed.has(r.constructor.name))) {
       continue;
     }
@@ -23493,7 +24532,7 @@ function detect2(pattern2, classifiers, min, variant) {
     extend3(
       pattern2,
       edges,
-      /* @__PURE__ */ new Map([[anchor.name, [elem]]]),
+      /* @__PURE__ */ new Map([[anchor2.name, [elem]]]),
       (e) => scope.has(e),
       bindings
     );
@@ -27298,7 +28337,7 @@ function planPattern(pattern2, options) {
       ([role, list7]) => list7.length > 0 ? [[role, list7[0].name]] : []
     )
   );
-  const typeOf2 = (text4) => {
+  const typeOf3 = (text4) => {
     if (text4 === void 0) return void 0;
     const role = ROLE_REF.exec(text4)?.[1];
     if (role !== void 0) {
@@ -27320,9 +28359,9 @@ function planPattern(pattern2, options) {
         else setOnNew(p, node2, props2);
       }
       for (const a of role.attributes ?? [])
-        attribute(p, node2, a, typeOf2, names4);
+        attribute(p, node2, a, typeOf3, names4);
       for (const o of role.operations ?? [])
-        operation(p, node2, o, typeOf2, name4, names4);
+        operation(p, node2, o, typeOf3, name4, names4);
     }
   }
   const edges = [];
@@ -27409,18 +28448,18 @@ function setOnNew(p, node2, props2) {
     p.properties.push({ path: node2.path, field, value });
   }
 }
-function attribute(p, owner, a, typeOf2, names4) {
+function attribute(p, owner, a, typeOf3, names4) {
   const { name: name4, type: type2, defaultValue, ...rest } = a;
   const props2 = {
     ...rest,
-    ...type2 !== void 0 && { type: typeOf2(type2) },
+    ...type2 !== void 0 && { type: typeOf3(type2) },
     ...defaultValue !== void 0 && {
       defaultValue: fill(defaultValue, names4)
     }
   };
   p.attribute(owner, name4, props2);
 }
-function operation(p, owner, o, typeOf2, self, names4) {
+function operation(p, owner, o, typeOf3, self, names4) {
   const { name: name4, parameters, returnType, ...props2 } = o;
   const opName = ROLE_REF.test(name4) ? self : fill(name4, names4);
   p.operation(
@@ -27429,10 +28468,10 @@ function operation(p, owner, o, typeOf2, self, names4) {
     props2,
     (parameters ?? []).map((x) => ({
       name: x.name,
-      ...x.type !== void 0 && { type: typeOf2(x.type) },
+      ...x.type !== void 0 && { type: typeOf3(x.type) },
       ...x.direction !== void 0 && { direction: x.direction }
     })),
-    typeOf2(returnType),
+    typeOf3(returnType),
     true
   );
 }
@@ -27692,7 +28731,7 @@ function operationProps(o) {
     ...o.isAbstract !== void 0 && { isAbstract: o.isAbstract }
   };
 }
-function associationEnds(r) {
+function associationEnds2(r) {
   const end = (multiplicity, role) => ({
     ...multiplicity !== void 0 && { multiplicity },
     ...role !== void 0 && { name: role }
@@ -27871,7 +28910,7 @@ function planModel(spec, options) {
     }
     return found;
   };
-  const typeOf2 = (text4) => {
+  const typeOf3 = (text4) => {
     if (text4 === void 0) return void 0;
     const node2 = classes.get(text4)?.node;
     return node2 ? { $ref: node2.ref } : text4;
@@ -27879,7 +28918,7 @@ function planModel(spec, options) {
   const operations = /* @__PURE__ */ new Map();
   for (const { node: node2, spec: c } of classes.values()) {
     for (const a of c.attributes) {
-      p.attribute(node2, a.name, attributeProps(a, typeOf2(a.type)));
+      p.attribute(node2, a.name, attributeProps(a, typeOf3(a.type)));
     }
     for (const o of c.operations) {
       operations.set(
@@ -27890,9 +28929,9 @@ function planModel(spec, options) {
           operationProps(o),
           (o.parameters ?? []).map((x) => ({
             name: x.name,
-            ...x.type !== void 0 && { type: typeOf2(x.type) }
+            ...x.type !== void 0 && { type: typeOf3(x.type) }
           })),
-          typeOf2(o.returnType)
+          typeOf3(o.returnType)
         )
       );
     }
@@ -27926,7 +28965,7 @@ function planModel(spec, options) {
     } else {
       p.relationship("UMLAssociation", tail, head, {
         ...r.name !== void 0 && { name: r.name },
-        ...associationEnds(r)
+        ...associationEnds2(r)
       });
     }
   });
@@ -29842,7 +30881,7 @@ function compileNaming(given) {
 }
 var list4 = (value) => Array.isArray(value) ? value : [];
 var quoted2 = (e) => !e ? "nothing" : typeof e.name === "string" && e.name ? `"${e.name}"` : e.constructor.name;
-function within3(elem, scope) {
+function within4(elem, scope) {
   for (let e = elem; e; e = e._parent) {
     if (e === scope) return true;
   }
@@ -29857,7 +30896,7 @@ var Lint = class {
   severity;
   findings = [];
   all(typeName5) {
-    return app.repository.getInstancesOf(typeName5).filter((e) => within3(e, this.scope));
+    return app.repository.getInstancesOf(typeName5).filter((e) => within4(e, this.scope));
   }
   on(rule) {
     return this.severity.has(rule);
@@ -30018,7 +31057,7 @@ function useCases(l) {
 }
 function stateMachines(l) {
   for (const sm of l.all("UMLStateMachine")) {
-    const inner = (typeName5) => app.repository.getInstancesOf(typeName5).filter((e) => within3(e, sm));
+    const inner = (typeName5) => app.repository.getInstancesOf(typeName5).filter((e) => within4(e, sm));
     if (l.on("U009") && !inner("UMLPseudostate").some((p) => p.kind === "initial")) {
       l.add(
         "U009",
@@ -30970,7 +32009,7 @@ var visibility3 = () => optional(
 var aggregation = () => optional(doc(_enum(["none", "shared", "composite"]), "Default none."));
 var direction = () => optional(doc(_enum(["in", "inout", "out", "return"]), "Default in."));
 var flag = (description) => optional(doc(boolean2(), description));
-var str3 = (description) => optional(text2(description));
+var str4 = (description) => optional(text2(description));
 function pick2(input, names4) {
   const out = {};
   for (const name4 of names4) {
@@ -30997,14 +32036,14 @@ var structuralShape = () => ({
     )
   ),
   visibility: visibility3(),
-  multiplicity: str3("E.g. '0..1', '1', '*', '1..*'."),
-  defaultValue: str3("Default value as text."),
+  multiplicity: str4("E.g. '0..1', '1', '*', '1..*'."),
+  defaultValue: str4("Default value as text."),
   isStatic: flag("Class-level feature."),
   isReadOnly: flag("Read only."),
   isDerived: flag("Derived."),
   isID: flag("Part of the identity."),
   aggregation: aggregation(),
-  documentation: str3("Documentation text."),
+  documentation: str4("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
 function featureValues(typeName5, input, names4) {
@@ -31056,10 +32095,10 @@ var parameterShape = () => ({
     typeValue("A type name, or {$ref: id} of a classifier in the model.")
   ),
   direction: direction(),
-  multiplicity: str3("E.g. '0..1', '*'."),
-  defaultValue: str3("Default value as text."),
+  multiplicity: str4("E.g. '0..1', '*'."),
+  defaultValue: str4("Default value as text."),
   isReadOnly: flag("Read only."),
-  documentation: str3("Documentation text."),
+  documentation: str4("Documentation text."),
   properties: properties(ATTRIBUTE_VALUES_HELP)
 });
 var OPERATION = [
@@ -31082,8 +32121,8 @@ var addOperation = defineEndpoint({
     isStatic: flag("Class-level operation."),
     isAbstract: flag("Abstract."),
     isQuery: flag("Does not change state."),
-    specification: str3("Body or specification text."),
-    documentation: str3("Documentation text."),
+    specification: str4("Body or specification text."),
+    documentation: str4("Documentation text."),
     parameters: optional(
       doc(array(object(parameterShape())), "In declaration order.")
     ),
@@ -31156,7 +32195,7 @@ var addEnumerationLiteral = defineEndpoint({
   request: object({
     ref: ref2("UMLEnumeration."),
     name: text2("Literal name."),
-    documentation: str3("Documentation text."),
+    documentation: str4("Documentation text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...duplicateShape(),
     ...projectionShape()
@@ -31218,13 +32257,13 @@ var addSlot = defineEndpoint({
   destructive: false,
   request: object({
     ref: ref2("Instance, e.g. a UMLObject."),
-    name: str3("Slot name; usually the defining attribute's name."),
+    name: str4("Slot name; usually the defining attribute's name."),
     definingFeature: optional(
       reference(
         "The UMLAttribute (or other structural feature) the slot sets."
       )
     ),
-    value: str3("Value as text."),
+    value: str4("Value as text."),
     properties: properties(ATTRIBUTE_VALUES_HELP),
     ...projectionShape()
   }),
@@ -32536,7 +33575,7 @@ function groupOf(view, by) {
   if (typeof st === "string") return st || null;
   return st && typeof st === "object" ? String(st.name) : null;
 }
-function nodeStyle(theme, view, groups) {
+function nodeStyle2(theme, view, groups) {
   if (theme.groupBy && theme.palette) {
     const key2 = groupOf(view, theme.groupBy);
     if (key2 !== null) {
@@ -32602,7 +33641,7 @@ function applyThemeEndpoint(endpoints2) {
           if (theme.edges) add(theme.edges, view);
         } else {
           const group = theme.groupBy ? groupOf(view, theme.groupBy) : null;
-          add(nodeStyle(theme, view, groups), view, group ?? void 0);
+          add(nodeStyle2(theme, view, groups), view, group ?? void 0);
         }
       }
       const ops = [...sets.values()].map(({ style: style2, views }) => ({
@@ -33056,7 +34095,7 @@ function menuCommands(dir) {
   return [...found].sort();
 }
 function scanExtensions() {
-  const str4 = (v) => typeof v === "string" ? v : null;
+  const str5 = (v) => typeof v === "string" ? v : null;
   return extensionRoots().filter((r) => r.source !== "core").flatMap(
     (root) => extensionDirs(root.dir).map((dir) => {
       let pkg = {};
@@ -33067,10 +34106,10 @@ function scanExtensions() {
       } catch {
       }
       return {
-        name: str4(pkg.name) ?? (0, import_node_path4.basename)(dir),
-        title: str4(pkg.title),
-        version: str4(pkg.version),
-        description: str4(pkg.description),
+        name: str5(pkg.name) ?? (0, import_node_path4.basename)(dir),
+        title: str5(pkg.title),
+        version: str5(pkg.version),
+        description: str5(pkg.description),
         source: root.source,
         path: dir,
         commands: menuCommands(dir)
@@ -34329,7 +35368,7 @@ function homeOf(d, make) {
 }
 var lines = (text4) => String(text4).split("\n").map((l) => l.trim()).filter(Boolean);
 var list6 = (value) => Array.isArray(value) ? value : [];
-function within4(elem, scope) {
+function within5(elem, scope) {
   for (let e = elem; e; e = e._parent) {
     if (e === scope) return true;
   }
@@ -34376,7 +35415,7 @@ function viewLines(views) {
   ];
 }
 function explain(scope) {
-  const all = app.repository.findAll((e) => within4(e, scope)).filter((e) => !(e instanceof type.View) && !(e instanceof type.Diagram));
+  const all = app.repository.findAll((e) => within5(e, scope)).filter((e) => !(e instanceof type.View) && !(e instanceof type.Diagram));
   const of = (t) => all.filter((e) => e.constructor.name === t);
   const classifiers = all.filter(
     (e) => ["UMLClass", "UMLInterface", "UMLEnumeration"].includes(e.constructor.name)
@@ -34571,7 +35610,7 @@ function lintModelDesign(scope, severity) {
       fix
     });
   };
-  const all = app.repository.findAll((e) => within4(e, scope));
+  const all = app.repository.findAll((e) => within5(e, scope));
   const classes = all.filter((e) => e.constructor.name === "UMLClass");
   const interfaces = all.filter((e) => e.constructor.name === "UMLInterface");
   const classifiers = [

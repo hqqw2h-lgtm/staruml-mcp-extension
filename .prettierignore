@@ -12,3 +12,5 @@ tests/fixtures/export/*.json
 reports/
 .stryker-tmp/
 tests/fixtures/domains/*.derived.json
+# draw.io goldens written by tests/unit/text/drawio-writer.test.ts and the XSD vendored from jgraph/drawio-mcp, compared byte for byte.
+tests/fixtures/drawio/

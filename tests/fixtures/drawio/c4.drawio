@@ -1,0 +1,31 @@
+<mxfile host="staruml-mcp-extension" type="device" compressed="false">
+  <diagram id="ID1" name="Spec C4">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ID2" value="&lt;b&gt;User&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:0.8em;&quot;&gt;[Person]&lt;/span&gt;&lt;br&gt;&lt;br&gt;Uses the app" style="shape=mxgraph.c4.person2;whiteSpace=wrap;html=1;align=center;metaEdit=1;points=[[0.5,0,0],[1,0.5,0],[1,0.75,0],[0.75,1,0],[0.5,1,0],[0.25,1,0],[0,0.75,0],[0,0.5,0]];resizable=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="180" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="ID3" value="&lt;b&gt;App&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:0.8em;&quot;&gt;[Container: React]&lt;/span&gt;&lt;br&gt;&lt;br&gt;UI" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ID4" value="&lt;b&gt;DB&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:0.8em;&quot;&gt;[Container: Postgres]&lt;/span&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="350" y="330" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ID5" value="&lt;b&gt;Mailer&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:0.8em;&quot;&gt;[Software System]&lt;/span&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#8a8a8a;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="150" y="340" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ID6" value="&lt;b&gt;Uses&lt;/b&gt;&lt;br&gt;[HTTPS]" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID7" value="&lt;b&gt;Reads&lt;/b&gt;" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID3" target="ID4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID8" value="&lt;b&gt;Sends mail&lt;/b&gt;" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID3" target="ID5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

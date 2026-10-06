@@ -1,0 +1,19 @@
+<mxfile host="staruml-mcp-extension" type="device" compressed="false">
+  <diagram id="ID1" name="Shop DB">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ID2" value="&lt;p style=&quot;margin:0;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;customer&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;&lt;u&gt;id&lt;/u&gt;&lt;/td&gt;&lt;td&gt;int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;name&lt;/td&gt;&lt;td&gt;varchar(40)&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="160" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="ID3" value="&lt;p style=&quot;margin:0;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;orders&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;&lt;u&gt;id&lt;/u&gt;&lt;/td&gt;&lt;td&gt;int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;FK&lt;/td&gt;&lt;td&gt;customer_id&lt;/td&gt;&lt;td&gt;int&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;N&lt;/td&gt;&lt;td&gt;total&lt;/td&gt;&lt;td&gt;decimal(10,2)&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="40" width="160" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="ID4" value="places" style="html=1;labelBackgroundColor=default;endArrow=none;startArrow=none;endSize=12;startSize=12;endFill=0;startFill=0;startArrow=ERmandOne;endArrow=ERzeroToMany;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.61;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

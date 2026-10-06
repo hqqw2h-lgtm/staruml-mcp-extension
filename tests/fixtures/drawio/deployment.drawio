@@ -1,0 +1,46 @@
+<mxfile host="staruml-mcp-extension" type="device" compressed="false">
+  <diagram id="ID1" name="Cluster">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ID2" value="«executionEnvironment»&lt;br&gt;k8s" style="shape=cube;size=12;flipH=1;verticalAlign=top;align=left;spacingLeft=6;spacingTop=12;boundedLbl=1;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="200" height="136" as="geometry" />
+        </mxCell>
+        <mxCell id="ID3" value="tb-node" style="shape=cube;size=12;flipH=1;verticalAlign=top;align=left;spacingLeft=6;spacingTop=12;boundedLbl=1;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="ID2">
+          <mxGeometry x="-20" y="80" width="160" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ID4" value="«device»&lt;br&gt;Postgres" style="shape=cube;size=12;flipH=1;verticalAlign=top;align=left;spacingLeft=6;spacingTop=12;boundedLbl=1;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="160" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ID5" value="Kafka" style="shape=cube;size=12;flipH=1;verticalAlign=top;align=left;spacingLeft=6;spacingTop=12;boundedLbl=1;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="340" width="160" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ID6" value="«artifact»&lt;br&gt;tb.jar" style="shape=note;size=14;verticalAlign=top;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="440" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ID7" value="«artifact»&lt;br&gt;schema.sql" style="shape=note;size=14;verticalAlign=top;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="540" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ID8" value="Core" style="shape=component;align=left;spacingLeft=36;verticalAlign=top;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="640" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ID9" value="«deploy»" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=1;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID6" target="ID3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID10" value="«deploy»" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=1;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.38;entryY=0.84;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID7" target="ID4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID11" value="«manifest»" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=1;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID6" target="ID8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID12" value="JDBC" style="html=1;labelBackgroundColor=default;endArrow=none;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.25;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.38;entryY=0.84;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID3" target="ID4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID13" value="TCP" style="html=1;labelBackgroundColor=default;endArrow=none;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.25;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID3" target="ID5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

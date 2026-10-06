@@ -22129,7 +22129,7 @@
     },
     {
       "path": "/export_text",
-      "description": "Write a diagram as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, as PlantUML only package, component and deployment diagrams, and every other diagram family (composite structure, object, communication, timing, interaction overview, information flow, profile, DFD, SysML block definition, internal block and parametric, BPMN, wireframe, AWS, Azure, GCP) as its /build_diagram spec in JSON (format spec). Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
+      "description": "Write a diagram as a draw.io file (format drawio, every kind), or as Mermaid or PlantUML text: class, sequence, use case, activity, state machine, ERD, flowchart, mind map, requirement and C4 diagrams, as PlantUML only package, component and deployment diagrams, and every other diagram family (composite structure, object, communication, timing, interaction overview, information flow, profile, DFD, SysML block definition, internal block and parametric, BPMN, wireframe, AWS, Azure, GCP) as its /build_diagram spec in JSON (format spec). Mermaid comes out in the form /build_diagram reads (pass the answer's kind with it), so a diagram can be exported, edited as text and built again. warnings name what the text cannot carry.",
       "readOnly": true,
       "destructive": false,
       "request": {
@@ -22143,8 +22143,8 @@
           },
           "format": {
             "type": "string",
-            "enum": ["mermaid", "plantuml", "spec"],
-            "description": "Text format. spec: the /build_diagram spec as JSON, the text form of the kinds no Mermaid or PlantUML diagram holds (composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp); build it again with that kind."
+            "enum": ["mermaid", "plantuml", "spec", "drawio"],
+            "description": "Text format. drawio: an uncompressed .drawio file of any diagram, every view at its StarUML bounds, shapes and colours from the project style profile. spec: the /build_diagram spec as JSON, the text form of the kinds no Mermaid or PlantUML diagram holds (composite, object, communication, timing, overview, infoflow, profile, dfd, bdd, ibd, parametric, bpmn, wireframe, aws, azure, gcp); build it again with that kind."
           },
           "override": {
             "type": "boolean",

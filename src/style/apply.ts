@@ -349,7 +349,7 @@ export function visualFor(view: View, profile: Profile): Visual {
 }
 
 /** Face and size of a view's font, from Font's "face;size;style" form (core/graphics.js). */
-function fontOf(view: View): { face: string; size: number } | null {
+export function fontOf(view: View): { face: string; size: number } | null {
   const font = view.font as { __write?: () => unknown } | null | undefined;
   if (!font || typeof font.__write !== "function") return null;
   const [face, size] = String(font.__write()).split(";");

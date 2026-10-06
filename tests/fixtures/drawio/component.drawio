@@ -1,0 +1,55 @@
+<mxfile host="staruml-mcp-extension" type="device" compressed="false">
+  <diagram id="ID1" name="Transport">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ID2" value="«service»&lt;br&gt;MqttTransport" style="shape=component;align=left;spacingLeft=36;verticalAlign=top;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="140" y="190" width="160" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ID3" value="mqtt" style="rounded=0;html=1;labelPosition=right;verticalLabelPosition=bottom;align=left;verticalAlign=top;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="ID2">
+          <mxGeometry x="50" y="10" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ID4" value="rpc" style="rounded=0;html=1;labelPosition=right;verticalLabelPosition=bottom;align=left;verticalAlign=top;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="ID2">
+          <mxGeometry x="50" y="40" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ID5" value="RuleEngine" style="shape=component;align=left;spacingLeft=36;verticalAlign=top;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="-60" y="345" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ID6" value="in" style="rounded=0;html=1;labelPosition=right;verticalLabelPosition=bottom;align=left;verticalAlign=top;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="ID5">
+          <mxGeometry x="250" y="10" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ID7" value="Core" style="shape=component;align=left;spacingLeft=36;verticalAlign=top;html=1;whiteSpace=wrap;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="45" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ID8" value="&lt;p style=&quot;margin:0;margin-top:4px;text-align:center;&quot;&gt;«interface»&lt;br&gt;&lt;b&gt;TransportService&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;p style=&quot;margin:0;margin-left:4px;&quot;&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;p style=&quot;margin:0;margin-left:4px;&quot;&gt;+process(msg: TbMsg): void&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="325" y="370" width="132" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ID9" value="&lt;p style=&quot;margin:0;margin-top:4px;text-align:center;&quot;&gt;«interface»&lt;br&gt;&lt;b&gt;DeviceAuth&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;p style=&quot;margin:0;margin-left:4px;&quot;&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;p style=&quot;margin:0;margin-left:4px;&quot;&gt;&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="545" y="370" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ID10" value="&lt;p style=&quot;margin:0;margin-top:4px;text-align:center;&quot;&gt;«interface»&lt;br&gt;&lt;b&gt;RuleEngineApi&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;p style=&quot;margin:0;margin-left:4px;&quot;&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;p style=&quot;margin:0;margin-left:4px;&quot;&gt;&lt;/p&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="105" y="520" width="111" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ID11" value="" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=block;endFill=0;endSize=14;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.11;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID12" value="" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.17;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID13" value="" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=block;endFill=0;endSize=14;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.14;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID5" target="ID10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID14" value="" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.14;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID7" target="ID10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID15" value="queue" style="html=1;labelBackgroundColor=default;endArrow=none;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID4" target="ID6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID16" value="starts" style="html=1;labelBackgroundColor=default;dashed=1;endArrow=open;endSize=12;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID7" target="ID2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
