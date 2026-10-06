@@ -334,7 +334,8 @@ describe("/list_extensions", () => {
         version: "1.0.0",
         description: null,
         source: "essential",
-        path: expect.stringMatching(/essential\/uml$/),
+        // Native separators: the path is what StarUML's extension loader returns on the host OS.
+        path: expect.stringMatching(/essential[\\/]uml$/),
         commands: ["uml:x"],
       },
       {
