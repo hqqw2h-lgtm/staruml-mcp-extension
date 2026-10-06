@@ -3,7 +3,13 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["main.js", "node_modules/**", "coverage/**"],
+    ignores: [
+      "main.js",
+      "node_modules/**",
+      "coverage/**",
+      "reports/**",
+      ".stryker-tmp/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

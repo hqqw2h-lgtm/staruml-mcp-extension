@@ -94,7 +94,9 @@ describe("the OO spec is strict (issue #33)", () => {
       ),
       { numRuns: 300 },
     );
-  });
+    // Hundreds of parses of a 90 KB analysis; the load of a parallel run
+    // can take it past the default 5 s.
+  }, 60_000);
 });
 
 describe("/introspect capabilities", () => {

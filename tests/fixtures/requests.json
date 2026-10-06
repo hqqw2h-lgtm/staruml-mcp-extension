@@ -1,0 +1,609 @@
+{
+  "/add_attribute": [
+    { "ref": "AAAAAAGhDpJVkoYQVPM=", "name": "amount", "type": "int" },
+    {
+      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "title",
+      "type": "String",
+      "visibility": "private",
+      "multiplicity": "1"
+    },
+    {
+      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "writtenBy",
+      "type": { "$ref": "AAAAAAGhDpOYFf6mUrc=" },
+      "multiplicity": "1..*",
+      "aggregation": "shared",
+      "isReadOnly": true
+    }
+  ],
+  "/add_enumeration_literal": [
+    { "enumerationId": "AAAAAAGhDpOYYP7CNk0=", "name": "RED" }
+  ],
+  "/add_operation": [
+    {
+      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "temporary",
+      "parameters": [{ "name": "x" }]
+    },
+    {
+      "ownerId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "lend",
+      "isQuery": false,
+      "parameters": [
+        { "name": "to", "type": { "$ref": "AAAAAAGhDpOYFf6mUrc=" } },
+        { "name": "days", "type": "int", "defaultValue": "14" }
+      ],
+      "returnType": "boolean",
+      "fields": ["parameters", "name", "type", "direction"],
+      "depth": 1
+    }
+  ],
+  "/add_parameter": [
+    {
+      "operationId": "AAAAAAGhDpOYPv6vRQQ=",
+      "name": "note",
+      "type": "String",
+      "direction": "in"
+    }
+  ],
+  "/add_slot": [
+    {
+      "instanceId": "AAAAAAGhDpOYd/7Li7o=",
+      "name": "title",
+      "definingFeature": "AAAAAAGhDpOYIf6p+MU=",
+      "value": "\"Dune\"",
+      "fields": ["definingFeature", "value", "_parent"]
+    }
+  ],
+  "/add_tag": [
+    {
+      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "t-number",
+      "kind": "number",
+      "value": 412,
+      "fields": ["kind", "number"]
+    },
+    {
+      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "t-boolean",
+      "kind": "boolean",
+      "value": true,
+      "fields": ["kind", "checked"]
+    },
+    {
+      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "name": "t-string",
+      "kind": "string",
+      "value": "fiction",
+      "fields": ["kind", "value"]
+    }
+  ],
+  "/add_template_parameter": [
+    { "ownerId": "AAAAAAGhDpOYCv6j4MY=", "name": "T", "parameterType": "class" }
+  ],
+  "/apply_pattern": [
+    { "pattern": "DTO", "parent": "AAAAAAGhDpJOy4NDzBY=", "diagram": "DTO" },
+    {
+      "pattern": "Proxy",
+      "parent": "AAAAAAGhDpH8hkiVgC8=",
+      "diagram": "Proxy"
+    },
+    { "pattern": "State", "parent": "AAAAAAGhDpIhIWhhTMI=", "diagram": "State" }
+  ],
+  "/apply_preset": [
+    { "ref": "Loans/Copy", "preset": "entity", "dryRun": true },
+    { "ref": "AAAAAAGhDpJVkoYQVPM=", "preset": "value-object" }
+  ],
+  "/apply_style_profile": [
+    { "dryRun": true },
+    { "scope": "AAAAAAGhDpNSH+oKz/Y=" }
+  ],
+  "/apply_theme": [
+    { "ref": "AAAAAAGhDpNmP+0yaBQ=", "theme": "blueprint" },
+    { "ref": "AAAAAAGhDpNmP+0yaBQ=", "theme": "by-stereotype", "dryRun": true }
+  ],
+  "/batch": [
+    {
+      "result": "terse",
+      "ops": [
+        {
+          "path": "/create_element",
+          "body": { "type": "UMLModel", "parent": "@project", "name": "Loose" }
+        }
+      ]
+    },
+    {
+      "result": "full",
+      "ops": [
+        {
+          "path": "/create_element",
+          "as": "c",
+          "body": { "type": "UMLClass", "parent": "Sales", "name": "Invoice" }
+        },
+        {
+          "path": "/add_attribute",
+          "body": { "ref": "$c.path", "name": "due" }
+        },
+        { "path": "/get_element_by_id", "body": { "ref": "Sales/Invoice.due" } }
+      ]
+    },
+    {
+      "result": "full",
+      "atomic": false,
+      "ops": [
+        {
+          "path": "/create_element",
+          "as": "k",
+          "body": {
+            "type": "UMLClass",
+            "parentId": "AAAAAAGhDpORJ/tzkUo=",
+            "name": "Kept"
+          }
+        },
+        {
+          "path": "/create_element",
+          "body": { "type": "Nope", "parentId": "AAAAAAGhDpORJ/tzkUo=" }
+        },
+        {
+          "path": "/get_element_by_id",
+          "body": { "id": "$k", "fields": ["name"] }
+        }
+      ]
+    }
+  ],
+  "/build_diagram": [
+    { "result": "full", "text": "flowchart\n  A --> B" },
+    { "result": "full", "kind": "class", "reuse": false, "spec": {} },
+    { "result": "full", "text": "@startuml\nA -> B : hi\n@enduml" }
+  ],
+  "/build_model": [
+    {
+      "spec": {
+        "system": "Shop",
+        "classes": [
+          { "name": "Order", "operations": ["+place(): void"] },
+          { "name": "Bank", "kind": "interface" }
+        ]
+      }
+    },
+    {
+      "spec": {
+        "system": "Billing",
+        "classes": [{ "name": "Order" }, { "name": "Invoice" }],
+        "collaborations": [
+          {
+            "name": "Pay",
+            "participants": ["Order", "Invoice"],
+            "messages": [
+              ["Order", "Invoice", "pay()"],
+              ["Invoice", "Order", "paid", "reply"]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "spec": {
+        "system": "Lending",
+        "contexts": [
+          {
+            "id": "loans",
+            "name": "Loans",
+            "responsibility": "Who borrowed which copy, until when"
+          }
+        ],
+        "classes": [
+          {
+            "name": "Member",
+            "context": "loans",
+            "responsibility": "A person allowed to borrow",
+            "attributes": ["+name: String"]
+          },
+          {
+            "name": "Loan",
+            "context": "loans",
+            "responsibility": "One copy lent to one member until a due date",
+            "attributes": ["+due: Date"],
+            "operations": ["+renew(days: int): void"]
+          },
+          {
+            "name": "Copy",
+            "context": "loans",
+            "responsibility": "A physical book on the shelf"
+          },
+          {
+            "name": "Fine",
+            "context": "loans",
+            "responsibility": "What a late return costs",
+            "operations": ["+amount(): double"]
+          }
+        ],
+        "relationships": [
+          {
+            "from": "Member",
+            "to": "Loan",
+            "type": "owns",
+            "fromMult": "1",
+            "toMult": "0..*"
+          },
+          { "from": "Loan", "to": "Copy", "type": "knows", "toMult": "1" },
+          { "from": "Loan", "to": "Fine", "type": "has", "toMult": "0..1" }
+        ]
+      }
+    }
+  ],
+  "/check_messages": [{ "diagram": "AAAAAAGhDpLZoqvPLdY=" }],
+  "/close_diagram": [{ "id": "AAAAAAGhDpOe+P7vpLE=" }],
+  "/close_diagrams": [{ "diagrams": ["AAAAAAGhDpN3HPGvfDk="] }],
+  "/create_diagram": [
+    { "type": "C4Diagram", "parentId": "AAAAAAGhDpJb9YYdgZc=" },
+    { "type": "C4Diagram", "parentId": "AAAAAAGhDpLh2ay1/Tc=" },
+    { "type": "AWSDiagram", "parentId": "AAAAAAGhDpJb9YYdgZc=" }
+  ],
+  "/create_edge_with_view": [
+    {
+      "type": "UMLGeneralization",
+      "diagramId": "AAAAAAGhDpNJJujJzvs=",
+      "tailViewId": "AAAAAAGhDpNJTOj4MOg=",
+      "headViewId": "AAAAAAGhDpNJN+jODTY="
+    },
+    {
+      "type": "UMLAssociation",
+      "parentId": "AAAAAAGhDpN9TvdyNSY=",
+      "diagramId": "AAAAAAGhDpN9Vfd1h3g=",
+      "tailViewId": "AAAAAAGhDpN9efd65BM=",
+      "headViewId": "AAAAAAGhDpN9iPekw+o="
+    },
+    {
+      "type": "UMLAssociation",
+      "parentId": "AAAAAAGhDpOsD//Ay1g=",
+      "diagramId": "AAAAAAGhDpOsG//D35U=",
+      "tailViewId": "AAAAAAGhDpOsRf/IcHM=",
+      "headViewId": "AAAAAAGhDpOsTv/yrk8=",
+      "name": "wrote"
+    }
+  ],
+  "/create_element": [
+    { "type": "Tag", "parentId": "AAAAAAGhDpJb9YYdgZc=" },
+    { "type": "UMLClass", "parent": "Model", "name": "Money" },
+    { "type": "UMLClass", "parent": "Other", "name": "Order" }
+  ],
+  "/create_element_with_view": [
+    { "type": "UMLClass", "diagram": "AAAAAAGhDpM1ldgys6c=", "name": "P0" },
+    { "type": "UMLClass", "diagram": "AAAAAAGhDpM1ldgys6c=", "name": "P1" },
+    { "type": "UMLClass", "diagram": "AAAAAAGhDpM1ldgys6c=", "name": "P2" }
+  ],
+  "/create_relationship": [
+    {
+      "type": "UMLComposition",
+      "tail": "Customer",
+      "head": "Order",
+      "diagram": "Shop"
+    },
+    {
+      "type": "UMLDependency",
+      "tail": "AAAAAAGhDpNBYubBHrU=",
+      "head": "AAAAAAGhDpNBReZsIo8="
+    },
+    {
+      "type": "UMLMessage",
+      "tailId": "AAAAAAGhDpL9/b7dG7c=",
+      "headId": "AAAAAAGhDpL+Db771MI=",
+      "fields": ["_parent"]
+    }
+  ],
+  "/create_view_of": [
+    { "modelId": "AAAAAAGhDpFR08yB89I=", "diagramId": "AAAAAAGhDpFR/8zp8po=" },
+    { "modelId": "AAAAAAGhDpFR2cyq7U8=", "diagramId": "AAAAAAGhDpFR/8zp8po=" },
+    { "modelId": "AAAAAAGhDpFR3szTxdY=", "diagramId": "AAAAAAGhDpFR/8zp8po=" }
+  ],
+  "/debug": [{}],
+  "/delete_element": [
+    { "id": "AAAAAAGhDpOfIP7y+M0=" },
+    { "id": "AAAAAAGhDpOLLvtsdzE=" },
+    { "ref": "AAAAAAGhDpM1/djNDO8=" }
+  ],
+  "/derive_diagrams": [
+    { "scope": "Clinic" },
+    { "scope": "AAAAAAGhDo+7wJyFuzc=" },
+    { "scope": "AAAAAAGhDpNv6u/vjms=", "kinds": ["communication"] }
+  ],
+  "/describe_commands": [
+    { "ids": ["edit:undo", "project:save-as", "project:open"] }
+  ],
+  "/describe_diagram": [
+    { "diagram": "@current" },
+    { "diagramId": "AAAAAAGhDpOKmfp8DNg=" },
+    { "diagramId": "AAAAAAGhDpOKTvmvglg=" }
+  ],
+  "/describe_pattern": [{ "name": "Strategy" }],
+  "/describe_type": [{ "type": "UMLAssociationEnd" }],
+  "/detect_patterns": [
+    { "scope": "Lending", "patterns": ["Strategy"] },
+    { "patterns": ["Observer"], "minConfidence": 0.99 },
+    {
+      "scope": "AAAAAAGhDpJOy4NDzBY=",
+      "patterns": ["DTO"],
+      "minConfidence": 0.99
+    }
+  ],
+  "/diagram_quality": [
+    { "ref": "Ordering" },
+    { "ref": "AAAAAAGhDpHHbiW5jKI=" }
+  ],
+  "/diff_diagram": [
+    {
+      "diagram": "Shop",
+      "kind": "class",
+      "spec": {
+        "classes": [
+          { "name": "Order", "attributes": ["+id: long"] },
+          { "name": "Line" },
+          { "name": "Old" }
+        ],
+        "relations": [{ "from": "Order", "to": "Line", "type": "composition" }]
+      }
+    },
+    {
+      "diagram": "Shop",
+      "kind": "class",
+      "spec": {
+        "classes": [
+          { "name": "Order", "attributes": ["+id: long", "+total: double"] },
+          { "name": "Line" },
+          { "name": "New" }
+        ],
+        "relations": [{ "from": "Order", "to": "Line", "type": "composition" }]
+      }
+    }
+  ],
+  "/diff_since": [{ "snapshot": "before" }],
+  "/divide_fragment": [{ "ref": "AAAAAAGhDpWoXxVrkMw=", "at": [255] }],
+  "/execute_command": [
+    { "id": "edit:undo" },
+    { "id": "view:actual-size" },
+    { "id": "mcp-ext:set-token", "args": ["live-token"] }
+  ],
+  "/explain_model": [
+    { "scope": "Clinic" },
+    { "scope": "AAAAAAGhDo+7wJyFuzc=", "maxChars": 400000 }
+  ],
+  "/explain_style_violation": [
+    { "ref": "Model/bad_name" },
+    { "kind": "classifier", "name": "order_line" }
+  ],
+  "/export_diagram": [
+    {},
+    { "format": "png", "scale": 2 },
+    { "id": "AAAAAAGhDpNJJujJzvs=" }
+  ],
+  "/export_diagrams": [
+    {
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-3QbA1F/images"
+    }
+  ],
+  "/export_fragment": [
+    {
+      "ref": "AAAAAAGhDpN2y/Fe/yc=",
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-boINqU/exported.mfj"
+    }
+  ],
+  "/export_html": [
+    {
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-47nHEU/html"
+    }
+  ],
+  "/export_pdf": [
+    {
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-47nHEU/shapes.pdf",
+      "ids": ["AAAAAAGhDpNJJujJzvs="]
+    }
+  ],
+  "/export_text": [
+    { "format": "mermaid", "diagram": "Ordering" },
+    { "diagram": "AAAAAAGhDo+JTJLziq4=", "format": "spec" },
+    { "diagram": "AAAAAAGhDo+XgpVBHZM=", "format": "spec" }
+  ],
+  "/find_elements": [
+    { "limit": 1 },
+    { "type": "Diagram" },
+    { "type": "UMLClass" }
+  ],
+  "/generate_code": [
+    {
+      "language": "java",
+      "baseId": "AAAAAAGhDpOlO/7/HZc=",
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-3QbA1F/java",
+      "options": { "javaDoc": false }
+    }
+  ],
+  "/get_all_commands": [{}],
+  "/get_connected_node_views": [
+    { "id": "AAAAAAGhDpNJN+jODTY=", "edgeType": "UMLGeneralizationView" }
+  ],
+  "/get_edge_views_of": [{ "id": "AAAAAAGhDpNJN+jODTY=" }],
+  "/get_editor_state": [{}],
+  "/get_element_by_id": [
+    { "ref": "Old" },
+    { "ref": "Order" },
+    { "ref": "Order@Shop" }
+  ],
+  "/get_preference": [
+    { "key": "diagramEditor.showGrid" },
+    { "key": "mcp-ext.limits.maxBatchOps" }
+  ],
+  "/get_project_info": [{}, { "fields": ["ownedElements"] }],
+  "/get_project_metadata": [{}],
+  "/get_refs_to": [{ "id": "AAAAAAGhDpNJN+jMO9M=" }],
+  "/get_relationships_of": [{ "id": "AAAAAAGhDpNJN+jMO9M=" }],
+  "/get_selection": [{}],
+  "/get_style_profile": [{}],
+  "/get_views_of": [{ "id": "AAAAAAGhDpNJN+jMO9M=", "fields": ["model"] }],
+  "/import_fragment": [
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-boINqU/exported.mfj"
+    }
+  ],
+  "/improve_diagram": [
+    { "ref": "Ordering" },
+    { "ref": "AAAAAAGhDpHHbiW5jKI=" },
+    { "ref": "AAAAAAGhDpHNsyloCYQ=" }
+  ],
+  "/introspect": [{}, { "include": ["factory"] }, { "include": ["endpoints"] }],
+  "/is_modified": [{}],
+  "/layout_diagram": [
+    { "diagram": "AAAAAAGhDpHNsyloCYQ=" },
+    { "id": "AAAAAAGhDpNJJujJzvs=", "direction": "TB" },
+    { "diagramId": "AAAAAAGhDpNdnexSTxY=", "preset": "flow-down" }
+  ],
+  "/lint_diagram": [
+    { "diagram": "Messy" },
+    { "diagram": "Alarms" },
+    { "diagram": "Messy", "rules": ["overlap"] }
+  ],
+  "/list_code_generators": [{}],
+  "/list_extensions": [{}],
+  "/list_patterns": [{}],
+  "/list_templates": [{}],
+  "/list_working_diagrams": [{}],
+  "/model_lint": [
+    { "scope": "Clinic" },
+    { "scope": "AAAAAAGhDo+7wJyFuzc=", "limit": 1000 }
+  ],
+  "/move_views": [
+    { "ids": ["AAAAAAGhDpNJN+jODTY="], "dx": 20, "dy": 30 },
+    { "refs": ["AAAAAAGhDpM/tuJA0Pc="], "dx": 70, "dy": 0 },
+    { "refs": ["AAAAAAGhDpHH8iYRjiQ="], "dx": 30, "dy": 140 }
+  ],
+  "/new_from_template": [{ "template": "UMLConventional" }],
+  "/new_project": [{}],
+  "/open_project": [
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-0UkUge/profile.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-9RwZ8S/endpoints.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IUxJIJ/class-diagram.mdj"
+    }
+  ],
+  "/performance_stats": [{}],
+  "/quick_find": [{ "text": "ZEBRA" }, { "text": "quarterl" }],
+  "/redo": [{}],
+  "/resize_node": [
+    { "ref": "Line", "width": 220, "height": 80 },
+    { "id": "AAAAAAGhDpNeN+zIqVs=", "width": 600, "height": 400 },
+    { "id": "AAAAAAGhDpNJN+jODTY=", "width": 220, "height": 120 }
+  ],
+  "/restore_snapshot": [{ "snapshot": "loop" }, { "snapshot": "before" }],
+  "/reverse_code": [
+    {
+      "language": "java",
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-3QbA1F/java",
+      "options": { "typeHierarchy": false, "packageOverview": false }
+    }
+  ],
+  "/route_edges": [
+    { "diagramId": "AAAAAAGhDpNfBuzppSg=", "lineStyle": "curve" }
+  ],
+  "/save_project": [
+    {},
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-0UkUge/blocked.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-0UkUge/profile.mdj"
+    }
+  ],
+  "/save_project_as": [
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-a34gk7/features.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-q73giT/patterns.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-9sLzRL/project-first.mdj"
+    }
+  ],
+  "/search_types": [
+    { "query": "composition", "limit": 3 },
+    { "query": "composition", "limit": 5 },
+    { "query": "use case", "categories": ["palette"] }
+  ],
+  "/set_documentation": [
+    {
+      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "documentation": "A published work.",
+      "fields": ["documentation"]
+    }
+  ],
+  "/set_editor_state": [
+    { "zoom": 1, "gridVisible": true, "center": { "x": 0, "y": 0 } },
+    { "diagramId": "AAAAAAGhDpNJJujJzvs=", "zoom": 1.5, "gridVisible": false }
+  ],
+  "/set_preference": [
+    { "key": "diagramEditor.showGrid", "value": true },
+    { "key": "diagramEditor.showGrid", "value": false }
+  ],
+  "/set_project_metadata": [{ "author": "Ada", "version": "2.1" }],
+  "/set_selection": [
+    {},
+    { "viewIds": ["AAAAAAGhDpNJN+jODTY=", "AAAAAAGhDpNJTOj4MOg="] }
+  ],
+  "/set_stereotype": [
+    {
+      "elementId": "AAAAAAGhDpOYCv6j4MY=",
+      "stereotype": "entity",
+      "fields": ["stereotype"]
+    }
+  ],
+  "/set_style_profile": [
+    { "reset": true },
+    { "profile": "print" },
+    { "patch": { "strict": true } }
+  ],
+  "/set_view_style": [
+    { "ids": ["AAAAAAGhDpNJVukiUxw="], "lineStyle": "rectilinear" },
+    {
+      "refs": ["AAAAAAGhDpNSM+oQOS4="],
+      "fillColor": "#ff0000",
+      "override": true
+    },
+    {
+      "ids": ["AAAAAAGhDpNJN+jODTY=", "AAAAAAGhDpNJTOj4MOg="],
+      "fillColor": "#ffcc00",
+      "lineColor": "#336699",
+      "fontColor": "#990000",
+      "fontFace": "Helvetica",
+      "fontSize": 15,
+      "stereotypeDisplay": "label",
+      "autoResize": false
+    }
+  ],
+  "/set_z_order": [
+    { "ids": ["AAAAAAGhDpNJTOj4MOg="], "position": "back" },
+    { "ids": ["AAAAAAGhDpNJTOj4MOg="], "position": "front" }
+  ],
+  "/snapshot": [{ "label": "loop" }, { "label": "before" }],
+  "/switch_diagram": [
+    { "diagram": "Shop" },
+    { "id": "AAAAAAGhDpOe+P7vpLE=" },
+    { "id": "AAAAAAGhDpOsG//D35U=" }
+  ],
+  "/sync_operations": [{ "diagram": "AAAAAAGhDpLZoqvPLdY=" }],
+  "/uml_lint": [{}, { "limit": 1000 }, { "scope": "Shop" }],
+  "/undo": [{}],
+  "/update_element": [
+    { "ref": "Line", "field": "name", "value": "OrderLine" },
+    { "id": "AAAAAAGhDpL617vhlsQ=", "field": "width", "value": 700 },
+    { "id": "AAAAAAGhDpLo4rPW9fI=", "field": "width", "value": 700 }
+  ],
+  "/validate_model": [
+    {},
+    { "scope": "AAAAAAGhDpOKTvmuoCg=" },
+    { "scope": "AAAAAAGhDpOLLvtsdzE=" }
+  ]
+}

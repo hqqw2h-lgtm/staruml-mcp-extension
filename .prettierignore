@@ -9,3 +9,6 @@ tests/fixtures/build/*.mdj.json
 tests/fixtures/patterns/*.mdj.json
 # Spec goldens written by tests/unit/handlers/export-text.test.ts, compared byte for byte.
 tests/fixtures/export/*.json
+reports/
+.stryker-tmp/
+tests/fixtures/domains/*.derived.json

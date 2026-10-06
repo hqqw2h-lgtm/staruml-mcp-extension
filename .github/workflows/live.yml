@@ -28,6 +28,12 @@ jobs:
 
       - run: npm ci
 
+      # The MCP server's skill, whose examples tests/integration/skill.live.test.ts replays.
+      - uses: actions/checkout@v4
+        with:
+          repository: hqqw2h-lgtm/staruml-mcp
+          path: staruml-mcp
+
       - name: Build and install into StarUML
         run: |
           npm run build
@@ -46,6 +52,7 @@ jobs:
         run: npm run test:live
         env:
           STARUML_LIVE: "1"
+          SKILL_PATH: ${{ github.workspace }}/staruml-mcp/plugins/claude-code/skills/staruml/SKILL.md
 
       - name: Load test
         run: npm run test:load -- --requests ${{ inputs.requests }} --concurrency ${{ inputs.concurrency }}

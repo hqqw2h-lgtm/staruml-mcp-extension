@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { appendFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Ajv2020, { type ValidateFunction } from "ajv/dist/2020.js";
@@ -89,12 +89,22 @@ export async function call<T = Record<string, unknown>>(
   path: string,
   body: Record<string, unknown> = {},
 ): Promise<Envelope<T>> {
+  const sent = TERSE.has(path) ? { result: "full", ...body } : body;
   const res = await fetch(BASE_URL + path, {
     method: "POST",
     headers: headers(),
-    body: JSON.stringify(TERSE.has(path) ? { result: "full", ...body } : body),
+    body: JSON.stringify(sent),
   });
   const json = (await res.json()) as Omit<Envelope<T>, "status">;
+  // RECORD_REQUESTS=file appends every request the live suites send, for
+  // scripts/request-fixtures.mjs to pick the examples the contract test
+  // holds the manifest to (issue #27).
+  if (process.env.RECORD_REQUESTS) {
+    appendFileSync(
+      process.env.RECORD_REQUESTS,
+      `${JSON.stringify({ path, body: sent, status: res.status })}\n`,
+    );
+  }
   const { responses, error } = await loadContract();
   const validate = json.success ? responses.get(path) : error;
   const checked = json.success ? json.data : json;

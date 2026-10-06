@@ -43,12 +43,15 @@
     "test:live": "vitest run --mode live",
     "test:load": "node scripts/load-test.mjs",
     "test:soak": "node scripts/soak-test.mjs",
+    "test:mutation": "stryker run",
     "visual:update": "VISUAL_UPDATE=1 vitest run --mode live tests/integration/visual.live.test.ts",
     "snapshot:introspect": "node scripts/snapshot-introspect.mjs",
     "docs:commands": "node scripts/commands-doc.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.1.11",
     "ajv": "^8.20.0",

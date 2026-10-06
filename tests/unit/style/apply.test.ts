@@ -444,5 +444,7 @@ describe("determinism (issue #31)", () => {
       expect(runs[1], key).toBe(runs[0]);
     }
     expect(readFileSync).toBeDefined();
-  });
+    // Every golden case built twice; the load of a parallel run can
+    // take it past the default 5 s.
+  }, 60_000);
 });

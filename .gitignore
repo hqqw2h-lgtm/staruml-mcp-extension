@@ -7,3 +7,5 @@ Thumbs.db
 .idea/
 coverage/
 tests/visual/failures/
+reports/
+.stryker-tmp/

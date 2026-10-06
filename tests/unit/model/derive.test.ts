@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import tb from "../../fixtures/domains/thingsboard.oo.json";
 import { ApiError } from "../../../src/errors.js";
 import { naming } from "../../../src/handlers/oo.js";
-import { derive, modelOf, viewsOf } from "../../../src/model/derive.js";
+import {
+  DERIVED_KINDS,
+  derive,
+  modelOf,
+  viewsOf,
+} from "../../../src/model/derive.js";
+import { pathOf } from "../../../src/refs.js";
 import { endpoints } from "../../../src/routes.js";
 import { builtInProfiles, type Profile } from "../../../src/style/profile.js";
 import type { Element, View } from "../../../src/types.js";
@@ -612,4 +618,51 @@ describe("the ThingsBoard acceptance (mock)", () => {
       .find((c) => c.name === "Tenant")!;
     expect(String(tenant.documentation)).toMatch(/^Isolation boundary/);
   }, 60_000);
+});
+
+describe("derived specs (golden)", () => {
+  /** What derive answers, ids replaced by paths so the file is stable. */
+  const golden = (d: ReturnType<typeof derive>) =>
+    JSON.stringify(
+      d.map((x) => ({
+        kind: x.kind,
+        name: x.name,
+        parent: pathOf(x.parent),
+        spec: x.spec,
+        bind: [...x.bind].map(([k, e]) => [k, e.constructor.name, pathOf(e)]),
+        bindEdges: [...x.bindEdges].map(([i, e]) => [
+          i,
+          e.constructor.name,
+          String(e.name),
+        ]),
+        accessorsOnly: x.accessorsOnly.map((e) => pathOf(e)),
+      })),
+      null,
+      1,
+    );
+  const all = new Set([...DERIVED_KINDS]);
+  const by = (policy: Partial<Profile["policy"]>): Profile => ({
+    ...standard(),
+    policy: { ...standard().policy, ...policy },
+  });
+
+  it.each([
+    ["shop", SHOP, standard()],
+    [
+      "shop-per-package",
+      SHOP,
+      by({ classDiagrams: "perPackage", neighbours: false, hideGetters: true }),
+    ],
+    ["thingsboard", tb, standard()],
+    [
+      "thingsboard-per-package",
+      tb,
+      by({ classDiagrams: "perPackage", packageOverview: false }),
+    ],
+  ] as const)("%s", async (label, spec, profile) => {
+    const m = await model(spec as unknown as Record<string, unknown>);
+    await expect(
+      golden(derive(get(m.model._id), profile, all)),
+    ).toMatchFileSnapshot(`../../fixtures/domains/${label}.derived.json`);
+  });
 });
