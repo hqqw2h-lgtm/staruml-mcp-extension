@@ -42,9 +42,11 @@ import {
   effectiveProfile,
   mergePatch,
   parseProfile,
+  type Profile,
 } from "../style/profile.js";
 import type { Element, View } from "../types.js";
 import { oneStep } from "../undo.js";
+import { VIEWPOINT_NAMES } from "../viewpoints/schema.js";
 import { type BuildInput, buildDiagram } from "./build.js";
 import {
   counted,
@@ -77,9 +79,10 @@ interface Built {
   deleted?: number;
   quality?: { score: number; rating: number; passes: boolean };
   plan?: { ops: unknown[] };
+  viewpoint?: { name: string; conforms: boolean };
 }
 
-const derivedSchema = () =>
+export const derivedSchema = () =>
   z.object({
     kind: z.string(),
     name: z.string(),
@@ -92,7 +95,38 @@ const derivedSchema = () =>
     quality: z.optional(
       z.object({ score: z.int(), rating: z.int(), passes: z.boolean() }),
     ),
+    viewpoint: z.optional(
+      doc(z.enum(VIEWPOINT_NAMES), "The viewpoint it is a view of."),
+    ),
+    conforms: z.optional(
+      doc(
+        z.boolean(),
+        "It keeps to its viewpoint: no error or warning of /viewpoint_lint.",
+      ),
+    ),
   });
+
+export const derivedCountsSchema = () =>
+  z.object({
+    diagrams: z.int(),
+    created: z.int(),
+    updated: z.int(),
+    unchanged: z.int(),
+    deleted: z.int(),
+  });
+
+export const derivedQualitySchema = () =>
+  z.optional(
+    doc(
+      z.object({
+        min: z.int(),
+        mean: z.int(),
+        passing: z.int(),
+        failing: z.array(z.string()),
+      }),
+      "Over the diagrams built: lowest and mean score, how many reach their threshold, which do not.",
+    ),
+  );
 
 /** Classes showing only accessors keep their operations folded (policy.hideGetters). */
 function hideAccessors(diagram: Element, classes: readonly Element[]): void {
@@ -110,13 +144,134 @@ function hideAccessors(diagram: Element, classes: readonly Element[]): void {
   app.repository.doOperation(builder.getOperation());
 }
 
+export interface DeriveRun {
+  dryRun?: boolean;
+  profile: Profile;
+}
+
+/**
+ * Builds `derived` as /derive_diagrams and /request_diagram do, each bound
+ * to the model it shows, marked with its viewpoint and given its parts,
+ * in one undo step (none on a dry run); answers one entry per diagram.
+ */
+export async function buildDerived(
+  derived: readonly Derived[],
+  endpoints: () => readonly Endpoint[],
+  run: DeriveRun,
+) {
+  const one = async (d: Derived): Promise<Built> => {
+    const home = d.home === undefined ? null : homeOf(d, !run.dryRun);
+    if (home) bindShared(d, home);
+    const body = {
+      kind: d.kind,
+      spec: d.spec,
+      name: d.name,
+      parent: (home ?? d.parent)._id,
+      upsert: true,
+      prune: true,
+      // Elements a section draws are its model's own; another model's
+      // namesake is not shown in their place.
+      reuse: false,
+      ...(run.dryRun && { dryRun: true }),
+    } as BuildInput;
+    try {
+      return (await buildDiagram(body, endpoints, {
+        bind: d.bind,
+        bindEdges: d.bindEdges,
+        pruneViewsOnly: true,
+        opsOnly: true,
+        mark: { viewpoint: d.viewpoint },
+      })) as Built;
+    } catch (err) {
+      throw naming(`derive_diagrams: ${d.kind} diagram ${d.name}`, err);
+    }
+  };
+  const results: Built[] = [];
+  const all = async () => {
+    for (const d of derived) {
+      const built = await one(d);
+      if (!run.dryRun && d.bind.size > 0 && d.home && built.created > 0) {
+        // An element shown from another section's diagram brings its other
+        // relationships along (Factory.createViewAndRelationships,
+        // engine/factory.js 7.1.1); a second pass prunes those, so the
+        // next derivation finds the diagram as this one leaves it.
+        const again = await one(d);
+        // Every derived build prunes, so each answers what it deleted.
+        built.deleted = built.deleted! + again.deleted!;
+      }
+      if (!run.dryRun && run.profile.policy.hideGetters && d.kind === "class") {
+        hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
+      }
+      results.push(built);
+    }
+  };
+  if (run.dryRun) await all();
+  else await oneStep("derive diagrams", all);
+  const diagrams = derived.map((d, i) => {
+    const b = results[i]!;
+    return {
+      kind: d.kind,
+      name: d.name,
+      diagram: b.diagram._id,
+      created: b.created,
+      updated: b.updated,
+      unchanged: b.unchanged,
+      ...(b.deleted !== undefined && { deleted: b.deleted }),
+      ...(b.plan && { ops: b.plan.ops.length }),
+      ...(b.quality && {
+        quality: {
+          score: b.quality.score,
+          rating: b.quality.rating,
+          passes: b.quality.passes,
+        },
+      }),
+      viewpoint: d.viewpoint,
+      ...(b.viewpoint && { conforms: b.viewpoint.conforms }),
+    };
+  });
+  const sum = (f: (d: (typeof diagrams)[number]) => number) =>
+    diagrams.reduce((n, d) => n + f(d), 0);
+  const scored = diagrams.filter((d) => d.quality);
+  return {
+    diagrams,
+    counts: {
+      diagrams: diagrams.length,
+      created: sum((d) => d.created),
+      updated: sum((d) => d.updated),
+      unchanged: sum((d) => d.unchanged),
+      // Every derived build prunes, so each answers what it deleted.
+      deleted: sum((d) => d.deleted!),
+    },
+    ...(scored.length > 0 && {
+      quality: {
+        min: Math.min(...scored.map((d) => d.quality!.score)),
+        mean: Math.round(
+          scored.reduce((n, d) => n + d.quality!.score, 0) / scored.length,
+        ),
+        passing: scored.filter((d) => d.quality!.passes).length,
+        failing: scored
+          .filter((d) => !d.quality!.passes)
+          .map((d) => `${d.name} ${d.quality!.score}`),
+      },
+    }),
+  };
+}
+
+/** The profile a derivation runs under: the project's, its policy patched for the call. */
+export function deriveProfile(policy: Record<string, unknown> | undefined) {
+  const base = effectiveProfile().profile;
+  return policy === undefined
+    ? base
+    : parseProfile(mergePatch(base, { policy }), "policy");
+}
+
 export function deriveDiagramsEndpoint(
   endpoints: () => readonly Endpoint[],
 ): Endpoint {
   return defineEndpoint({
     path: "/derive_diagrams",
     description:
-      "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers, deployments and feature mind map /build_model stored with the model. Each diagram shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds limits which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
+      "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers (components on a view of their own), deployments and feature mind map /build_model stored with the model; a C4 system context when viewpoints asks for context. Each diagram is a view of one viewpoint (see /list_viewpoints), stored on it with the parts the viewpoint requires (a legend), shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop; the answer says whether it conforms to its viewpoint. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds and viewpoints limit which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
     readOnly: false,
     destructive: false,
     request: z.object({
@@ -127,6 +282,12 @@ export function deriveDiagramsEndpoint(
         doc(
           z.array(z.enum(DERIVED_KINDS)).check(z.minLength(1)),
           "Only these diagram kinds; default all.",
+        ),
+      ),
+      viewpoints: z.optional(
+        doc(
+          z.array(z.enum(VIEWPOINT_NAMES)).check(z.minLength(1)),
+          "Only the views of these viewpoints; default all but context, which is drawn only when named.",
         ),
       ),
       policy: z.optional(
@@ -141,132 +302,25 @@ export function deriveDiagramsEndpoint(
     response: z.object({
       model: z.nullable(z.string()),
       diagrams: z.array(derivedSchema()),
-      counts: z.object({
-        diagrams: z.int(),
-        created: z.int(),
-        updated: z.int(),
-        unchanged: z.int(),
-        deleted: z.int(),
-      }),
-      quality: z.optional(
-        doc(
-          z.object({
-            min: z.int(),
-            mean: z.int(),
-            passing: z.int(),
-            failing: z.array(z.string()),
-          }),
-          "Over the diagrams built: lowest and mean score, how many reach their threshold, which do not.",
-        ),
-      ),
+      counts: derivedCountsSchema(),
+      quality: derivedQualitySchema(),
       dryRun: z.optional(z.boolean()),
     }),
     handle: async (input) => {
       const scope = requireElement(input.scope, "Scope");
-      const base = effectiveProfile().profile;
-      const profile =
-        input.policy === undefined
-          ? base
-          : parseProfile(mergePatch(base, { policy: input.policy }), "policy");
+      const profile = deriveProfile(input.policy);
       const kinds = input.kinds && new Set<DerivedKind>(input.kinds);
-      const derived = derive(scope, profile, kinds);
-      const one = async (d: Derived): Promise<Built> => {
-        const home = d.home === undefined ? null : homeOf(d, !input.dryRun);
-        if (home && d.kind === "deployment") bindShared(d, home);
-        const body = {
-          kind: d.kind,
-          spec: d.spec,
-          name: d.name,
-          parent: (home ?? d.parent)._id,
-          upsert: true,
-          prune: true,
-          // Elements a section draws are its model's own; another model's
-          // namesake is not shown in their place.
-          reuse: false,
-          ...(input.dryRun && { dryRun: true }),
-        } as BuildInput;
-        try {
-          return (await buildDiagram(body, endpoints, {
-            bind: d.bind,
-            bindEdges: d.bindEdges,
-            pruneViewsOnly: true,
-            opsOnly: true,
-          })) as Built;
-        } catch (err) {
-          throw naming(`derive_diagrams: ${d.kind} diagram ${d.name}`, err);
-        }
-      };
-      const results: Built[] = [];
-      const run = async () => {
-        for (const d of derived) {
-          const built = await one(d);
-          if (!input.dryRun && d.kind === "deployment" && built.created > 0) {
-            // A node shown from another deployment brings its other
-            // relationships along (Factory.createViewAndRelationships,
-            // engine/factory.js 7.1.1); a second pass prunes those, so the
-            // next derivation finds the diagram as this one leaves it.
-            const again = await one(d);
-            // Every derived build prunes, so each answers what it deleted.
-            built.deleted = built.deleted! + again.deleted!;
-          }
-          if (
-            !input.dryRun &&
-            profile.policy.hideGetters &&
-            d.kind === "class"
-          ) {
-            hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
-          }
-          results.push(built);
-        }
-      };
-      if (input.dryRun) await run();
-      else await oneStep("derive diagrams", run);
-      const diagrams = derived.map((d, i) => {
-        const b = results[i]!;
-        return {
-          kind: d.kind,
-          name: d.name,
-          diagram: b.diagram._id,
-          created: b.created,
-          updated: b.updated,
-          unchanged: b.unchanged,
-          ...(b.deleted !== undefined && { deleted: b.deleted }),
-          ...(b.plan && { ops: b.plan.ops.length }),
-          ...(b.quality && {
-            quality: {
-              score: b.quality.score,
-              rating: b.quality.rating,
-              passes: b.quality.passes,
-            },
-          }),
-        };
+      const wanted = input.viewpoints && new Set(input.viewpoints);
+      const derived = derive(scope, profile, kinds, {
+        context: wanted?.has("context") === true,
+      }).filter((d) => !wanted || wanted.has(d.viewpoint));
+      const out = await buildDerived(derived, endpoints, {
+        dryRun: input.dryRun,
+        profile,
       });
-      const sum = (f: (d: (typeof diagrams)[number]) => number) =>
-        diagrams.reduce((n, d) => n + f(d), 0);
-      const scored = diagrams.filter((d) => d.quality);
       return {
         model: pathOf(scope),
-        diagrams,
-        counts: {
-          diagrams: diagrams.length,
-          created: sum((d) => d.created),
-          updated: sum((d) => d.updated),
-          unchanged: sum((d) => d.unchanged),
-          // Every derived build prunes, so each answers what it deleted.
-          deleted: sum((d) => d.deleted!),
-        },
-        ...(scored.length > 0 && {
-          quality: {
-            min: Math.min(...scored.map((d) => d.quality!.score)),
-            mean: Math.round(
-              scored.reduce((n, d) => n + d.quality!.score, 0) / scored.length,
-            ),
-            passing: scored.filter((d) => d.quality!.passes).length,
-            failing: scored
-              .filter((d) => !d.quality!.passes)
-              .map((d) => `${d.name} ${d.quality!.score}`),
-          },
-        }),
+        ...out,
         ...(input.dryRun && { dryRun: true }),
       };
     },

@@ -1,0 +1,31 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "deployment",
+  "title": "Deployment",
+  "summary": "The machines, devices and runtime environments the system runs on, what is deployed on each, and the links between them.",
+  "question": "Where does the system run, and how are its runtime environments connected?",
+  "concerns": [
+    "infrastructure and hosting",
+    "placement of deployable units",
+    "network links and protocols"
+  ],
+  "stakeholders": ["operator", "architect", "developer"],
+  "kinds": ["deployment"],
+  "elements": [
+    "UMLNode",
+    "UMLNodeInstance",
+    "UMLArtifact",
+    "UMLArtifactInstance",
+    "UMLComponent",
+    "UMLComponentInstance"
+  ],
+  "relationships": ["UMLDeployment", "UMLCommunicationPath", "UMLDependency"],
+  "limits": { "maxElements": 30 },
+  "required": ["title", "legend"],
+  "legend": [
+    "Node: a machine, device or runtime environment",
+    "Artifact: what is deployed on it",
+    "Line: a communication path, labelled with its protocol"
+  ],
+  "split": "One view per environment (production, staging) or per site."
+}

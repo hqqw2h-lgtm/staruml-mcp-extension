@@ -285,6 +285,25 @@ const BUILD_SPEC = {
   ],
 };
 
+const VIEWPOINTS = [
+  "context",
+  "container",
+  "component",
+  "code",
+  "runtime",
+  "lifecycle",
+  "actors-goals",
+  "deployment",
+  "data",
+];
+
+/** Intents /request_diagram plans (dry run) against DERIVE_SPEC, in turn. */
+const INTENTS = [
+  "which classes make up the carts",
+  "how does a basket fill, message by message",
+  "who talks to whom when filling",
+];
+
 const SEARCHES = [
   "composition",
   "state machine",
@@ -440,6 +459,23 @@ async function main() {
       { scope: "LoadModel", dryRun: true, kinds: ["class", "sequence"] },
     ],
     () => ["/model_lint", { scope: "LoadModel" }],
+    // Issue #42: the viewpoint catalogue, its lint and intent-driven requests.
+    () => ["/list_viewpoints", {}],
+    (i) => ["/describe_viewpoint", { name: VIEWPOINTS[i % VIEWPOINTS.length] }],
+    () => ["/viewpoint_lint", { scope: "LoadModel" }],
+    (i) => [
+      "/request_diagram",
+      {
+        intent: INTENTS[i % INTENTS.length],
+        scope: "LoadModel",
+        audience: "developer",
+        dryRun: true,
+      },
+    ],
+    () => [
+      "/derive_diagrams",
+      { scope: "LoadModel", dryRun: true, viewpoints: ["code", "runtime"] },
+    ],
     // Issue #28: preferences, quick find, tabs, extensions, templates, metadata.
     () => ["/get_preference", { key: "diagramEditor.showGrid" }],
     (i) => ["/quick_find", { text: `C${i % SEED}`, limit: 10 }],

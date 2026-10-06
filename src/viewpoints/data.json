@@ -1,0 +1,19 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "data",
+  "title": "Data",
+  "summary": "The stored entities, their keys and columns, and the relationships between them with their cardinalities.",
+  "question": "What data does the system keep, and how are the records related?",
+  "concerns": [
+    "persistent structure and keys",
+    "cardinalities and integrity",
+    "ownership of data"
+  ],
+  "stakeholders": ["dba", "developer", "architect", "analyst"],
+  "kinds": ["erd"],
+  "elements": ["ERDEntity"],
+  "relationships": ["ERDRelationship"],
+  "limits": { "maxElements": 25 },
+  "required": ["title"],
+  "split": "One view per aggregate or schema, entities from elsewhere shown where they are referenced."
+}

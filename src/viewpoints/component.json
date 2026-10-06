@@ -1,0 +1,34 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "component",
+  "title": "Components and modules",
+  "summary": "How the code base or one container is divided into modules, packages or components, and which of them depend on which.",
+  "question": "How is the system decomposed into parts, and which part depends on which?",
+  "concerns": [
+    "modularity and layering",
+    "dependency direction and cycles",
+    "ownership of parts"
+  ],
+  "stakeholders": ["architect", "developer"],
+  "kinds": ["package", "component", "c4"],
+  "elements": [
+    "UMLPackage",
+    "UMLSubsystem",
+    "UMLComponent",
+    "UMLInterface",
+    "UMLPort",
+    "C4Component",
+    "C4Container"
+  ],
+  "relationships": [
+    "UMLDependency",
+    "UMLAbstraction",
+    "UMLInterfaceRealization",
+    "UMLComponentRealization",
+    "UMLConnector",
+    "C4Relationship"
+  ],
+  "limits": { "maxElements": 20 },
+  "required": ["title"],
+  "split": "One view per layer or container, the parts it uses from elsewhere shown at its edge."
+}

@@ -22683,6 +22683,21 @@
             "type": "boolean",
             "description": "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it."
           },
+          "viewpoint": {
+            "type": "string",
+            "enum": [
+              "context",
+              "container",
+              "component",
+              "code",
+              "runtime",
+              "lifecycle",
+              "actors-goals",
+              "deployment",
+              "data"
+            ],
+            "description": "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as. Required under a strict profile."
+          },
           "result": {
             "type": "string",
             "enum": ["terse", "ids", "full"],
@@ -22994,6 +23009,31 @@
             ],
             "additionalProperties": false,
             "description": "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
+          },
+          "viewpoint": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "conforms": {
+                "type": "boolean",
+                "description": "No error or warning of /viewpoint_lint on the diagram."
+              },
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rule": { "type": "string" },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["rule", "message"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["name", "conforms", "findings"],
+            "additionalProperties": false,
+            "description": "The viewpoint the diagram declares and whether it keeps to it (issue #42)."
           }
         },
         "required": [
@@ -25139,7 +25179,7 @@
     },
     {
       "path": "/derive_diagrams",
-      "description": "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers, deployments and feature mind map /build_model stored with the model. Each diagram shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds limits which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
+      "description": "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers (components on a view of their own), deployments and feature mind map /build_model stored with the model; a C4 system context when viewpoints asks for context. Each diagram is a view of one viewpoint (see /list_viewpoints), stored on it with the parts the viewpoint requires (a legend), shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop; the answer says whether it conforms to its viewpoint. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds and viewpoints limit which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
       "readOnly": false,
       "destructive": false,
       "request": {
@@ -25171,6 +25211,25 @@
               ]
             },
             "description": "Only these diagram kinds; default all."
+          },
+          "viewpoints": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "context",
+                "container",
+                "component",
+                "code",
+                "runtime",
+                "lifecycle",
+                "actors-goals",
+                "deployment",
+                "data"
+              ]
+            },
+            "description": "Only the views of these viewpoints; default all but context, which is drawn only when named."
           },
           "policy": {
             "type": "object",
@@ -25248,6 +25307,25 @@
                   },
                   "required": ["score", "rating", "passes"],
                   "additionalProperties": false
+                },
+                "viewpoint": {
+                  "type": "string",
+                  "enum": [
+                    "context",
+                    "container",
+                    "component",
+                    "code",
+                    "runtime",
+                    "lifecycle",
+                    "actors-goals",
+                    "deployment",
+                    "data"
+                  ],
+                  "description": "The viewpoint it is a view of."
+                },
+                "conforms": {
+                  "type": "boolean",
+                  "description": "It keeps to its viewpoint: no error or warning of /viewpoint_lint."
                 }
               },
               "required": [
@@ -25515,6 +25593,535 @@
           }
         },
         "required": ["count", "counts", "truncated", "findings"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/list_viewpoints",
+      "description": "The viewpoint catalogue: each kind of view the engine draws, the question it answers, the diagram kinds that show it, who it is written for and the parts it requires. /request_diagram picks one from an intent; /describe_viewpoint gives one in full. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "viewpoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "enum": [
+                    "context",
+                    "container",
+                    "component",
+                    "code",
+                    "runtime",
+                    "lifecycle",
+                    "actors-goals",
+                    "deployment",
+                    "data"
+                  ]
+                },
+                "title": { "type": "string" },
+                "question": { "type": "string" },
+                "kinds": { "type": "array", "items": { "type": "string" } },
+                "stakeholders": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "required": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": [
+                "name",
+                "title",
+                "question",
+                "kinds",
+                "stakeholders",
+                "required"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "decisions": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rules": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["version", "rules"],
+            "additionalProperties": false,
+            "description": "The decision table /request_diagram applies."
+          }
+        },
+        "required": ["viewpoints", "decisions"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/describe_viewpoint",
+      "description": "One viewpoint in full: what it shows, its question, concerns and stakeholders, the model element and relationship types it allows, its limits, its required parts and legend, how a view past its limits is split, and the decision rules that lead to it. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "context",
+              "container",
+              "component",
+              "code",
+              "runtime",
+              "lifecycle",
+              "actors-goals",
+              "deployment",
+              "data"
+            ],
+            "description": "The viewpoint."
+          }
+        },
+        "required": ["name"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "viewpoint": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {},
+            "description": "name, title, summary, question, concerns, stakeholders, kinds, elements, relationships, limits, required, legend, split."
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "kind": { "type": "string" },
+                "phrases": { "type": "array", "items": { "type": "string" } },
+                "scopes": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["id", "kind", "phrases", "scopes"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["viewpoint", "rules"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/viewpoint_lint",
+      "description": "Check that diagrams keep to the viewpoint they declare (issue #42): V001 elements or relationships outside the viewpoint, V002 elements of several viewpoints on one diagram (split it), V003 a runtime view with no initiator (no labelled first message from the leftmost lifeline, no initial node), V004 a lifecycle owned by something other than a class, V005 a context view showing the system's inside, V006 a required part missing (a real title, a legend), V007 more elements or lifelines than the viewpoint holds, V008 no viewpoint declared (an error under a strict profile), V009 a diagram kind the viewpoint is not drawn as. Each finding names the diagram, its viewpoint, the views involved and a fix; suggest lists the views to draw instead. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A diagram, or a model or package whose diagrams to check; default the project. Id or path."
+          },
+          "rules": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["off", "error", "warning", "info"]
+            },
+            "description": "Per rule id or name: off, or the severity to report it with."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Most findings to list, most severe first; default 100. count is always the full number."
+          },
+          "diagram": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of scope.",
+            "x-alias-of": "scope",
+            "deprecated": true
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of scope.",
+            "x-alias-of": "scope",
+            "deprecated": true
+          }
+        }
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "diagrams": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Diagrams checked."
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "warning": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "info": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["error", "warning", "info"],
+            "additionalProperties": false
+          },
+          "truncated": { "type": "boolean" },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": { "type": "string" },
+                "name": { "type": "string" },
+                "severity": {
+                  "type": "string",
+                  "enum": ["error", "warning", "info"]
+                },
+                "message": { "type": "string" },
+                "diagram": { "type": "string" },
+                "path": { "type": ["string", "null"] },
+                "viewpoint": { "type": ["string", "null"] },
+                "ids": { "type": "array", "items": { "type": "string" } },
+                "fix": { "type": "string" },
+                "suggest": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "viewpoint": {
+                        "type": "string",
+                        "enum": [
+                          "context",
+                          "container",
+                          "component",
+                          "code",
+                          "runtime",
+                          "lifecycle",
+                          "actors-goals",
+                          "deployment",
+                          "data"
+                        ]
+                      },
+                      "kind": { "type": "string" },
+                      "count": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": ["viewpoint"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "rule",
+                "name",
+                "severity",
+                "message",
+                "diagram",
+                "path",
+                "viewpoint",
+                "ids",
+                "fix"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["diagrams", "count", "counts", "truncated", "findings"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "path": "/request_diagram",
+      "description": "Ask for the diagram that answers a question, and let the engine choose it: intent says what the reader wants to know ('how does a device publish telemetry', 'which states can an alarm be in'), audience who reads it, scope the model element it is about. A committed decision table maps the intent and the kind of scope to a viewpoint and a diagram kind (see /list_viewpoints); the answer gives the choice with its rule and reason, and the diagram is derived from the model as /derive_diagrams does (bound to the model, marked with its viewpoint, quality loop). A view that does not fit is refused with VIEWPOINT_MISMATCH and the views that do: an intent drawn for another kind of scope, a viewpoint not written for the audience, nothing to show in the scope, or more lifelines or elements than the viewpoint holds (then an activity or a split). Kinds, styles and layouts are never parameters.",
+      "readOnly": false,
+      "destructive": false,
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "intent": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "What the diagram should answer, in plain words."
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "business",
+              "analyst",
+              "architect",
+              "developer",
+              "tester",
+              "operator",
+              "dba"
+            ],
+            "description": "Who reads it; a view not written for them is refused."
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What it is about: a model, package, class, collaboration, state machine, actor or use case (the project stands for its only model). Id or path."
+          },
+          "dryRun": { "type": "boolean" },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias of scope.",
+            "x-alias-of": "scope",
+            "deprecated": true
+          }
+        },
+        "required": ["intent", "scope"]
+      },
+      "response": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "choice": {
+            "type": "object",
+            "properties": {
+              "viewpoint": {
+                "type": "string",
+                "enum": [
+                  "context",
+                  "container",
+                  "component",
+                  "code",
+                  "runtime",
+                  "lifecycle",
+                  "actors-goals",
+                  "deployment",
+                  "data"
+                ]
+              },
+              "kind": { "type": "string" },
+              "rule": {
+                "type": "string",
+                "description": "The decision rule applied."
+              },
+              "reason": { "type": "string" },
+              "question": {
+                "type": "string",
+                "description": "What the view answers."
+              },
+              "matched": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Phrases of the rule found in the intent."
+              }
+            },
+            "required": [
+              "viewpoint",
+              "kind",
+              "rule",
+              "reason",
+              "question",
+              "matched"
+            ],
+            "additionalProperties": false,
+            "description": "The view the decision table picked."
+          },
+          "scope": { "type": ["string", "null"] },
+          "diagrams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string" },
+                "name": { "type": "string" },
+                "diagram": {
+                  "type": "string",
+                  "description": "Its id; '$diagram' on a dry run that makes it."
+                },
+                "created": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "updated": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "unchanged": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "deleted": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "ops": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "With dryRun: the ops applying it runs."
+                },
+                "quality": {
+                  "type": "object",
+                  "properties": {
+                    "score": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "rating": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "passes": { "type": "boolean" }
+                  },
+                  "required": ["score", "rating", "passes"],
+                  "additionalProperties": false
+                },
+                "viewpoint": {
+                  "type": "string",
+                  "enum": [
+                    "context",
+                    "container",
+                    "component",
+                    "code",
+                    "runtime",
+                    "lifecycle",
+                    "actors-goals",
+                    "deployment",
+                    "data"
+                  ],
+                  "description": "The viewpoint it is a view of."
+                },
+                "conforms": {
+                  "type": "boolean",
+                  "description": "It keeps to its viewpoint: no error or warning of /viewpoint_lint."
+                }
+              },
+              "required": [
+                "kind",
+                "name",
+                "diagram",
+                "created",
+                "updated",
+                "unchanged"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "diagrams": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "created": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "updated": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unchanged": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "deleted": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "diagrams",
+              "created",
+              "updated",
+              "unchanged",
+              "deleted"
+            ],
+            "additionalProperties": false
+          },
+          "quality": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "mean": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passing": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "failing": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["min", "mean", "passing", "failing"],
+            "additionalProperties": false,
+            "description": "Over the diagrams built: lowest and mean score, how many reach their threshold, which do not."
+          },
+          "dryRun": { "type": "boolean" }
+        },
+        "required": ["choice", "scope", "diagrams", "counts"],
         "additionalProperties": false
       }
     },
@@ -27677,6 +28284,7 @@
       "UNAUTHORIZED": 401,
       "FORBIDDEN_ORIGIN": 403,
       "STYLE_LOCKED": 403,
+      "VIEWPOINT_REQUIRED": 403,
       "NOT_FOUND": 404,
       "UNKNOWN_ENDPOINT": 404,
       "METHOD_NOT_ALLOWED": 405,
@@ -27687,6 +28295,7 @@
       "DUPLICATE_NAME": 409,
       "SNAPSHOT_STALE": 409,
       "SAVE_BLOCKED": 409,
+      "VIEWPOINT_MISMATCH": 422,
       "STARUML_ERROR": 422,
       "UNSUPPORTED_SYNTAX": 422,
       "DIALOG_REQUIRED": 422,
@@ -27709,6 +28318,7 @@
             "UNAUTHORIZED",
             "FORBIDDEN_ORIGIN",
             "STYLE_LOCKED",
+            "VIEWPOINT_REQUIRED",
             "NOT_FOUND",
             "UNKNOWN_ENDPOINT",
             "METHOD_NOT_ALLOWED",
@@ -27719,6 +28329,7 @@
             "DUPLICATE_NAME",
             "SNAPSHOT_STALE",
             "SAVE_BLOCKED",
+            "VIEWPOINT_MISMATCH",
             "STARUML_ERROR",
             "UNSUPPORTED_SYNTAX",
             "DIALOG_REQUIRED",

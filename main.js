@@ -86,6 +86,12 @@ var ERROR_STATUS = {
    * override: true to do it anyway (issue #31).
    */
   STYLE_LOCKED: 403,
+  /**
+   * The style profile is strict and the call would make a diagram that
+   * declares no viewpoint (issue #42); pass viewpoint, or draw it through
+   * /request_diagram or /derive_diagrams.
+   */
+  VIEWPOINT_REQUIRED: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
@@ -117,6 +123,13 @@ var ERROR_STATUS = {
    * or export anyway.
    */
   SAVE_BLOCKED: 409,
+  /**
+   * The view asked for does not fit (issue #42): the intent names a
+   * viewpoint not drawn for this scope or not written for this audience,
+   * the scope holds nothing to show, or the content is past the
+   * viewpoint's limits. details.alternatives lists the views that fit.
+   */
+  VIEWPOINT_MISMATCH: 422,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**
@@ -294,7 +307,7 @@ function createRequestListener(handlers, log2, policy = UNLIMITED) {
 function bearerMatches(header, token2) {
   const match = /^Bearer (.+)$/i.exec(header ?? "");
   if (!match) return false;
-  const digest = (text4) => (0, import_node_crypto.createHash)("sha256").update(text4).digest();
+  const digest = (text5) => (0, import_node_crypto.createHash)("sha256").update(text5).digest();
   return (0, import_node_crypto.timingSafeEqual)(digest(match[1]), digest(token2));
 }
 var TIMED_OUT = /* @__PURE__ */ Symbol("timed out");
@@ -389,17 +402,17 @@ function sendError(res, code, error2) {
   sendJson(res, ERROR_STATUS[code], body);
 }
 function sendJson(res, status, body, handlerStarted) {
-  const text4 = JSON.stringify(body);
+  const text5 = JSON.stringify(body);
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(text4)
+    "Content-Length": Buffer.byteLength(text5)
   };
   if (handlerStarted !== void 0) {
     const ms = import_node_perf_hooks.performance.now() - handlerStarted;
     headers["Server-Timing"] = `handler;dur=${ms.toFixed(3)}`;
   }
   res.writeHead(status, headers);
-  res.end(text4);
+  res.end(text5);
 }
 function stackOf(err) {
   return err instanceof Error ? String(err.stack) : String(err);
@@ -717,14 +730,14 @@ function codePointLength(str5) {
   const units = str5.length;
   if (!highSurrogate.test(str5))
     return units;
-  let count = units;
+  let count2 = units;
   for (let i = 0; i < units - 1; i++) {
     if ((str5.charCodeAt(i) & 64512) === 55296 && (str5.charCodeAt(i + 1) & 64512) === 56320) {
-      count--;
+      count2--;
       i++;
     }
   }
-  return count;
+  return count2;
 }
 function getLengthableOrigin(input) {
   if (Array.isArray(input))
@@ -1702,7 +1715,7 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     }
     return propValues;
   });
-  const isObject3 = isObject;
+  const isObject4 = isObject;
   const catchall = def.catchall;
   let value;
   const memo2 = globalConfig.memoizer;
@@ -1710,7 +1723,7 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
     const input = payload.value;
-    if (!isObject3(input)) {
+    if (!isObject4(input)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
@@ -2965,8 +2978,8 @@ var contributors = {
 function aggregateChecks(schema) {
   const agg = {};
   const def = schema._zod.def;
-  const list7 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
-  for (const ch of list7)
+  const list10 = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+  for (const ch of list10)
     contributors[ch._zod.def.check]?.(agg, ch._zod.def);
   const bag = schema._zod.bag;
   if (bag.minimum !== void 0)
@@ -4078,12 +4091,12 @@ var SPECIAL = /[\\/.#@(),]/g;
 function escapeName(name4) {
   return name4.replace(SPECIAL, (c) => `\\${c}`);
 }
-function parsePath(text4, dots = true) {
+function parsePath(text5, dots = true) {
   const steps = [];
   let step = { sep: "/", name: "" };
   let absolute = false;
   let i = 0;
-  if (text4.startsWith("/")) {
+  if (text5.startsWith("/")) {
     absolute = true;
     i = 1;
   }
@@ -4091,10 +4104,10 @@ function parsePath(text4, dots = true) {
     steps.push(step);
     step = { sep: sep2, name: "" };
   };
-  while (i < text4.length) {
-    const c = text4[i];
-    if (c === "\\" && i + 1 < text4.length) {
-      step.name += text4[i + 1];
+  while (i < text5.length) {
+    const c = text5[i];
+    if (c === "\\" && i + 1 < text5.length) {
+      step.name += text5[i + 1];
       i += 2;
       continue;
     }
@@ -4102,7 +4115,7 @@ function parsePath(text4, dots = true) {
     else if (c === "#") next("#");
     else if (c === "." && dots) next(".");
     else if (c === "(" && step.sep === "#" && step.params === void 0) {
-      const [params, end] = readParams(text4, i + 1);
+      const [params, end] = readParams(text5, i + 1);
       step.params = params;
       i = end;
     } else step.name += c;
@@ -4111,14 +4124,14 @@ function parsePath(text4, dots = true) {
   steps.push(step);
   return { absolute, steps };
 }
-function readParams(text4, from) {
+function readParams(text5, from) {
   const params = [];
   let current = "";
   let i = from;
-  for (; i < text4.length && text4[i] !== ")"; i++) {
-    const c = text4[i];
-    if (c === "\\" && i + 1 < text4.length) {
-      current += text4[++i];
+  for (; i < text5.length && text5[i] !== ")"; i++) {
+    const c = text5[i];
+    if (c === "\\" && i + 1 < text5.length) {
+      current += text5[++i];
     } else if (c === ",") {
       params.push(current.trim());
       current = "";
@@ -4132,8 +4145,8 @@ function readParams(text4, from) {
 function fieldOf(elem) {
   const owner = elem._parent;
   for (const field of [...MEMBER_FIELDS, ...OPERATION_FIELDS]) {
-    const list7 = owner[field];
-    if (Array.isArray(list7) && list7.includes(elem)) return field;
+    const list10 = owner[field];
+    if (Array.isArray(list10) && list10.includes(elem)) return field;
   }
   return null;
 }
@@ -4229,8 +4242,8 @@ function nameIndex() {
       for (const elem of Object.values(app.repository.getIdMap())) {
         if (isView(elem)) continue;
         const key2 = typeof elem.name === "string" ? elem.name : "";
-        const list7 = index.get(key2);
-        if (list7) list7.push(elem);
+        const list10 = index.get(key2);
+        if (list10) list10.push(elem);
         else index.set(key2, [elem]);
       }
     }
@@ -4314,7 +4327,7 @@ function tryResolve(ref3, options = {}) {
     throw err;
   }
 }
-var unique = (list7) => [...new Set(list7)];
+var unique = (list10) => [...new Set(list10)];
 var MAX_NEAREST = 5;
 function distance(a, b) {
   let row = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -4335,19 +4348,19 @@ function distance(a, b) {
 }
 function lastName(ref3) {
   const at = splitAt(ref3);
-  const text4 = at ? at[0] : ref3;
+  const text5 = at ? at[0] : ref3;
   let start = 0;
   let depth3 = 0;
-  for (let i = 0; i < text4.length; i++) {
-    const c = text4[i];
+  for (let i = 0; i < text5.length; i++) {
+    const c = text5[i];
     if (c === "\\") i++;
     else if (c === "(") depth3++;
     else if (c === ")") depth3 = Math.max(0, depth3 - 1);
     else if (depth3 > 0) continue;
     else if ("/#.".includes(c)) start = i + 1;
-    else if (text4.startsWith("::", i)) start = i + 2;
+    else if (text5.startsWith("::", i)) start = i + 2;
   }
-  return text4.slice(start).replace(/\\(.)/g, "$1").replace(/\(.*$/, "").trim();
+  return text5.slice(start).replace(/\\(.)/g, "$1").replace(/\(.*$/, "").trim();
 }
 function nearest(ref3, kind2) {
   const wanted = lastName(ref3).toLowerCase();
@@ -4387,47 +4400,47 @@ var VISIBILITY = {
   "#": "protected",
   "~": "package"
 };
-function modifiers(text4) {
-  const last = text4.at(-1);
-  if (last === "$") return { text: text4.slice(0, -1).trim(), isStatic: true };
-  if (last === "*") return { text: text4.slice(0, -1).trim(), isAbstract: true };
-  return { text: text4 };
+function modifiers(text5) {
+  const last = text5.at(-1);
+  if (last === "$") return { text: text5.slice(0, -1).trim(), isStatic: true };
+  if (last === "*") return { text: text5.slice(0, -1).trim(), isAbstract: true };
+  return { text: text5 };
 }
-function visibility(text4) {
-  const v = VISIBILITY[text4.charAt(0)];
-  return v ? { text: text4.slice(1).trim(), visibility: v } : { text: text4 };
+function visibility(text5) {
+  const v = VISIBILITY[text5.charAt(0)];
+  return v ? { text: text5.slice(1).trim(), visibility: v } : { text: text5 };
 }
-function typedName(text4) {
-  const colon = text4.indexOf(":");
+function typedName(text5) {
+  const colon = text5.indexOf(":");
   if (colon >= 0) {
-    const type2 = text4.slice(colon + 1).trim();
-    return { name: text4.slice(0, colon).trim(), ...type2 && { type: type2 } };
+    const type2 = text5.slice(colon + 1).trim();
+    return { name: text5.slice(0, colon).trim(), ...type2 && { type: type2 } };
   }
-  const space = text4.lastIndexOf(" ");
-  if (space < 0) return { name: text4 };
+  const space = text5.lastIndexOf(" ");
+  if (space < 0) return { name: text5 };
   return {
-    name: text4.slice(space + 1),
-    type: text4.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
+    name: text5.slice(space + 1),
+    type: text5.slice(0, space).trim().replace(/~([^~]*)~/g, "<$1>")
   };
 }
 function parseAttribute(source) {
   const mod = modifiers(source.trim());
   const vis = visibility(mod.text);
-  let text4 = vis.text;
+  let text5 = vis.text;
   let defaultValue;
-  const eq = text4.indexOf("=");
+  const eq = text5.indexOf("=");
   if (eq >= 0) {
-    defaultValue = text4.slice(eq + 1).trim();
-    text4 = text4.slice(0, eq).trim();
+    defaultValue = text5.slice(eq + 1).trim();
+    text5 = text5.slice(0, eq).trim();
   }
   let multiplicity;
-  const mult = /\[([^\]]*)\]$/.exec(text4);
+  const mult = /\[([^\]]*)\]$/.exec(text5);
   if (mult) {
     multiplicity = mult[1];
-    text4 = text4.slice(0, mult.index).trim();
+    text5 = text5.slice(0, mult.index).trim();
   }
   return {
-    ...typedName(text4),
+    ...typedName(text5),
     ...vis.visibility && { visibility: vis.visibility },
     ...mod.isStatic && { isStatic: true },
     ...defaultValue !== void 0 && { defaultValue },
@@ -4592,8 +4605,8 @@ var str = (value) => multiline(typeof value === "string" ? value : value.name);
 var LINE_HEIGHT = 16;
 var GLYPH_WIDTH = 7;
 var LABEL_PADDING = 20;
-function textWidth(text4) {
-  return GLYPH_WIDTH * Math.max(0, ...text4.split("\n").map((l) => l.length));
+function textWidth(text5) {
+  return GLYPH_WIDTH * Math.max(0, ...text5.split("\n").map((l) => l.length));
 }
 
 // src/build/families.ts
@@ -5075,7 +5088,7 @@ function familyPlan(kind2, spec) {
     return key2;
   };
   const keys2 = entries.map(keyOf);
-  const typeOf3 = (n) => f.nodes[n.type ?? f.node];
+  const typeOf4 = (n) => f.nodes[n.type ?? f.node];
   const order = [];
   const state2 = /* @__PURE__ */ new Map();
   const visit = (i) => {
@@ -5104,7 +5117,7 @@ function familyPlan(kind2, spec) {
   entries.forEach((_, i) => visit(i));
   for (const i of order) {
     const n = entries[i];
-    const t = typeOf3(n);
+    const t = typeOf4(n);
     const key2 = keys2[i];
     const label4 = n.name !== void 0 ? multiline(n.name) : "";
     const into = n.in !== void 0 ? multiline(n.in) : void 0;
@@ -6186,7 +6199,7 @@ function classPlan(spec) {
     const operations = (c.operations ?? []).map(
       (o) => typeof o === "string" ? parseOperation(o) : o
     );
-    const shown = viewProperties(kind2, attributes2.length);
+    const shown2 = viewProperties(kind2, attributes2.length);
     b.node({
       key: multiline(c.name),
       type: CLASS_TYPES[kind2],
@@ -6204,7 +6217,7 @@ function classPlan(spec) {
       // StarUML draws an interface as a lollipop by default, which hides
       // its operations.
       ...kind2 === "interface" && { style: { stereotypeDisplay: "label" } },
-      ...shown && { viewProperties: shown },
+      ...shown2 && { viewProperties: shown2 },
       // StarUML widens a class view to its longest line when it draws it;
       // planning that width keeps neighbours, and a package holding the
       // class, clear of it.
@@ -6301,7 +6314,7 @@ var SEQUENCE = {
   /** Space between the frame and what it holds. */
   frameMargin: 20
 };
-var noteHeight = (text4) => Math.max(40, 16 + 16 * multiline(text4).split("\n").length);
+var noteHeight = (text5) => Math.max(40, 16 + 16 * multiline(text5).split("\n").length);
 function sequencePlan(spec) {
   const b = new Builder("sequence");
   const messages2 = (spec.messages ?? []).map((m) => ({
@@ -6494,14 +6507,14 @@ function uniqueNames(names4) {
   });
 }
 function withOperandStarts(f) {
-  const count = f.operands?.length ?? 0;
+  const count2 = f.operands?.length ?? 0;
   const inside3 = f.to - f.from + 1;
-  if (f.operandStarts || count === 0 || inside3 < count + 1) return f;
+  if (f.operandStarts || count2 === 0 || inside3 < count2 + 1) return f;
   return {
     ...f,
     operandStarts: Array.from(
-      { length: count },
-      (_, k) => f.from + Math.floor((k + 1) * inside3 / (count + 1))
+      { length: count2 },
+      (_, k) => f.from + Math.floor((k + 1) * inside3 / (count2 + 1))
     )
   };
 }
@@ -7032,14 +7045,14 @@ function decorate(plan, spec) {
           `spec: ${key2} is defined twice; give the node another name or id`
         );
       }
-      const text4 = multiline(n.text);
+      const text5 = multiline(n.text);
       const node2 = {
         key: key2,
         type: "Note",
         name: "",
-        text: text4,
+        text: text5,
         width: 140,
-        height: noteHeight(text4)
+        height: noteHeight(text5)
       };
       plan.nodes.push(node2);
       byKey.set(key2, node2);
@@ -7751,11 +7764,11 @@ function changeReferences(elem, attr, op, value) {
     attr,
     Array.isArray(value) ? value : [value]
   );
-  const list7 = elem[attr.name];
+  const list10 = elem[attr.name];
   for (const item of items2) {
-    if (op === "add" && !list7.includes(item)) {
+    if (op === "add" && !list10.includes(item)) {
       inStarUML(() => app.engine.addItem(elem, attr.name, item));
-    } else if (op === "remove" && list7.includes(item)) {
+    } else if (op === "remove" && list10.includes(item)) {
       inStarUML(() => app.engine.removeItem(elem, attr.name, item));
     }
   }
@@ -7771,20 +7784,20 @@ function reorder(elem, attr, value, index) {
   if (index === void 0) {
     throw new ApiError("INVALID_ARGUMENT", "reorder needs index");
   }
-  const list7 = elem[attr.name];
+  const list10 = elem[attr.name];
   const itemRef = refId(value);
   const itemId = itemRef === null || byId(itemRef) ? itemRef : tryResolve(itemRef)?._id ?? itemRef;
-  const item = list7.find((e) => e._id === itemId);
+  const item = list10.find((e) => e._id === itemId);
   if (!item) {
     throw new ApiError(
       "NOT_FOUND",
       `${String(itemId)} is not in ${typeName5}.${attr.name}`
     );
   }
-  if (index >= list7.length) {
+  if (index >= list10.length) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `index ${index} is past the end of ${typeName5}.${attr.name} (${list7.length} items)`
+      `index ${index} is past the end of ${typeName5}.${attr.name} (${list10.length} items)`
     );
   }
   const builder = app.repository.getOperationBuilder();
@@ -8583,11 +8596,11 @@ var createViewOf = defineEndpoint({
       );
     }
     const diagram = requireDiagram(input.diagram);
-    const shown = (m) => diagram.ownedViews.find((v) => v.model === m);
-    const existing2 = shown(model);
+    const shown2 = (m) => diagram.ownedViews.find((v) => v.model === m);
+    const existing2 = shown2(model);
     if (existing2) return created(existing2, input);
     for (const end of endsOf(model)) {
-      if (!shown(end)) {
+      if (!shown2(end)) {
         throw new ApiError(
           "INVALID_ARGUMENT",
           `${end.constructor.name} ${end._id} at an end of ${input.ref} is not on the diagram; show it first`
@@ -8604,7 +8617,7 @@ var createViewOf = defineEndpoint({
         y: input.y ?? 100,
         editor
       })
-    ) ?? selfMessage(model, diagram, input.y ?? 100) ?? shown(model);
+    ) ?? selfMessage(model, diagram, input.y ?? 100) ?? shown2(model);
     if (!view) {
       throw new ApiError(
         "STARUML_ERROR",
@@ -8941,9 +8954,9 @@ var DEFAULT_LIMITS = { maxAspect: 3, maxNodes: 60 };
 function failures(m, limits) {
   const maxAspect = limits.maxAspect ?? DEFAULT_LIMITS.maxAspect;
   const maxNodes = limits.maxNodes ?? DEFAULT_LIMITS.maxNodes;
-  const fits3 = Math.max(m.width, m.height) <= 2 * Math.max(limits.width, limits.height);
+  const fits4 = Math.max(m.width, m.height) <= 2 * Math.max(limits.width, limits.height);
   return [
-    ...m.aspect > maxAspect && !fits3 ? [
+    ...m.aspect > maxAspect && !fits4 ? [
       `aspect ${m.aspect.toFixed(1)}:1 over ${maxAspect}:1 (${Math.round(m.width)}\xD7${Math.round(m.height)})`
     ] : [],
     ...m.nodes > maxNodes ? [`${m.nodes} nodes over ${maxNodes}`] : []
@@ -8992,10 +9005,10 @@ function penalties(m, page) {
 }
 function scoreOf(m, page) {
   const lost = Object.values(penalties(m, page)).reduce((n, p) => n + p, 0);
-  const score2 = Math.max(0, Math.min(100, Math.round(100 - lost)));
-  return failures(m, page).length > 0 ? Math.min(FAIL_CAP, score2) : score2;
+  const score3 = Math.max(0, Math.min(100, Math.round(100 - lost)));
+  return failures(m, page).length > 0 ? Math.min(FAIL_CAP, score3) : score3;
 }
-var ratingOf = (score2) => score2 >= 90 ? 5 : score2 >= 80 ? 4 : score2 >= 60 ? 3 : score2 >= 40 ? 2 : 1;
+var ratingOf = (score3) => score3 >= 90 ? 5 : score3 >= 80 ? 4 : score3 >= 60 ? 3 : score3 >= 40 ? 2 : 1;
 
 // src/style/profiles.json
 var profiles_default = {
@@ -9797,12 +9810,12 @@ function preferred() {
 function effectiveProfile() {
   const tag = profileTag();
   if (!tag) return { profile: preferred(), source: "preferences" };
-  const text4 = String(tag.value ?? "");
-  if (cache?.text === text4) return cache.effective;
+  const text5 = String(tag.value ?? "");
+  if (cache?.text === text5) return cache.effective;
   let effective;
   try {
     effective = {
-      profile: parseProfile(JSON.parse(text4), PROFILE_TAG),
+      profile: parseProfile(JSON.parse(text5), PROFILE_TAG),
       source: "project"
     };
   } catch (err) {
@@ -9812,7 +9825,7 @@ function effectiveProfile() {
       problem: `the project's ${PROFILE_TAG} tag is not a valid profile: ${err.message}`
     };
   }
-  cache = { text: text4, effective };
+  cache = { text: text5, effective };
   return effective;
 }
 var profile = () => effectiveProfile().profile;
@@ -9941,6 +9954,21 @@ function saveGated(endpoint) {
     );
   });
 }
+function viewpointRequired(endpoint) {
+  return {
+    ...endpoint,
+    handler: async (body) => {
+      if (profile().strict && !isTrusted()) {
+        return new ApiError(
+          "VIEWPOINT_REQUIRED",
+          `${endpoint.path}: the style profile '${profile().name}' is strict, so every diagram declares the viewpoint it is a view of; use /request_diagram, /derive_diagrams, or /build_diagram with viewpoint`,
+          { profile: profile().name, endpoint: endpoint.path }
+        ).toBody();
+      }
+      return endpoint.handler(body);
+    }
+  };
+}
 
 // src/undo.ts
 var history = () => app.repository;
@@ -10067,16 +10095,16 @@ function resolveReferences(value, results) {
   }
   return value;
 }
-function lookup(text4, name4, path, results) {
+function lookup(text5, name4, path, results) {
   const result = results.get(name4);
   if (!result) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `${text4}: no earlier op is named ${name4}`
+      `${text5}: no earlier op is named ${name4}`
     );
   }
   if (!result.success) {
-    throw new ApiError("INVALID_ARGUMENT", `${text4}: op ${name4} failed`);
+    throw new ApiError("INVALID_ARGUMENT", `${text5}: op ${name4} failed`);
   }
   let value = result.data;
   for (const segment of path.split(".").slice(1)) {
@@ -10088,7 +10116,7 @@ function lookup(text4, name4, path, results) {
     value = _id ?? $ref;
   }
   if (!["string", "number", "boolean"].includes(typeof value)) {
-    throw new ApiError("INVALID_ARGUMENT", `${text4} does not name a value`);
+    throw new ApiError("INVALID_ARGUMENT", `${text5} does not name a value`);
   }
   return value;
 }
@@ -10579,11 +10607,11 @@ function parseJsonSchema(source, as) {
 }
 
 // src/build/c4.ts
-function macroArgs(text4) {
+function macroArgs(text5) {
   const parts = [];
   let current = "";
   let quoted3 = false;
-  for (const ch of text4) {
+  for (const ch of text5) {
     if (ch === '"') quoted3 = !quoted3;
     else if (ch === "," && !quoted3) {
       parts.push(current);
@@ -10624,9 +10652,9 @@ function readC4(lines2, fail5, other) {
   let boundaries = 0;
   let open = 0;
   const value = (s) => s ? multiline(s) : void 0;
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     let m;
-    if (m = ELEMENT.exec(text4)) {
+    if (m = ELEMENT.exec(text5)) {
       const [, macro, ext, body] = m;
       const base = macro.replace(/(Db|Queue)$/, "");
       const type2 = TYPES[base];
@@ -10644,7 +10672,7 @@ function readC4(lines2, fail5, other) {
         ...value(description) && { description: value(description) },
         ...ext && { external: true }
       });
-    } else if (m = RELATION.exec(text4)) {
+    } else if (m = RELATION.exec(text5)) {
       const { positional: p, named: named3 } = macroArgs(m[2]);
       if (!p[0] || !p[1]) fail5(no, `${m[1]} needs two aliases`);
       const back = m[1].startsWith("Rel_Back");
@@ -10662,13 +10690,13 @@ function readC4(lines2, fail5, other) {
         ...technology && { technology },
         ...description && { description }
       });
-    } else if (m = BOUNDARY.exec(text4)) {
+    } else if (m = BOUNDARY.exec(text5)) {
       boundaries++;
-      if (text4.endsWith("{")) open++;
-    } else if (text4 === "}") {
+      if (text5.endsWith("{")) open++;
+    } else if (text5 === "}") {
       if (open === 0) fail5(no, "} without a boundary");
       open--;
-    } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text4)) {
+    } else if (m = /^UpdateElementStyle\s*\((.*)\)$/.exec(text5)) {
       const { positional: p, named: named3 } = macroArgs(m[1]);
       const style2 = {};
       for (const [arg, field] of Object.entries(STYLE_ARGS)) {
@@ -10680,14 +10708,14 @@ function readC4(lines2, fail5, other) {
       if (Object.keys(style2).length > 0) {
         styles[p[0]] = { ...styles[p[0]], ...style2 };
       }
-    } else if (DEPLOYMENT.test(text4)) {
+    } else if (DEPLOYMENT.test(text5)) {
       fail5(
         no,
         "C4 deployment nodes have no StarUML 7.1.1 element",
         "UNSUPPORTED_SYNTAX"
       );
-    } else if (!IGNORED.test(text4) && !other(text4)) {
-      fail5(no, `cannot read "${text4}"`);
+    } else if (!IGNORED.test(text5) && !other(text5)) {
+      fail5(no, `cannot read "${text5}"`);
     }
   }
   if (open > 0) fail5(lines2.at(-1).no, "a boundary is never closed with }");
@@ -10724,11 +10752,11 @@ function preprocess(source) {
     start = end + 1;
   }
   const lines2 = [];
-  raw.forEach((text4, i) => {
+  raw.forEach((text5, i) => {
     if (i < start) return;
-    const t = text4.replace(/%%.*$/, "").trim();
+    const t = text5.replace(/%%.*$/, "").trim();
     if (t) {
-      const indent = text4.length - text4.trimStart().length;
+      const indent = text5.length - text5.trimStart().length;
       lines2.push({ no: i + 1, text: t, indent });
     }
   });
@@ -10756,14 +10784,14 @@ var Styles = class {
   classes = /* @__PURE__ */ new Map();
   inline = /* @__PURE__ */ new Map();
   /** Reads a classDef, class or style line; false for any other line. */
-  line(text4) {
+  line(text5) {
     let m;
-    if (m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text4)) {
+    if (m = /^classDef\s+([\w,-]+)\s+(.+?);?$/.exec(text5)) {
       for (const name4 of m[1].split(","))
         this.defs.set(name4, cssColors(m[2]));
-    } else if (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text4)) {
+    } else if (m = /^(?:class|cssClass)\s+"?([\w,\s-]+?)"?\s+([\w-]+);?$/.exec(text5)) {
       for (const id2 of m[1].split(",")) this.use(id2.trim(), m[2]);
-    } else if (m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text4)) {
+    } else if (m = /^style\s+([\w-]+)\s+(.+?);?$/.exec(text5)) {
       this.inline.set(m[1], {
         ...this.inline.get(m[1]),
         ...cssColors(m[2])
@@ -10856,39 +10884,39 @@ function classDiagram(lines2) {
     else if (a === "enumeration" || a === "enum") e.kind = "enum";
     else if (a === "abstract") e.kind = "abstract";
   };
-  const member = (e, text4) => {
-    if (/^<<(.+)>>$/.test(text4)) annotate(e, text4.slice(2, -2));
-    else if (e.kind === "enum") e.literals.push(text4);
-    else if (isOperation(text4)) e.operations.push(text4);
-    else e.attributes.push(text4);
+  const member = (e, text5) => {
+    if (/^<<(.+)>>$/.test(text5)) annotate(e, text5.slice(2, -2));
+    else if (e.kind === "enum") e.literals.push(text5);
+    else if (isOperation(text5)) e.operations.push(text5);
+    else e.attributes.push(text5);
   };
   let open = null;
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     if (open) {
-      if (text4 === "}") open = null;
-      else member(open, text4);
+      if (text5 === "}") open = null;
+      else member(open, text5);
       continue;
     }
     let m;
     if (m = /^class\s+([\w.~]+)\s*(?:\["([^"]*)"\])?\s*(?::::([\w-]+))?\s*(\{)?\s*$/.exec(
-      text4
+      text5
     )) {
       const e = entry(m[1]);
       if (m[2] !== void 0) e.name = multiline(m[2]);
       if (m[3]) styles.use(m[1].replace(/~.*~$/, ""), m[3]);
       if (m[4]) open = e;
-    } else if (m = /^note\s+(?:for\s+([\w.]+)\s+)?"(.*)"$/.exec(text4)) {
+    } else if (m = /^note\s+(?:for\s+([\w.]+)\s+)?"(.*)"$/.exec(text5)) {
       if (m[1] !== void 0) entry(m[1]);
       notes.push({ text: m[2], ...m[1] !== void 0 && { on: [m[1]] } });
-    } else if (styles.line(text4)) {
-    } else if (m = /^namespace\s+([\w.]+)\s*\{$/.exec(text4)) {
+    } else if (styles.line(text5)) {
+    } else if (m = /^namespace\s+([\w.]+)\s*\{$/.exec(text5)) {
       namespace = m[1];
       if (!packages.includes(namespace)) packages.push(namespace);
-    } else if (text4 === "}" && namespace !== void 0) {
+    } else if (text5 === "}" && namespace !== void 0) {
       namespace = void 0;
-    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text4)) {
+    } else if (m = /^<<(.+)>>\s+([\w.]+)$/.exec(text5)) {
       annotate(entry(m[2]), m[1]);
-    } else if (m = RELATION2.exec(text4)) {
+    } else if (m = RELATION2.exec(text5)) {
       const [, a, aCard, arrow, bCard, b, label4] = m;
       const [, type2, reversed] = CLASS_ARROWS.find(([re]) => re.test(arrow));
       entry(a);
@@ -10902,10 +10930,10 @@ function classDiagram(lines2) {
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
-    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text4)) {
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text5)) {
       member(entry(m[1]), m[2].trim());
-    } else if (!/^(direction\s|click\b|link\b|callback\b|})/.test(text4)) {
-      fail2(no, `cannot read "${text4}"`);
+    } else if (!/^(direction\s|click\b|link\b|callback\b|})/.test(text5)) {
+      fail2(no, `cannot read "${text5}"`);
     }
   }
   const nameOf2 = (key2) => classes.get(key2).name;
@@ -10953,17 +10981,17 @@ function sequenceDiagram(lines2) {
   const notes = [];
   const open = [];
   const who = (id2) => aliases2.get(id2.trim()) ?? id2.trim();
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     let m;
-    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
+    if (m = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text5)) {
       const name4 = multiline(m[3] ?? m[2]);
       aliases2.set(m[2], name4);
       participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text4)) {
+    } else if (m = /^create\s+(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/.exec(text5)) {
       const name4 = multiline(m[3] ?? m[2]);
       aliases2.set(m[2], name4);
       participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text4)) {
+    } else if (m = /^(loop|alt|opt|par|critical|break)\b\s*(.*)$/.exec(text5)) {
       open.push({
         operator: m[1],
         ...m[2] && { guard: m[2] },
@@ -10972,7 +11000,7 @@ function sequenceDiagram(lines2) {
         operands: [],
         starts: []
       });
-    } else if (m = /^(rect|box)\b/.exec(text4)) {
+    } else if (m = /^(rect|box)\b/.exec(text5)) {
       open.push({
         operator: "",
         block: m[1],
@@ -10981,11 +11009,11 @@ function sequenceDiagram(lines2) {
         operands: [],
         starts: []
       });
-    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text4)) {
+    } else if (m = /^(else|and|option)\b\s*(.*)$/.exec(text5)) {
       const f = open.at(-1) ?? fail2(no, `${m[1]} outside a block`);
       f.operands.push(m[2] || m[1]);
       f.starts.push(messages2.length);
-    } else if (text4 === "end") {
+    } else if (text5 === "end") {
       const f = open.pop() ?? fail2(no, "end without a block");
       const to = messages2.length - 1;
       if (f.operator && to >= f.from) {
@@ -11001,7 +11029,7 @@ function sequenceDiagram(lines2) {
           to
         });
       }
-    } else if (m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:\s*(.*)$/i.exec(text4)) {
+    } else if (m = /^note\s+(left of|right of|over)\s+([^:]+?)\s*:\s*(.*)$/i.exec(text5)) {
       const side = m[1].toLowerCase().split(" ")[0];
       notes.push({
         text: m[3],
@@ -11009,7 +11037,7 @@ function sequenceDiagram(lines2) {
         side,
         at: messages2.length
       });
-    } else if (m = MESSAGE.exec(text4)) {
+    } else if (m = MESSAGE.exec(text5)) {
       const kind2 = MESSAGE_ARROWS.find(([a]) => a === m[2])[1];
       messages2.push({
         from: who(m[1]),
@@ -11017,8 +11045,8 @@ function sequenceDiagram(lines2) {
         kind: kind2,
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
-    } else if (!/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text4)) {
-      fail2(no, `cannot read "${text4}"`);
+    } else if (!/^(autonumber|activate|deactivate|destroy\b|link\b|links\b)/.test(text5)) {
+      fail2(no, `cannot read "${text5}"`);
     }
   }
   if (open.length > 0)
@@ -11092,19 +11120,19 @@ function flowchart(lines2) {
     }
     return [id2, after.trimStart()];
   };
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     let m;
-    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text4)) {
+    if (m = /^subgraph\s+(?:([\w-]+)\s*\[(.+)\]|(.+))$/.exec(text5)) {
       lanes.push(multiline(unquote(m[2] ?? m[3])));
       continue;
     }
-    if (text4 === "end") {
+    if (text5 === "end") {
       if (lanes.pop() === void 0) fail2(no, "end without a subgraph");
       continue;
     }
-    if (styles.line(text4) || /^(direction\s|linkStyle\b|click\b)/.test(text4))
+    if (styles.line(text5) || /^(direction\s|linkStyle\b|click\b)/.test(text5))
       continue;
-    let [from, rest] = node2(text4, no);
+    let [from, rest] = node2(text5, no);
     while (rest) {
       const link2 = LINK.exec(rest);
       if (!link2) fail2(no, `expected a link at "${rest}"`);
@@ -11145,10 +11173,10 @@ function activitySpec2(lines2) {
     nodes.map((n) => n.id),
     (id2) => id2
   );
-  const count = (id2, end) => flows.filter((f) => f[end] === id2).length;
+  const count2 = (id2, end) => flows.filter((f) => f[end] === id2).length;
   const type2 = (n) => {
-    const ins = count(n.id, "to");
-    const outs = count(n.id, "from");
+    const ins = count2(n.id, "to");
+    const outs = count2(n.id, "from");
     switch (n.shape) {
       case "terminator":
       case "connector":
@@ -11234,11 +11262,11 @@ function erDiagram(lines2) {
     return entities2.get(key2);
   };
   let open = null;
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     if (open) {
-      if (text4 === "}") open = null;
+      if (text5 === "}") open = null;
       else {
-        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text4) ?? fail2(no, `cannot read attribute "${text4}"`);
+        const m2 = /^(\S+)\s+(\S+)((?:\s+(?:PK|FK|UK)\s*,?)*)/.exec(text5) ?? fail2(no, `cannot read attribute "${text5}"`);
         open.push(
           [
             m2[2],
@@ -11250,10 +11278,10 @@ function erDiagram(lines2) {
       continue;
     }
     let m;
-    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text4)) {
+    if (m = /^("[^"]+"|[\w-]+)\s*\{$/.exec(text5)) {
       open = entity2(m[1]);
     } else if (m = /^("[^"]+"|[\w-]+)\s+(\|o|\|\||\}o|\}\|)(--|\.\.)(o\||\|\||o\{|\|\{)\s+("[^"]+"|[\w-]+)\s*(?::\s*(.*))?$/.exec(
-      text4
+      text5
     )) {
       entity2(m[1]);
       entity2(m[5]);
@@ -11265,10 +11293,10 @@ function erDiagram(lines2) {
         identifying: m[3] === "--",
         ...m[6] && { name: unquote(m[6]) }
       });
-    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text4)) {
+    } else if (m = /^("[^"]+"|[\w-]+)$/.exec(text5)) {
       entity2(m[1]);
-    } else if (!/^direction\s/.test(text4)) {
-      fail2(no, `cannot read "${text4}"`);
+    } else if (!/^direction\s/.test(text5)) {
+      fail2(no, `cannot read "${text5}"`);
     }
   }
   return {
@@ -11310,20 +11338,20 @@ function stateDiagram(lines2) {
     return id2;
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
+    const { no, text: text5 } = lines2[i];
     let m;
-    if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text4)) {
+    if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w-]+)\s*\{$/.exec(text5)) {
       const named3 = m[1] !== void 0 || !states.has(m[2]);
       declare(m[2], named3 ? { name: multiline(m[1] ?? m[2]) } : {});
       blocks.push(m[2]);
-    } else if (text4 === "}") {
+    } else if (text5 === "}") {
       if (blocks.pop() === void 0) fail2(no, "} without a state block");
-    } else if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text4)) {
+    } else if (m = /^state\s+"([^"]+)"\s+as\s+([\w-]+)$/.exec(text5)) {
       declare(m[2], { name: multiline(m[1]) });
-    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text4)) {
+    } else if (m = /^state\s+([\w-]+)\s+<<(choice|fork|join)>>$/.exec(text5)) {
       declare(m[1], { type: m[2] });
     } else if (m = /^(\[\*\]|[\w-]+(?::::[\w-]+)?)\s*-->\s*(\[\*\]|[\w-]+(?::::[\w-]+)?)\s*(?::\s*(.*))?$/.exec(
-      text4
+      text5
     )) {
       const from = state2(m[1], "from");
       const to = state2(m[2], "to");
@@ -11336,7 +11364,7 @@ function stateDiagram(lines2) {
         ...trigger && { trigger },
         ...guard && { guard: guard[1] }
       });
-    } else if (m = /^note\s+(left|right)\s+of\s+([\w-]+)\s*(?::\s*(.*))?$/i.exec(text4)) {
+    } else if (m = /^note\s+(left|right)\s+of\s+([\w-]+)\s*(?::\s*(.*))?$/i.exec(text5)) {
       let body = m[3];
       if (body === void 0) {
         const read = noteBody(lines2, i + 1);
@@ -11345,14 +11373,14 @@ function stateDiagram(lines2) {
       }
       state2(m[2], "to");
       notes.push({ text: body, on: [m[2]] });
-    } else if (styles.line(text4)) {
-    } else if (m = /^([\w-]+)\s*:(?!::)\s*(.+)$/.exec(text4)) {
+    } else if (styles.line(text5)) {
+    } else if (m = /^([\w-]+)\s*:(?!::)\s*(.+)$/.exec(text5)) {
       state2(m[1], "to");
       states.get(m[1]).name = multiline(m[2]);
-    } else if ((m = /^state\s+([\w-]+)$/.exec(text4)) || (m = /^(\w[\w-]*(?::::[\w-]+)?)$/.exec(text4))) {
+    } else if ((m = /^state\s+([\w-]+)$/.exec(text5)) || (m = /^(\w[\w-]*(?::::[\w-]+)?)$/.exec(text5))) {
       state2(m[1], "to");
-    } else if (!/^(direction\s|--$)/.test(text4)) {
-      fail2(no, `cannot read "${text4}"`);
+    } else if (!/^(direction\s|--$)/.test(text5)) {
+      fail2(no, `cannot read "${text5}"`);
     }
   }
   if (blocks.length > 0) {
@@ -11370,9 +11398,9 @@ var MIND_SHAPE = /^[\w-]*\s*(?:\[\[?|\(\(|\(|\)\)|\)|\{\{)(.*?)(?:\]\]?|\)\)|\)|
 function mindmap(lines2) {
   const stack = [];
   let root;
-  for (const { no, text: text4, indent } of lines2) {
-    if (/^::icon\(/.test(text4)) continue;
-    const bare2 = text4.replace(/\s*:::.*$/, "");
+  for (const { no, text: text5, indent } of lines2) {
+    if (/^::icon\(/.test(text5)) continue;
+    const bare2 = text5.replace(/\s*:::.*$/, "");
     const shaped2 = MIND_SHAPE.exec(bare2);
     const node2 = {
       name: multiline(unquote(shaped2 ? shaped2[1] : bare2)),
@@ -11426,15 +11454,15 @@ function requirementDiagram(lines2) {
     }
     relations.push({ from: unquote(from), to: unquote(to), type: type2 });
   };
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     let m;
     if (open) {
-      if (text4 === "}") {
+      if (text5 === "}") {
         (isElement2 ? elements : requirements).push(open);
         open = null;
         continue;
       }
-      m = /^(\w+)\s*:\s*(.*?)\s*$/.exec(text4) ?? fail2(no, `cannot read "${text4}"`);
+      m = /^(\w+)\s*:\s*(.*?)\s*$/.exec(text5) ?? fail2(no, `cannot read "${text5}"`);
       const key2 = m[1].toLowerCase();
       const value = unquote(m[2]);
       const field = isElement2 ? { type: "type", docref: "docRef" }[key2] : {
@@ -11448,7 +11476,7 @@ function requirementDiagram(lines2) {
       continue;
     }
     if (m = new RegExp(`^(\\w+)\\s+(${NAME2})\\s*(?::::([\\w-]+))?\\s*\\{$`).exec(
-      text4
+      text5
     )) {
       const keyword = m[1].toLowerCase();
       const type2 = REQUIREMENT_KEYWORDS[keyword];
@@ -11459,12 +11487,12 @@ function requirementDiagram(lines2) {
       names4.push(name4);
       isElement2 = keyword === "element";
       open = isElement2 ? { name: name4 } : { name: name4, ...type2 !== "requirement" && { type: type2 } };
-    } else if (m = forward.exec(text4)) {
+    } else if (m = forward.exec(text5)) {
       relation(m[1], m[2], m[3], no);
-    } else if (m = backward.exec(text4)) {
+    } else if (m = backward.exec(text5)) {
       relation(m[3], m[2], m[1], no);
-    } else if (!styles.line(text4) && !/^direction\s/.test(text4)) {
-      fail2(no, `cannot read "${text4}"`);
+    } else if (!styles.line(text5) && !/^direction\s/.test(text5)) {
+      fail2(no, `cannot read "${text5}"`);
     }
   }
   if (open)
@@ -11554,8 +11582,8 @@ var DECLARATION = /^(package|component|node|artifact|interface|port|portin|porto
 var SHORT_COMPONENT = /^\[([^\]]+)\](?:\s+as\s+([\w.$:]+))?\s*(<<[^>]+>>)?$/;
 var SHORT_INTERFACE = /^\(\)\s+(.+)$/;
 var ARROW = /^("[^"]+"|\[[^\]]+\]|[\w.$:]+)\s+(<?[-.]+>?)\s+("[^"]+"|\[[^\]]+\]|[\w.$:]+)\s*(?::\s*(.*))?$/;
-function declared(text4) {
-  let rest = text4;
+function declared(text5) {
+  let rest = text5;
   let st;
   rest = rest.replace(/<<\s*([^>]+?)\s*>>/g, (_, s) => {
     st ??= s;
@@ -11578,8 +11606,8 @@ function declared(text4) {
     ...st !== void 0 && { st }
   };
 }
-function labelled(text4) {
-  const t = text4?.trim();
+function labelled(text5) {
+  const t = text5?.trim();
   if (!t) return {};
   const m = /^<<\s*([^>]+?)\s*>>\s*(.*)$/.exec(t);
   const name4 = m ? m[2] : t;
@@ -11592,8 +11620,8 @@ function readStructure(lines2, kind2, fail5) {
   const entries = [];
   const byRef = /* @__PURE__ */ new Map();
   const stack = [];
-  const add = (type2, text4, no) => {
-    const d = declared(text4);
+  const add = (type2, text5, no) => {
+    const d = declared(text5);
     if (!d.key) fail5(no, `${type2} needs a name`);
     const parent = stack.at(-1);
     const e = {
@@ -11610,37 +11638,37 @@ function readStructure(lines2, kind2, fail5) {
     return e;
   };
   const arrows = [];
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     let m;
     const open = stack.at(-1);
-    if (open?.type === "interface" && text4 !== "}") {
-      (open.operations ??= []).push(text4);
+    if (open?.type === "interface" && text5 !== "}") {
+      (open.operations ??= []).push(text5);
       continue;
     }
-    if (text4 === "}") {
+    if (text5 === "}") {
       if (stack.length === 0) fail5(no, "a } closes nothing");
       stack.pop();
-    } else if (m = DECLARATION.exec(text4)) {
+    } else if (m = DECLARATION.exec(text5)) {
       const type2 = m[1].startsWith("port") ? "port" : m[1];
       const e = add(type2, m[2], no);
       if (m[3]) stack.push(e);
-    } else if (m = SHORT_COMPONENT.exec(text4)) {
+    } else if (m = SHORT_COMPONENT.exec(text5)) {
       add(
         "component",
         `"${m[1]}"${m[2] ? ` as ${m[2]}` : ""} ${m[3] ?? ""}`,
         no
       );
-    } else if (m = SHORT_INTERFACE.exec(text4)) {
+    } else if (m = SHORT_INTERFACE.exec(text5)) {
       add("interface", m[1], no);
-    } else if (m = ARROW.exec(text4)) {
+    } else if (m = ARROW.exec(text5)) {
       arrows.push({ no, m });
     } else {
-      fail5(no, `cannot read "${text4}"`);
+      fail5(no, `cannot read "${text5}"`);
     }
   }
-  const ref3 = (text4, no) => {
-    const bracketed = text4.startsWith("[");
-    const key2 = bracketed ? text4.slice(1, -1) : unquote(text4);
+  const ref3 = (text5, no) => {
+    const bracketed = text5.startsWith("[");
+    const key2 = bracketed ? text5.slice(1, -1) : unquote(text5);
     const found = byRef.get(key2);
     if (found) return found;
     if (bracketed) return add("component", `"${key2}"`, no);
@@ -11653,7 +11681,7 @@ function readStructure(lines2, kind2, fail5) {
     b: ref3(m[3], no)
   }));
   const of = (type2) => entries.filter((e) => e.type === type2);
-  const shown = (e) => ({
+  const shown2 = (e) => ({
     name: e.name,
     ...e.parent && e.type !== "port" && { parent: e.parent.name },
     ...e.stereotype !== void 0 && { stereotype: e.stereotype }
@@ -11669,7 +11697,7 @@ function readStructure(lines2, kind2, fail5) {
       };
     });
     return {
-      spec: { packages: of("package").map(shown), dependencies },
+      spec: { packages: of("package").map(shown2), dependencies },
       warnings: []
     };
   }
@@ -11729,10 +11757,10 @@ function readStructure(lines2, kind2, fail5) {
     };
   }
   const nodes = new Map(
-    of("node").map((n) => [n, { ...shown(n), deploys: [] }])
+    of("node").map((n) => [n, { ...shown2(n), deploys: [] }])
   );
   const artifacts = new Map(
-    of("artifact").map((a) => [a, { ...shown(a), manifests: [] }])
+    of("artifact").map((a) => [a, { ...shown2(a), manifests: [] }])
   );
   const paths = [];
   const warnings = [];
@@ -11789,42 +11817,42 @@ function preprocess2(source) {
   let comment = false;
   let skipUntil = null;
   for (let i = start + 1; i < raw.length; i++) {
-    let text4 = raw[i].trim();
-    if (/^@end\w+/i.test(text4)) break;
+    let text5 = raw[i].trim();
+    if (/^@end\w+/i.test(text5)) break;
     if (comment) {
-      const end = text4.indexOf("'/");
+      const end = text5.indexOf("'/");
       if (end < 0) continue;
       comment = false;
-      text4 = text4.slice(end + 2).trim();
+      text5 = text5.slice(end + 2).trim();
     }
-    if (text4.startsWith("/'")) {
-      const end = text4.indexOf("'/", 2);
+    if (text5.startsWith("/'")) {
+      const end = text5.indexOf("'/", 2);
       if (end < 0) {
         comment = true;
         continue;
       }
-      text4 = text4.slice(end + 2).trim();
+      text5 = text5.slice(end + 2).trim();
     }
     if (skipUntil) {
-      if (skipUntil.test(text4)) skipUntil = null;
+      if (skipUntil.test(text5)) skipUntil = null;
       continue;
     }
-    if (!text4 || text4.startsWith("'")) continue;
+    if (!text5 || text5.startsWith("'")) continue;
     let m;
-    if (m = /^title\s+(.+)$/i.exec(text4)) {
+    if (m = /^title\s+(.+)$/i.exec(text5)) {
       title = multiline(unquote(m[1]));
-    } else if (/^(skinparam\b.*|style)\s*\{$|^<style>$/i.test(text4)) {
+    } else if (/^(skinparam\b.*|style)\s*\{$|^<style>$/i.test(text5)) {
       skipUntil = /^(\}|<\/style>)$/;
-    } else if (/^legend\b/i.test(text4) || /^(title|header|footer)$/i.test(text4)) {
+    } else if (/^legend\b/i.test(text5) || /^(title|header|footer)$/i.test(text5)) {
       skipUntil = /^end\s*(legend|title|header|footer)$/i;
-    } else if (/^left to right direction$/i.test(text4)) {
+    } else if (/^left to right direction$/i.test(text5)) {
       direction2 = "LR";
-    } else if (/^top to bottom direction$/i.test(text4)) {
+    } else if (/^top to bottom direction$/i.test(text5)) {
       direction2 = "TB";
-    } else if (m = /^!include(?:url|sub)?\s+(.+)$/i.exec(text4)) {
+    } else if (m = /^!include(?:url|sub)?\s+(.+)$/i.exec(text5)) {
       includes.push(m[1]);
-    } else if (!STYLING.test(text4)) {
-      lines2.push({ no: i + 1, text: text4 });
+    } else if (!STYLING.test(text5)) {
+      lines2.push({ no: i + 1, text: text5 });
     }
   }
   return {
@@ -11837,19 +11865,19 @@ function preprocess2(source) {
   };
 }
 var ID = String.raw`"[^"]+"|[\w.$:]+`;
-function named(text4) {
-  let m = /^"([^"]+)"\s+as\s+([\w.$:]+)$/.exec(text4);
+function named(text5) {
+  let m = /^"([^"]+)"\s+as\s+([\w.$:]+)$/.exec(text5);
   if (m) return { key: m[2], name: multiline(m[1]) };
-  m = /^([\w.$:]+)\s+as\s+"([^"]+)"$/.exec(text4);
+  m = /^([\w.$:]+)\s+as\s+"([^"]+)"$/.exec(text5);
   if (m) return { key: m[1], name: multiline(m[2]) };
-  m = /^([\w.$:]+)\s+as\s+([\w.$:]+)$/.exec(text4);
+  m = /^([\w.$:]+)\s+as\s+([\w.$:]+)$/.exec(text5);
   if (m) return { key: m[2], name: m[1] };
-  const plain = unquote(text4);
+  const plain = unquote(text5);
   return { key: plain, name: multiline(plain) };
 }
 var HEX = /#([0-9a-f]{3}|[0-9a-f]{6})\b/i;
-function adornments(text4) {
-  let rest = text4;
+function adornments(text5) {
+  let rest = text5;
   let stereotype;
   rest = rest.replace(/<<\s*([^>]+?)\s*>>/g, (_, s) => {
     stereotype ??= s;
@@ -11869,10 +11897,10 @@ function arrowCore(arrow) {
 var RELATION3 = new RegExp(
   String.raw`^(${ID})\s*(?:"([^"]*)"\s*)?((?:<\||[<*o#x+^}])?[-.]+(?:\[[^\]]*\])?[-.]*(?:(?:up|down|left|right|u|d|l|r)[-.]+)?(?:\|>|[>*o#x+^{])?)\s*(?:"([^"]*)"\s*)?(${ID})\s*(?::\s*(.*))?$`
 );
-var label = (text4) => text4?.replace(/^\s*[<>]\s*|\s*[<>]\s*$/g, "").trim() || void 0;
+var label = (text5) => text5?.replace(/^\s*[<>]\s*|\s*[<>]\s*$/g, "").trim() || void 0;
 function readNote(lines2, i) {
-  const { text: text4 } = lines2[i];
-  const m = /^[hr]?note\b\s*(.*?)\s*(?::\s*(.*))?$/i.exec(text4);
+  const { text: text5 } = lines2[i];
+  const m = /^[hr]?note\b\s*(.*?)\s*(?::\s*(.*))?$/i.exec(text5);
   if (!m) return null;
   if (m[2] !== void 0) return { head: m[1], text: m[2], next: i + 1 };
   const quoted3 = /^"(.*)"(.*)$/.exec(m[1]);
@@ -11915,19 +11943,19 @@ function classDiagram2(lines2) {
     }
     return e;
   };
-  const member = (e, text4) => {
-    if (/^(--|\.\.|==|__)/.test(text4)) return;
-    const clean = text4.replace(/\{(field|method)\}\s*/g, "").replace(/^\{static\}\s*(.*)$/, "$1$").replace(/^\{abstract\}\s*(.*)$/, "$1*").replace(/[;,]$/, "");
+  const member = (e, text5) => {
+    if (/^(--|\.\.|==|__)/.test(text5)) return;
+    const clean = text5.replace(/\{(field|method)\}\s*/g, "").replace(/^\{static\}\s*(.*)$/, "$1$").replace(/^\{abstract\}\s*(.*)$/, "$1*").replace(/[;,]$/, "");
     if (e.kind === "enum") e.literals.push(clean.trim());
     else if (isOperation(clean)) e.operations.push(clean);
     else e.attributes.push(clean);
   };
   let body = null;
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
+    const { no, text: text5 } = lines2[i];
     if (body) {
-      if (text4 === "}") body = null;
-      else member(body, text4);
+      if (text5 === "}") body = null;
+      else member(body, text5);
       continue;
     }
     let m;
@@ -11942,10 +11970,10 @@ function classDiagram2(lines2) {
         const target = of[1] ? named(of[1]).key : last;
         if (target !== void 0) n.on = [target];
       } else if (/^on\s+link/.test(note.head)) continue;
-      else if (note.head) fail3(no, `cannot read "${text4}"`);
+      else if (note.head) fail3(no, `cannot read "${text5}"`);
       notes.push(n);
     } else if (m = /^(abstract\s+class|abstract|class|interface|enum|entity|struct|exception)\s+(.+?)\s*(\{)?$/.exec(
-      text4
+      text5
     )) {
       const { rest, stereotype, fill: fill2 } = adornments(m[2]);
       const parents = {
@@ -11969,10 +11997,10 @@ function classDiagram2(lines2) {
       last = key2;
       if (m[3]) body = e;
     } else if (m = /^(annotation|protocol|metaclass|stereotype|circle|diamond|object|map|json|component|node|artifact|usecase)\s/.exec(
-      text4
+      text5
     )) {
       refuse(no, `${m[1]} is not part of a class diagram build_diagram reads`);
-    } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text4)) {
+    } else if (m = /^(package|namespace)\s+(.+?)\s*\{$/.exec(text5)) {
       const { rest } = adornments(m[2]);
       const { name: name4 } = named(rest);
       if (open.length > 0) {
@@ -11982,9 +12010,9 @@ function classDiagram2(lines2) {
       }
       if (!packages.includes(name4)) packages.push(name4);
       open.push(name4);
-    } else if (text4 === "}" && open.length > 0) {
+    } else if (text5 === "}" && open.length > 0) {
       open.pop();
-    } else if (m = RELATION3.exec(text4)) {
+    } else if (m = RELATION3.exec(text5)) {
       const [, a, aCard, arrow, bCard, b, text22] = m;
       const [ka, kb] = [named(a).key, named(b).key];
       const core = arrowCore(arrow);
@@ -12008,10 +12036,10 @@ function classDiagram2(lines2) {
         ...fromMul !== void 0 && { fromMultiplicity: fromMul },
         ...toMul !== void 0 && { toMultiplicity: toMul }
       });
-    } else if (m = new RegExp(String.raw`^(${ID})\s*:\s*(.+)$`).exec(text4)) {
+    } else if (m = new RegExp(String.raw`^(${ID})\s*:\s*(.+)$`).exec(text5)) {
       member(entry(named(m[1]).key), m[2].trim());
     } else {
-      fail3(no, `cannot read "${text4}"`);
+      fail3(no, `cannot read "${text5}"`);
     }
   }
   const nameOf2 = (key2) => classes.get(key2)?.name ?? key2;
@@ -12078,7 +12106,7 @@ function sequenceDiagram2(lines2) {
     return keys2.get(key2);
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
+    const { no, text: text5 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12086,13 +12114,13 @@ function sequenceDiagram2(lines2) {
       const at = /^(left|right|over)(?:\s+of)?\s*(.*)$/i.exec(note.head);
       if (!at) {
         if (/^(across|on\s+link)/i.test(note.head)) continue;
-        fail3(no, `cannot read "${text4}"`);
+        fail3(no, `cannot read "${text5}"`);
       }
       const side = at[1].toLowerCase();
       const on = at[2] ? at[2].split(",").map((p) => who(p.trim())) : messages2.length > 0 ? [String(messages2.at(-1).from)] : [];
       notes.push({ text: note.text, on, side, at: messages2.length });
     } else if (m = /^create\s+(?:(participant|actor|boundary|control|entity|database|collections|queue)\s+)?(.+)$/.exec(
-      text4
+      text5
     )) {
       const { key: key2, name: name4 } = named(adornments(m[2]).rest);
       if (!keys2.has(key2)) {
@@ -12100,16 +12128,16 @@ function sequenceDiagram2(lines2) {
         participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
       }
       creating.add(keys2.get(key2));
-    } else if (m = PARTICIPANT.exec(text4)) {
+    } else if (m = PARTICIPANT.exec(text5)) {
       const rest = adornments(m[2]).rest.replace(/\s+order\s+-?\d+$/, "");
       const { key: key2, name: name4 } = named(rest);
       keys2.set(key2, name4);
       participants.push({ name: name4, ...m[1] === "actor" && { kind: "actor" } });
-    } else if (m = /^destroy\s+(.+)$/.exec(text4)) {
+    } else if (m = /^destroy\s+(.+)$/.exec(text5)) {
       const target = who(m[1]);
       const last = [...messages2].reverse().find((x) => x.to === target);
       if (last) last.kind = "delete";
-    } else if (m = /^(alt|opt|loop|par2?|break|critical|group)\b\s*(.*)$/.exec(text4)) {
+    } else if (m = /^(alt|opt|loop|par2?|break|critical|group)\b\s*(.*)$/.exec(text5)) {
       let operator = m[1].replace("par2", "par");
       let guard = m[2].trim();
       if (operator === "group") {
@@ -12129,11 +12157,11 @@ function sequenceDiagram2(lines2) {
         operands: [],
         starts: []
       });
-    } else if (m = /^else\b\s*(.*)$/.exec(text4)) {
+    } else if (m = /^else\b\s*(.*)$/.exec(text5)) {
       const f = open.at(-1) ?? fail3(no, "else outside a group");
       f.operands.push(m[1].trim());
       f.starts.push(messages2.length);
-    } else if (text4 === "end") {
+    } else if (text5 === "end") {
       const f = open.pop() ?? fail3(no, "end without a group");
       const to = messages2.length - 1;
       if (to >= f.from) {
@@ -12149,15 +12177,15 @@ function sequenceDiagram2(lines2) {
           to
         });
       }
-    } else if (/^(ref\s+over|return)\b/.test(text4)) {
+    } else if (/^(ref\s+over|return)\b/.test(text5)) {
       refuse(
         no,
-        `${text4.split(/\s/)[0]} has no StarUML sequence element build_diagram makes`
+        `${text5.split(/\s/)[0]} has no StarUML sequence element build_diagram makes`
       );
     } else if (/^(activate|deactivate|autoactivate|box\b|end\s+box|\.\.\.|\|\|\||\|\|\d+\|\||==.*==$|delay\b|space\b)/.test(
-      text4
+      text5
     )) {
-    } else if ((m = MESSAGE2.exec(text4)) && m[1] && m[3]) {
+    } else if ((m = MESSAGE2.exec(text5)) && m[1] && m[3]) {
       if ("[]".includes(m[1]) || "[]".includes(m[3])) {
         refuse(
           no,
@@ -12177,7 +12205,7 @@ function sequenceDiagram2(lines2) {
         ...m[5] !== void 0 && { text: m[5].trim() }
       });
     } else {
-      fail3(no, `cannot read "${text4}"`);
+      fail3(no, `cannot read "${text5}"`);
     }
   }
   if (open.length > 0) {
@@ -12208,9 +12236,9 @@ function usecaseDiagram(lines2) {
   const warnings = [];
   let system;
   let depth3 = 0;
-  const declare = (list7, key2, name4) => {
+  const declare = (list10, key2, name4) => {
     names4.set(key2, name4);
-    if (!actors.includes(name4) && !useCases2.includes(name4)) list7.push(name4);
+    if (!actors.includes(name4) && !useCases2.includes(name4)) list10.push(name4);
     return name4;
   };
   const end = (ref3) => {
@@ -12222,7 +12250,7 @@ function usecaseDiagram(lines2) {
     return names4.get(key2) ?? declare(actors, key2, multiline(key2));
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
+    const { no, text: text5 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12233,24 +12261,24 @@ function usecaseDiagram(lines2) {
       if (as) noteAliases.set(as[1], n);
       else if (of) n.on = [end(of[1])];
       notes.push(n);
-    } else if ((m = /^actor\/?\s+(.+)$/.exec(text4)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text4))) {
+    } else if ((m = /^actor\/?\s+(.+)$/.exec(text5)) || (m = /^(:[^:]+:(?:\s+as\s+\S+)?)$/.exec(text5))) {
       const rest = adornments(m[1]).rest;
       const colon = /^:(.+):(?:\s+as\s+(\S+))?$/.exec(rest);
       const { key: key2, name: name4 } = colon ? { key: colon[2] ?? colon[1], name: multiline(colon[1]) } : named(rest);
       declare(actors, key2, name4);
-    } else if ((m = /^usecase\/?\s+(.+)$/.exec(text4)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text4))) {
+    } else if ((m = /^usecase\/?\s+(.+)$/.exec(text5)) || (m = /^(\([^)]+\)(?:\s+as\s+\S+)?)$/.exec(text5))) {
       const rest = adornments(m[1]).rest;
       const paren = /^\((.+)\)(?:\s+as\s+(\S+))?$/.exec(rest);
       const { key: key2, name: name4 } = paren ? { key: paren[2] ?? paren[1], name: multiline(paren[1]) } : named(rest);
       declare(useCases2, key2, name4);
-    } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text4)) {
+    } else if (m = /^(rectangle|package)\s+(.+?)\s*\{$/.exec(text5)) {
       const name4 = named(adornments(m[2]).rest).name;
       if (system === void 0) system = name4;
       else warnings.push(`only one system boundary is drawn; ${name4} is not`);
       depth3++;
-    } else if (text4 === "}" && depth3 > 0) {
+    } else if (text5 === "}" && depth3 > 0) {
       depth3--;
-    } else if (m = UC_RELATION.exec(text4)) {
+    } else if (m = UC_RELATION.exec(text5)) {
       const [, a, arrow, b, text22] = m;
       if (noteAliases.has(a) || noteAliases.has(b)) {
         const [n, other] = noteAliases.has(a) ? [noteAliases.get(a), b] : [noteAliases.get(b), a];
@@ -12271,7 +12299,7 @@ function usecaseDiagram(lines2) {
         ...type2 === "association" && name4 && { name: name4 }
       });
     } else {
-      fail3(no, `cannot read "${text4}"`);
+      fail3(no, `cannot read "${text5}"`);
     }
   }
   return {
@@ -12318,7 +12346,7 @@ function activityDiagram(lines2) {
     return f;
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
+    const { no, text: text5 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12326,38 +12354,38 @@ function activityDiagram(lines2) {
       notes.push({ text: note.text, ...lastNode && { on: [lastNode] } });
       continue;
     }
-    if (text4.startsWith(":")) {
-      let body = text4.slice(1);
+    if (text5.startsWith(":")) {
+      let body = text5.slice(1);
       while (!/[;|<>\]}/]$/.test(body) && i + 1 < lines2.length) {
         body += `
 ${lines2[++i].text}`;
       }
       if (!/[;|<>\]}/]$/.test(body)) fail3(no, "action is never closed with ;");
       node2("action", body.slice(0, -1));
-    } else if (/^start$/.test(text4)) {
+    } else if (/^start$/.test(text5)) {
       node2("initial");
-    } else if (/^(stop|end)$/.test(text4)) {
+    } else if (/^(stop|end)$/.test(text5)) {
       node2("final");
       tails = [];
-    } else if (/^(kill|detach)$/.test(text4)) {
+    } else if (/^(kill|detach)$/.test(text5)) {
       node2("flowFinal");
       tails = [];
-    } else if (m = /^->\s*(.*?);?$/.exec(text4)) {
+    } else if (m = /^->\s*(.*?);?$/.exec(text5)) {
       pending = m[1] || void 0;
-    } else if (m = /^if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text4)) {
+    } else if (m = /^if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text5)) {
       const d = node2("decision", m[1]);
       stack.push({ kind: "if", node: d, ends: [], otherwise: false, no });
       tails = [{ key: d, ...m[2] && { guard: m[2] } }];
-    } else if (m = /^else\s*if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text4)) {
+    } else if (m = /^else\s*if\s*\((.*?)\)\s*(?:then\s*(?:\((.*)\))?)?$/.exec(text5)) {
       const f = top(no, "if");
       f.ends.push(...tails);
       tails = [{ key: f.node, guard: m[2] || m[1] }];
-    } else if (m = /^else\s*(?:\((.*)\))?$/.exec(text4)) {
+    } else if (m = /^else\s*(?:\((.*)\))?$/.exec(text5)) {
       const f = top(no, "if");
       f.ends.push(...tails);
       f.otherwise = true;
       tails = [{ key: f.node, ...m[1] && { guard: m[1] } }];
-    } else if (/^end\s*if$/.test(text4)) {
+    } else if (/^end\s*if$/.test(text5)) {
       const f = top(no, "if");
       stack.pop();
       const ends4 = [
@@ -12367,11 +12395,11 @@ ${lines2[++i].text}`;
       ];
       tails = ends4;
       if (ends4.length > 0) node2("merge");
-    } else if (m = /^while\s*\((.*?)\)\s*(?:is\s*\((.*)\))?$/.exec(text4)) {
+    } else if (m = /^while\s*\((.*?)\)\s*(?:is\s*\((.*)\))?$/.exec(text5)) {
       const d = node2("decision", m[1]);
       stack.push({ kind: "while", node: d, ends: [], otherwise: false, no });
       tails = [{ key: d, ...m[2] && { guard: m[2] } }];
-    } else if (m = /^end\s*while\s*(?:\((.*)\))?$/.exec(text4)) {
+    } else if (m = /^end\s*while\s*(?:\((.*)\))?$/.exec(text5)) {
       const f = top(no, "while");
       stack.pop();
       for (const t of tails) {
@@ -12382,40 +12410,40 @@ ${lines2[++i].text}`;
         });
       }
       tails = [{ key: f.node, ...m[1] && { guard: m[1] } }];
-    } else if (/^repeat$/.test(text4)) {
+    } else if (/^repeat$/.test(text5)) {
       const r = node2("merge");
       stack.push({ kind: "repeat", node: r, ends: [], otherwise: false, no });
     } else if (m = /^repeat\s*while\s*\((.*?)\)\s*(?:is\s*\((.*?)\))?\s*(?:not\s*\((.*)\))?$/.exec(
-      text4
+      text5
     )) {
       const f = top(no, "repeat");
       stack.pop();
       const d = node2("decision", m[1]);
       flows.push({ from: d, to: f.node, ...m[2] && { guard: m[2] } });
       tails = [{ key: d, ...m[3] && { guard: m[3] } }];
-    } else if (/^(fork|split)$/.test(text4)) {
+    } else if (/^(fork|split)$/.test(text5)) {
       const f = node2("fork");
       stack.push({ kind: "fork", node: f, ends: [], otherwise: false, no });
-    } else if (/^(fork|split)\s+again$/.test(text4)) {
+    } else if (/^(fork|split)\s+again$/.test(text5)) {
       const f = top(no, "fork");
       f.ends.push(...tails);
       tails = [{ key: f.node }];
-    } else if (/^end\s*(fork|merge|split)(\s*\{.*\})?$/.test(text4)) {
+    } else if (/^end\s*(fork|merge|split)(\s*\{.*\})?$/.test(text5)) {
       const f = top(no, "fork");
       stack.pop();
       tails = [...f.ends, ...tails];
       node2("join");
-    } else if (m = /^\|(?:[^|]*\|)?([^|]+)\|$/.exec(text4)) {
+    } else if (m = /^\|(?:[^|]*\|)?([^|]+)\|$/.exec(text5)) {
       lane = multiline(m[1].trim());
       if (!lanes.includes(lane)) lanes.push(lane);
-    } else if (/^(partition|group)\b.*\{$/.test(text4) || text4 === "}") {
-    } else if (/^(goto|label|backward|break)\b/.test(text4)) {
+    } else if (/^(partition|group)\b.*\{$/.test(text5) || text5 === "}") {
+    } else if (/^(goto|label|backward|break)\b/.test(text5)) {
       refuse(
         no,
-        `${text4.split(/\s/)[0]} has no activity element build_diagram makes`
+        `${text5.split(/\s/)[0]} has no activity element build_diagram makes`
       );
     } else {
-      fail3(no, `cannot read "${text4}"`);
+      fail3(no, `cannot read "${text5}"`);
     }
   }
   if (stack.length > 0)
@@ -12440,27 +12468,27 @@ function legacyActivity(lines2) {
   let last;
   let starts = 0;
   let ends4 = 0;
-  const ref3 = (text4, side) => {
-    if (/^\(\*/.test(text4)) {
+  const ref3 = (text5, side) => {
+    if (/^\(\*/.test(text5)) {
       const id3 = side === "from" ? `start${++starts}` : `end${++ends4}`;
       nodes.set(id3, { id: id3, type: side === "from" ? "initial" : "final" });
       return id3;
     }
-    let m = /^===([^=]+)===$/.exec(text4);
+    let m = /^===([^=]+)===$/.exec(text5);
     if (m) {
       const id3 = m[1].trim();
       if (!nodes.has(id3)) nodes.set(id3, { id: id3, type: "fork" });
       return id3;
     }
-    m = /^"([^"]+)"(?:\s+as\s+(\w+))?$/.exec(text4);
-    const id2 = m ? m[2] ?? m[1] : text4;
+    m = /^"([^"]+)"(?:\s+as\s+(\w+))?$/.exec(text5);
+    const id2 = m ? m[2] ?? m[1] : text5;
     if (!nodes.has(id2)) {
-      nodes.set(id2, { id: id2, name: multiline(m ? m[1] : text4), type: "action" });
+      nodes.set(id2, { id: id2, name: multiline(m ? m[1] : text5), type: "action" });
     }
     return id2;
   };
-  for (const { no, text: text4 } of lines2) {
-    const m = LEGACY.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
+  for (const { no, text: text5 } of lines2) {
+    const m = LEGACY.exec(text5) ?? fail3(no, `cannot read "${text5}"`);
     const from = m[1] ? ref3(m[1], "from") : last ?? fail3(no, "an arrow needs a start");
     const to = ref3(m[3], "to");
     flows.push({ from, to, ...m[2] && { guard: m[2] } });
@@ -12513,7 +12541,7 @@ function stateDiagram2(lines2) {
     end: { type: "final" }
   };
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
+    const { no, text: text5 } = lines2[i];
     let m;
     const note = readNote(lines2, i);
     if (note) {
@@ -12523,7 +12551,7 @@ function stateDiagram2(lines2) {
       if (of) state2(of[1], "to");
       notes.push({ text: note.text, ...of && { on: [of[1]] } });
     } else if (m = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w.]+)(?:\s+as\s+"([^"]+)")?\s*(<<\s*\w+\s*>>)?\s*(#\S+)?\s*(\{)?$/.exec(
-      text4
+      text5
     )) {
       const id2 = m[2];
       const stereotype = m[4]?.replace(/[<>\s]/g, "");
@@ -12541,14 +12569,14 @@ function stateDiagram2(lines2) {
         );
       }
       if (m[6]) blocks.push(id2);
-    } else if (text4 === "}") {
+    } else if (text5 === "}") {
       if (blocks.pop() === void 0) fail3(no, "} without a state block");
-    } else if (text4 === "--" || text4 === "||") {
+    } else if (text5 === "--" || text5 === "||") {
       refuse(
         no,
         "concurrent regions are not built; a composite state gets one region"
       );
-    } else if (m = TRANSITION.exec(text4)) {
+    } else if (m = TRANSITION.exec(text5)) {
       const from = state2(m[1], "from");
       const to = state2(m[3], "to");
       const labelText = m[4]?.trim() ?? "";
@@ -12561,17 +12589,17 @@ function stateDiagram2(lines2) {
         ...guard && { guard: guard[1] },
         ...effect && { effect }
       });
-    } else if (/^\[H\*?\]/.test(text4) || /\[H\*?\]/.test(text4)) {
+    } else if (/^\[H\*?\]/.test(text5) || /\[H\*?\]/.test(text5)) {
       refuse(no, "history states have no StarUML element build_diagram makes");
-    } else if (m = /^([\w.]+)$/.exec(text4)) {
+    } else if (m = /^([\w.]+)$/.exec(text5)) {
       state2(m[1], "to");
-    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text4)) {
+    } else if (m = /^([\w.]+)\s*:\s*(.+)$/.exec(text5)) {
       state2(m[1], "to");
       warnings.push(
         `line ${no}: the description of ${m[1]} is not written to StarUML`
       );
     } else {
-      fail3(no, `cannot read "${text4}"`);
+      fail3(no, `cannot read "${text5}"`);
     }
   }
   if (blocks.length > 0) {
@@ -12598,14 +12626,14 @@ function erDiagram2(lines2) {
     if (!entities2.has(key2)) entities2.set(key2, { name: name4, columns: [] });
     return entities2.get(key2);
   };
-  for (const { no, text: text4 } of lines2) {
+  for (const { no, text: text5 } of lines2) {
     let m;
     if (open) {
-      if (text4 === "}") open = null;
-      else if (!/^(--|\.\.|==|__)/.test(text4)) {
+      if (text5 === "}") open = null;
+      else if (!/^(--|\.\.|==|__)/.test(text5)) {
         m = /^(\*)?\s*([\w$]+)\s*(?::\s*([^<]*?))?\s*((?:<<\s*\w+\s*>>\s*)*)$/.exec(
-          text4
-        ) ?? fail3(no, `cannot read column "${text4}"`);
+          text5
+        ) ?? fail3(no, `cannot read column "${text5}"`);
         const flags = m[4];
         const type2 = m[3]?.trim();
         const sized2 = type2 ? /^([^(]+)\(([^)]*)\)$/.exec(type2) : null;
@@ -12621,10 +12649,10 @@ function erDiagram2(lines2) {
       }
       continue;
     }
-    if (m = /^entity\s+(.+?)\s*(\{)?$/.exec(text4)) {
+    if (m = /^entity\s+(.+?)\s*(\{)?$/.exec(text5)) {
       const e = entity2(adornments(m[1]).rest);
       if (m[2]) open = e;
-    } else if (m = ERD_RELATION.exec(text4)) {
+    } else if (m = ERD_RELATION.exec(text5)) {
       const from = entity2(m[1]).name;
       const to = entity2(m[5]).name;
       relationships.push({
@@ -12636,7 +12664,7 @@ function erDiagram2(lines2) {
         ...label(m[6]) && { name: label(m[6]) }
       });
     } else {
-      fail3(no, `cannot read "${text4}"`);
+      fail3(no, `cannot read "${text5}"`);
     }
   }
   return {
@@ -12654,8 +12682,8 @@ function mindmap2(lines2) {
   const stack = [];
   let root;
   for (let i = 0; i < lines2.length; i++) {
-    const { no, text: text4 } = lines2[i];
-    const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text4) ?? fail3(no, `cannot read "${text4}"`);
+    const { no, text: text5 } = lines2[i];
+    const m = /^([*+-]+)(?:\[[^\]]*\])?(_)?\s*(.*)$/.exec(text5) ?? fail3(no, `cannot read "${text5}"`);
     const depth3 = m[1].length;
     let name4 = m[3];
     if (name4.startsWith(":")) {
@@ -12790,7 +12818,7 @@ var fail4 = (line, message, code = "INVALID_ARGUMENT") => {
 };
 function statements(source) {
   const out = [];
-  let text4 = "";
+  let text5 = "";
   let line = 1;
   let start = 1;
   let quote = null;
@@ -12799,7 +12827,7 @@ function statements(source) {
     const next = source[i + 1];
     if (ch === "\n") line++;
     if (quote) {
-      text4 += ch;
+      text5 += ch;
       if (ch === quote) quote = null;
       continue;
     }
@@ -12816,24 +12844,24 @@ function statements(source) {
       continue;
     }
     if (ch === ";") {
-      if (text4.trim()) out.push({ line: start, text: text4.trim() });
-      text4 = "";
+      if (text5.trim()) out.push({ line: start, text: text5.trim() });
+      text5 = "";
       continue;
     }
-    if (!text4.trim()) start = line;
+    if (!text5.trim()) start = line;
     if (ch === "'" || ch === '"' || ch === "`") quote = ch;
     if (ch === "[") quote = "]";
-    text4 += ch;
+    text5 += ch;
   }
-  if (text4.trim()) out.push({ line: start, text: text4.trim() });
+  if (text5.trim()) out.push({ line: start, text: text5.trim() });
   return out;
 }
-function items(text4) {
+function items(text5) {
   const out = [];
   let depth3 = 0;
   let quote = null;
   let current = "";
-  for (const ch of text4) {
+  for (const ch of text5) {
     if (quote) {
       if (ch === quote) quote = null;
     } else if (ch === "'" || ch === '"' || ch === "`") quote = ch;
@@ -12854,7 +12882,7 @@ function bare(name4) {
   const last = name4.split(/\s*\.\s*(?=(?:"|`|\[|[\w$]))/).at(-1).trim();
   return last.replace(/^["`[]|["`\]]$/g, "");
 }
-var names = (list7) => items(list7).map(bare);
+var names = (list10) => items(list10).map(bare);
 var CONSTRAINT = /\s+(?=(?:not\s+null|null|primary\s+key|unique|references|default|check|constraint|generated|auto_increment|autoincrement|identity|collate|comment|on\s+update)\b)/i;
 var SKIPPED = /^(create\s+(unique\s+)?index|create\s+sequence|create\s+extension|create\s+schema|create\s+database|alter\s+sequence|alter\s+(database|schema|default)|set\s|select\s|comment\s+on|grant\s|revoke\s|insert\s|update\s|delete\s|drop\s|begin|commit|start\s+transaction|use\s|lock\s|unlock\s|analyze|vacuum|pragma|copy\s|\\)/i;
 var REFUSED = /^create\s+(or\s+replace\s+)?(view|materialized\s+view|type|function|procedure|trigger|domain|rule|policy|event|aggregate|operator|cast)\b/i;
@@ -12919,12 +12947,12 @@ function parseSql(source) {
     }
     return true;
   };
-  for (const { line, text: text4 } of statements(source)) {
+  for (const { line, text: text5 } of statements(source)) {
     let m;
     if (m = new RegExp(
       String.raw`^create\s+(?:(?:global\s+|local\s+)?(?:temporary|temp)\s+|unlogged\s+)?table\s+(?:if\s+not\s+exists\s+)?(${NAME3})\s*\(([\s\S]*)\)[^)]*$`,
       "i"
-    ).exec(text4)) {
+    ).exec(text5)) {
       const name4 = bare(m[1]);
       const t = { name: name4, columns: [], primaryKey: [], unique: [] };
       if (table(name4)) fail4(line, `table ${name4} is created twice`);
@@ -12947,7 +12975,7 @@ function parseSql(source) {
     } else if (m = new RegExp(
       String.raw`^alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?(${NAME3})\s+([\s\S]+)$`,
       "i"
-    ).exec(text4)) {
+    ).exec(text5)) {
       const t = table(bare(m[1])) ?? fail4(line, `ALTER TABLE ${bare(m[1])} before CREATE TABLE`);
       for (const action of items(m[2])) {
         const add = /^add\s+(?:column\s+)?(?:if\s+not\s+exists\s+)?([\s\S]+)$/i.exec(
@@ -12959,17 +12987,17 @@ function parseSql(source) {
           column(t, add[1], line);
         }
       }
-    } else if (REFUSED.test(text4)) {
+    } else if (REFUSED.test(text5)) {
       fail4(
         line,
-        `${text4.split(/\s+/).slice(0, text4.match(/^create\s+or\s+replace/i) ? 4 : 2).join(" ").toUpperCase()} has no ERD element; only tables and their keys are drawn`,
+        `${text5.split(/\s+/).slice(0, text5.match(/^create\s+or\s+replace/i) ? 4 : 2).join(" ").toUpperCase()} has no ERD element; only tables and their keys are drawn`,
         "UNSUPPORTED_SYNTAX"
       );
-    } else if (SKIPPED.test(text4)) {
-      const what = text4.split(/\s+/).slice(0, 2).join(" ").toUpperCase();
+    } else if (SKIPPED.test(text5)) {
+      const what = text5.split(/\s+/).slice(0, 2).join(" ").toUpperCase();
       skipped.set(what, (skipped.get(what) ?? 0) + 1);
     } else {
-      fail4(line, `cannot read "${text4.split("\n")[0]}"`);
+      fail4(line, `cannot read "${text5.split("\n")[0]}"`);
     }
   }
   if (tables.size === 0) fail4(1, "no CREATE TABLE statement");
@@ -13034,17 +13062,17 @@ function parseSql(source) {
 
 // src/build/source.ts
 var FORMATS = ["mermaid", "plantuml", "sql", "jsonschema"];
-function detectFormat(text4) {
-  const body = text4.replace(/^\s*(?:(?:'|--|%%).*\n\s*)*/, "");
-  if (/^@start\w+/im.test(text4)) return "plantuml";
+function detectFormat(text5) {
+  const body = text5.replace(/^\s*(?:(?:'|--|%%).*\n\s*)*/, "");
+  if (/^@start\w+/im.test(text5)) return "plantuml";
   if (body.startsWith("{")) return "jsonschema";
-  if (/\bcreate\s+(?:\w+\s+)*?table\b/i.test(text4)) return "sql";
+  if (/\bcreate\s+(?:\w+\s+)*?table\b/i.test(text5)) return "sql";
   return "mermaid";
 }
-function parseSource(text4, format = detectFormat(text4), kind2) {
+function parseSource(text5, format = detectFormat(text5), kind2) {
   switch (format) {
     case "plantuml":
-      return { ...parsePlantUml(text4, kind2), format };
+      return { ...parsePlantUml(text5, kind2), format };
     case "sql":
       if (kind2 !== void 0 && kind2 !== "erd") {
         throw new ApiError(
@@ -13052,11 +13080,11 @@ function parseSource(text4, format = detectFormat(text4), kind2) {
           `sql: DDL is read as an ERD, not ${kind2}`
         );
       }
-      return { ...parseSql(text4), format };
+      return { ...parseSql(text5), format };
     case "jsonschema":
-      return { ...parseJsonSchema(text4, kind2), format };
+      return { ...parseJsonSchema(text5, kind2), format };
     default:
-      return { ...parseMermaid(text4, kind2), format };
+      return { ...parseMermaid(text5, kind2), format };
   }
 }
 
@@ -13398,11 +13426,11 @@ function place(plan, direction2) {
     direction2
   );
   if (plan.framed) boxes.set(FRAME, frameAround(boxes));
-  const count = /* @__PURE__ */ new Map();
+  const count2 = /* @__PURE__ */ new Map();
   for (const n of hosted) {
     const host = boxes.get(n.host);
-    const k = count.get(n.host) ?? 0;
-    count.set(n.host, k + 1);
+    const k = count2.get(n.host) ?? 0;
+    count2.set(n.host, k + 1);
     boxes.set(n.key, {
       x: host.x + host.width - n.width / 2,
       y: host.y + PORT.first - PORT.size + k * PORT.step,
@@ -13594,7 +13622,7 @@ function normalizeModelSpec(spec, renames) {
   };
 }
 function normalizeViews(views, classes, packages, cases) {
-  const map = (m, list7) => list7?.map((n) => m.get(n) ?? n);
+  const map = (m, list10) => list10?.map((n) => m.get(n) ?? n);
   return {
     ...views,
     ...views.classViews && {
@@ -13636,10 +13664,10 @@ var NAMED_OPS = {
 };
 function normalizeOps(ops, renames) {
   return ops.map((op) => {
-    const typeOf3 = NAMED_OPS[op.path];
+    const typeOf4 = NAMED_OPS[op.path];
     const name4 = op.body.name;
-    if (!typeOf3 || typeof name4 !== "string") return op;
-    const typeName5 = typeOf3(op.body);
+    if (!typeOf4 || typeof name4 !== "string") return op;
+    const typeName5 = typeOf4(op.body);
     const kind2 = typeName5 === "UMLAttribute" ? attributeKind(name4, op.body.isStatic) : namingKindOf(typeName5);
     const fixed = renames.name(name4, kind2);
     return fixed === name4 ? op : { ...op, body: { ...op.body, name: fixed } };
@@ -14151,12 +14179,12 @@ var limitField = () => optional(
 function counted(findings, limit) {
   const counts = { error: 0, warning: 0, info: 0 };
   for (const f of findings) counts[f.severity]++;
-  const shown = findings.slice(0, limit ?? 100);
+  const shown2 = findings.slice(0, limit ?? 100);
   return {
     count: findings.length,
     counts,
-    truncated: shown.length < findings.length,
-    findings: shown
+    truncated: shown2.length < findings.length,
+    findings: shown2
   };
 }
 var countsSchema = () => object({ error: int(), warning: int(), info: int() });
@@ -14675,7 +14703,7 @@ var LABEL_SPOTS = [1, 2, 0].flatMap(
     }))
   )
 );
-function placeLabels(diagram, score2, strip, m) {
+function placeLabels(diagram, score3, strip, m) {
   const wasStrip = strip();
   for (const id2 of labelProblems(geometryOf(diagram))) {
     const label4 = app.repository.get(id2);
@@ -14684,7 +14712,7 @@ function placeLabels(diagram, score2, strip, m) {
       distance: label4.distance,
       alpha: label4.alpha
     };
-    let best = score2();
+    let best = score3();
     for (const spot of LABEL_SPOTS) {
       if (spot.edgePosition === was.edgePosition && spot.distance === was.distance && spot.alpha === was.alpha) {
         continue;
@@ -14694,7 +14722,7 @@ function placeLabels(diagram, score2, strip, m) {
         m.assign(label4, field, value);
       }
       app.diagrams.repaint();
-      const now = score2();
+      const now = score3();
       if (now > best && (wasStrip || !strip())) {
         best = now;
         r.stop();
@@ -14798,7 +14826,7 @@ function wrapRows(diagram, m) {
   }
   straighten(diagram, new Set(views), m);
 }
-function unstrip(diagram, preset, limits, score2, m) {
+function unstrip(diagram, preset, limits, score3, m) {
   const maxAspect = limits.maxAspect;
   const labels = geometryOf(diagram).nodes.filter((n) => n.edge !== void 0);
   const widest = Math.max(0, ...labels.map((l) => l.width));
@@ -14825,12 +14853,12 @@ function unstrip(diagram, preset, limits, score2, m) {
     const result = {
       i,
       aspect: measure(geometryOf(diagram)).aspect,
-      score: score2()
+      score: score3()
     };
     r.revert();
     return result;
   });
-  const now = score2();
+  const now = score3();
   const within6 = tried.filter((t) => t.aspect <= maxAspect);
   if (measure(geometryOf(diagram)).aspect <= maxAspect * 1.15 && within6.every((t) => t.score < now - 15)) {
     return;
@@ -14914,8 +14942,8 @@ function fold(diagram, limits, m) {
   for (let k = 2; k <= Math.min(8, places.length + 1); k++) {
     const bands = bandsFor(k);
     const a = shape(bands);
-    const fits3 = (b) => shape(b) <= maxAspect;
-    if (best === null || fits3(bands) && !fits3(best) || fits3(bands) === fits3(best) && Math.abs(a - target) < Math.abs(shape(best) - target)) {
+    const fits4 = (b) => shape(b) <= maxAspect;
+    if (best === null || fits4(bands) && !fits4(best) || fits4(bands) === fits4(best) && Math.abs(a - target) < Math.abs(shape(best) - target)) {
       best = bands;
     }
   }
@@ -14943,30 +14971,30 @@ function vertical(kind2, profile2) {
 function assess(diagram, profile2) {
   const metrics = measure(geometryOf(diagram));
   const limits = limitsFor(profile2);
-  const score2 = scoreOf(metrics, limits);
+  const score3 = scoreOf(metrics, limits);
   const counts = /* @__PURE__ */ new Map();
   const lint = lintLayout(
     diagram,
     new Set(Object.keys(LAYOUT_RULES))
   );
   for (const f of lint) counts.set(f.rule, (counts.get(f.rule) ?? 0) + 1);
-  const findings = [...counts].map(([rule, count]) => ({
+  const findings = [...counts].map(([rule, count2]) => ({
     rule,
     name: LAYOUT_RULES[rule],
     severity: lint.find((f) => f.rule === rule).severity,
-    count
+    count: count2
   }));
-  return { metrics, score: score2, findings, failures: failures(metrics, limits) };
+  return { metrics, score: score3, findings, failures: failures(metrics, limits) };
 }
 function scoredAsIs(diagram, profile2) {
-  const { score: score2, findings, failures: failures2 } = assess(diagram, profile2);
+  const { score: score3, findings, failures: failures2 } = assess(diagram, profile2);
   const target = thresholdFor(profile2, kindOf(diagram));
   return {
-    score: score2,
-    rating: ratingOf(score2),
-    before: score2,
+    score: score3,
+    rating: ratingOf(score3),
+    before: score3,
     target,
-    passes: score2 >= target && failures2.length === 0,
+    passes: score3 >= target && failures2.length === 0,
     iterations: 0,
     steps: [],
     findings,
@@ -14979,7 +15007,7 @@ function improve(diagram, profile2, options = {}) {
   const m = new Mover(diagram);
   const limits = limitsFor(profile2);
   editorShowing(diagram);
-  const score2 = () => {
+  const score3 = () => {
     app.diagrams.repaint();
     return scoreOf(measure(geometryOf(diagram)), limits);
   };
@@ -14987,7 +15015,7 @@ function improve(diagram, profile2, options = {}) {
   const max = options.maxIterations ?? profile2.quality.maxIterations;
   const placed = placedByBuild(diagram, kind2);
   const steps = [];
-  const before = score2();
+  const before = score3();
   const strip = () => {
     app.diagrams.repaint();
     const g = measure(geometryOf(diagram));
@@ -14995,7 +15023,7 @@ function improve(diagram, profile2, options = {}) {
   };
   const attempt = (name4, step, rule = false) => {
     const recording2 = record2();
-    const s0 = score2();
+    const s0 = score3();
     let changed = false;
     const listener = () => changed = true;
     app.repository.on("operationExecuted", listener);
@@ -15004,7 +15032,7 @@ function improve(diagram, profile2, options = {}) {
     } finally {
       app.repository.off("operationExecuted", listener);
     }
-    if (!rule && score2() < s0) recording2.revert();
+    if (!rule && score3() < s0) recording2.revert();
     else {
       recording2.stop();
       if (changed) steps.push(name4);
@@ -15031,10 +15059,10 @@ function improve(diagram, profile2, options = {}) {
         [-(b.width + GAP3), 0],
         [0, b.height + GAP3]
       ]) {
-        const s0 = score2();
+        const s0 = score3();
         const r = record2();
         m.move([view], Math.round(dx), Math.round(dy));
-        if (score2() > s0 && laneOf(diagram, view) === lane && (!holder || insideBox(view, holder))) {
+        if (score3() > s0 && laneOf(diagram, view) === lane && (!holder || insideBox(view, holder))) {
           r.stop();
           break;
         }
@@ -15045,7 +15073,7 @@ function improve(diagram, profile2, options = {}) {
   let iterations = 0;
   while (iterations < max) {
     iterations++;
-    const start = score2();
+    const start = score3();
     attempt("fit labels", () => fitLabels(diagram, profile2, m));
     if (kind2 === "sequence") {
       attempt("lifelines", () => sequence(diagram, m), true);
@@ -15087,7 +15115,7 @@ function improve(diagram, profile2, options = {}) {
     attempt("fit lanes", () => fitLanes(diagram, m), true);
     if (kind2 !== "sequence") {
       attempt("unbundle", () => unbundle(diagram));
-      attempt("place labels", () => placeLabels(diagram, score2, strip, m));
+      attempt("place labels", () => placeLabels(diagram, score3, strip, m));
     }
     if (foldable(diagram, kind2) && strip()) {
       attempt(
@@ -15096,15 +15124,15 @@ function improve(diagram, profile2, options = {}) {
           diagram,
           placed ? null : presetOf(kind2, profile2, options.preset),
           limits,
-          score2,
+          score3,
           m
         ),
         true
       );
       attempt("unbundle", () => unbundle(diagram));
-      attempt("place labels", () => placeLabels(diagram, score2, strip, m));
+      attempt("place labels", () => placeLabels(diagram, score3, strip, m));
     }
-    const now = score2();
+    const now = score3();
     if (now >= target || now <= start) break;
   }
   app.diagrams.repaint();
@@ -15170,6 +15198,1209 @@ var qualitySchema = () => doc(
   "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
 );
 
+// src/viewpoints/actors-goals.json
+var actors_goals_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "actors-goals",
+  title: "Actors and goals",
+  summary: "Who uses the system and what each of them wants to get done with it, or the features it offers, without how it is built.",
+  question: "Who needs the system, and for what?",
+  concerns: ["functional scope", "roles and their goals", "features offered"],
+  stakeholders: ["business", "analyst", "tester", "architect"],
+  kinds: ["usecase", "mindmap"],
+  elements: ["UMLActor", "UMLUseCase", "UMLUseCaseSubject", "MMNode"],
+  relationships: [
+    "UMLAssociation",
+    "UMLInclude",
+    "UMLExtend",
+    "UMLGeneralization",
+    "UMLDependency",
+    "MMEdge"
+  ],
+  limits: { maxElements: 25, kinds: { mindmap: 60 } },
+  required: ["title"],
+  split: "One view per actor, or a feature tree split into its top-level branches."
+};
+
+// src/viewpoints/code.json
+var code_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "code",
+  title: "Code structure",
+  summary: "Classes, interfaces and enumerations of one area with their structural relationships: ownership, inheritance, realisation and use.",
+  question: "Which types make up this part of the system, and how are they related?",
+  concerns: [
+    "domain concepts and their responsibilities",
+    "type hierarchies and contracts",
+    "coupling between types"
+  ],
+  stakeholders: ["developer", "architect"],
+  kinds: ["class"],
+  elements: [
+    "UMLClass",
+    "UMLInterface",
+    "UMLEnumeration",
+    "UMLDataType",
+    "UMLPrimitiveType",
+    "UMLSignal"
+  ],
+  relationships: [
+    "UMLAssociation",
+    "UMLGeneralization",
+    "UMLInterfaceRealization",
+    "UMLRealization",
+    "UMLDependency",
+    "UMLAssociationClassLink"
+  ],
+  limits: { maxElements: 30 },
+  required: ["title"],
+  split: "One view per package or bounded context, with its direct collaborators from elsewhere."
+};
+
+// src/viewpoints/component.json
+var component_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "component",
+  title: "Components and modules",
+  summary: "How the code base or one container is divided into modules, packages or components, and which of them depend on which.",
+  question: "How is the system decomposed into parts, and which part depends on which?",
+  concerns: [
+    "modularity and layering",
+    "dependency direction and cycles",
+    "ownership of parts"
+  ],
+  stakeholders: ["architect", "developer"],
+  kinds: ["package", "component", "c4"],
+  elements: [
+    "UMLPackage",
+    "UMLSubsystem",
+    "UMLComponent",
+    "UMLInterface",
+    "UMLPort",
+    "C4Component",
+    "C4Container"
+  ],
+  relationships: [
+    "UMLDependency",
+    "UMLAbstraction",
+    "UMLInterfaceRealization",
+    "UMLComponentRealization",
+    "UMLConnector",
+    "C4Relationship"
+  ],
+  limits: { maxElements: 20 },
+  required: ["title"],
+  split: "One view per layer or container, the parts it uses from elsewhere shown at its edge."
+};
+
+// src/viewpoints/container.json
+var container_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "container",
+  title: "Containers",
+  summary: "The separately running or deployable units inside the system (applications, services, data stores, queues) with the technology each uses and how they talk to each other and to the outside.",
+  question: "Which running parts make up the system, what is each built with, and how do they communicate?",
+  concerns: [
+    "technology choices",
+    "responsibilities of each running unit",
+    "communication paths and protocols"
+  ],
+  stakeholders: ["architect", "developer", "tester", "operator"],
+  kinds: ["c4"],
+  elements: ["C4Person", "C4SoftwareSystem", "C4Container"],
+  relationships: ["C4Relationship"],
+  limits: { maxElements: 25 },
+  required: ["title", "legend"],
+  legend: [
+    "Person: someone who uses the system",
+    "Container: an application, service or data store that runs on its own",
+    "Grey: outside the system",
+    "Arrow: a call or data flow, labelled with its purpose and technology"
+  ],
+  split: "One view per group of containers that change together; the rest of the system as one box."
+};
+
+// src/viewpoints/context.json
+var context_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "context",
+  title: "System context",
+  summary: "The system as a single box among the people who use it and the other systems it exchanges data with; nothing of its inside.",
+  question: "Who and what does the system deal with, and what passes between them?",
+  concerns: [
+    "scope and boundary of the system",
+    "users and their roles",
+    "external dependencies and integrations"
+  ],
+  stakeholders: [
+    "business",
+    "analyst",
+    "architect",
+    "developer",
+    "tester",
+    "operator"
+  ],
+  kinds: ["c4"],
+  elements: ["C4Person", "C4SoftwareSystem", "UMLActor"],
+  relationships: ["C4Relationship", "UMLAssociation", "UMLDependency"],
+  limits: { maxElements: 15 },
+  required: ["title", "legend"],
+  legend: [
+    "Person: someone who uses the system",
+    "Software system: the system in scope, or one it works with",
+    "Grey: outside the system's ownership",
+    "Arrow: who relies on whom, labelled with what for and how"
+  ],
+  split: "One context per system in scope; past the limit, group the people and systems by role."
+};
+
+// src/viewpoints/data.json
+var data_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "data",
+  title: "Data",
+  summary: "The stored entities, their keys and columns, and the relationships between them with their cardinalities.",
+  question: "What data does the system keep, and how are the records related?",
+  concerns: [
+    "persistent structure and keys",
+    "cardinalities and integrity",
+    "ownership of data"
+  ],
+  stakeholders: ["dba", "developer", "architect", "analyst"],
+  kinds: ["erd"],
+  elements: ["ERDEntity"],
+  relationships: ["ERDRelationship"],
+  limits: { maxElements: 25 },
+  required: ["title"],
+  split: "One view per aggregate or schema, entities from elsewhere shown where they are referenced."
+};
+
+// src/viewpoints/decisions.json
+var decisions_default = {
+  $schema: "./decisions.schema.json",
+  version: 1,
+  rules: [
+    {
+      id: "D01",
+      viewpoint: "lifecycle",
+      kind: "statemachine",
+      phrases: [
+        "lifecycle",
+        "life cycle",
+        "state machine",
+        "statechart",
+        "state",
+        "states",
+        "status",
+        "statuses",
+        "transition",
+        "transitions",
+        "lifecycles"
+      ],
+      weak: ["becomes", "goes through"],
+      scopes: ["model", "package", "class", "statemachine"],
+      reason: "States and the events between them are what a state machine shows, for one kind of object."
+    },
+    {
+      id: "D02",
+      viewpoint: "data",
+      kind: "erd",
+      phrases: [
+        "data model",
+        "database",
+        "schema",
+        "table",
+        "tables",
+        "erd",
+        "entity relationship",
+        "persistence",
+        "persisted",
+        "stored",
+        "storage",
+        "column",
+        "columns",
+        "foreign key",
+        "records",
+        "record"
+      ],
+      scopes: ["model"],
+      reason: "What is stored and how records relate is an entity-relationship view of the data model."
+    },
+    {
+      id: "D03",
+      viewpoint: "deployment",
+      kind: "deployment",
+      phrases: [
+        "deployment",
+        "deployed",
+        "deploy",
+        "infrastructure",
+        "hosting",
+        "hosted",
+        "runs on",
+        "run on",
+        "server",
+        "servers",
+        "node",
+        "nodes",
+        "cluster",
+        "kubernetes",
+        "docker",
+        "topology",
+        "installation",
+        "environment",
+        "environments",
+        "deployments"
+      ],
+      scopes: ["model"],
+      reason: "Where the system runs is a deployment view: nodes, what is deployed on them, and the links between them."
+    },
+    {
+      id: "D04",
+      viewpoint: "runtime",
+      kind: "communication",
+      phrases: [
+        "communication diagram",
+        "who talks to whom",
+        "talks to",
+        "collaboration",
+        "collaborators",
+        "object links"
+      ],
+      scopes: ["model", "package", "class", "interaction"],
+      reason: "Who exchanges messages with whom, without the timeline, is a communication diagram of the scenario."
+    },
+    {
+      id: "D05",
+      viewpoint: "runtime",
+      kind: "activity",
+      phrases: [
+        "activity",
+        "workflow",
+        "work flow",
+        "process",
+        "procedure",
+        "algorithm",
+        "steps",
+        "decision points",
+        "business process",
+        "pipeline",
+        "execution",
+        "activities",
+        "workflows",
+        "processes",
+        "step",
+        "step by step",
+        "procedures",
+        "pipelines",
+        "executed",
+        "execute"
+      ],
+      scopes: ["model"],
+      reason: "Steps, decisions and parallel branches across parts are an activity, a lane per part."
+    },
+    {
+      id: "D06",
+      viewpoint: "runtime",
+      kind: "sequence",
+      phrases: [
+        "sequence",
+        "interaction",
+        "interactions",
+        "message",
+        "messages",
+        "call",
+        "calls",
+        "what happens",
+        "scenario",
+        "scenarios",
+        "request flow",
+        "handled",
+        "handles",
+        "processed",
+        "processing",
+        "ingestion",
+        "login",
+        "runtime",
+        "sequences"
+      ],
+      weak: ["how does", "how do", "how is", "flow", "works", "work"],
+      scopes: ["model", "package", "class", "interaction"],
+      reason: "What happens in order between the parts when something starts a scenario is a sequence of messages."
+    },
+    {
+      id: "D07",
+      viewpoint: "actors-goals",
+      kind: "mindmap",
+      phrases: [
+        "feature",
+        "features",
+        "feature tree",
+        "capability",
+        "capabilities",
+        "functionality",
+        "offerings"
+      ],
+      scopes: ["model"],
+      reason: "What the system offers, grouped, is a feature tree."
+    },
+    {
+      id: "D08",
+      viewpoint: "actors-goals",
+      kind: "usecase",
+      phrases: [
+        "use case",
+        "use cases",
+        "usecase",
+        "goal",
+        "goals",
+        "actor",
+        "actors",
+        "who can",
+        "what can users",
+        "what users",
+        "user story",
+        "user stories",
+        "role",
+        "roles",
+        "functional scope",
+        "what can",
+        "can do",
+        "tasks",
+        "permissions"
+      ],
+      scopes: ["model", "actor", "usecase"],
+      reason: "Who needs the system for what is a use case view: actors and their goals inside the system boundary."
+    },
+    {
+      id: "D09",
+      viewpoint: "context",
+      kind: "c4",
+      phrases: [
+        "context",
+        "system context",
+        "big picture",
+        "landscape",
+        "external system",
+        "external systems",
+        "who uses the system",
+        "boundary",
+        "surroundings",
+        "integration",
+        "integrations"
+      ],
+      weak: ["overview"],
+      scopes: ["model"],
+      reason: "The system among its users and neighbours, as one box, is a context view."
+    },
+    {
+      id: "D10",
+      viewpoint: "container",
+      kind: "c4",
+      phrases: [
+        "container",
+        "containers",
+        "service",
+        "services",
+        "microservice",
+        "microservices",
+        "application",
+        "applications",
+        "technology",
+        "technologies",
+        "tech stack",
+        "architecture",
+        "high level architecture",
+        "building blocks"
+      ],
+      scopes: ["model"],
+      reason: "The running parts of the system and their technology are a container view."
+    },
+    {
+      id: "D11",
+      viewpoint: "component",
+      kind: "package",
+      phrases: [
+        "component",
+        "components",
+        "module",
+        "modules",
+        "package",
+        "packages",
+        "layer",
+        "layers",
+        "layering",
+        "dependencies between",
+        "dependency structure",
+        "package dependencies",
+        "decomposition",
+        "subsystem",
+        "subsystems"
+      ],
+      scopes: ["model", "package"],
+      reason: "How the system divides into parts and which depends on which is a package dependency view."
+    },
+    {
+      id: "D12",
+      viewpoint: "code",
+      kind: "class",
+      phrases: [
+        "class",
+        "classes",
+        "class diagram",
+        "domain model",
+        "object model",
+        "object design",
+        "type hierarchy",
+        "inheritance",
+        "interface",
+        "interfaces",
+        "types",
+        "code structure",
+        "attributes",
+        "operations",
+        "api"
+      ],
+      scopes: ["model", "package", "class"],
+      reason: "Types and their structural relationships are a class diagram."
+    }
+  ],
+  defaults: {
+    package: "D12",
+    class: "D12",
+    interaction: "D06",
+    statemachine: "D01",
+    actor: "D08",
+    usecase: "D08"
+  }
+};
+
+// src/viewpoints/deployment.json
+var deployment_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "deployment",
+  title: "Deployment",
+  summary: "The machines, devices and runtime environments the system runs on, what is deployed on each, and the links between them.",
+  question: "Where does the system run, and how are its runtime environments connected?",
+  concerns: [
+    "infrastructure and hosting",
+    "placement of deployable units",
+    "network links and protocols"
+  ],
+  stakeholders: ["operator", "architect", "developer"],
+  kinds: ["deployment"],
+  elements: [
+    "UMLNode",
+    "UMLNodeInstance",
+    "UMLArtifact",
+    "UMLArtifactInstance",
+    "UMLComponent",
+    "UMLComponentInstance"
+  ],
+  relationships: ["UMLDeployment", "UMLCommunicationPath", "UMLDependency"],
+  limits: { maxElements: 30 },
+  required: ["title", "legend"],
+  legend: [
+    "Node: a machine, device or runtime environment",
+    "Artifact: what is deployed on it",
+    "Line: a communication path, labelled with its protocol"
+  ],
+  split: "One view per environment (production, staging) or per site."
+};
+
+// src/viewpoints/lifecycle.json
+var lifecycle_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "lifecycle",
+  title: "Lifecycle",
+  summary: "The states one kind of object goes through and the events that move it from one to the next.",
+  question: "Which states can this object be in, and what moves it between them?",
+  concerns: [
+    "valid states and transitions",
+    "events, guards and effects",
+    "start and end of an object's life"
+  ],
+  stakeholders: ["developer", "tester", "analyst"],
+  kinds: ["statemachine"],
+  elements: [
+    "UMLState",
+    "UMLPseudostate",
+    "UMLFinalState",
+    "UMLConnectionPointReference"
+  ],
+  relationships: ["UMLTransition"],
+  limits: { maxElements: 20 },
+  required: ["title"],
+  split: "Nest related states in a composite state, or draw each composite state's inside as its own view."
+};
+
+// src/viewpoints/runtime.json
+var runtime_default = {
+  $schema: "./viewpoint.schema.json",
+  name: "runtime",
+  title: "Runtime scenario",
+  summary: "One scenario in motion: who starts it, which parts take part and what they send each other, in order.",
+  question: "What happens, step by step and between which parts, when the scenario is triggered?",
+  concerns: [
+    "order of steps and messages",
+    "who starts a scenario",
+    "alternatives, loops and failures"
+  ],
+  stakeholders: ["developer", "tester", "architect", "analyst"],
+  kinds: ["sequence", "communication", "activity"],
+  elements: [
+    "UMLLifeline",
+    "UMLCombinedFragment",
+    "UMLInteractionOperand",
+    "UMLEndpoint",
+    "UMLGate",
+    "UMLStateInvariant",
+    "UMLContinuation",
+    "UMLInteractionUse",
+    "UMLAction",
+    "UMLInitialNode",
+    "UMLActivityFinalNode",
+    "UMLFlowFinalNode",
+    "UMLDecisionNode",
+    "UMLMergeNode",
+    "UMLForkNode",
+    "UMLJoinNode",
+    "UMLObjectNode",
+    "UMLCentralBufferNode",
+    "UMLDataStoreNode",
+    "UMLActivityParameterNode",
+    "UMLActivityPartition"
+  ],
+  relationships: [
+    "UMLMessage",
+    "UMLConnector",
+    "UMLControlFlow",
+    "UMLObjectFlow",
+    "UMLExceptionHandler"
+  ],
+  limits: { maxElements: 30, maxLifelines: 12 },
+  required: ["title", "trigger"],
+  split: "One scenario per view; past the lifeline limit, draw the steps as an activity with a lane per part, or split the scenario where a fragment begins."
+};
+
+// src/viewpoints/schema.ts
+var VIEWPOINT_NAMES = [
+  "context",
+  "container",
+  "component",
+  "code",
+  "runtime",
+  "lifecycle",
+  "actors-goals",
+  "deployment",
+  "data"
+];
+var AUDIENCES = [
+  "business",
+  "analyst",
+  "architect",
+  "developer",
+  "tester",
+  "operator",
+  "dba"
+];
+var PARTS = ["title", "legend", "trigger"];
+var SCOPE_KINDS = [
+  "model",
+  "package",
+  "class",
+  "interaction",
+  "statemachine",
+  "actor",
+  "usecase",
+  "other"
+];
+var text3 = () => string2().check(_minLength(1));
+var typeNames = (what, min) => doc(
+  array(string2().check(_regex(/^[A-Z][A-Za-z0-9]*$/))).check(_minLength(min)),
+  `${what}, by StarUML metaclass name (UMLClass, C4Person, ERDEntity).`
+);
+var count = () => int().check(_gte(1), _lte(500));
+var viewpointSchema = () => strictObject({
+  $schema: optional(string2()),
+  name: _enum(VIEWPOINT_NAMES),
+  title: text3(),
+  summary: doc(text3(), "What a view of this kind shows, in a sentence."),
+  question: doc(text3(), "The question every view of it must answer."),
+  concerns: array(text3()).check(_minLength(1)),
+  stakeholders: array(_enum(AUDIENCES)).check(_minLength(1)),
+  kinds: doc(
+    array(_enum(KINDS)).check(_minLength(1)),
+    "Diagram kinds that can show it, the usual one first."
+  ),
+  elements: typeNames("Node types a view may show", 1),
+  relationships: typeNames("Edge types a view may show", 0),
+  limits: strictObject({
+    maxElements: doc(count(), "Nodes past which a view is split."),
+    maxLifelines: optional(
+      doc(count(), "Lifelines past which a scenario is drawn otherwise.")
+    ),
+    kinds: optional(
+      doc(
+        partialRecord(_enum(KINDS), count()),
+        "maxElements for a diagram kind, where it differs."
+      )
+    )
+  }),
+  required: doc(
+    array(_enum(PARTS)),
+    "title: a name that is not the default; legend: a legend note; trigger: what starts the scenario."
+  ),
+  legend: optional(
+    doc(array(text3()), "Lines of the legend note, under 'Legend'.")
+  ),
+  split: doc(text3(), "How a view past its limits is divided.")
+});
+var decisionRuleSchema = () => strictObject({
+  id: string2().check(_regex(/^D[0-9]{2}$/)),
+  viewpoint: _enum(VIEWPOINT_NAMES),
+  kind: _enum(KINDS),
+  phrases: doc(
+    array(text3()).check(_minLength(1)),
+    "Words of an intent that ask for this view; each scores its word count."
+  ),
+  weak: optional(
+    doc(
+      array(text3()),
+      "Words that hint at it; each scores a quarter of its word count."
+    )
+  ),
+  scopes: doc(
+    array(_enum(SCOPE_KINDS)).check(_minLength(1)),
+    "Scopes it can be drawn for."
+  ),
+  reason: doc(text3(), "Why this view answers such an intent.")
+});
+var decisionTableSchema = () => strictObject({
+  $schema: optional(string2()),
+  version: int().check(_gte(1)),
+  rules: array(decisionRuleSchema()).check(_minLength(1)),
+  defaults: doc(
+    partialRecord(_enum(SCOPE_KINDS), string2()),
+    "The rule an intent matching none takes, by scope kind."
+  )
+});
+
+// src/viewpoints/index.ts
+var VIEWPOINT_FILES = [
+  context_default,
+  container_default,
+  component_default,
+  code_default,
+  runtime_default,
+  lifecycle_default,
+  actors_goals_default,
+  deployment_default,
+  data_default
+];
+var catalogue = null;
+function crossCheck(viewpoints, table) {
+  const problems = [];
+  const byName = new Map(viewpoints.map((v) => [v.name, v]));
+  for (const name4 of VIEWPOINT_NAMES) {
+    if (viewpoints.filter((v) => v.name === name4).length !== 1) {
+      problems.push(`viewpoint ${name4}: not defined exactly once`);
+    }
+    if (!table.rules.some((r) => r.viewpoint === name4)) {
+      problems.push(`viewpoint ${name4}: no decision rule reaches it`);
+    }
+  }
+  for (const audience of AUDIENCES) {
+    if (!viewpoints.some((v) => v.stakeholders.includes(audience))) {
+      problems.push(`audience ${audience}: no viewpoint is written for it`);
+    }
+  }
+  const ids2 = /* @__PURE__ */ new Set();
+  for (const r of table.rules) {
+    if (ids2.has(r.id)) problems.push(`rule ${r.id}: defined twice`);
+    ids2.add(r.id);
+    const vp = byName.get(r.viewpoint);
+    if (vp && !vp.kinds.includes(r.kind)) {
+      problems.push(`rule ${r.id}: ${r.viewpoint} is not drawn as ${r.kind}`);
+    }
+  }
+  for (const [scope, id2] of Object.entries(table.defaults)) {
+    const rule = table.rules.find((r) => r.id === id2);
+    if (!rule) problems.push(`default ${scope}: no rule ${id2}`);
+    else if (!rule.scopes.includes(scope)) {
+      problems.push(`default ${scope}: rule ${id2} is not drawn for that scope`);
+    }
+  }
+  return problems;
+}
+function loadCatalogue(files, tableFile) {
+  const viewpoints = files.map((v) => parse(viewpointSchema(), v));
+  const table = parse(decisionTableSchema(), tableFile);
+  const problems = crossCheck(viewpoints, table);
+  if (problems.length > 0) {
+    throw new Error(`viewpoint catalogue: ${problems.join("; ")}`);
+  }
+  return {
+    viewpoints,
+    byName: new Map(viewpoints.map((v) => [v.name, v])),
+    table
+  };
+}
+function viewpointCatalogue() {
+  catalogue ??= loadCatalogue(VIEWPOINT_FILES, decisions_default);
+  return catalogue;
+}
+function findViewpoint(name4) {
+  const found = viewpointCatalogue().byName.get(name4);
+  if (!found) {
+    throw new ApiError(
+      "NOT_FOUND",
+      `No viewpoint ${name4}; the viewpoints are ${VIEWPOINT_NAMES.join(", ")}`
+    );
+  }
+  return found;
+}
+var elementLimit = (v, kind2) => v.limits.kinds?.[kind2] ?? v.limits.maxElements;
+
+// src/viewpoints/mark.ts
+var MARK_TAG = "mcp.viewpoint";
+var list = (value) => Array.isArray(value) ? value : [];
+var markTag = (diagram) => list(diagram.tags).find((t) => t.name === MARK_TAG) ?? null;
+var isObject3 = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+function readMark(diagram) {
+  const tag = markTag(diagram);
+  if (!tag) return null;
+  const text5 = String(tag.value ?? "").trim();
+  if (!text5.startsWith("{")) return text5 ? { viewpoint: text5 } : null;
+  let value;
+  try {
+    value = JSON.parse(text5);
+  } catch {
+    return null;
+  }
+  if (typeof value.viewpoint !== "string") return null;
+  const parts = isObject3(value.parts) ? value.parts : {};
+  const id2 = (v) => typeof v === "string" ? v : void 0;
+  const title = id2(parts.title);
+  const legend = id2(parts.legend);
+  return {
+    viewpoint: value.viewpoint,
+    ...typeof value.template === "string" && { template: value.template },
+    ...typeof value.version === "number" && { version: value.version },
+    ...value.derived === true && { derived: true },
+    ...(title !== void 0 || legend !== void 0) && {
+      parts: {
+        ...title !== void 0 && { title },
+        ...legend !== void 0 && { legend }
+      }
+    }
+  };
+}
+function writeMark(mark) {
+  return JSON.stringify({
+    viewpoint: mark.viewpoint,
+    ...mark.template !== void 0 && { template: mark.template },
+    ...mark.version !== void 0 && { version: mark.version },
+    ...mark.derived && { derived: true },
+    ...mark.parts && Object.keys(mark.parts).length > 0 && {
+      parts: {
+        ...mark.parts.title !== void 0 && { title: mark.parts.title },
+        ...mark.parts.legend !== void 0 && {
+          legend: mark.parts.legend
+        }
+      }
+    }
+  });
+}
+function markOps(diagram, mark) {
+  const value = writeMark(mark);
+  const tag = typeof diagram === "string" ? null : markTag(diagram);
+  if (tag) {
+    return String(tag.value) === value ? [] : [
+      {
+        path: "/update_element",
+        body: { ref: tag._id, field: "value", value }
+      }
+    ];
+  }
+  return [
+    {
+      path: "/add_tag",
+      body: {
+        ref: typeof diagram === "string" ? diagram : diagram._id,
+        name: MARK_TAG,
+        kind: "string",
+        value,
+        hidden: true
+      }
+    }
+  ];
+}
+function partViews(diagram, mark) {
+  const ids2 = Object.values(mark?.parts ?? {});
+  return diagram.ownedViews.filter((v) => ids2.includes(v._id));
+}
+
+// src/viewpoints/lint.ts
+var VIEWPOINT_RULES = {
+  V001: "outside-viewpoint",
+  V002: "mixed-viewpoints",
+  V003: "no-initiator",
+  V004: "lifecycle-of-non-entity",
+  V005: "context-shows-internals",
+  V006: "missing-part",
+  V007: "too-many-elements",
+  V008: "no-viewpoint",
+  V009: "kind-outside-viewpoint"
+};
+var DEFAULT_SEVERITY = {
+  V001: "error",
+  V002: "warning",
+  V003: "error",
+  V004: "error",
+  V005: "error",
+  V006: "warning",
+  V007: "warning",
+  V008: "warning",
+  V009: "error"
+};
+var AREA3 = /Subject|Partition|Swimlane|CombinedFragment|Operand|Region/;
+var INTERNALS = /* @__PURE__ */ new Set([
+  "UMLClass",
+  "UMLInterface",
+  "UMLEnumeration",
+  "UMLPackage",
+  "UMLComponent",
+  "C4Container",
+  "C4Component"
+]);
+var typeOf = (v) => v.model.constructor.name;
+function shown(diagram) {
+  const views = diagram.ownedViews.filter(
+    (v) => v.visible !== false && v.model !== null && v.model !== void 0 && !(v.model instanceof type.Diagram)
+  );
+  const isEdge2 = (v) => v.model instanceof type.Relationship;
+  return {
+    nodes: views.filter((v) => !isEdge2(v)),
+    edges: views.filter(isEdge2)
+  };
+}
+function viewpointsOf(typeName5) {
+  return viewpointCatalogue().viewpoints.filter((v) => v.elements.includes(typeName5)).map((v) => v.name);
+}
+function tally(views) {
+  const count2 = /* @__PURE__ */ new Map();
+  for (const v of views) count2.set(typeOf(v), (count2.get(typeOf(v)) ?? 0) + 1);
+  return [...count2].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => `${n} ${t}`).join(", ");
+}
+var DEFAULT_NAME = /^(?:[A-Z][A-Za-z0-9]*?Diagram\d*|Main)$/;
+var isNote = (v) => v instanceof type.UMLNoteView;
+var LEGEND = /^\s*legend\b/i;
+var list2 = (value) => Array.isArray(value) ? value : [];
+function initiatorProblem(diagram, edges, nodes) {
+  const messages2 = edges.filter((e) => typeOf(e) === "UMLMessage");
+  if (messages2.length === 0)
+    return "it shows no message, so nothing starts the scenario";
+  const order = list2(diagram._parent?.messages);
+  const first = messages2.map((e) => e.model).sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
+  if (!String(first.name ?? "").trim()) {
+    return "its first message has no text, so the trigger is not said";
+  }
+  if (diagram instanceof type.UMLSequenceDiagram) {
+    const source = first.source;
+    if (!(source instanceof type.UMLLifeline)) return null;
+    const lifelines = nodes.filter((v) => typeOf(v) === "UMLLifeline").sort((a, b) => Number(a.left) - Number(b.left));
+    if (lifelines[0]?.model !== source) {
+      return `its first message comes from ${String(source.name)}, which is not the leftmost lifeline, so the reader starts in the middle`;
+    }
+  }
+  return null;
+}
+function lintViewpoint(diagram, severity, options) {
+  const out = [];
+  const mark = readMark(diagram);
+  const declared2 = mark?.viewpoint ?? null;
+  const add = (rule, views, message, fix, suggest) => {
+    if (!severity.has(rule)) return;
+    out.push({
+      rule,
+      name: VIEWPOINT_RULES[rule],
+      severity: rule === "V008" && options.strict ? "error" : severity.get(rule),
+      message,
+      diagram: diagram._id,
+      path: pathOf(diagram),
+      viewpoint: declared2,
+      ids: views.map((v) => v._id),
+      fix,
+      ...suggest && { suggest }
+    });
+  };
+  const { nodes, edges } = shown(diagram);
+  const kind2 = kindOf(diagram);
+  const solid = nodes.filter((v) => !AREA3.test(v.constructor.name));
+  const catalogued = nodes.filter((v) => viewpointsOf(typeOf(v)).length > 0);
+  const common2 = catalogued.reduce((acc, v) => {
+    const vps = viewpointsOf(typeOf(v));
+    return acc === null ? vps : acc.filter((x) => vps.includes(x));
+  }, null);
+  if (common2 !== null && common2.length === 0) {
+    const groups = /* @__PURE__ */ new Map();
+    for (const v of catalogued) {
+      const vps = viewpointsOf(typeOf(v));
+      const home = vps.includes(declared2) ? declared2 : vps[0];
+      groups.set(home, (groups.get(home) ?? 0) + 1);
+    }
+    add(
+      "V002",
+      catalogued,
+      `${tally(catalogued)} belong to ${groups.size} viewpoints (${[...groups.keys()].join(", ")}); no single view answers one question about them`,
+      "Split it, one diagram per viewpoint (/request_diagram or /derive_diagrams draw them so).",
+      [...groups].map(([viewpoint, count2]) => ({ viewpoint, count: count2 }))
+    );
+  }
+  if (declared2 === null) {
+    add(
+      "V008",
+      [],
+      "The diagram declares no viewpoint, so nothing says which question it answers",
+      "Draw it through /request_diagram or /derive_diagrams, or pass viewpoint to /build_diagram."
+    );
+    return out;
+  }
+  const vp = viewpointCatalogue().byName.get(declared2);
+  if (!vp) {
+    add(
+      "V008",
+      [],
+      `The diagram declares the viewpoint ${declared2}, which is not in the catalogue`,
+      `Use one of ${viewpointCatalogue().viewpoints.map((v) => v.name).join(", ")}.`
+    );
+    return out;
+  }
+  checkDeclared(diagram, vp, { nodes, edges, solid, kind: kind2, mark }, add);
+  return out;
+}
+function checkDeclared(diagram, vp, d, add) {
+  if (d.kind === null || !vp.kinds.includes(d.kind)) {
+    add(
+      "V009",
+      [],
+      `A ${d.kind ?? diagram.constructor.name} diagram cannot show the ${vp.name} viewpoint, which is drawn as ${vp.kinds.join(", ")}`,
+      `Draw it as ${vp.kinds[0]}, or declare the viewpoint this diagram answers.`,
+      vp.kinds.map((k) => ({ viewpoint: vp.name, kind: k }))
+    );
+  }
+  const internal = vp.name === "context" ? d.nodes.filter((v) => INTERNALS.has(typeOf(v))) : [];
+  if (internal.length > 0) {
+    add(
+      "V005",
+      internal,
+      `A context view shows the system as one box, and this one shows its inside: ${tally(internal)}`,
+      "Show those on a container, component or code view; keep people and systems here.",
+      [
+        { viewpoint: "container", kind: "c4" },
+        { viewpoint: "code", kind: "class" }
+      ]
+    );
+  }
+  const outsideNodes = d.nodes.filter(
+    (v) => !vp.elements.includes(typeOf(v)) && !internal.includes(v)
+  );
+  const outsideEdges = d.edges.filter(
+    (v) => !vp.relationships.includes(typeOf(v))
+  );
+  const outside = [...outsideNodes, ...outsideEdges];
+  if (outside.length > 0) {
+    add(
+      "V001",
+      outside,
+      `${tally(outside)} lie outside the ${vp.name} viewpoint, which shows ${vp.elements.join(", ")}`,
+      "Remove them from this diagram, or show them on a view of their own viewpoint.",
+      [...new Set(outsideNodes.flatMap((v) => viewpointsOf(typeOf(v))))].map(
+        (viewpoint) => ({ viewpoint })
+      )
+    );
+  }
+  if (vp.required.includes("trigger")) {
+    const problem = d.kind === "activity" ? d.nodes.some((v) => typeOf(v) === "UMLInitialNode") ? null : "it has no initial node, so nothing says where the steps start" : initiatorProblem(diagram, d.edges, d.nodes);
+    if (problem !== null) {
+      add(
+        "V003",
+        [],
+        `The runtime view has no clear initiator: ${problem}`,
+        "Start the scenario with a labelled message from its initiator, drawn leftmost (an activity: from an initial node)."
+      );
+    }
+  }
+  if (vp.name === "lifecycle" && diagram._parent instanceof type.UMLStateMachine) {
+    const owner = diagram._parent._parent ?? null;
+    if (!(owner instanceof type.UMLClass)) {
+      add(
+        "V004",
+        [],
+        `The lifecycle belongs to ${owner ? `${owner.constructor.name} ${String(owner.name)}` : "nothing"}, not to a class whose objects go through it`,
+        "Make the state machine the behaviour of the entity class whose states it shows (lifecycles.subject in /build_model)."
+      );
+    }
+  }
+  const notes = diagram.ownedViews.filter(isNote);
+  const missing = vp.required.filter((part) => {
+    if (part === "title") {
+      const name4 = String(diagram.name ?? "").trim();
+      return !name4 || DEFAULT_NAME.test(name4);
+    }
+    if (part === "legend") {
+      return partViews(diagram, d.mark).filter(
+        (v) => v._id === d.mark?.parts?.legend
+      ).length === 0 && !notes.some((n) => LEGEND.test(String(n.text)));
+    }
+    return false;
+  });
+  if (missing.length > 0) {
+    add(
+      "V006",
+      [],
+      `The ${vp.name} viewpoint requires ${missing.join(" and ")}, which the diagram lacks`,
+      missing.map(
+        (p) => p === "title" ? "Name the diagram for the question it answers." : "Add a note starting 'Legend' that explains its notation (/derive_diagrams adds it)."
+      ).join(" ")
+    );
+  }
+  const limit = elementLimit(vp, d.kind ?? "");
+  const lifelines = d.solid.filter((v) => typeOf(v) === "UMLLifeline");
+  if (d.solid.length > limit) {
+    add(
+      "V007",
+      d.solid,
+      `${d.solid.length} elements, more than the ${limit} a ${vp.name} view holds`,
+      vp.split
+    );
+  } else if (vp.limits.maxLifelines !== void 0 && lifelines.length > vp.limits.maxLifelines) {
+    add(
+      "V007",
+      lifelines,
+      `${lifelines.length} lifelines, more than the ${vp.limits.maxLifelines} a scenario stays readable with`,
+      vp.split,
+      [{ viewpoint: "runtime", kind: "activity" }]
+    );
+  }
+}
+var allRules = () => new Map(Object.entries(DEFAULT_SEVERITY));
+function conformity(diagram) {
+  const findings = lintViewpoint(diagram, allRules(), { strict: false });
+  const blocking = findings.filter((f) => f.severity !== "info");
+  return {
+    conforms: blocking.length === 0,
+    findings: blocking.slice(0, 10).map((f) => ({ rule: f.rule, message: f.message }))
+  };
+}
+
+// src/viewpoints/parts.ts
+var GAP4 = 30;
+function extent(diagram, skip) {
+  const boxes = diagram.ownedViews.filter(
+    (v) => v instanceof type.NodeView && v.visible !== false && !skip.has(v)
+  ).map((v) => ({
+    left: Number(v.left),
+    top: Number(v.top),
+    right: Number(v.left) + Number(v.width),
+    bottom: Number(v.top) + Number(v.height)
+  }));
+  if (boxes.length === 0) return { left: 20, bottom: 20 - GAP4 };
+  return {
+    left: Math.min(...boxes.map((b) => b.left)),
+    bottom: Math.max(...boxes.map((b) => b.bottom))
+  };
+}
+function noteBox(text5) {
+  return {
+    width: Math.max(140, Math.min(420, labelWidth(text5))),
+    height: noteHeight(text5)
+  };
+}
+async function placeParts(diagram, texts2, mark, endpoints2) {
+  const before = readMark(diagram);
+  const kept = partViews(diagram, before);
+  const byPart = (part) => kept.find((v) => v._id === before?.parts?.[part]);
+  const at = extent(diagram, new Set(kept));
+  const ops = [];
+  const ids2 = {};
+  let x = at.left;
+  for (const part of ["title", "legend"]) {
+    const view = byPart(part);
+    const text5 = texts2[part];
+    if (text5 === void 0) {
+      if (view) ops.push({ path: "/delete_element", body: { ref: view._id } });
+      continue;
+    }
+    const size2 = noteBox(text5);
+    const place2 = {
+      left: Math.round(x),
+      top: Math.round(at.bottom + GAP4),
+      width: size2.width,
+      height: size2.height
+    };
+    x += size2.width + GAP4;
+    if (!view) {
+      const as = `part_${part}`;
+      ops.push(
+        {
+          path: "/create_element_with_view",
+          as,
+          body: {
+            type: "Note",
+            diagram: diagram._id,
+            x: place2.left,
+            y: place2.top,
+            x2: place2.left + place2.width,
+            y2: place2.top + place2.height
+          }
+        },
+        {
+          path: "/update_element",
+          body: { ref: `$${as}.view`, field: "text", value: text5 }
+        }
+      );
+      ids2[part] = `$${as}`;
+      continue;
+    }
+    ids2[part] = view._id;
+    if (String(view.text) !== text5) {
+      ops.push({
+        path: "/update_element",
+        body: { ref: view._id, field: "text", value: text5 }
+      });
+    }
+    for (const [field, value] of Object.entries(place2)) {
+      if (Number(view[field]) !== value) {
+        ops.push({
+          path: "/update_element",
+          body: { ref: view._id, field, value }
+        });
+      }
+    }
+  }
+  let made = /* @__PURE__ */ new Map();
+  if (ops.length > 0) {
+    const data = await batchRunner.run(endpoints2(), ops);
+    made = new Map(
+      data.results.flatMap(
+        (r) => r.as ? [[`$${r.as}`, r.data.view._id]] : []
+      )
+    );
+  }
+  const parts = Object.fromEntries(
+    Object.entries(ids2).map(([part, id2]) => [part, made.get(id2) ?? id2])
+  );
+  const next = {
+    ...mark,
+    ...Object.keys(parts).length > 0 && { parts }
+  };
+  const tagOps = markOps(diagram, next);
+  if (tagOps.length > 0) await batchRunner.run(endpoints2(), tagOps);
+  return ops.length > 0;
+}
+
 // src/handlers/build.ts
 var DIRECTIONS = ["TB", "BT", "LR", "RL"];
 function within(elem, ancestor) {
@@ -15191,15 +16422,15 @@ var Pool = class {
   bySignature = /* @__PURE__ */ new Map();
   taken = /* @__PURE__ */ new Set();
   add(signature2, item) {
-    const list7 = this.bySignature.get(signature2) ?? [];
-    list7.push(item);
-    this.bySignature.set(signature2, list7);
+    const list10 = this.bySignature.get(signature2) ?? [];
+    list10.push(item);
+    this.bySignature.set(signature2, list10);
   }
   /** The next item under `signature` not yet taken under any signature. */
   take(signature2) {
-    const list7 = this.bySignature.get(signature2);
-    while (list7 && list7.length > 0) {
-      const item = list7.shift();
+    const list10 = this.bySignature.get(signature2);
+    while (list10 && list10.length > 0) {
+      const item = list10.shift();
       if (this.taken.has(item)) continue;
       this.taken.add(item);
       return item;
@@ -15213,13 +16444,13 @@ var VIEW_ONLY_EDGES = {
   UMLContainmentView: "UMLContainment"
 };
 var viewOnly = (type2) => Object.values(VIEW_ONLY_EDGES).includes(type2);
-function existing(diagram) {
+function existing(diagram, skip = /* @__PURE__ */ new Set()) {
   const nodes = new Pool();
   const edges = new Pool();
   const all = [];
   for (const view of diagram.ownedViews) {
     const model = view.model;
-    if (model instanceof type.Diagram) continue;
+    if (model instanceof type.Diagram || skip.has(view._id)) continue;
     if (!model) {
       if (view instanceof type.UMLNoteView) {
         nodes.add(`Note|${String(view.text)}`, view);
@@ -15250,7 +16481,7 @@ function existing(diagram) {
   }
   return { nodes, edges, all };
 }
-var names2 = (list7) => new Set((Array.isArray(list7) ? list7 : []).map((e) => e.name));
+var names2 = (list10) => new Set((Array.isArray(list10) ? list10 : []).map((e) => e.name));
 function memberOps(node2, owner, model) {
   const ops = [];
   const add = (field, members3, op) => {
@@ -15423,7 +16654,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
       body: { ref: "$diagram._parent", field: "name", value: target.name }
     });
   }
-  const pools = target.diagram ? existing(target.diagram) : null;
+  const pools = target.diagram ? existing(target.diagram, options.skip) : null;
   const boxes = place(plan, direction2);
   const refs = /* @__PURE__ */ new Map();
   if (plan.framed) {
@@ -15442,7 +16673,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
   const removed = [];
   let updated = 0;
   let unchanged = 0;
-  let shown = 0;
+  let shown2 = 0;
   const fresh = /* @__PURE__ */ new Set();
   plan.nodes.forEach((node2, i) => {
     const bound = options.bind?.get(node2.key);
@@ -15482,7 +16713,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     const duplicate = options.allowDuplicateNames === true || options.reuse === false || warnings.length > warned;
     if (model) {
       claimed.add(model);
-      shown++;
+      shown2++;
       refs.set(node2.key, { model: model._id, view: `$${as}.view` });
       ops.push({
         path: "/create_view_of",
@@ -15736,7 +16967,7 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     edgeOps,
     updated,
     unchanged,
-    shown,
+    shown: shown2,
     deleted,
     warnings,
     layout: engine ? "engine" : "placed",
@@ -15807,16 +17038,16 @@ var defaultDirection = (kind2) => kind2 === "mindmap" || kind2 === "communicatio
 function lifelineOps(model, view) {
   if (!(model instanceof type.UMLLifeline)) return [];
   const represent = model.represent;
-  const typed = represent?.type;
-  if (!typed || typeof typed !== "object") return [];
+  const typed2 = represent?.type;
+  if (!typed2 || typeof typed2 !== "object") return [];
   return [
-    ...typed instanceof type.UMLActor ? [
+    ...typed2 instanceof type.UMLActor ? [
       {
         path: "/update_element",
         body: { ref: view, field: "stereotypeDisplay", value: "icon" }
       }
     ] : [],
-    ...typed.name === model.name ? [
+    ...typed2.name === model.name ? [
       {
         path: "/update_element",
         body: { ref: view, field: "showType", value: false }
@@ -16059,6 +17290,12 @@ var buildRequest = () => object({
       "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it."
     )
   ),
+  viewpoint: optional(
+    doc(
+      _enum(VIEWPOINT_NAMES),
+      "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as. Required under a strict profile."
+    )
+  ),
   result: resultField(
     "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids."
   )
@@ -16116,8 +17353,51 @@ var buildResponse = () => object({
   dryRun: optional(doc(boolean2(), "Set when nothing was changed.")),
   plan: optional(doc(planSchema(), "With dryRun: what applying runs.")),
   style: optional(styleReportSchema()),
-  quality: optional(qualitySchema())
+  quality: optional(qualitySchema()),
+  viewpoint: optional(viewpointReportSchema())
 });
+var viewpointReportSchema = () => doc(
+  object({
+    name: string2(),
+    conforms: doc(
+      boolean2(),
+      "No error or warning of /viewpoint_lint on the diagram."
+    ),
+    findings: array(object({ rule: string2(), message: string2() }))
+  }),
+  "The viewpoint the diagram declares and whether it keeps to it (issue #42)."
+);
+function checkViewpoint(input, kind2) {
+  if (input.viewpoint === void 0) {
+    if (effectiveProfile().profile.strict && !isTrusted()) {
+      throw new ApiError(
+        "VIEWPOINT_REQUIRED",
+        `build_diagram: the style profile '${effectiveProfile().profile.name}' is strict, so every diagram declares the viewpoint it is a view of; pass viewpoint, or use /request_diagram or /derive_diagrams`,
+        { profile: effectiveProfile().profile.name }
+      );
+    }
+    return;
+  }
+  const vp = findViewpoint(input.viewpoint);
+  if (!vp.kinds.includes(kind2)) {
+    throw new ApiError(
+      "VIEWPOINT_MISMATCH",
+      `build_diagram: the ${vp.name} viewpoint is drawn as ${vp.kinds.join(", ")}, not ${kind2}`,
+      {
+        reason: "kind",
+        alternatives: vp.kinds.map((k) => ({
+          viewpoint: vp.name,
+          kind: k,
+          why: vp.question
+        }))
+      }
+    );
+  }
+}
+function partsFor(viewpoint) {
+  const vp = findViewpoint(viewpoint);
+  return vp.required.includes("legend") && vp.legend ? { legend: ["Legend", ...vp.legend].join("\n") } : {};
+}
 function buildDiagramEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/build_diagram",
@@ -16127,7 +17407,10 @@ function buildDiagramEndpoint(endpoints2) {
     request: buildRequest(),
     aliases: { parentId: "parent" },
     response: buildResponse(),
-    handle: (input) => buildDiagram(input, endpoints2)
+    handle: (input) => {
+      checkViewpoint(input, readSource(input).kind);
+      return buildDiagram(input, endpoints2);
+    }
   });
 }
 async function buildDiagram(input, endpoints2, extras = {}) {
@@ -16146,6 +17429,11 @@ async function buildDiagram(input, endpoints2, extras = {}) {
     throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
   }
   const diagram = input.upsert ? findDiagram(kind2, name4, parent) : null;
+  const mark = extras.mark ?? (input.viewpoint !== void 0 ? { viewpoint: input.viewpoint } : void 0);
+  const parts = mark && (extras.parts ?? partsFor(mark.viewpoint));
+  const skip = new Set(
+    diagram ? partViews(diagram, readMark(diagram)).map((v) => v._id) : []
+  );
   const built = opsFor(
     plan,
     { diagram, parent, name: name4 },
@@ -16157,6 +17445,7 @@ async function buildDiagram(input, endpoints2, extras = {}) {
       reuse: input.reuse ?? true,
       allowDuplicateNames: input.allowDuplicateNames,
       showNamespace: input.showNamespace,
+      skip,
       ...extras
     }
   );
@@ -16235,10 +17524,21 @@ async function buildDiagram(input, endpoints2, extras = {}) {
         styled: styled2,
         // An upsert that changed nothing leaves the picture as it was
         // arranged; it is only scored.
-        quality: (() => {
+        quality: await (async () => {
           const q2 = built.ops.length > 0 ? improve(target2, profile2) : scoredAsIs(target2, profile2);
           deselect(target2);
-          return q2;
+          if (!mark || !await placeParts(target2, parts, mark, endpoints2)) {
+            return q2;
+          }
+          const {
+            before: _before,
+            target: _target,
+            iterations: _iterations,
+            steps: _steps,
+            ...now
+          } = scoredAsIs(target2, profile2);
+          const { failures: _failures, ...rest } = q2;
+          return { ...rest, ...now };
         })()
       };
     }
@@ -16260,7 +17560,10 @@ async function buildDiagram(input, endpoints2, extras = {}) {
     created: built.created.size + edges.length,
     ...shaped(input.result, ids2, edges),
     style: styleReport(profile2, renames, styled),
-    quality
+    quality,
+    ...mark && {
+      viewpoint: { name: mark.viewpoint, ...conformity(target) }
+    }
   };
 }
 
@@ -20721,13 +22024,13 @@ function edgeViews2(diagram) {
     (v) => v instanceof type.EdgeView && v.model && v.tail?.model && v.head?.model
   );
 }
-var list = (value) => Array.isArray(value) ? value : [];
+var list3 = (value) => Array.isArray(value) ? value : [];
 function membersOf(model) {
   return [
-    ...list(model.attributes).map((a) => formatAttribute(a)),
-    ...list(model.operations).map((o) => formatOperation(o)),
-    ...list(model.literals).map((l) => label3(l)),
-    ...list(model.columns).map(
+    ...list3(model.attributes).map((a) => formatAttribute(a)),
+    ...list3(model.operations).map((o) => formatOperation(o)),
+    ...list3(model.literals).map((l) => label3(l)),
+    ...list3(model.columns).map(
       (c) => [
         label3(c),
         typeText(c.type) + (typeof c.length === "string" && c.length ? `(${c.length})` : ""),
@@ -20797,24 +22100,24 @@ var describeDiagram = defineEndpoint({
       ...nodes.length > 0 ? ["Nodes:", ...nodes.map(nodeLine)] : [],
       ...edges.length > 0 ? ["Edges:", ...edges.map(edgeLine)] : []
     ];
-    let text4 = "";
-    let shown = 0;
+    let text5 = "";
+    let shown2 = 0;
     for (const line of lines2) {
-      const next = shown === 0 ? line : `${text4}
+      const next = shown2 === 0 ? line : `${text5}
 ${line}`;
       if (next.length > max - 30) break;
-      text4 = next;
-      shown++;
+      text5 = next;
+      shown2++;
     }
-    const truncated = shown < lines2.length;
-    if (truncated) text4 += `
-... ${lines2.length - shown} more lines`;
+    const truncated = shown2 < lines2.length;
+    if (truncated) text5 += `
+... ${lines2.length - shown2} more lines`;
     const { _id, _type, name: name4 } = summarize(diagram);
     return {
       diagram: { _id, _type, name: name4 },
       nodes: nodes.length,
       edges: edges.length,
-      text: text4,
+      text: text5,
       truncated
     };
   }
@@ -20890,11 +22193,11 @@ var validateModel = defineEndpoint({
 });
 
 // src/text/model.ts
-var typeOf = (elem) => elem.constructor.name;
+var typeOf2 = (elem) => elem.constructor.name;
 var nameOf = (elem) => elem.name;
 var str2 = (value) => typeof value === "string" ? value : "";
 function kindOf2(diagram) {
-  const name4 = typeOf(diagram);
+  const name4 = typeOf2(diagram);
   const found = Object.entries(DIAGRAM_TYPES).find(([, t]) => t === name4);
   return found ? found[0] : null;
 }
@@ -20933,7 +22236,7 @@ var Views = class {
   links;
   skipped = /* @__PURE__ */ new Map();
   skip(view) {
-    const t = typeOf(view.model);
+    const t = typeOf2(view.model);
     this.skipped.set(t, (this.skipped.get(t) ?? 0) + 1);
   }
   warnings() {
@@ -20966,12 +22269,12 @@ function classSpec2(v) {
     UMLInterface: "interface",
     UMLEnumeration: "enum"
   };
-  const packages = v.nodes.filter((n) => typeOf(n.model) === "UMLPackage").map((n) => n.model);
+  const packages = v.nodes.filter((n) => typeOf2(n.model) === "UMLPackage").map((n) => n.model);
   const classes = [];
   for (const view of v.nodes) {
     const m = view.model;
-    const kind2 = kinds[typeOf(m)];
-    if (typeOf(m) === "UMLPackage") continue;
+    const kind2 = kinds[typeOf2(m)];
+    if (typeOf2(m) === "UMLPackage") continue;
     if (!kind2) {
       v.skip(view);
       continue;
@@ -20981,15 +22284,15 @@ function classSpec2(v) {
       name: nameOf(m),
       kind: kind2 === "class" && m.isAbstract ? "abstract" : kind2,
       ...pkg && { package: nameOf(pkg) },
-      attributes: list(m.attributes).map((a) => formatAttribute(a)),
-      operations: list(m.operations).map((o) => formatOperation(o)),
-      literals: list(m.literals).map(nameOf)
+      attributes: list3(m.attributes).map((a) => formatAttribute(a)),
+      operations: list3(m.operations).map((o) => formatOperation(o)),
+      literals: list3(m.literals).map(nameOf)
     });
   }
   const relations = [];
   for (const edge of v.edges) {
     const m = edge.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     const named3 = m.name ? { name: nameOf(m) } : {};
     if (t === "UMLGeneralization" || t === "UMLInterfaceRealization") {
       relations.push({
@@ -21044,13 +22347,13 @@ function edgeY2(view) {
   return points2?.[0]?.y ?? Number.POSITIVE_INFINITY;
 }
 function sequenceSpec2(v) {
-  const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline").sort((a, b) => box2(a).left - box2(b).left);
+  const lifelines = v.nodes.filter((n) => typeOf2(n.model) === "UMLLifeline").sort((a, b) => box2(a).left - box2(b).left);
   const messages2 = [...v.edges].sort((a, b) => edgeY2(a) - edgeY2(b));
   const fragments = [];
   for (const view of v.nodes) {
     const m = view.model;
-    if (typeOf(m) === "UMLLifeline") continue;
-    if (typeOf(m) !== "UMLCombinedFragment") {
+    if (typeOf2(m) === "UMLLifeline") continue;
+    if (typeOf2(m) !== "UMLCombinedFragment") {
       v.skip(view);
       continue;
     }
@@ -21060,7 +22363,7 @@ function sequenceSpec2(v) {
       v.skip(view);
       continue;
     }
-    const operands = list(m.operands).map((o) => str2(o.guard));
+    const operands = list3(m.operands).map((o) => str2(o.guard));
     const operandViews = subViews(view).filter((s) => s instanceof type.UMLInteractionOperandView).sort((a, b2) => box2(a).top - box2(b2).top);
     const tops = operandViews.slice(1).map(
       (_, k) => box2(operandViews[0]).top + operandViews.slice(0, k + 1).reduce((sum, o) => sum + box2(o).height, 0)
@@ -21096,7 +22399,7 @@ function sequenceSpec2(v) {
   };
 }
 function sequenceNotes(v) {
-  const lifelines = v.nodes.filter((n) => typeOf(n.model) === "UMLLifeline");
+  const lifelines = v.nodes.filter((n) => typeOf2(n.model) === "UMLLifeline");
   return v.notes.map((note) => {
     const b = box2(note);
     const x = centre2(note).x;
@@ -21123,11 +22426,11 @@ var USECASE_RELATIONS2 = {
   UMLGeneralization: "generalization"
 };
 function usecaseSpec3(v) {
-  const subject = v.nodes.find((n) => typeOf(n.model) === "UMLUseCaseSubject");
+  const subject = v.nodes.find((n) => typeOf2(n.model) === "UMLUseCaseSubject");
   const actors = [];
   const useCases2 = [];
   for (const view of v.nodes) {
-    const t = typeOf(view.model);
+    const t = typeOf2(view.model);
     if (t === "UMLActor") actors.push(nameOf(view.model));
     else if (t === "UMLUseCase") {
       useCases2.push({
@@ -21138,7 +22441,7 @@ function usecaseSpec3(v) {
   }
   const relations = [];
   for (const edge of v.edges) {
-    const type2 = USECASE_RELATIONS2[typeOf(edge.model)];
+    const type2 = USECASE_RELATIONS2[typeOf2(edge.model)];
     if (!type2) {
       v.skip(edge);
       continue;
@@ -21195,7 +22498,7 @@ function flowGraph(v, typeFor, edgeTypes, lanes = []) {
   for (const view of v.edges) {
     const { tail, head } = ends(view);
     const known = ids2.has(tail) && ids2.has(head);
-    if (!edgeTypes.includes(typeOf(view.model)) || !known) {
+    if (!edgeTypes.includes(typeOf2(view.model)) || !known) {
       v.skip(view);
       continue;
     }
@@ -21205,11 +22508,11 @@ function flowGraph(v, typeFor, edgeTypes, lanes = []) {
 }
 function activitySpec3(v) {
   const lanes = v.nodes.filter(
-    (n) => typeOf(n.model) === "UMLActivityPartition"
+    (n) => typeOf2(n.model) === "UMLActivityPartition"
   );
   const { nodes, edges } = flowGraph(
     v,
-    (m) => ACTIVITY_TYPES2[typeOf(m)],
+    (m) => ACTIVITY_TYPES2[typeOf2(m)],
     ["UMLControlFlow", "UMLObjectFlow"],
     lanes
   );
@@ -21225,7 +22528,7 @@ function activitySpec3(v) {
 }
 var PSEUDO_KINDS = ["initial", "choice", "fork", "join"];
 function stateType(model) {
-  const t = typeOf(model);
+  const t = typeOf2(model);
   if (t === "UMLState") return "state";
   if (t === "UMLFinalState") return "final";
   if (t !== "UMLPseudostate") return void 0;
@@ -21255,13 +22558,13 @@ function erdSpec2(v) {
   const entities2 = [];
   for (const view of v.nodes) {
     const m = view.model;
-    if (typeOf(m) !== "ERDEntity") {
+    if (typeOf2(m) !== "ERDEntity") {
       v.skip(view);
       continue;
     }
     entities2.push({
       name: nameOf(m),
-      columns: list(m.columns).map((c) => ({
+      columns: list3(m.columns).map((c) => ({
         name: nameOf(c),
         type: typeText(c.type) + (str2(c.length) && str2(c.length) !== "0" ? `(${str2(c.length)})` : ""),
         primaryKey: c.primaryKey === true,
@@ -21273,7 +22576,7 @@ function erdSpec2(v) {
   const relationships = [];
   for (const edge of v.edges) {
     const m = edge.model;
-    if (typeOf(m) !== "ERDRelationship") {
+    if (typeOf2(m) !== "ERDRelationship") {
       v.skip(edge);
       continue;
     }
@@ -21293,7 +22596,7 @@ var SHAPES2 = Object.fromEntries(
   Object.entries(FLOWCHART_SHAPES).map(([shape, t]) => [t, shape])
 );
 function flowchartSpec3(v) {
-  const { nodes, edges } = flowGraph(v, (m) => SHAPES2[typeOf(m)], ["FCFlow"]);
+  const { nodes, edges } = flowGraph(v, (m) => SHAPES2[typeOf2(m)], ["FCFlow"]);
   return {
     nodes,
     flows: edges.map(({ from, to, edge }) => ({
@@ -21308,7 +22611,7 @@ function mindmapSpec2(v) {
   const hasParent = /* @__PURE__ */ new Set();
   for (const edge of v.edges) {
     const { tail, head } = ends(edge);
-    if (typeOf(edge.model) !== "MMEdge" || hasParent.has(head)) {
+    if (typeOf2(edge.model) !== "MMEdge" || hasParent.has(head)) {
       v.skip(edge);
       continue;
     }
@@ -21346,7 +22649,7 @@ function requirementSpec2(v, owned2) {
   const elements = [];
   for (const view of v.nodes) {
     const m = view.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     if (t === "SysMLRequirement") {
       const doc2 = str2(m.documentation);
       const line = (key2) => new RegExp(`^${key2}: (.+)$`, "m").exec(doc2)?.[1];
@@ -21361,7 +22664,7 @@ function requirementSpec2(v, owned2) {
         ...verifyMethod && { verifyMethod }
       });
     } else if (t === "UMLClass") {
-      const attr = (n) => list(m.attributes).find((a) => a.name === n)?.defaultValue;
+      const attr = (n) => list3(m.attributes).find((a) => a.name === n)?.defaultValue;
       const type2 = attr("Type");
       const docRef = attr("DocRef");
       elements.push({
@@ -21376,7 +22679,7 @@ function requirementSpec2(v, owned2) {
   const relations = [];
   for (const edge of v.edges) {
     const m = edge.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     const type2 = t === "UMLDependency" ? str2(m.stereotype) === "trace" ? "traces" : void 0 : REQUIREMENT_EDGES[t];
     if (!type2) {
       v.skip(edge);
@@ -21400,7 +22703,7 @@ function c4Spec2(v) {
   const elements = [];
   for (const view of v.nodes) {
     const m = view.model;
-    const type2 = C4_KINDS[typeOf(m)];
+    const type2 = C4_KINDS[typeOf2(m)];
     if (!type2) {
       v.skip(view);
       continue;
@@ -21421,7 +22724,7 @@ function c4Spec2(v) {
   for (const edge of v.edges) {
     const m = edge.model;
     const { tail, head } = ends(edge);
-    if (typeOf(m) !== "C4Relationship" || !ids2.has(tail) || !ids2.has(head)) {
+    if (typeOf2(m) !== "C4Relationship" || !ids2.has(tail) || !ids2.has(head)) {
       v.skip(edge);
       continue;
     }
@@ -21438,20 +22741,20 @@ function c4Spec2(v) {
 var stereotypeOf2 = (m) => typeof m.stereotype === "string" ? m.stereotype : m.stereotype && typeof m.stereotype === "object" ? nameOf(m.stereotype) : "";
 var withStereotype = (m) => stereotypeOf2(m) ? { stereotype: stereotypeOf2(m) } : {};
 var named2 = (m) => m.name ? { name: nameOf(m) } : {};
-function shownParent(m, shown) {
-  return m._parent && shown.has(m._parent) ? { parent: nameOf(m._parent) } : {};
+function shownParent(m, shown2) {
+  return m._parent && shown2.has(m._parent) ? { parent: nameOf(m._parent) } : {};
 }
 var PACKAGE_STEREOTYPES = /* @__PURE__ */ new Set(["import", "access", "merge", "use"]);
 function packageSpec2(v) {
-  const shown = /* @__PURE__ */ new Set();
+  const shown2 = /* @__PURE__ */ new Set();
   for (const view of v.nodes) {
-    if (typeOf(view.model) === "UMLPackage") shown.add(view.model);
+    if (typeOf2(view.model) === "UMLPackage") shown2.add(view.model);
     else v.skip(view);
   }
   const dependencies = [];
   for (const edge of v.edges) {
     const m = edge.model;
-    if (typeOf(m) !== "UMLDependency") {
+    if (typeOf2(m) !== "UMLDependency") {
       v.skip(edge);
       continue;
     }
@@ -21464,9 +22767,9 @@ function packageSpec2(v) {
     });
   }
   return {
-    packages: [...shown].map((m) => ({
+    packages: [...shown2].map((m) => ({
       name: nameOf(m),
-      ...shownParent(m, shown),
+      ...shownParent(m, shown2),
       ...withStereotype(m)
     })),
     dependencies
@@ -21477,7 +22780,7 @@ function componentSpec2(v) {
   const interfaces = [];
   for (const view of v.nodes) {
     const m = view.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     if (t === "UMLComponent") {
       components.set(m, {
         name: nameOf(m),
@@ -21489,7 +22792,7 @@ function componentSpec2(v) {
     } else if (t === "UMLInterface") {
       interfaces.push({
         name: nameOf(m),
-        operations: list(m.operations).map((o) => formatOperation(o))
+        operations: list3(m.operations).map((o) => formatOperation(o))
       });
     } else if (t !== "UMLPort") {
       v.skip(view);
@@ -21497,7 +22800,7 @@ function componentSpec2(v) {
   }
   for (const view of v.nodes) {
     const m = view.model;
-    if (typeOf(m) === "UMLPort") {
+    if (typeOf2(m) === "UMLPort") {
       const owner = components.get(m._parent);
       if (owner) owner.ports.push(nameOf(m));
       else v.skip(view);
@@ -21508,12 +22811,12 @@ function componentSpec2(v) {
   const dependencies = [];
   for (const edge of v.edges) {
     const m = edge.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     const { tail, head } = ends(edge);
     const from = components.get(tail);
     if (t === "UMLInterfaceRealization" && from) {
       from.provides.push(nameOf(head));
-    } else if (t === "UMLDependency" && from && typeOf(head) === "UMLInterface") {
+    } else if (t === "UMLDependency" && from && typeOf2(head) === "UMLInterface") {
       from.requires.push(nameOf(head));
     } else if (t === "UMLDependency") {
       dependencies.push({ from: nameOf(tail), to: nameOf(head), ...named2(m) });
@@ -21535,11 +22838,11 @@ function deploymentSpec2(v) {
   const artifacts = /* @__PURE__ */ new Map();
   const components = [];
   const shownNodes = new Set(
-    v.nodes.map((n) => n.model).filter((m) => typeOf(m) === "UMLNode")
+    v.nodes.map((n) => n.model).filter((m) => typeOf2(m) === "UMLNode")
   );
   for (const view of v.nodes) {
     const m = view.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     if (t === "UMLNode") {
       nodes.set(m, {
         name: nameOf(m),
@@ -21562,7 +22865,7 @@ function deploymentSpec2(v) {
   const paths = [];
   for (const edge of v.edges) {
     const m = edge.model;
-    const t = typeOf(m);
+    const t = typeOf2(m);
     const { tail, head } = ends(edge);
     if (t === "UMLDeployment" && nodes.has(head)) {
       nodes.get(head).deploys.push(nameOf(tail));
@@ -21664,7 +22967,7 @@ function c4Macros(spec) {
 }
 
 // src/text/mermaid-writer.ts
-var text3 = (name4) => name4.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
+var text4 = (name4) => name4.replace(/\r?\n/g, "<br/>").replace(/"/g, "'");
 var isWord = (name4) => /^[A-Za-z_][\w.]*$/.test(name4);
 var Ids = class {
   constructor(prefix) {
@@ -21700,7 +23003,7 @@ function classDiagram3(spec, notes) {
       ...c.operations,
       ...c.literals
     ];
-    const head = `${indent}class ${id2}${id2 === c.name ? "" : `["${text3(c.name)}"]`}`;
+    const head = `${indent}class ${id2}${id2 === c.name ? "" : `["${text4(c.name)}"]`}`;
     if (members3.length === 0) {
       lines2.push(head);
       return;
@@ -21720,7 +23023,7 @@ function classDiagram3(spec, notes) {
     const to = ids2.get(r.to);
     const card = (m) => m ? ` "${m}"` : "";
     const cardAfter = (m) => m ? `"${m}" ` : "";
-    const label4 = r.name ? ` : ${text3(r.name)}` : "";
+    const label4 = r.name ? ` : ${text4(r.name)}` : "";
     const line = {
       generalization: `${to} <|-- ${from}`,
       realization: `${to} <|.. ${from}`,
@@ -21735,7 +23038,7 @@ function classDiagram3(spec, notes) {
     if (n.on.length > 1)
       warnings.push(`a note on ${n.on.length} classes is written on the first`);
     lines2.push(
-      `  note ${n.on[0] !== void 0 ? `for ${ids2.get(n.on[0])} ` : ""}"${text3(n.text)}"`
+      `  note ${n.on[0] !== void 0 ? `for ${ids2.get(n.on[0])} ` : ""}"${text4(n.text)}"`
     );
   }
   return { lines: lines2, warnings };
@@ -21761,7 +23064,7 @@ function sequenceDiagram3(spec, notes) {
   const ids2 = new Ids("P");
   for (const p of spec.participants) {
     const id2 = ids2.get(p);
-    lines2.push(`  participant ${id2}${id2 === p ? "" : ` as ${text3(p)}`}`);
+    lines2.push(`  participant ${id2}${id2 === p ? "" : ` as ${text4(p)}`}`);
   }
   const fragments = spec.fragments.filter((f) => {
     if (BLOCKS[f.operator]) return true;
@@ -21777,11 +23080,11 @@ function sequenceDiagram3(spec, notes) {
     }
     const where2 = n.side === "over" ? "over" : `${n.side} of`;
     lines2.push(
-      `${depth3()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text3(n.text)}`
+      `${depth3()}Note ${where2} ${n.on.map((p) => ids2.get(p)).join(",")}: ${text4(n.text)}`
     );
   };
   const operand = (f, k, level) => lines2.push(
-    `${"  ".repeat(level)}${BLOCKS[f.operator]} ${text3(f.operands[k])}`.trimEnd()
+    `${"  ".repeat(level)}${BLOCKS[f.operator]} ${text4(f.operands[k])}`.trimEnd()
   );
   spec.messages.forEach((m, i) => {
     for (const n of notes) if (n.at === i) note(n);
@@ -21793,12 +23096,12 @@ function sequenceDiagram3(spec, notes) {
     fragments.forEach((f, j) => {
       if (f.from !== i) return;
       lines2.push(
-        `${depth3()}${f.operator}${f.guard ? ` ${text3(f.guard)}` : ""}`
+        `${depth3()}${f.operator}${f.guard ? ` ${text4(f.guard)}` : ""}`
       );
       open.push(j);
     });
     lines2.push(
-      `${depth3()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text3(m.text)}`
+      `${depth3()}${ids2.get(m.from)}${ARROWS[m.kind]}${ids2.get(m.to)}: ${text4(m.text)}`
     );
     while (open.length > 0 && fragments[open.at(-1)].to === i) {
       const f = fragments[open.pop()];
@@ -21823,15 +23126,15 @@ function usecase2(spec, direction2) {
   const ids2 = /* @__PURE__ */ new Map();
   spec.actors.forEach((a, i) => {
     ids2.set(a, `A${i}`);
-    lines2.push(`  A${i}["${text3(a)}"]`);
+    lines2.push(`  A${i}["${text4(a)}"]`);
   });
   const useCase = (u, i, indent) => {
     ids2.set(u.name, `U${i}`);
-    lines2.push(`${indent}U${i}(["${text3(u.name)}"])`);
+    lines2.push(`${indent}U${i}(["${text4(u.name)}"])`);
   };
   const inner = spec.useCases.filter((u) => u.inSystem);
   if (spec.system !== void 0 && inner.length > 0) {
-    lines2.push(`  subgraph S["${text3(spec.system)}"]`);
+    lines2.push(`  subgraph S["${text4(spec.system)}"]`);
     spec.useCases.forEach((u, i) => u.inSystem && useCase(u, i, "    "));
     lines2.push("  end");
   }
@@ -21839,7 +23142,7 @@ function usecase2(spec, direction2) {
   for (const r of spec.relations) {
     const label4 = r.type === "association" ? r.name : r.type;
     lines2.push(
-      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label4 ? `|${text3(label4)}|` : ""} ${ids2.get(r.to)}`
+      `  ${ids2.get(r.from)} ${r.type === "association" ? "---" : "-->"}${label4 ? `|${text4(label4)}|` : ""} ${ids2.get(r.to)}`
     );
   }
   return lines2;
@@ -21867,16 +23170,16 @@ function activity(spec, direction2) {
   const node2 = (n, indent) => {
     const [open, close] = ACTIVITY_SHAPES[n.type];
     const label4 = n.name || ACTIVITY_LABELS[n.type] || " ";
-    lines2.push(`${indent}${n.id}${open}"${text3(label4)}"${close}`);
+    lines2.push(`${indent}${n.id}${open}"${text4(label4)}"${close}`);
   };
   for (const lane of spec.lanes) {
-    lines2.push(`  subgraph ${laneId(spec.lanes, lane)}["${text3(lane)}"]`);
+    lines2.push(`  subgraph ${laneId(spec.lanes, lane)}["${text4(lane)}"]`);
     for (const n of spec.nodes) if (n.lane === lane) node2(n, "    ");
     lines2.push("  end");
   }
   for (const n of spec.nodes) if (n.lane === void 0) node2(n, "  ");
   for (const f of spec.flows) {
-    lines2.push(`  ${f.from} -->${f.guard ? `|${text3(f.guard)}|` : ""} ${f.to}`);
+    lines2.push(`  ${f.from} -->${f.guard ? `|${text4(f.guard)}|` : ""} ${f.to}`);
   }
   return lines2;
 }
@@ -21896,7 +23199,7 @@ function stateDiagram3(spec, direction2, notes) {
     for (const s of spec.states) {
       if (s.parent !== parent) continue;
       if (s.type === "state") {
-        lines2.push(`${indent}state "${text3(s.name || s.id)}" as ${s.id}`);
+        lines2.push(`${indent}state "${text4(s.name || s.id)}" as ${s.id}`);
       } else if (s.type !== "initial" && s.type !== "final") {
         lines2.push(`${indent}state ${s.id} <<${s.type}>>`);
       }
@@ -21909,8 +23212,8 @@ function stateDiagram3(spec, direction2, notes) {
     for (const t of spec.transitions) {
       if (scope(t) !== parent) continue;
       const label4 = [
-        t.trigger ? text3(t.trigger) : "",
-        t.guard ? `[${text3(t.guard)}]` : ""
+        t.trigger ? text4(t.trigger) : "",
+        t.guard ? `[${text4(t.guard)}]` : ""
       ].filter(Boolean).join(" ");
       lines2.push(
         `${indent}${ref3(t.from)} --> ${ref3(t.to)}${label4 ? ` : ${label4}` : ""}`
@@ -21920,7 +23223,7 @@ function stateDiagram3(spec, direction2, notes) {
   block(void 0, "  ");
   for (const n of notes) {
     for (const id2 of n.on.slice(0, 1)) {
-      const body = text3(n.text);
+      const body = text4(n.text);
       lines2.push(`  note right of ${id2} : ${body}`);
     }
   }
@@ -21938,7 +23241,7 @@ var RIGHT = {
   "0..*": "o{",
   "1..*": "|{"
 };
-var entity = (name4) => /^[\w-]+$/.test(name4) ? name4 : `"${text3(name4)}"`;
+var entity = (name4) => /^[\w-]+$/.test(name4) ? name4 : `"${text4(name4)}"`;
 function erDiagram3(spec) {
   const lines2 = ["erDiagram"];
   for (const e of spec.entities) {
@@ -21961,7 +23264,7 @@ function erDiagram3(spec) {
   }
   for (const r of spec.relationships) {
     lines2.push(
-      `  ${entity(r.from)} ${LEFT[r.fromCardinality] ?? "||"}${r.identifying ? "--" : ".."}${RIGHT[r.toCardinality] ?? "||"} ${entity(r.to)} : "${text3(r.name ?? "")}"`
+      `  ${entity(r.from)} ${LEFT[r.fromCardinality] ?? "||"}${r.identifying ? "--" : ".."}${RIGHT[r.toCardinality] ?? "||"} ${entity(r.to)} : "${text4(r.name ?? "")}"`
     );
   }
   return lines2;
@@ -21986,10 +23289,10 @@ function flowchart2(spec, direction2) {
     const shape = FLOW_SHAPES[n.type];
     if (!shape) warnings.push(`${n.id} (${n.type}) is written as a process`);
     const [open, close] = shape ?? FLOW_SHAPES.process;
-    lines2.push(`  ${n.id}${open}"${text3(n.name) || " "}"${close}`);
+    lines2.push(`  ${n.id}${open}"${text4(n.name) || " "}"${close}`);
   }
   for (const f of spec.flows) {
-    lines2.push(`  ${f.from} -->${f.label ? `|${text3(f.label)}|` : ""} ${f.to}`);
+    lines2.push(`  ${f.from} -->${f.label ? `|${text4(f.label)}|` : ""} ${f.to}`);
   }
   return { lines: lines2, warnings };
 }
@@ -21997,7 +23300,7 @@ function mindmap3(roots) {
   const lines2 = ["mindmap"];
   const warnings = [];
   const write = (node2, depth3) => {
-    const name4 = text3(node2.name);
+    const name4 = text4(node2.name);
     const label4 = /[()[\]{}]/.test(name4) ? `n["${name4}"]` : name4 || '[" "]';
     lines2.push(`${"  ".repeat(depth3)}${label4}`);
     for (const child of node2.children) write(child, depth3 + 1);
@@ -22016,21 +23319,21 @@ var REQUIREMENT_KEYWORDS2 = {
   physical: "physicalRequirement",
   design: "designConstraint"
 };
-var reqName = (name4) => /^\w+$/.test(name4) ? name4 : `"${text3(name4)}"`;
+var reqName = (name4) => /^\w+$/.test(name4) ? name4 : `"${text4(name4)}"`;
 function requirementDiagram2(spec) {
   const lines2 = ["requirementDiagram"];
   for (const r of spec.requirements) {
     lines2.push(`  ${REQUIREMENT_KEYWORDS2[r.type]} ${reqName(r.name)} {`);
-    if (r.id) lines2.push(`    id: "${text3(r.id)}"`);
-    if (r.text) lines2.push(`    text: "${text3(r.text)}"`);
+    if (r.id) lines2.push(`    id: "${text4(r.id)}"`);
+    if (r.text) lines2.push(`    text: "${text4(r.text)}"`);
     if (r.risk) lines2.push(`    risk: ${r.risk}`);
     if (r.verifyMethod) lines2.push(`    verifymethod: ${r.verifyMethod}`);
     lines2.push("  }");
   }
   for (const e of spec.elements) {
     lines2.push(`  element ${reqName(e.name)} {`);
-    if (e.type !== void 0) lines2.push(`    type: "${text3(e.type)}"`);
-    if (e.docRef !== void 0) lines2.push(`    docref: "${text3(e.docRef)}"`);
+    if (e.type !== void 0) lines2.push(`    type: "${text4(e.type)}"`);
+    if (e.docRef !== void 0) lines2.push(`    docref: "${text4(e.docRef)}"`);
     lines2.push("  }");
   }
   for (const r of spec.relations) {
@@ -22043,7 +23346,7 @@ function c4(spec) {
 }
 var NO_MERMAID = ["package", "component", "deployment"];
 function toMermaid(x, title = "") {
-  const front = title ? ["---", `title: "${text3(title)}"`, "---"] : [];
+  const front = title ? ["---", `title: "${text4(title)}"`, "---"] : [];
   const done = (lines2, warnings = []) => ({
     text: `${[...front, ...lines2].join("\n")}
 `,
@@ -22102,7 +23405,7 @@ function matches(t, view) {
   if (typeName3(m) !== modelOf(t)) return false;
   if (t.match?.view && typeName3(view) !== t.match.view) return false;
   if (t.match?.field) {
-    return list(m._parent?.[t.match.field]).includes(m);
+    return list3(m._parent?.[t.match.field]).includes(m);
   }
   return true;
 }
@@ -22117,8 +23420,8 @@ function edgeKeyword(f, m) {
   return candidates.includes(wanted) ? wanted : candidates[0];
 }
 function members2(m, nodes) {
-  const attributes2 = list(m.attributes).filter((a) => !nodes.has(a));
-  const operations = list(m.operations);
+  const attributes2 = list3(m.attributes).filter((a) => !nodes.has(a));
+  const operations = list3(m.operations);
   return {
     ...attributes2.length > 0 && {
       attributes: attributes2.map((a) => formatAttribute(a))
@@ -22173,8 +23476,8 @@ function extractFamily(diagram, kind2) {
       ...stereotype !== void 0 && { stereotype },
       ...Object.keys(properties2).length > 0 && { properties: properties2 },
       ...t.members && members2(m, keyOfModel),
-      ...t.slots && list(m.slots).length > 0 && {
-        slots: list(m.slots).map(
+      ...t.slots && list3(m.slots).length > 0 && {
+        slots: list3(m.slots).map(
           (s) => `${String(s.name)} = ${String(s.value)}`
         )
       },
@@ -22830,13 +24133,13 @@ var VISUAL = drawio_styles_default.visual;
 var LINE_NAMES = Object.fromEntries(
   Object.entries(LINE_STYLES).map(([name4, n]) => [n, name4])
 );
-var typeOf2 = (e) => e.constructor.name;
+var typeOf3 = (e) => e.constructor.name;
 var str3 = (value) => typeof value === "string" ? value : "";
 var num = (n) => String(Math.round(n * 100) / 100);
-function xmlAttr(text4) {
-  return text4.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\r?\n/g, "&#xa;").replace(/\t/g, "&#x9;");
+function xmlAttr(text5) {
+  return text5.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\r?\n/g, "&#xa;").replace(/\t/g, "&#x9;");
 }
-var html = (text4) => text4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
+var html = (text5) => text5.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
 var guillemets = (s) => `\xAB${html(s)}\xBB`;
 function stereotypeOf4(model) {
   const st = model?.stereotype;
@@ -22852,10 +24155,10 @@ var within3 = (a, b) => a.x >= b.x - 0.5 && a.y >= b.y - 0.5 && a.x + a.w <= b.x
 var points = (v) => v.points?.points ?? [];
 function nodeStyle(view) {
   const m = view.model;
-  if (VIEWS[typeOf2(view)]) return VIEWS[typeOf2(view)];
+  if (VIEWS[typeOf3(view)]) return VIEWS[typeOf3(view)];
   if (!m) return void 0;
-  if (typeOf2(m) === "UMLPseudostate") return PSEUDOSTATES[str3(m.kind)];
-  return NODES[typeOf2(m)];
+  if (typeOf3(m) === "UMLPseudostate") return PSEUDOSTATES[str3(m.kind)];
+  return NODES[typeOf3(m)];
 }
 var FALLBACK2 = { style: drawio_styles_default.node };
 function visualStyle(visual, skipColours) {
@@ -22879,27 +24182,27 @@ function classifierLabel(view, m) {
     UMLPrimitiveType: "primitive",
     UMLSignal: "signal"
   };
-  const stereotypes = [keyword[typeOf2(m)], stereotypeOf4(m)].filter(
+  const stereotypes = [keyword[typeOf3(m)], stereotypeOf4(m)].filter(
     (s) => Boolean(s)
   );
   const name4 = m.isAbstract ? `<i>${html(str3(m.name))}</i>` : html(str3(m.name));
   const head = [...stereotypes.map(guillemets), `<b>${name4}</b>`].join("<br>");
   const compartments = [];
   if (!view.suppressAttributes) {
-    compartments.push(list(m.attributes).map((a) => formatAttribute(a)));
+    compartments.push(list3(m.attributes).map((a) => formatAttribute(a)));
   }
   if (!view.suppressOperations) {
-    compartments.push(list(m.operations).map((o) => formatOperation(o)));
+    compartments.push(list3(m.operations).map((o) => formatOperation(o)));
   }
-  if (typeOf2(m) === "UMLEnumeration" && !view.suppressLiterals) {
-    compartments.push(list(m.literals).map((l) => str3(l.name)));
+  if (typeOf3(m) === "UMLEnumeration" && !view.suppressLiterals) {
+    compartments.push(list3(m.literals).map((l) => str3(l.name)));
   }
   return `<p style="margin:0;margin-top:4px;text-align:center;">${head}</p>` + compartments.map(
     (lines2) => `<hr size="1" style="border-style:solid;"><p style="margin:0;margin-left:4px;">${lines2.map(html).join("<br>")}</p>`
   ).join("");
 }
 function entityLabel(m) {
-  const rows2 = list(m.columns).map((c) => {
+  const rows2 = list3(m.columns).map((c) => {
     const keys2 = [
       c.primaryKey === true && "PK",
       c.foreignKey === true && "FK",
@@ -22920,7 +24223,7 @@ var C4_KINDS2 = {
 };
 function c4Label(m) {
   const tech = str3(m.technology);
-  const kind2 = C4_KINDS2[typeOf2(m)];
+  const kind2 = C4_KINDS2[typeOf3(m)];
   const description = str3(m.description);
   return `<b>${html(str3(m.name))}</b><br><span style="font-size:0.8em;">[${kind2}${tech ? `: ${html(tech)}` : ""}]</span>` + (description ? `<br><br>${html(description)}` : "");
 }
@@ -23004,9 +24307,9 @@ function edgeLabel(m, spec, number3) {
     case "flow":
       return [html(str3(m.name)), guard].filter(Boolean).join(" ");
     case "transition": {
-      const triggers = list(m.triggers).map((t) => str3(t.name));
+      const triggers = list3(m.triggers).map((t) => str3(t.name));
       const trigger = html(triggers.join(", ") || str3(m.name));
-      const effects = list(m.effects).map((e) => html(str3(e.name)));
+      const effects = list3(m.effects).map((e) => html(str3(e.name)));
       return [
         trigger,
         guard,
@@ -23015,8 +24318,8 @@ function edgeLabel(m, spec, number3) {
     }
     case "message": {
       const args = str3(m.arguments);
-      const text4 = html(str3(m.name) + (args ? `(${args})` : ""));
-      return number3 === void 0 ? text4 : `${number3} : ${text4}`;
+      const text5 = html(str3(m.name) + (args ? `(${args})` : ""));
+      return number3 === void 0 ? text5 : `${number3} : ${text5}`;
     }
     case "c4": {
       const tech = str3(m.technology);
@@ -23049,15 +24352,15 @@ function endLabels(id2, m) {
   ];
   for (const [e, side, x] of ends4) {
     const align = x < 0 ? "left" : "right";
-    for (const [text4, suffix, vertical2, dy] of [
+    for (const [text5, suffix, vertical2, dy] of [
       [str3(e.name), "role", "top", 4],
       [str3(e.multiplicity), "multiplicity", "bottom", -4]
     ]) {
-      if (!text4) continue;
+      if (!text5) continue;
       out.push({
         id: `${id2}#${side}-${suffix}`,
         parent: id2,
-        value: html(text4),
+        value: html(text5),
         style: `${drawio_styles_default.edgeLabel}align=${align};verticalAlign=${vertical2};`,
         kind: "vertex",
         label: true,
@@ -23076,7 +24379,7 @@ function descendants(view) {
 function toDrawio(diagram, profile2) {
   const owned2 = diagram.ownedViews;
   const skipped = /* @__PURE__ */ new Map();
-  const skip = (v) => skipped.set(typeOf2(v), (skipped.get(typeOf2(v)) ?? 0) + 1);
+  const skip = (v) => skipped.set(typeOf3(v), (skipped.get(typeOf3(v)) ?? 0) + 1);
   const nodes = [];
   const edges = [];
   for (const v of owned2) {
@@ -23106,7 +24409,7 @@ function toDrawio(diagram, profile2) {
     return false;
   };
   for (const v of nodes.filter(cycle)) parents.delete(v);
-  const messages2 = edges.filter((e) => e.model && typeOf2(e.model) === "UMLMessage").sort((a, b) => messageY(a) - messageY(b));
+  const messages2 = edges.filter((e) => e.model && typeOf3(e.model) === "UMLMessage").sort((a, b) => messageY(a) - messageY(b));
   const others = edges.filter((e) => !messages2.includes(e));
   const owners = /* @__PURE__ */ new Map();
   for (const v of nodes) for (const s of descendants(v)) owners.set(s, v);
@@ -23148,7 +24451,7 @@ function toDrawio(diagram, profile2) {
         geometry: geometry(rectOf(a), r)
       });
     }
-    if (v.model && typeOf2(v.model) === "UMLCombinedFragment") {
+    if (v.model && typeOf3(v.model) === "UMLCombinedFragment") {
       const operands = descendants(v).filter((s) => s instanceof type.UMLInteractionOperandView).sort((a, b) => a.top - b.top);
       operands.forEach((o, i) => {
         const guard = str3(o.model?.guard);
@@ -23179,7 +24482,7 @@ function toDrawio(diagram, profile2) {
       return;
     }
     const m = e.model;
-    const spec = EDGE_VIEWS[typeOf2(e)] ?? (m && EDGES[typeOf2(m)]) ?? { style: drawio_styles_default.edge };
+    const spec = EDGE_VIEWS[typeOf3(e)] ?? (m && EDGES[typeOf3(m)]) ?? { style: drawio_styles_default.edge };
     const pts = points(e);
     const ends4 = (t, p, at) => {
       const r = rects.get(t);
@@ -23188,7 +24491,7 @@ function toDrawio(diagram, profile2) {
       const { x, y } = anchor(p, r, flipped);
       return `${at}X=${x};${at}Y=${y};${at}Dx=0;${at}Dy=0;${at}Perimeter=0;`;
     };
-    const kindStyle = m && typeOf2(m) === "UMLMessage" ? MESSAGES[str3(m.messageSort)] ?? "" : m && typeOf2(m) === "UMLAssociation" ? associationEnds(m) : m && typeOf2(m) === "ERDRelationship" ? erdEnds(m) : "";
+    const kindStyle = m && typeOf3(m) === "UMLMessage" ? MESSAGES[str3(m.messageSort)] ?? "" : m && typeOf3(m) === "UMLAssociation" ? associationEnds(m) : m && typeOf3(m) === "ERDRelationship" ? erdEnds(m) : "";
     const own2 = ownVisual(e);
     const visual = {
       ...own2.lineColor && { lineColor: own2.lineColor },
@@ -23220,14 +24523,14 @@ ${waypoints.map(
           </mxGeometry>`
     });
     written.push(e._id);
-    if (m && typeOf2(m) === "UMLAssociation") cells.push(...endLabels(e._id, m));
+    if (m && typeOf3(m) === "UMLAssociation") cells.push(...endLabels(e._id, m));
   };
   for (const e of others) edgeCell(e, void 0);
   messages2.forEach((e, i) => edgeCell(e, number3 ? i + 1 : void 0));
   const right = Math.max(0, ...[...rects.values()].map((r) => r.x + r.w));
   const bottom = Math.max(0, ...[...rects.values()].map((r) => r.y + r.h));
   const page = profile2.layout.page;
-  const text4 = [
+  const text5 = [
     `<mxfile host="staruml-mcp-extension" type="device" compressed="false">`,
     `  <diagram id="${xmlAttr(diagram._id)}" name="${xmlAttr(str3(diagram.name))}">`,
     `    <mxGraphModel grid="1" gridSize="${profile2.visuals.grid.size}" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${Math.max(page.width, Math.ceil(right))}" pageHeight="${Math.max(page.height, Math.ceil(bottom))}" math="0" shadow="0">`,
@@ -23242,7 +24545,7 @@ ${waypoints.map(
     ``
   ].join("\n");
   return {
-    text: text4,
+    text: text5,
     warnings: [...skipped].map(
       ([t, n]) => `${n} ${t} ${n === 1 ? "view is" : "views are"} not drawn`
     ),
@@ -23798,12 +25101,12 @@ var exportText = defineEndpoint({
     }
     const { _id, _type, name: name4 } = summarize(diagram);
     if (input.format === "drawio") {
-      const { text: text4, warnings: warnings2 } = toDrawio(diagram, profile());
+      const { text: text5, warnings: warnings2 } = toDrawio(diagram, profile());
       return {
         diagram: { _id, _type, name: name4 },
         kind: kind2,
         format: "drawio",
-        text: text4,
+        text: text5,
         warnings: warnings2
       };
     }
@@ -24134,11 +25437,11 @@ var restoreSnapshot = defineEndpoint({
         `The undo history no longer reaches snapshot ${snap2.label}`
       );
     }
-    const count = undo2.length - 1 - at;
-    for (let i = 0; i < count; i++) app.repository.undo();
-    if (count > 1) {
+    const count2 = undo2.length - 1 - at;
+    for (let i = 0; i < count2; i++) app.repository.undo();
+    if (count2 > 1) {
       const redo2 = history3()._redoStack.stack;
-      const undone = redo2.splice(redo2.length - count, count).reverse();
+      const undone = redo2.splice(redo2.length - count2, count2).reverse();
       const builder = app.repository.getOperationBuilder();
       builder.begin("restore snapshot");
       builder.end();
@@ -24149,7 +25452,7 @@ var restoreSnapshot = defineEndpoint({
     const diff = diffSince(snap2);
     return {
       snapshot: snap2.label,
-      undone: count,
+      undone: count2,
       remaining: {
         added: diff.added.length,
         changed: diff.changed.length,
@@ -24202,7 +25505,7 @@ function relationType(written, from, to) {
 }
 
 // src/patterns/detect.ts
-var list2 = (v) => v;
+var list4 = (v) => v;
 function fits(pattern2, role, elem) {
   const t = elem.constructor.name;
   if (t === role.type) return true;
@@ -24310,7 +25613,7 @@ function scoreRole(s, pattern2, written, elem, binding, share) {
     );
   }
   for (const a of role.attributes ?? []) {
-    const found = list2(elem.attributes).find((x) => x.name === a.name);
+    const found = list4(elem.attributes).find((x) => x.name === a.name);
     s.add(share, found !== void 0, () => `${at} has no attribute ${a.name}`);
     for (const [k, v] of Object.entries(a)) {
       if (k === "name" || k === "documentation" || k === "defaultValue")
@@ -24321,13 +25624,13 @@ function scoreRole(s, pattern2, written, elem, binding, share) {
   }
   for (const o of role.operations ?? []) {
     const name4 = roleName(o.name, elem);
-    const found = list2(elem.operations).find((x) => x.name === name4);
+    const found = list4(elem.operations).find((x) => x.name === name4);
     s.add(share, found !== void 0, () => `${at} has no operation ${name4}()`);
     for (const [k, v] of Object.entries(o)) {
       if (k === "name" || k === "documentation" || k === "parameters") continue;
       let ok = false;
       if (found && k === "returnType") {
-        const ret = list2(found.parameters).find(
+        const ret = list4(found.parameters).find(
           (x) => x.direction === "return"
         );
         ok = ret !== void 0 && sameType(v, ret.type, binding);
@@ -24407,8 +25710,8 @@ function edgesOf(pattern2) {
     next: (elem, toSide) => neighbours(r, elem, toSide)
   }));
   for (const role of pattern2.roles) {
-    const typed = (text4, read) => {
-      const target = text4 === void 0 ? void 0 : ROLE_TYPE.exec(text4)?.[1];
+    const typed2 = (text5, read) => {
+      const target = text5 === void 0 ? void 0 : ROLE_TYPE.exec(text5)?.[1];
       if (target === void 0 || target === role.name) return;
       edges.push({
         from: role.name,
@@ -24418,24 +25721,24 @@ function edgesOf(pattern2) {
       });
     };
     for (const a of role.attributes ?? []) {
-      typed(
+      typed2(
         a.type,
-        (e) => list2(e.attributes).filter((x) => x.name === a.name).map((x) => x.type)
+        (e) => list4(e.attributes).filter((x) => x.name === a.name).map((x) => x.type)
       );
     }
     for (const o of role.operations ?? []) {
-      const ops = (e) => list2(e.operations).filter((x) => x.name === roleName(o.name, e));
-      typed(
+      const ops = (e) => list4(e.operations).filter((x) => x.name === roleName(o.name, e));
+      typed2(
         o.returnType,
         (e) => ops(e).flatMap(
-          (x) => list2(x.parameters).filter((y) => y.direction === "return").map((y) => y.type)
+          (x) => list4(x.parameters).filter((y) => y.direction === "return").map((y) => y.type)
         )
       );
       for (const param of o.parameters ?? []) {
-        typed(
+        typed2(
           param.type,
           (e) => ops(e).flatMap(
-            (x) => list2(x.parameters).filter((y) => y.name === param.name).map((y) => y.type)
+            (x) => list4(x.parameters).filter((y) => y.name === param.name).map((y) => y.type)
           )
         );
       }
@@ -24576,11 +25879,11 @@ function violations(pattern2, binding) {
         );
       } else if (check2.member !== void 0) {
         const name4 = roleName(check2.member, elem);
-        targets = [...list2(elem.attributes), ...list2(elem.operations)].filter(
+        targets = [...list4(elem.attributes), ...list4(elem.operations)].filter(
           (m) => m.name === name4
         );
       } else if (check2.members !== void 0) {
-        targets = list2(elem[check2.members]);
+        targets = list4(elem[check2.members]);
       } else {
         targets = [elem];
       }
@@ -27921,7 +29224,7 @@ function patterns() {
   library ??= PATTERN_FILES.map((data) => parse(patternSchema(), data));
   return library;
 }
-var key = (text4) => text4.toLowerCase().replace(/[\s_-]+/g, "");
+var key = (text5) => text5.toLowerCase().replace(/[\s_-]+/g, "");
 function findPattern(name4) {
   const found = patterns().find((p) => key(p.name) === key(name4));
   if (!found) {
@@ -27958,7 +29261,7 @@ var OPERATION_FIELDS2 = /* @__PURE__ */ new Set([
   "specification",
   "documentation"
 ]);
-var list3 = (value) => Array.isArray(value) ? value : [];
+var list5 = (value) => Array.isArray(value) ? value : [];
 var isRef = (v) => typeof v === "object" && v !== null && "$ref" in v;
 function same(current, wanted) {
   if (isRef(wanted)) {
@@ -28024,7 +29327,7 @@ var Planner = class {
     this.updated.push({ path, type: elem.constructor.name, fields });
   }
   existing(owner, field, test) {
-    return list3(owner.elem?.[field]).find(
+    return list5(owner.elem?.[field]).find(
       (e) => !this.claimed.has(e) && test(e)
     );
   }
@@ -28112,7 +29415,7 @@ var Planner = class {
           this.member(node2, "parameters", param, rest2, "/add_parameter");
         }
         if (returnType !== void 0) {
-          const ret = list3(found.parameters).find(
+          const ret = list5(found.parameters).find(
             (x) => x.direction === "return"
           );
           if (ret) this.update(ret, { type: returnType }, `${path}.return`);
@@ -28133,7 +29436,7 @@ var Planner = class {
       }
       return { ref: found._id, elem: found, path };
     }
-    const typed = Object.fromEntries(
+    const typed2 = Object.fromEntries(
       Object.entries(props2).filter(([k]) => OPERATION_FIELDS2.has(k))
     );
     const rest = Object.fromEntries(
@@ -28146,7 +29449,7 @@ var Planner = class {
       body: {
         ref: owner.ref,
         name: name4,
-        ...typed,
+        ...typed2,
         ...Object.keys(rest).length > 0 && { properties: rest },
         ...parameters.length > 0 && { parameters },
         ...returnType !== void 0 && { returnType }
@@ -28243,8 +29546,8 @@ var Planner = class {
 };
 
 // src/patterns/apply.ts
-function fill(text4, names4) {
-  return text4.replace(
+function fill(text5, names4) {
+  return text5.replace(
     /\{([^{}]+)\}/g,
     (all, role) => names4.get(role) ?? all
   );
@@ -28259,14 +29562,14 @@ function resolveBinding(role, binding) {
   if (binding === void 0) {
     return role.optional ? [] : [{ name: role.name }];
   }
-  const list7 = Array.isArray(binding) ? binding : [binding];
-  if (role.cardinality === "1" && list7.length !== 1) {
+  const list10 = Array.isArray(binding) ? binding : [binding];
+  if (role.cardinality === "1" && list10.length !== 1) {
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `bindings.${role.name}: the role takes one element, got ${list7.length}`
+      `bindings.${role.name}: the role takes one element, got ${list10.length}`
     );
   }
-  return list7.map((b) => {
+  return list10.map((b) => {
     if (typeof b !== "string") return { name: b.new.name };
     const elem = tryResolve(b);
     if (!elem) {
@@ -28334,17 +29637,17 @@ function planPattern(pattern2, options) {
   }
   const names4 = new Map(
     [...bound].flatMap(
-      ([role, list7]) => list7.length > 0 ? [[role, list7[0].name]] : []
+      ([role, list10]) => list10.length > 0 ? [[role, list10[0].name]] : []
     )
   );
-  const typeOf3 = (text4) => {
-    if (text4 === void 0) return void 0;
-    const role = ROLE_REF.exec(text4)?.[1];
+  const typeOf4 = (text5) => {
+    if (text5 === void 0) return void 0;
+    const role = ROLE_REF.exec(text5)?.[1];
     if (role !== void 0) {
       const first = bound.get(role)?.[0];
       if (first) return { $ref: first.node.ref };
     }
-    return fill(text4, names4);
+    return fill(text5, names4);
   };
   for (const { name: roleName2 } of pattern2.roles) {
     for (const { node: node2, name: name4, role } of bound.get(roleName2)) {
@@ -28359,9 +29662,9 @@ function planPattern(pattern2, options) {
         else setOnNew(p, node2, props2);
       }
       for (const a of role.attributes ?? [])
-        attribute(p, node2, a, typeOf3, names4);
+        attribute(p, node2, a, typeOf4, names4);
       for (const o of role.operations ?? [])
-        operation(p, node2, o, typeOf3, name4, names4);
+        operation(p, node2, o, typeOf4, name4, names4);
     }
   }
   const edges = [];
@@ -28376,9 +29679,9 @@ function planPattern(pattern2, options) {
     }
   }
   const roles = Object.fromEntries(
-    [...bound].map(([role, list7]) => [
+    [...bound].map(([role, list10]) => [
       role,
-      list7.map((b) => ({
+      list10.map((b) => ({
         ref: b.node.ref,
         path: b.node.path,
         created: b.created
@@ -28388,14 +29691,14 @@ function planPattern(pattern2, options) {
   const ops = [...p.ops];
   let diagram;
   if (options.diagram) {
-    const shown = pattern2.roles.flatMap(
+    const shown2 = pattern2.roles.flatMap(
       (role) => bound.get(role.name).map((b) => ({ node: b.node, type: b.role.type }))
     );
     diagram = classDiagram5(
       ops,
       options.parent,
       options.diagram,
-      shown,
+      shown2,
       edges,
       p.created.length > 0
     );
@@ -28448,18 +29751,18 @@ function setOnNew(p, node2, props2) {
     p.properties.push({ path: node2.path, field, value });
   }
 }
-function attribute(p, owner, a, typeOf3, names4) {
+function attribute(p, owner, a, typeOf4, names4) {
   const { name: name4, type: type2, defaultValue, ...rest } = a;
   const props2 = {
     ...rest,
-    ...type2 !== void 0 && { type: typeOf3(type2) },
+    ...type2 !== void 0 && { type: typeOf4(type2) },
     ...defaultValue !== void 0 && {
       defaultValue: fill(defaultValue, names4)
     }
   };
   p.attribute(owner, name4, props2);
 }
-function operation(p, owner, o, typeOf3, self, names4) {
+function operation(p, owner, o, typeOf4, self, names4) {
   const { name: name4, parameters, returnType, ...props2 } = o;
   const opName = ROLE_REF.test(name4) ? self : fill(name4, names4);
   p.operation(
@@ -28468,10 +29771,10 @@ function operation(p, owner, o, typeOf3, self, names4) {
     props2,
     (parameters ?? []).map((x) => ({
       name: x.name,
-      ...x.type !== void 0 && { type: typeOf3(x.type) },
+      ...x.type !== void 0 && { type: typeOf4(x.type) },
       ...x.direction !== void 0 && { direction: x.direction }
     })),
-    typeOf3(returnType),
+    typeOf4(returnType),
     true
   );
 }
@@ -28504,12 +29807,12 @@ function classDiagram5(ops, parent, target, nodes, edges, changed) {
       body: { type: "UMLClassDiagram", parent: parent._id, name: target.name }
     });
   }
-  const shown = new Set(
+  const shown2 = new Set(
     (target.existing?.ownedViews ?? []).map((v) => v.model)
   );
   let added = 0;
   nodes.forEach(({ node: node2, type: type2 }, i) => {
-    if (node2.elem && shown.has(node2.elem)) return;
+    if (node2.elem && shown2.has(node2.elem)) return;
     added++;
     const as = `pv${i}`;
     ops.push({
@@ -28544,7 +29847,7 @@ function classDiagram5(ops, parent, target, nodes, edges, changed) {
     }
   });
   for (const edge of edges) {
-    if (edge.elem && shown.has(edge.elem)) continue;
+    if (edge.elem && shown2.has(edge.elem)) continue;
     ops.push({ path: "/create_view_of", body: { ref: edge.ref, diagram } });
   }
   if (added > 0 || changed) {
@@ -28711,8 +30014,8 @@ var STATE_TYPES2 = {
   fork: ["UMLPseudostate", "fork"],
   join: ["UMLPseudostate", "join"]
 };
-function calledName(text4) {
-  const name4 = text4.replace(/\(.*$/s, "").trim();
+function calledName(text5) {
+  const name4 = text5.replace(/\(.*$/s, "").trim();
   return /^[A-Za-z_$][\w$]*$/.test(name4) ? name4 : null;
 }
 function attributeProps(a, type2) {
@@ -28910,15 +30213,15 @@ function planModel(spec, options) {
     }
     return found;
   };
-  const typeOf3 = (text4) => {
-    if (text4 === void 0) return void 0;
-    const node2 = classes.get(text4)?.node;
-    return node2 ? { $ref: node2.ref } : text4;
+  const typeOf4 = (text5) => {
+    if (text5 === void 0) return void 0;
+    const node2 = classes.get(text5)?.node;
+    return node2 ? { $ref: node2.ref } : text5;
   };
   const operations = /* @__PURE__ */ new Map();
   for (const { node: node2, spec: c } of classes.values()) {
     for (const a of c.attributes) {
-      p.attribute(node2, a.name, attributeProps(a, typeOf3(a.type)));
+      p.attribute(node2, a.name, attributeProps(a, typeOf4(a.type)));
     }
     for (const o of c.operations) {
       operations.set(
@@ -28929,9 +30232,9 @@ function planModel(spec, options) {
           operationProps(o),
           (o.parameters ?? []).map((x) => ({
             name: x.name,
-            ...x.type !== void 0 && { type: typeOf3(x.type) }
+            ...x.type !== void 0 && { type: typeOf4(x.type) }
           })),
-          typeOf3(o.returnType)
+          typeOf4(o.returnType)
         )
       );
     }
@@ -29045,7 +30348,7 @@ function collaboration(p, c, where2, find) {
   );
   p.refs.set(interaction.path, interaction.ref);
   const lifelines = /* @__PURE__ */ new Map();
-  const typeNames = /* @__PURE__ */ new Map();
+  const typeNames2 = /* @__PURE__ */ new Map();
   for (const part of c.participants) {
     const typeNode = find.classifier(part.type ?? part.name, part.actor);
     if (part.type !== void 0 && !typeNode) {
@@ -29054,7 +30357,7 @@ function collaboration(p, c, where2, find) {
         `${where2}.participants: no classifier ${part.type} for ${part.name}`
       );
     }
-    if (typeNode) typeNames.set(part.name, part.type ?? part.name);
+    if (typeNode) typeNames2.set(part.name, part.type ?? part.name);
     const role = p.attribute(
       collab,
       part.name,
@@ -29073,7 +30376,7 @@ function collaboration(p, c, where2, find) {
   }
   for (const m of c.messages) {
     const called = calledName(m.text);
-    const receiver = typeNames.get(m.to);
+    const receiver = typeNames2.get(m.to);
     const signature2 = called !== null && receiver !== void 0 && m.kind !== "reply" ? find.operation(receiver, called) : void 0;
     p.relationship("UMLMessage", lifelines.get(m.from), lifelines.get(m.to), {
       name: m.text,
@@ -29674,8 +30977,8 @@ function parseModelSpec(input) {
         (a) => parseAttribute(memberText(a))
       ),
       operations: (c.operations ?? []).map((o) => {
-        const text4 = memberText(o);
-        return parseOperation(text4.includes("(") ? text4 : `${text4}()`);
+        const text5 = memberText(o);
+        return parseOperation(text5.includes("(") ? text5 : `${text5}()`);
       }),
       literals: c.literals ?? [],
       ...c.isLeaf !== void 0 && { isLeaf: c.isLeaf },
@@ -29747,7 +31050,7 @@ function parseModelSpec(input) {
             kind: m.kind ?? "sync"
           };
         }
-        const [from, to, text4, kind2] = m;
+        const [from, to, text5, kind2] = m;
         if (!from || !to) {
           throw new ApiError(
             "INVALID_ARGUMENT",
@@ -29763,7 +31066,7 @@ function parseModelSpec(input) {
         return {
           from: multiline(from),
           to: multiline(to),
-          text: text4 ?? "",
+          text: text5 ?? "",
           kind: kind2 ?? "sync"
         };
       });
@@ -29907,8 +31210,8 @@ function clip(value) {
 }
 function summarize2(changes, plan, detail) {
   if (detail === "full") return { changes, plan };
-  const first = (list7) => list7.slice(0, DRY_RUN_PATHS);
-  const rest = (list7) => Math.max(0, list7.length - DRY_RUN_PATHS);
+  const first = (list10) => list10.slice(0, DRY_RUN_PATHS);
+  const rest = (list10) => Math.max(0, list10.length - DRY_RUN_PATHS);
   const omitted = {
     created: rest(changes.created),
     updated: rest(changes.updated),
@@ -30068,8 +31371,8 @@ function buildModelEndpoint(endpoints2) {
 }
 function receiverOf(lifeline) {
   if (!lifeline) return null;
-  const typed = lifeline.represent?.type;
-  if (typed && typeof typed === "object") return typed;
+  const typed2 = lifeline.represent?.type;
+  if (typed2 && typeof typed2 === "object") return typed2;
   const named3 = app.repository.getInstancesOf("UMLClassifier").filter(
     (c) => c.name === lifeline.name && (c instanceof type.UMLClass || c instanceof type.UMLInterface)
   );
@@ -30085,11 +31388,11 @@ function messagesOn(diagram) {
   }
   return diagram.ownedViews.filter((v) => v.model instanceof type.UMLMessage).map((v) => v.model);
 }
-function argumentsOf(text4) {
-  const open = text4.indexOf("(");
-  const close = text4.lastIndexOf(")");
+function argumentsOf(text5) {
+  const open = text5.indexOf("(");
+  const close = text5.lastIndexOf(")");
   if (open < 0 || close < open) return [];
-  return text4.slice(open + 1, close).split(",").map((a) => a.trim()).filter(Boolean).map((a) => {
+  return text5.slice(open + 1, close).split(",").map((a) => a.trim()).filter(Boolean).map((a) => {
     const colon = a.indexOf(":");
     return colon < 0 ? { name: a } : { name: a.slice(0, colon).trim(), type: a.slice(colon + 1).trim() };
   });
@@ -30298,7 +31601,7 @@ var listPatterns = defineEndpoint({
     )
   }),
   handle: (input) => {
-    const list7 = patterns().filter(
+    const list10 = patterns().filter(
       (p) => input.category === void 0 || p.category === input.category
     ).map((p) => ({
       name: p.name,
@@ -30310,7 +31613,7 @@ var listPatterns = defineEndpoint({
       variants: Object.keys(p.variants ?? {}),
       sequence: p.sequence !== void 0
     }));
-    return { count: list7.length, patterns: list7 };
+    return { count: list10.length, patterns: list10 };
   }
 });
 var describePattern = defineEndpoint({
@@ -30486,9 +31789,9 @@ function applyPatternEndpoint(endpoints2) {
         pattern: pattern2.name,
         ...input.variant !== void 0 && { variant: input.variant },
         roles: Object.fromEntries(
-          Object.entries(plan.roles).map(([role, list7]) => [
+          Object.entries(plan.roles).map(([role, list10]) => [
             role,
-            list7.map((b) => ({
+            list10.map((b) => ({
               _id: id3(b.ref),
               path: b.path,
               created: b.created
@@ -30627,7 +31930,7 @@ function withoutDuplicates(found) {
   const kept = [];
   for (const d of found) {
     const ids2 = Object.values(d.roles).flatMap(
-      (list7) => list7.map((e) => e._id)
+      (list10) => list10.map((e) => e._id)
     );
     const covered = kept.some(
       (k) => k.d.pattern === d.pattern && ids2.every((id2) => k.ids.has(id2))
@@ -30827,7 +32130,7 @@ var UML_RULES = {
   U012: "naming",
   U013: "pattern-consistency"
 };
-var DEFAULT_SEVERITY = {
+var DEFAULT_SEVERITY2 = {
   U001: "warning",
   U002: "info",
   U003: "warning",
@@ -30879,7 +32182,7 @@ function compileNaming(given) {
     return [[k, pattern2, compilePattern(pattern2, `naming.${k}`)]];
   });
 }
-var list4 = (value) => Array.isArray(value) ? value : [];
+var list6 = (value) => Array.isArray(value) ? value : [];
 var quoted2 = (e) => !e ? "nothing" : typeof e.name === "string" && e.name ? `"${e.name}"` : e.constructor.name;
 function within4(elem, scope) {
   for (let e = elem; e; e = e._parent) {
@@ -30913,8 +32216,8 @@ var Lint = class {
     });
   }
 };
-function targetsOf(elem, ...typeNames) {
-  return app.repository.getRelationshipsOf(elem).filter((r) => typeNames.includes(r.constructor.name) && r.target === elem);
+function targetsOf(elem, ...typeNames2) {
+  return app.repository.getRelationshipsOf(elem).filter((r) => typeNames2.includes(r.constructor.name) && r.target === elem);
 }
 function associations(l) {
   for (const a of l.all("UMLAssociation")) {
@@ -30942,7 +32245,7 @@ function associations(l) {
 }
 function attributes(l) {
   for (const attr of l.all("UMLAttribute")) {
-    if (!list4(attr._parent?.attributes).includes(attr)) continue;
+    if (!list6(attr._parent?.attributes).includes(attr)) continue;
     if (attr.type) continue;
     l.add(
       "U003",
@@ -31011,7 +32314,7 @@ function operationsOf2(cls, seen = /* @__PURE__ */ new Set()) {
   seen.add(cls);
   const parents = app.repository.getRelationshipsOf(cls).filter((r) => r instanceof type.UMLGeneralization && r.source === cls).map((r) => r.target);
   return [
-    ...list4(cls.operations),
+    ...list6(cls.operations),
     ...parents.flatMap((p) => operationsOf2(p, seen))
   ];
 }
@@ -31078,7 +32381,7 @@ function stateMachines(l) {
 }
 function entities(l) {
   for (const e of l.all("ERDEntity")) {
-    if (list4(e.columns).some((c) => c.primaryKey)) continue;
+    if (list6(e.columns).some((c) => c.primaryKey)) continue;
     l.add(
       "U011",
       e,
@@ -31114,12 +32417,12 @@ function patternConsistency(l) {
   for (const d of detectIn(l.scope, patterns(), PATTERN_CONFIDENCE)) {
     const pattern2 = withVariant(findPattern(d.pattern), d.variant);
     for (const { check: check2, element } of violations(pattern2, d.binding)) {
-      const shown = JSON.stringify(check2.equals);
+      const shown2 = JSON.stringify(check2.equals);
       l.add(
         "U013",
         element,
         `${pattern2.name} (${check2.role}): ${check2.message}`,
-        `Set ${check2.property} to ${shown}: /update_element {ref: '${pathOf(element)}', field: '${check2.property}', value: ${shown}}, or /apply_pattern {pattern: '${pattern2.name}'} with the roles bound.`
+        `Set ${check2.property} to ${shown2}: /update_element {ref: '${pathOf(element)}', field: '${check2.property}', value: ${shown2}}, or /apply_pattern {pattern: '${pattern2.name}'} with the roles bound.`
       );
     }
   }
@@ -31151,7 +32454,7 @@ function severities(given) {
     if (setting === "off") continue;
     severity.set(
       id2,
-      setting ?? (strict && id2 === "U012" ? "error" : DEFAULT_SEVERITY[id2])
+      setting ?? (strict && id2 === "U012" ? "error" : DEFAULT_SEVERITY2[id2])
     );
   }
   return severity;
@@ -31251,13 +32554,13 @@ function ancestry(name4) {
 function ownAttributes(name4) {
   const attrs = (meta[name4].attributes ?? []).filter((a) => !a.transient).map((a) => a.name);
   if (attrs.length === 0) return "";
-  const shown = attrs.slice(0, 6).join(", ");
-  return `; own attributes: ${shown}${attrs.length > 6 ? ", ..." : ""}`;
+  const shown2 = attrs.slice(0, 6).join(", ");
+  return `; own attributes: ${shown2}${attrs.length > 6 ? ", ..." : ""}`;
 }
 function relationshipText(model) {
   return relationshipKind(model) === "directed" ? "directed relationship (source -> target)" : "undirected relationship (end1 -- end2)";
 }
-var article = (text4) => /^[aeiou]/.test(text4) ? "an" : "a";
+var article = (text5) => /^[aeiou]/.test(text5) ? "an" : "a";
 function groupDiagrams(groupId) {
   const group = app.toolbox.groups[groupId];
   if (!group) return "";
@@ -31724,7 +33027,7 @@ function manifest(endpoints2) {
   }
   return manifestCache.entries;
 }
-var catalogue = null;
+var catalogue2 = null;
 function cached2(name4, compute) {
   const key2 = [
     meta,
@@ -31734,11 +33037,11 @@ function cached2(name4, compute) {
     Object.keys(app.toolbox.items).length,
     app.factory.getModelAndViewIds().length
   ];
-  if (!catalogue || catalogue.key.some((k, i) => k !== key2[i])) {
-    catalogue = { key: key2, sections: /* @__PURE__ */ new Map() };
+  if (!catalogue2 || catalogue2.key.some((k, i) => k !== key2[i])) {
+    catalogue2 = { key: key2, sections: /* @__PURE__ */ new Map() };
   }
-  if (!catalogue.sections.has(name4)) catalogue.sections.set(name4, compute());
-  return catalogue.sections.get(name4);
+  if (!catalogue2.sections.has(name4)) catalogue2.sections.set(name4, compute());
+  return catalogue2.sections.get(name4);
 }
 function introspectEndpoint(endpoints2) {
   return defineEndpoint({
@@ -32821,9 +34124,9 @@ function labelsFor(diagram, mode, scale) {
   const element = document.createElement("canvas");
   const context = element.getContext("2d");
   const canvas = new (graphics()).Canvas(context);
-  const measure2 = (text4) => {
+  const measure2 = (text5) => {
     context.font = `${LABEL.font}px sans-serif`;
-    return context.measureText(text4).width;
+    return context.measureText(text5).width;
   };
   const box3 = (v) => v.getBoundingBox(
     canvas
@@ -32838,14 +34141,14 @@ function labelsFor(diagram, mode, scale) {
   ];
   for (const [view, edge] of views) {
     const model = view.model;
-    const text4 = mode === "ids" ? model._id : alias(model);
+    const text5 = mode === "ids" ? model._id : alias(model);
     const r = box3(view);
     const label4 = {
-      text: text4,
+      text: text5,
       ref: model._id,
       x: Math.round(((edge ? (r.x1 + r.x2) / 2 : r.x1) - left) * scale),
       y: Math.round(((edge ? (r.y1 + r.y2) / 2 : r.y1) - top) * scale),
-      width: Math.ceil((measure2(text4) + 2 * LABEL.padding) * scale),
+      width: Math.ceil((measure2(text5) + 2 * LABEL.padding) * scale),
       height: Math.ceil(LABEL.height * scale)
     };
     while (placed.some((p) => overlaps2(p, label4))) label4.y += label4.height + 1;
@@ -32870,7 +34173,7 @@ function paint(context, labels, scale) {
     );
   }
 }
-var xml = (text4) => text4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+var xml = (text5) => text5.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 function svgLabels(svg, labels) {
   const marks = labels.map(
     (l) => `<rect x="${l.x}" y="${l.y}" width="${l.width}" height="${l.height}" fill="${LABEL.fill}" stroke="${LABEL.line}"/><text x="${l.x + LABEL.padding}" y="${l.y + LABEL.height - 3}" font-family="sans-serif" font-size="${LABEL.font}" fill="${LABEL.text}">${xml(l.text)}</text>`
@@ -32981,8 +34284,8 @@ function renderSvg(diagram, background) {
   };
 }
 function renderDrawio(diagram) {
-  const { text: text4, width, height } = toDrawio(diagram, profile());
-  return { data: Buffer.from(text4, "utf-8"), width, height };
+  const { text: text5, width, height } = toDrawio(diagram, profile());
+  return { data: Buffer.from(text5, "utf-8"), width, height };
 }
 var absolutePath = (description) => doc(
   string2().check(refine((p) => (0, import_node_path3.isAbsolute)(p), "must be an absolute path")),
@@ -33998,10 +35301,10 @@ function texts(elem) {
     )
   ];
 }
-function snippet(text4, at, length2) {
+function snippet(text5, at, length2) {
   const from = Math.max(0, at - 40);
-  const to = Math.min(text4.length, at + length2 + 40);
-  return `${from > 0 ? "\u2026" : ""}${text4.slice(from, to).replace(/\s+/g, " ")}${to < text4.length ? "\u2026" : ""}`;
+  const to = Math.min(text5.length, at + length2 + 40);
+  return `${from > 0 ? "\u2026" : ""}${text5.slice(from, to).replace(/\s+/g, " ")}${to < text5.length ? "\u2026" : ""}`;
 }
 var quickFind = defineEndpoint({
   path: "/quick_find",
@@ -34313,20 +35616,20 @@ function setStyleProfileEndpoint(endpoints2) {
       const next = parseProfile(
         input.patch === void 0 ? base : mergePatch(base, input.patch)
       );
-      const text4 = JSON.stringify(next);
-      const changed = String(tag?.value ?? "") !== text4;
+      const text5 = JSON.stringify(next);
+      const changed = String(tag?.value ?? "") !== text5;
       if (changed) {
         await batchRunner.run(endpoints2(), [
           tag ? {
             path: "/update_element",
-            body: { ref: tag._id, field: "value", value: text4 }
+            body: { ref: tag._id, field: "value", value: text5 }
           } : {
             path: "/add_tag",
             body: {
               ref: project._id,
               name: PROFILE_TAG,
               kind: "string",
-              value: text4,
+              value: text5,
               hidden: true
             }
           }
@@ -34344,8 +35647,8 @@ function walk(root, visit) {
     "operations",
     "literals"
   ]) {
-    const list7 = root[field];
-    if (Array.isArray(list7)) for (const e of list7) walk(e, visit);
+    const list10 = root[field];
+    if (Array.isArray(list10)) for (const e of list10) walk(e, visit);
   }
 }
 function kindOf3(elem) {
@@ -34663,20 +35966,37 @@ var SECTION_HOMES = {
   deployment: "Deployment"
 };
 var SHARED_TYPES = /* @__PURE__ */ new Set(["UMLNode", "UMLArtifact"]);
+var C4_MODEL_TYPES = {
+  person: "C4Person",
+  system: "C4SoftwareSystem",
+  container: "C4Container",
+  component: "C4Component"
+};
 function bindShared(d, home) {
+  const held = owned(home);
+  if (d.kind === "c4") {
+    const spec2 = d.spec;
+    for (const el of spec2.elements) {
+      const found = held.find(
+        (e) => e.constructor.name === C4_MODEL_TYPES[el.type] && e.name === el.name
+      );
+      if (found) d.bind.set(el.id ?? el.name, found);
+    }
+    return;
+  }
   const spec = d.spec;
   const names4 = /* @__PURE__ */ new Set([...spec.nodes.map((n) => n.name), ...spec.artifacts]);
-  for (const e of owned(home)) {
+  for (const e of held) {
     const name4 = String(e.name);
     if (SHARED_TYPES.has(e.constructor.name) && names4.has(name4)) {
       d.bind.set(name4, e);
     }
   }
 }
-var list5 = (value) => Array.isArray(value) ? value : [];
+var list7 = (value) => Array.isArray(value) ? value : [];
 var is = (e, typeName5) => !!e && e.constructor.name === typeName5;
 function owned(root) {
-  return [root, ...list5(root.ownedElements).flatMap(owned)];
+  return [root, ...list7(root.ownedElements).flatMap(owned)];
 }
 function modelOf2(scope) {
   for (let e = scope; e; e = e._parent) {
@@ -34685,7 +36005,7 @@ function modelOf2(scope) {
   return null;
 }
 function viewsOf2(model) {
-  const tag = list5(model?.tags).find((t) => t.name === VIEWS_TAG);
+  const tag = list7(model?.tags).find((t) => t.name === VIEWS_TAG);
   if (!tag) return {};
   try {
     return JSON.parse(String(tag.value));
@@ -34731,11 +36051,11 @@ var CLASS_RELATIONS = /* @__PURE__ */ new Set([
   "UMLInterfaceRealization",
   "UMLDependency"
 ]);
-function relationsAmong(shown, types) {
-  const set = new Set(shown);
+function relationsAmong(shown2, types) {
+  const set = new Set(shown2);
   const seen = /* @__PURE__ */ new Set();
   const out = [];
-  for (const e of shown) {
+  for (const e of shown2) {
     for (const r of app.repository.getRelationshipsOf(e)) {
       if (seen.has(r) || !types.has(r.constructor.name)) continue;
       const [a, b] = ends3(r);
@@ -34747,16 +36067,16 @@ function relationsAmong(shown, types) {
   return out;
 }
 function keys(elements) {
-  const count = /* @__PURE__ */ new Map();
+  const count2 = /* @__PURE__ */ new Map();
   for (const e of elements) {
-    count.set(String(e.name), (count.get(String(e.name)) ?? 0) + 1);
+    count2.set(String(e.name), (count2.get(String(e.name)) ?? 0) + 1);
   }
   const out = /* @__PURE__ */ new Map();
   for (const e of elements) {
     const name4 = String(e.name);
     out.set(
       e,
-      count.get(name4) > 1 ? `${name4} (${String(e._parent.name)})` : name4
+      count2.get(name4) > 1 ? `${name4} (${String(e._parent.name)})` : name4
     );
   }
   return out;
@@ -34769,6 +36089,7 @@ function classDiagram6(name4, parent, classes) {
   for (const [e, k] of key2) bind.set(k, e);
   return {
     kind: "class",
+    viewpoint: "code",
     name: name4,
     parent,
     spec: {
@@ -34778,7 +36099,7 @@ function classDiagram6(name4, parent, classes) {
     bind,
     bindEdges: new Map(relations.map((r, i) => [i, r])),
     accessorsOnly: classes.filter((c) => {
-      const ops = list5(c.operations);
+      const ops = list7(c.operations);
       return ops.length > 0 && ops.every((o) => ACCESSOR.test(String(o.name)));
     })
   };
@@ -34806,7 +36127,7 @@ function classDiagrams(s) {
         return p ? [p] : [];
       });
       const exclude = new Set(v.exclude ?? []);
-      const shown = [
+      const shown2 = [
         ...classes.filter(
           (c) => contexts.includes(c._parent) && !exclude.has(String(c.name))
         ),
@@ -34815,14 +36136,14 @@ function classDiagrams(s) {
           return c ? [c] : [];
         })
       ].filter((c, i, all) => all.indexOf(c) === i);
-      return split(v.name, shown, max).map(
+      return split(v.name, shown2, max).map(
         (part) => classDiagram6(part.name, s.model, part.items)
       );
     });
   }
   const groups = [
     [s.model, classes.filter((c) => c._parent === s.model)],
-    ...packages.map((p) => [
+    ...packages.filter((p) => p !== s.model).map((p) => [
       p,
       classes.filter((c) => c._parent === p)
     ])
@@ -34833,10 +36154,10 @@ function classDiagrams(s) {
         (e) => !!e && classes.includes(e) && !own2.includes(e)
       )
     ) : [];
-    const shown = [...own2, ...neighbours2].filter(
+    const shown2 = [...own2, ...neighbours2].filter(
       (c, i, all) => all.indexOf(c) === i
     );
-    return split(String(owner.name), shown, max).map(
+    return split(String(owner.name), shown2, max).map(
       (part) => classDiagram6(part.name, owner, part.items)
     );
   });
@@ -34852,6 +36173,7 @@ function packageOverview(s) {
   return [
     {
       kind: "package",
+      viewpoint: "component",
       name: `${String(s.model.name)} packages`,
       parent: s.model,
       spec: {
@@ -34880,10 +36202,10 @@ var SORTS = {
 function sequenceDiagrams(s) {
   return s.all.filter((e) => is(e, "UMLInteraction")).flatMap((interaction) => {
     const collab = interaction._parent;
-    const lifelines = list5(interaction.participants);
-    const messages2 = list5(interaction.messages);
+    const lifelines = list7(interaction.participants);
+    const messages2 = list7(interaction.messages);
     const ranges = s.views.fragments?.[String(collab.name)] ?? [];
-    const fragments = list5(interaction.fragments);
+    const fragments = list7(interaction.fragments);
     const bind = new Map(
       lifelines.map((l) => [String(l.name), l])
     );
@@ -34893,6 +36215,7 @@ function sequenceDiagrams(s) {
     return [
       {
         kind: "sequence",
+        viewpoint: "runtime",
         name: String(collab.name),
         parent: interaction,
         spec: {
@@ -34917,16 +36240,17 @@ function sequenceDiagrams(s) {
 function communicationDiagrams(s) {
   return s.all.filter((e) => is(e, "UMLInteraction")).flatMap((interaction) => {
     const collab = interaction._parent;
-    const lifelines = list5(interaction.participants).filter(
+    const lifelines = list7(interaction.participants).filter(
       (l) => is(l, "UMLLifeline")
     );
-    const shown = new Set(lifelines);
-    const messages2 = list5(interaction.messages).filter(
-      (m) => shown.has(m.source) && shown.has(m.target) && m.source !== m.target
+    const shown2 = new Set(lifelines);
+    const messages2 = list7(interaction.messages).filter(
+      (m) => shown2.has(m.source) && shown2.has(m.target) && m.source !== m.target
     );
     return [
       {
         kind: "communication",
+        viewpoint: "runtime",
         name: `${String(collab.name)} communication`,
         parent: interaction,
         spec: {
@@ -34957,7 +36281,7 @@ function stateDiagrams(s) {
     const bind = /* @__PURE__ */ new Map();
     const keyOf = /* @__PURE__ */ new Map();
     const visit = (region, parent) => {
-      for (const v of list5(region.vertices)) {
+      for (const v of list7(region.vertices)) {
         const pseudo = is(v, "UMLPseudostate") ? PSEUDO[String(v.kind)] ?? "choice" : is(v, "UMLFinalState") ? "final" : "state";
         const key2 = `s${keyOf.size}`;
         keyOf.set(v, key2);
@@ -34968,21 +36292,22 @@ function stateDiagrams(s) {
           type: pseudo,
           ...parent !== void 0 && { parent }
         });
-        for (const r of list5(v.regions)) visit(r, key2);
+        for (const r of list7(v.regions)) visit(r, key2);
       }
-      transitions.push(...list5(region.transitions));
+      transitions.push(...list7(region.transitions));
     };
-    for (const r of list5(machine.regions)) visit(r, void 0);
-    const shown = transitions.filter(
+    for (const r of list7(machine.regions)) visit(r, void 0);
+    const shown2 = transitions.filter(
       (t) => keyOf.has(t.source) && keyOf.has(t.target)
     );
     return {
       kind: "statemachine",
+      viewpoint: "lifecycle",
       name: String(machine.name),
       parent: machine,
       spec: {
         states,
-        transitions: shown.map((t) => ({
+        transitions: shown2.map((t) => ({
           from: keyOf.get(t.source),
           to: keyOf.get(t.target),
           ...t.name ? { trigger: String(t.name) } : {},
@@ -34990,7 +36315,7 @@ function stateDiagrams(s) {
         }))
       },
       bind,
-      bindEdges: new Map(shown.map((t, i) => [i, t])),
+      bindEdges: new Map(shown2.map((t, i) => [i, t])),
       accessorsOnly: []
     };
   });
@@ -35002,16 +36327,17 @@ var USECASE_RELATIONS3 = {
   UMLGeneralization: "generalization"
 };
 function usecaseDiagram2(name4, parent, actors, cases, subject, systemOf) {
-  const shown = [...actors, ...cases];
+  const shown2 = [...actors, ...cases];
   const outside = subject ? cases.filter((u) => systemOf(u) !== subject.name) : [];
   const relations = relationsAmong(
-    shown,
+    shown2,
     new Set(Object.keys(USECASE_RELATIONS3))
   );
-  const bind = new Map(shown.map((e) => [String(e.name), e]));
+  const bind = new Map(shown2.map((e) => [String(e.name), e]));
   if (subject) bind.set(String(subject.name), subject);
   return {
     kind: "usecase",
+    viewpoint: "actors-goals",
     name: name4,
     parent,
     spec: {
@@ -35042,21 +36368,21 @@ function usecaseDiagrams(s) {
   if (cases.length === 0) return [];
   const named3 = (pool, names4 = []) => names4.flatMap((n) => pool.filter((e) => e.name === n).slice(0, 1));
   const systemOf = (u) => s.views.subjects?.[String(u.name)];
-  const subjectOf = (shown) => {
-    const count = /* @__PURE__ */ new Map();
-    for (const u of shown) {
+  const subjectOf = (shown2) => {
+    const count2 = /* @__PURE__ */ new Map();
+    for (const u of shown2) {
       const name4 = systemOf(u);
-      if (name4 !== void 0) count.set(name4, (count.get(name4) ?? 0) + 1);
+      if (name4 !== void 0) count2.set(name4, (count2.get(name4) ?? 0) + 1);
     }
-    const [top] = [...count].sort((a, b) => b[1] - a[1]);
+    const [top] = [...count2].sort((a, b) => b[1] - a[1]);
     return top && subjects.find((x) => x.name === top[0]);
   };
-  const actorsOf = (shown) => actors.filter(
-    (a) => relationsAmong([a, ...shown], /* @__PURE__ */ new Set(["UMLAssociation"])).length > 0
+  const actorsOf = (shown2) => actors.filter(
+    (a) => relationsAmong([a, ...shown2], /* @__PURE__ */ new Set(["UMLAssociation"])).length > 0
   );
   if (s.views.useCaseViews) {
     return s.views.useCaseViews.map((v) => {
-      const shown = named3(cases, v.cases);
+      const shown2 = named3(cases, v.cases);
       const people = named3(actors, [
         ...v.actor !== void 0 ? [v.actor] : [],
         ...v.actors ?? [],
@@ -35066,8 +36392,8 @@ function usecaseDiagrams(s) {
         v.name,
         s.model,
         people,
-        shown,
-        subjectOf(shown),
+        shown2,
+        subjectOf(shown2),
         systemOf
       );
     });
@@ -35078,12 +36404,12 @@ function usecaseDiagrams(s) {
     groups.set(group, [...groups.get(group) ?? [], u]);
   }
   return [...groups].map(
-    ([group, shown]) => usecaseDiagram2(
+    ([group, shown2]) => usecaseDiagram2(
       group || `${String(s.model.name)} use cases`,
       s.model,
-      actorsOf(shown),
-      shown,
-      subjectOf(shown),
+      actorsOf(shown2),
+      shown2,
+      subjectOf(shown2),
       systemOf
     )
   );
@@ -35100,15 +36426,15 @@ var size = (t) => 1 + (t.children ?? []).reduce((n, c) => n + size(c), 0);
 function splitTree(root, max) {
   if (size(root) <= max) return [{ name: root.name, root }];
   const parts = [];
-  let count = 1;
+  let count2 = 1;
   for (const branch of root.children ?? []) {
     const last = parts.at(-1);
-    if (last && count + size(branch) <= max) {
+    if (last && count2 + size(branch) <= max) {
       last.push(branch);
-      count += size(branch);
+      count2 += size(branch);
     } else {
       parts.push([branch]);
-      count = 1 + size(branch);
+      count2 = 1 + size(branch);
     }
   }
   return parts.map((children, i) => ({
@@ -35116,10 +36442,95 @@ function splitTree(root, max) {
     root: { ...root, children }
   }));
 }
-function sectionDiagrams(s) {
+var RELATION_FIELDS = ["from", "to", "label", "technology", "description"];
+var keyOfC4 = (e) => e.id ?? e.name;
+function c4Diagrams(s, plain) {
+  const c = s.views.components;
+  if (!c) return [];
+  const name4 = c.name ?? `${String(s.model.name)} containers`;
+  const relations = (c.relations ?? []).map(
+    (r) => tuple(r, RELATION_FIELDS)
+  );
+  const parts = c.elements.filter((e) => e.type === "component");
+  const rest = c.elements.filter((e) => e.type !== "component");
+  const view = (viewpoint, title, elements) => {
+    const keys2 = new Set(elements.map(keyOfC4));
+    return {
+      ...plain("c4", title, {
+        elements,
+        relations: elements.length === c.elements.length ? relations : relations.filter((r) => keys2.has(r.from) && keys2.has(r.to))
+      }),
+      viewpoint,
+      home: SECTION_HOMES.c4
+    };
+  };
+  if (parts.length === 0) return [view("container", name4, rest)];
+  if (rest.length === 0) return [view("component", name4, parts)];
+  return [
+    view("container", name4, rest),
+    view("component", `${name4} components`, parts)
+  ];
+}
+var SYSTEM_KEY = "system in scope";
+function contextDiagram(s, plain) {
+  const c = s.views.components;
+  if (!c) return [];
+  const own2 = c.elements.filter(
+    (e) => e.type === "system" && e.external !== true
+  );
+  const system = own2[0] ?? {
+    id: SYSTEM_KEY,
+    name: String(s.model.name),
+    type: "system"
+  };
+  const inside3 = new Set(
+    c.elements.filter((e) => e.type === "container" || e.type === "component").map(keyOfC4)
+  );
+  const elements = [
+    ...c.elements.filter((e) => e.type === "person"),
+    ...own2.length > 0 ? [] : [system],
+    ...c.elements.filter((e) => e.type === "system")
+  ];
+  const merged = /* @__PURE__ */ new Map();
+  for (const r of (c.relations ?? []).map(
+    (r2) => tuple(r2, RELATION_FIELDS)
+  )) {
+    const at = (k) => inside3.has(k) ? keyOfC4(system) : k;
+    const [from, to] = [at(r.from), at(r.to)];
+    if (from === to) continue;
+    const key2 = `${from}|${to}`;
+    const known = merged.get(key2) ?? { ...r, from, to, techs: [] };
+    if (r.technology && !known.techs.includes(r.technology)) {
+      known.techs.push(r.technology);
+    }
+    merged.set(key2, known);
+  }
+  const relations = [...merged.values()].map(({ techs, ...r }) => ({
+    ...r,
+    ...techs.length > 0 && { technology: techs.join(", ") }
+  }));
+  return [
+    {
+      ...plain("c4", `${String(s.model.name)} context`, {
+        elements,
+        relations
+      }),
+      viewpoint: "context",
+      home: SECTION_HOMES.c4
+    }
+  ];
+}
+var SECTION_VIEWPOINTS = {
+  activity: "runtime",
+  erd: "data",
+  deployment: "deployment",
+  mindmap: "actors-goals"
+};
+function sectionDiagrams(s, context) {
   const v = s.views;
   const plain = (kind2, name4, spec) => ({
     kind: kind2,
+    viewpoint: SECTION_VIEWPOINTS[kind2] ?? "container",
     name: name4,
     parent: s.model,
     spec,
@@ -35149,27 +36560,8 @@ function sectionDiagrams(s) {
         )
       })
     ] : [],
-    ...v.components ? [
-      {
-        ...plain(
-          "c4",
-          v.components.name ?? `${String(s.model.name)} containers`,
-          {
-            elements: v.components.elements,
-            relations: (v.components.relations ?? []).map(
-              (r) => tuple(r, [
-                "from",
-                "to",
-                "label",
-                "technology",
-                "description"
-              ])
-            )
-          }
-        ),
-        home: SECTION_HOMES.c4
-      }
-    ] : [],
+    ...context ? contextDiagram(s, plain) : [],
+    ...c4Diagrams(s, plain),
     ...(v.deployments ?? []).map((d) => ({
       home: SECTION_HOMES.deployment,
       ...plain("deployment", d.name, {
@@ -35188,7 +36580,7 @@ function sectionDiagrams(s) {
     ) : []
   ];
 }
-function derive(scope, profile2, kinds) {
+function derive(scope, profile2, kinds, options = {}) {
   const model = modelOf2(scope) ?? scope;
   const s = { model, all: owned(scope), views: viewsOf2(model), profile: profile2 };
   return [
@@ -35197,9 +36589,49 @@ function derive(scope, profile2, kinds) {
     ...sequenceDiagrams(s),
     ...usecaseDiagrams(s),
     ...stateDiagrams(s),
-    ...sectionDiagrams(s),
+    ...sectionDiagrams(s, options.context === true),
     ...kinds?.has("communication") ? communicationDiagrams(s) : []
   ].filter((d) => !kinds || kinds.has(d.kind));
+}
+function classNeighbourhood(cls) {
+  const related = app.repository.getRelationshipsOf(cls).filter((r) => CLASS_RELATIONS.has(r.constructor.name)).flatMap(ends3).filter(
+    (e) => !!e && e !== cls && CLASSIFIERS2.includes(e.constructor.name)
+  );
+  const shown2 = [cls, ...related].filter((c, i, all) => all.indexOf(c) === i);
+  return classDiagram6(
+    `${String(cls.name)} and its collaborators`,
+    cls._parent,
+    shown2
+  );
+}
+var treeSize = (t) => t ? size(t) : 0;
+function countNodes(d) {
+  const spec = d.spec;
+  const n = (field) => spec[field]?.length ?? 0;
+  switch (d.kind) {
+    case "sequence":
+      return { nodes: n("participants"), lifelines: n("participants") };
+    case "communication":
+      return { nodes: n("nodes"), lifelines: n("nodes") };
+    case "class":
+      return { nodes: n("classes"), lifelines: 0 };
+    case "package":
+      return { nodes: n("packages"), lifelines: 0 };
+    case "usecase":
+      return { nodes: n("actors") + n("useCases"), lifelines: 0 };
+    case "statemachine":
+      return { nodes: n("states"), lifelines: 0 };
+    case "erd":
+      return { nodes: n("entities"), lifelines: 0 };
+    case "c4":
+      return { nodes: n("elements"), lifelines: 0 };
+    case "deployment":
+      return { nodes: n("nodes") + n("artifacts"), lifelines: 0 };
+    case "mindmap":
+      return { nodes: treeSize(spec.root), lifelines: 0 };
+    default:
+      return { nodes: n("nodes"), lifelines: 0 };
+  }
 }
 
 // src/handlers/oo.ts
@@ -35217,8 +36649,35 @@ var derivedSchema = () => object({
   ops: optional(doc(int(), "With dryRun: the ops applying it runs.")),
   quality: optional(
     object({ score: int(), rating: int(), passes: boolean2() })
+  ),
+  viewpoint: optional(
+    doc(_enum(VIEWPOINT_NAMES), "The viewpoint it is a view of.")
+  ),
+  conforms: optional(
+    doc(
+      boolean2(),
+      "It keeps to its viewpoint: no error or warning of /viewpoint_lint."
+    )
   )
 });
+var derivedCountsSchema = () => object({
+  diagrams: int(),
+  created: int(),
+  updated: int(),
+  unchanged: int(),
+  deleted: int()
+});
+var derivedQualitySchema = () => optional(
+  doc(
+    object({
+      min: int(),
+      mean: int(),
+      passing: int(),
+      failing: array(string2())
+    }),
+    "Over the diagrams built: lowest and mean score, how many reach their threshold, which do not."
+  )
+);
 function hideAccessors(diagram, classes) {
   const views = diagram.ownedViews.filter(
     (v) => classes.includes(v.model) && typeof v.suppressOperations === "boolean" && !v.suppressOperations
@@ -35230,10 +36689,104 @@ function hideAccessors(diagram, classes) {
   builder.end();
   app.repository.doOperation(builder.getOperation());
 }
+async function buildDerived(derived, endpoints2, run) {
+  const one2 = async (d) => {
+    const home = d.home === void 0 ? null : homeOf(d, !run.dryRun);
+    if (home) bindShared(d, home);
+    const body = {
+      kind: d.kind,
+      spec: d.spec,
+      name: d.name,
+      parent: (home ?? d.parent)._id,
+      upsert: true,
+      prune: true,
+      // Elements a section draws are its model's own; another model's
+      // namesake is not shown in their place.
+      reuse: false,
+      ...run.dryRun && { dryRun: true }
+    };
+    try {
+      return await buildDiagram(body, endpoints2, {
+        bind: d.bind,
+        bindEdges: d.bindEdges,
+        pruneViewsOnly: true,
+        opsOnly: true,
+        mark: { viewpoint: d.viewpoint }
+      });
+    } catch (err) {
+      throw naming2(`derive_diagrams: ${d.kind} diagram ${d.name}`, err);
+    }
+  };
+  const results = [];
+  const all = async () => {
+    for (const d of derived) {
+      const built = await one2(d);
+      if (!run.dryRun && d.bind.size > 0 && d.home && built.created > 0) {
+        const again = await one2(d);
+        built.deleted = built.deleted + again.deleted;
+      }
+      if (!run.dryRun && run.profile.policy.hideGetters && d.kind === "class") {
+        hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
+      }
+      results.push(built);
+    }
+  };
+  if (run.dryRun) await all();
+  else await oneStep("derive diagrams", all);
+  const diagrams = derived.map((d, i) => {
+    const b = results[i];
+    return {
+      kind: d.kind,
+      name: d.name,
+      diagram: b.diagram._id,
+      created: b.created,
+      updated: b.updated,
+      unchanged: b.unchanged,
+      ...b.deleted !== void 0 && { deleted: b.deleted },
+      ...b.plan && { ops: b.plan.ops.length },
+      ...b.quality && {
+        quality: {
+          score: b.quality.score,
+          rating: b.quality.rating,
+          passes: b.quality.passes
+        }
+      },
+      viewpoint: d.viewpoint,
+      ...b.viewpoint && { conforms: b.viewpoint.conforms }
+    };
+  });
+  const sum = (f) => diagrams.reduce((n, d) => n + f(d), 0);
+  const scored = diagrams.filter((d) => d.quality);
+  return {
+    diagrams,
+    counts: {
+      diagrams: diagrams.length,
+      created: sum((d) => d.created),
+      updated: sum((d) => d.updated),
+      unchanged: sum((d) => d.unchanged),
+      // Every derived build prunes, so each answers what it deleted.
+      deleted: sum((d) => d.deleted)
+    },
+    ...scored.length > 0 && {
+      quality: {
+        min: Math.min(...scored.map((d) => d.quality.score)),
+        mean: Math.round(
+          scored.reduce((n, d) => n + d.quality.score, 0) / scored.length
+        ),
+        passing: scored.filter((d) => d.quality.passes).length,
+        failing: scored.filter((d) => !d.quality.passes).map((d) => `${d.name} ${d.quality.score}`)
+      }
+    }
+  };
+}
+function deriveProfile(policy) {
+  const base = effectiveProfile().profile;
+  return policy === void 0 ? base : parseProfile(mergePatch(base, { policy }), "policy");
+}
 function deriveDiagramsEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/derive_diagrams",
-    description: "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers, deployments and feature mind map /build_model stored with the model. Each diagram shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds limits which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
+    description: "Draw the diagrams a model implies, by rule, as one undo step: an overview of its packages and their dependencies, a class diagram per class view (or per package, with its direct collaborators), a sequence diagram per collaboration, a use case diagram per use case view (or per system), a state machine per lifecycle, a communication diagram per collaboration when kinds asks for communication, and the activities, ERD, C4 containers (components on a view of their own), deployments and feature mind map /build_model stored with the model; a C4 system context when viewpoints asks for context. Each diagram is a view of one viewpoint (see /list_viewpoints), stored on it with the parts the viewpoint requires (a legend), shows the model's own elements (never copies), is laid out by the style profile and goes through the quality loop; the answer says whether it conforms to its viewpoint. Running it again after a model change updates the diagrams in place: what is new is shown, what is gone loses its view, the rest is left as it is. kinds and viewpoints limit which; policy overrides the profile's policy for this call; dryRun answers what each diagram would change.",
     readOnly: false,
     destructive: false,
     request: object({
@@ -35244,6 +36797,12 @@ function deriveDiagramsEndpoint(endpoints2) {
         doc(
           array(_enum(DERIVED_KINDS)).check(_minLength(1)),
           "Only these diagram kinds; default all."
+        )
+      ),
+      viewpoints: optional(
+        doc(
+          array(_enum(VIEWPOINT_NAMES)).check(_minLength(1)),
+          "Only the views of these viewpoints; default all but context, which is drawn only when named."
         )
       ),
       policy: optional(
@@ -35258,117 +36817,25 @@ function deriveDiagramsEndpoint(endpoints2) {
     response: object({
       model: nullable(string2()),
       diagrams: array(derivedSchema()),
-      counts: object({
-        diagrams: int(),
-        created: int(),
-        updated: int(),
-        unchanged: int(),
-        deleted: int()
-      }),
-      quality: optional(
-        doc(
-          object({
-            min: int(),
-            mean: int(),
-            passing: int(),
-            failing: array(string2())
-          }),
-          "Over the diagrams built: lowest and mean score, how many reach their threshold, which do not."
-        )
-      ),
+      counts: derivedCountsSchema(),
+      quality: derivedQualitySchema(),
       dryRun: optional(boolean2())
     }),
     handle: async (input) => {
       const scope = requireElement(input.scope, "Scope");
-      const base = effectiveProfile().profile;
-      const profile2 = input.policy === void 0 ? base : parseProfile(mergePatch(base, { policy: input.policy }), "policy");
+      const profile2 = deriveProfile(input.policy);
       const kinds = input.kinds && new Set(input.kinds);
-      const derived = derive(scope, profile2, kinds);
-      const one2 = async (d) => {
-        const home = d.home === void 0 ? null : homeOf(d, !input.dryRun);
-        if (home && d.kind === "deployment") bindShared(d, home);
-        const body = {
-          kind: d.kind,
-          spec: d.spec,
-          name: d.name,
-          parent: (home ?? d.parent)._id,
-          upsert: true,
-          prune: true,
-          // Elements a section draws are its model's own; another model's
-          // namesake is not shown in their place.
-          reuse: false,
-          ...input.dryRun && { dryRun: true }
-        };
-        try {
-          return await buildDiagram(body, endpoints2, {
-            bind: d.bind,
-            bindEdges: d.bindEdges,
-            pruneViewsOnly: true,
-            opsOnly: true
-          });
-        } catch (err) {
-          throw naming2(`derive_diagrams: ${d.kind} diagram ${d.name}`, err);
-        }
-      };
-      const results = [];
-      const run = async () => {
-        for (const d of derived) {
-          const built = await one2(d);
-          if (!input.dryRun && d.kind === "deployment" && built.created > 0) {
-            const again = await one2(d);
-            built.deleted = built.deleted + again.deleted;
-          }
-          if (!input.dryRun && profile2.policy.hideGetters && d.kind === "class") {
-            hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
-          }
-          results.push(built);
-        }
-      };
-      if (input.dryRun) await run();
-      else await oneStep("derive diagrams", run);
-      const diagrams = derived.map((d, i) => {
-        const b = results[i];
-        return {
-          kind: d.kind,
-          name: d.name,
-          diagram: b.diagram._id,
-          created: b.created,
-          updated: b.updated,
-          unchanged: b.unchanged,
-          ...b.deleted !== void 0 && { deleted: b.deleted },
-          ...b.plan && { ops: b.plan.ops.length },
-          ...b.quality && {
-            quality: {
-              score: b.quality.score,
-              rating: b.quality.rating,
-              passes: b.quality.passes
-            }
-          }
-        };
+      const wanted = input.viewpoints && new Set(input.viewpoints);
+      const derived = derive(scope, profile2, kinds, {
+        context: wanted?.has("context") === true
+      }).filter((d) => !wanted || wanted.has(d.viewpoint));
+      const out = await buildDerived(derived, endpoints2, {
+        dryRun: input.dryRun,
+        profile: profile2
       });
-      const sum = (f) => diagrams.reduce((n, d) => n + f(d), 0);
-      const scored = diagrams.filter((d) => d.quality);
       return {
         model: pathOf(scope),
-        diagrams,
-        counts: {
-          diagrams: diagrams.length,
-          created: sum((d) => d.created),
-          updated: sum((d) => d.updated),
-          unchanged: sum((d) => d.unchanged),
-          // Every derived build prunes, so each answers what it deleted.
-          deleted: sum((d) => d.deleted)
-        },
-        ...scored.length > 0 && {
-          quality: {
-            min: Math.min(...scored.map((d) => d.quality.score)),
-            mean: Math.round(
-              scored.reduce((n, d) => n + d.quality.score, 0) / scored.length
-            ),
-            passing: scored.filter((d) => d.quality.passes).length,
-            failing: scored.filter((d) => !d.quality.passes).map((d) => `${d.name} ${d.quality.score}`)
-          }
-        },
+        ...out,
         ...input.dryRun && { dryRun: true }
       };
     }
@@ -35387,8 +36854,8 @@ function homeOf(d, make) {
     }
   });
 }
-var lines = (text4) => String(text4).split("\n").map((l) => l.trim()).filter(Boolean);
-var list6 = (value) => Array.isArray(value) ? value : [];
+var lines = (text5) => String(text5).split("\n").map((l) => l.trim()).filter(Boolean);
+var list8 = (value) => Array.isArray(value) ? value : [];
 function within5(elem, scope) {
   for (let e = elem; e; e = e._parent) {
     if (e === scope) return true;
@@ -35420,7 +36887,7 @@ var EXPLAIN_SECTIONS = [
   "views"
 ];
 function viewLines(views) {
-  const names4 = (list7) => list7.map((x) => x.name).join(", ");
+  const names4 = (list10) => list10.map((x) => x.name).join(", ");
   return [
     ...views.classViews ? [`- class views: ${names4(views.classViews)}`] : [],
     ...views.useCaseViews ? [`- use case views: ${names4(views.useCaseViews)}`] : [],
@@ -35460,7 +36927,7 @@ function explain(scope) {
     for (const c of own2) {
       const kind2 = c.constructor.name === "UMLClass" ? c.isAbstract ? "abstract" : "class" : c.constructor.name.slice(3).toLowerCase();
       const relations = app.repository.getRelationshipsOf(c).flatMap((r) => verbOf(r, c) ?? []);
-      const ops = list6(c.operations).map((o) => `${String(o.name)}()`);
+      const ops = list8(c.operations).map((o) => `${String(o.name)}()`);
       classes.push(
         `- ${String(c.name)} (${kind2})${lines(c.documentation).length > 0 ? `: ${lines(c.documentation).join(" ")}` : ""}`,
         ...relations.length > 0 ? [`  ${relations.join("; ")}`] : [],
@@ -35472,10 +36939,10 @@ function explain(scope) {
   const talks = of("UMLCollaboration");
   if (talks.length > 0) collaborations.push("", "## Collaborations");
   for (const c of talks) {
-    const interaction = list6(c.ownedElements).find(
+    const interaction = list8(c.ownedElements).find(
       (e) => e.constructor.name === "UMLInteraction"
     );
-    const messages2 = list6(interaction?.messages).map(
+    const messages2 = list8(interaction?.messages).map(
       (m) => `${String(m.source.name)} -> ${String(m.target.name)}: ${String(m.name)}`
     );
     collaborations.push(`- ${String(c.name)}: ${messages2.join("; ")}`);
@@ -35484,7 +36951,7 @@ function explain(scope) {
   const machines = of("UMLStateMachine");
   if (machines.length > 0) lifecycles.push("", "## Lifecycles");
   for (const m of machines) {
-    const transitions = list6(list6(m.regions)[0]?.transitions).map((t) => {
+    const transitions = list8(list8(m.regions)[0]?.transitions).map((t) => {
       const name4 = (e) => String(e.name) || e.constructor.name.slice(3);
       return `${name4(t.source)} -> ${name4(t.target)}${t.name ? ` on ${String(t.name)}` : ""}`;
     });
@@ -35522,16 +36989,16 @@ function explain(scope) {
   };
 }
 function joined(parts, sections) {
-  let text4 = "";
+  let text5 = "";
   const starts = [];
   for (const name4 of sections) {
     const body = parts[name4];
     if (body.length === 0) continue;
-    if (text4) text4 += "\n";
-    starts.push([name4, text4.length]);
-    text4 += body.join("\n");
+    if (text5) text5 += "\n";
+    starts.push([name4, text5.length]);
+    text5 += body.join("\n");
   }
-  return { text: text4, starts };
+  return { text: text5, starts };
 }
 var explainModel = defineEndpoint({
   path: "/explain_model",
@@ -35574,13 +37041,13 @@ var explainModel = defineEndpoint({
   handle: (input) => {
     const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
     const wanted = new Set(input.sections ?? EXPLAIN_SECTIONS);
-    const { text: text4, starts } = joined(
+    const { text: text5, starts } = joined(
       explain(scope),
       EXPLAIN_SECTIONS.filter((s) => wanted.has(s))
     );
     const max = input.maxChars ?? 2e4;
-    const from = Math.min(input.cursor ?? 0, text4.length);
-    const rest = text4.slice(from);
+    const from = Math.min(input.cursor ?? 0, text5.length);
+    const rest = text5.slice(from);
     if (rest.length <= max) return { text: rest, truncated: false };
     const end = rest.lastIndexOf("\n", max);
     const atLine = end >= max / 2;
@@ -35589,11 +37056,11 @@ var explainModel = defineEndpoint({
     const stoppedIn = starts.filter(([, at]) => at <= next).at(-1)[0];
     return {
       text: `${body}
-[truncated in ${stoppedIn} at ${next} of ${text4.length} chars; call again with cursor: ${next}, or narrow sections or scope]`,
+[truncated in ${stoppedIn} at ${next} of ${text5.length} chars; call again with cursor: ${next}, or narrow sections or scope]`,
       truncated: true,
       next,
       stoppedIn,
-      total: text4.length
+      total: text5.length
     };
   }
 });
@@ -35606,7 +37073,7 @@ var MODEL_RULES = {
   M006: "unused-class",
   M007: "uncalled-operation"
 };
-var DEFAULT_SEVERITY2 = {
+var DEFAULT_SEVERITY3 = {
   M001: "warning",
   M002: "info",
   M003: "error",
@@ -35643,15 +37110,15 @@ function lintModelDesign(scope, severity) {
   const called = new Set(
     messages2.map((m) => typeRef(m.signature)).filter(Boolean)
   );
-  const typed = /* @__PURE__ */ new Set();
+  const typed2 = /* @__PURE__ */ new Set();
   for (const e of all) {
     for (const t of [e.type, e.represent && e.represent.type]) {
       const r = typeRef(t);
-      if (r) typed.add(r);
+      if (r) typed2.add(r);
     }
   }
   for (const c of classes) {
-    const members3 = list6(c.attributes).length + list6(c.operations).length;
+    const members3 = list8(c.attributes).length + list8(c.operations).length;
     if (members3 > GOD_CLASS_MEMBERS) {
       add(
         "M001",
@@ -35660,10 +37127,10 @@ function lintModelDesign(scope, severity) {
         "Split its responsibilities into collaborating classes."
       );
     }
-    for (const o of list6(c.operations)) {
-      const types = list6(o.parameters).map((p) => typeRef(p.type)).filter((t) => t !== null);
+    for (const o of list8(c.operations)) {
+      const types = list8(o.parameters).map((p) => typeRef(p.type)).filter((t) => t !== null);
       const others = new Set(types.filter((t) => t !== c));
-      if (types.length >= 2 && others.size === 1 && types.every((t) => t !== c) && list6(c.attributes).length === 0) {
+      if (types.length >= 2 && others.size === 1 && types.every((t) => t !== c) && list8(c.attributes).length === 0) {
         const [other] = [...others];
         add(
           "M002",
@@ -35681,8 +37148,8 @@ function lintModelDesign(scope, severity) {
         );
       }
     }
-    const attrs = list6(c.attributes).length;
-    if (attrs >= 3 && list6(c.operations).length === 0 && !/dto|value/i.test(String(c.stereotype ?? ""))) {
+    const attrs = list8(c.attributes).length;
+    if (attrs >= 3 && list8(c.operations).length === 0 && !/dto|value/i.test(String(c.stereotype ?? ""))) {
       add(
         "M004",
         c,
@@ -35706,7 +37173,7 @@ function lintModelDesign(scope, severity) {
   }
   for (const c of classifiers) {
     const related = app.repository.getRelationshipsOf(c).length > 0;
-    if (!related && !typed.has(c)) {
+    if (!related && !typed2.has(c)) {
       add(
         "M006",
         c,
@@ -35744,9 +37211,9 @@ function lintModelDesign(scope, severity) {
     state2.set(p, "done");
   };
   for (const p of packages) if (!state2.has(p)) walk2(p, []);
-  const RANK3 = { error: 0, warning: 1, info: 2 };
+  const RANK4 = { error: 0, warning: 1, info: 2 };
   return out.sort(
-    (a, b) => RANK3[a.severity] - RANK3[b.severity] || a.rule.localeCompare(b.rule)
+    (a, b) => RANK4[a.severity] - RANK4[b.severity] || a.rule.localeCompare(b.rule)
   );
 }
 function severities2(given) {
@@ -35756,7 +37223,7 @@ function severities2(given) {
       ([k]) => k === id2 || k === MODEL_RULES[id2]
     )?.[1];
     if (setting === "off") continue;
-    out.set(id2, setting ?? DEFAULT_SEVERITY2[id2]);
+    out.set(id2, setting ?? DEFAULT_SEVERITY3[id2]);
   }
   return out;
 }
@@ -35845,16 +37312,16 @@ var diagramQuality = defineEndpoint({
     const diagram = requireDiagram(input.ref ?? "@current");
     const profile2 = effectiveProfile().profile;
     const kind2 = kindOf(diagram);
-    const { metrics, score: score2, findings, failures: failures2 } = assess(diagram, profile2);
+    const { metrics, score: score3, findings, failures: failures2 } = assess(diagram, profile2);
     const target = kind2 ? thresholdFor(profile2, kind2) : profile2.quality.minScore;
     const lost = penalties(metrics, limitsFor(profile2));
     return {
       diagram: summary(diagram),
       kind: kind2,
-      score: score2,
-      rating: ratingOf(score2),
+      score: score3,
+      rating: ratingOf(score3),
       target,
-      passes: score2 >= target && failures2.length === 0,
+      passes: score3 >= target && failures2.length === 0,
       metrics: { ...metrics },
       penalties: Object.fromEntries(
         Object.entries(lost).map(([k, v]) => [k, Math.round(v * 10) / 10])
@@ -35937,6 +37404,551 @@ function withQuality(endpoint) {
   };
 }
 
+// src/viewpoints/decide.ts
+function normalizeIntent(text5) {
+  return text5.normalize("NFKD").replace(new RegExp("\\p{M}", "gu"), "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+var wordCount = (phrase) => phrase.split(" ").length;
+var occurs = (intent, phrase) => phrase !== "" && ` ${intent} `.includes(` ${phrase} `);
+function score2(rule, index, intent) {
+  let total = 0;
+  const matched = [];
+  for (const [list10, weight] of [
+    [rule.phrases, 1],
+    [rule.weak ?? [], 0.25]
+  ]) {
+    for (const phrase of list10) {
+      const p = normalizeIntent(phrase);
+      if (!occurs(intent, p)) continue;
+      total += wordCount(p) * weight;
+      matched.push(phrase);
+    }
+  }
+  return { rule, index, score: total, matched };
+}
+var article2 = (word) => `${/^[aeiou]/.test(word) ? "an" : "a"} ${word}`;
+var fits3 = (rule, scope) => rule.scopes.includes(scope);
+var alternative = (rule, why) => ({
+  viewpoint: rule.viewpoint,
+  kind: rule.kind,
+  rule: rule.id,
+  scopes: [...rule.scopes],
+  why
+});
+function distinct(list10) {
+  const seen = /* @__PURE__ */ new Set();
+  return list10.filter((a) => {
+    const key2 = `${a.viewpoint}|${a.kind}`;
+    if (seen.has(key2)) return false;
+    seen.add(key2);
+    return true;
+  });
+}
+function decide(input, table = viewpointCatalogue().table, byName = viewpointCatalogue().byName) {
+  const intent = normalizeIntent(input.intent);
+  const scored = table.rules.map((r, i) => score2(r, i, intent)).filter((s) => s.score > 0).sort((a, b) => b.score - a.score || a.index - b.index);
+  const forScope = table.rules.filter((r) => fits3(r, input.scope));
+  const question = (r) => byName.get(r.viewpoint).question;
+  let chosen;
+  if (scored.length === 0) {
+    const fallback = table.rules.find(
+      (r) => r.id === table.defaults[input.scope]
+    );
+    if (!fallback) {
+      return {
+        ok: false,
+        problem: "unclear",
+        reason: `the intent names no view the table knows; say what the diagram should answer, e.g. one of these questions`,
+        alternatives: distinct(
+          (forScope.length > 0 ? forScope : table.rules).map(
+            (r) => alternative(r, question(r))
+          )
+        )
+      };
+    }
+    chosen = { rule: fallback, index: -1, score: 0, matched: [] };
+  } else {
+    const best = scored[0];
+    const fitting = scored.filter((s) => fits3(s.rule, input.scope));
+    if (fitting.length === 0 || !fits3(best.rule, input.scope) && best.score > fitting[0].score) {
+      return {
+        ok: false,
+        problem: "scope",
+        reason: `a ${byName.get(best.rule.viewpoint).title.toLowerCase()} view (${best.rule.kind}) is drawn for a ${best.rule.scopes.join(", ")} scope, not ${article2(input.scope)}`,
+        wanted: {
+          viewpoint: best.rule.viewpoint,
+          kind: best.rule.kind,
+          rule: best.rule.id
+        },
+        alternatives: distinct([
+          alternative(
+            best.rule,
+            `the same view, for a ${best.rule.scopes.join(" or ")} scope`
+          ),
+          ...[...fitting.map((s) => s.rule), ...forScope].map(
+            (r) => alternative(r, `drawn for ${article2(input.scope)}: ${question(r)}`)
+          )
+        ])
+      };
+    }
+    chosen = fitting[0];
+  }
+  const rule = chosen.rule;
+  const viewpoint = byName.get(rule.viewpoint);
+  if (input.audience !== void 0 && !viewpoint.stakeholders.includes(input.audience)) {
+    const audience = input.audience;
+    const forAudience = (r) => byName.get(r.viewpoint).stakeholders.includes(audience);
+    const candidates = distinct(
+      [...scored.map((s) => s.rule), ...forScope, ...table.rules].filter(forAudience).map((r) => alternative(r, `written for ${audience}: ${question(r)}`))
+    ).slice(0, 4);
+    return {
+      ok: false,
+      problem: "audience",
+      reason: `a ${viewpoint.title.toLowerCase()} view is written for ${viewpoint.stakeholders.join(", ")}, not ${audience}`,
+      wanted: { viewpoint: rule.viewpoint, kind: rule.kind, rule: rule.id },
+      alternatives: candidates
+    };
+  }
+  return {
+    ok: true,
+    rule: rule.id,
+    viewpoint: rule.viewpoint,
+    kind: rule.kind,
+    reason: chosen.matched.length > 0 ? `${rule.reason} (the intent says ${chosen.matched.map((m) => `'${m}'`).join(", ")})` : `${rule.reason} (no phrase of the table is in the intent; a ${input.scope} scope is shown so by default)`,
+    matched: chosen.matched
+  };
+}
+
+// src/handlers/viewpoints.ts
+var summaryOf = (name4) => {
+  const v = findViewpoint(name4);
+  return {
+    name: v.name,
+    title: v.title,
+    question: v.question,
+    kinds: [...v.kinds],
+    stakeholders: [...v.stakeholders],
+    required: [...v.required]
+  };
+};
+var summarySchema2 = () => object({
+  name: _enum(VIEWPOINT_NAMES),
+  title: string2(),
+  question: string2(),
+  kinds: array(string2()),
+  stakeholders: array(string2()),
+  required: array(string2())
+});
+var listViewpoints = defineEndpoint({
+  path: "/list_viewpoints",
+  description: "The viewpoint catalogue: each kind of view the engine draws, the question it answers, the diagram kinds that show it, who it is written for and the parts it requires. /request_diagram picks one from an intent; /describe_viewpoint gives one in full. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({}),
+  response: object({
+    viewpoints: array(summarySchema2()),
+    decisions: doc(
+      object({ version: int(), rules: int() }),
+      "The decision table /request_diagram applies."
+    )
+  }),
+  handle: () => {
+    const c = viewpointCatalogue();
+    return {
+      viewpoints: c.viewpoints.map((v) => summaryOf(v.name)),
+      decisions: { version: c.table.version, rules: c.table.rules.length }
+    };
+  }
+});
+var describeViewpoint = defineEndpoint({
+  path: "/describe_viewpoint",
+  description: "One viewpoint in full: what it shows, its question, concerns and stakeholders, the model element and relationship types it allows, its limits, its required parts and legend, how a view past its limits is split, and the decision rules that lead to it. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    name: doc(_enum(VIEWPOINT_NAMES), "The viewpoint.")
+  }),
+  response: object({
+    viewpoint: doc(
+      record(string2(), unknown()),
+      "name, title, summary, question, concerns, stakeholders, kinds, elements, relationships, limits, required, legend, split."
+    ),
+    rules: array(
+      object({
+        id: string2(),
+        kind: string2(),
+        phrases: array(string2()),
+        scopes: array(string2())
+      })
+    )
+  }),
+  handle: (input) => {
+    const { $schema: _, ...viewpoint } = findViewpoint(input.name);
+    return {
+      viewpoint,
+      rules: viewpointCatalogue().table.rules.filter((r) => r.viewpoint === input.name).map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        phrases: [...r.phrases],
+        scopes: [...r.scopes]
+      }))
+    };
+  }
+});
+var list9 = (value) => Array.isArray(value) ? value : [];
+function diagramsUnder(scope) {
+  if (scope instanceof type.Diagram) return [scope];
+  const out = [];
+  const walk2 = (e) => {
+    if (e instanceof type.Diagram) out.push(e);
+    for (const c of list9(e.ownedElements)) walk2(c);
+  };
+  walk2(scope);
+  return out;
+}
+function severities3(given) {
+  const out = /* @__PURE__ */ new Map();
+  for (const id2 of Object.keys(VIEWPOINT_RULES)) {
+    const setting = Object.entries(given).find(
+      ([k]) => k === id2 || k === VIEWPOINT_RULES[id2]
+    )?.[1];
+    if (setting === "off") continue;
+    out.set(id2, setting ?? DEFAULT_SEVERITY[id2]);
+  }
+  return out;
+}
+var RANK3 = { error: 0, warning: 1, info: 2 };
+var viewpointLint = defineEndpoint({
+  path: "/viewpoint_lint",
+  description: "Check that diagrams keep to the viewpoint they declare (issue #42): V001 elements or relationships outside the viewpoint, V002 elements of several viewpoints on one diagram (split it), V003 a runtime view with no initiator (no labelled first message from the leftmost lifeline, no initial node), V004 a lifecycle owned by something other than a class, V005 a context view showing the system's inside, V006 a required part missing (a real title, a legend), V007 more elements or lifelines than the viewpoint holds, V008 no viewpoint declared (an error under a strict profile), V009 a diagram kind the viewpoint is not drawn as. Each finding names the diagram, its viewpoint, the views involved and a fix; suggest lists the views to draw instead. Read-only.",
+  readOnly: true,
+  destructive: false,
+  request: object({
+    scope: optional(
+      ref2(
+        "A diagram, or a model or package whose diagrams to check; default the project."
+      )
+    ),
+    rules: optional(
+      doc(
+        record(string2(), _enum(["off", ...SEVERITIES])),
+        "Per rule id or name: off, or the severity to report it with."
+      )
+    ),
+    limit: limitField()
+  }),
+  aliases: { diagram: "scope", ref: "scope" },
+  response: object({
+    diagrams: doc(int(), "Diagrams checked."),
+    count: int(),
+    counts: countsSchema(),
+    truncated: boolean2(),
+    findings: array(
+      object({
+        rule: string2(),
+        name: string2(),
+        severity: _enum(SEVERITIES),
+        message: string2(),
+        diagram: string2(),
+        path: nullable(string2()),
+        viewpoint: nullable(string2()),
+        ids: array(string2()),
+        fix: string2(),
+        suggest: optional(
+          array(
+            object({
+              viewpoint: _enum(VIEWPOINT_NAMES),
+              kind: optional(string2()),
+              count: optional(int())
+            })
+          )
+        )
+      })
+    )
+  }),
+  handle: (input) => {
+    const given = input.rules ?? {};
+    pickRules(VIEWPOINT_RULES, Object.keys(given), "rules");
+    const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
+    const diagrams = diagramsUnder(scope);
+    const severity = severities3(given);
+    const strict = effectiveProfile().profile.strict;
+    const findings = diagrams.flatMap((d) => lintViewpoint(d, severity, { strict })).sort(
+      (a, b) => RANK3[a.severity] - RANK3[b.severity] || a.rule.localeCompare(b.rule)
+    );
+    return { diagrams: diagrams.length, ...counted(findings, input.limit) };
+  }
+});
+var SCOPE_TYPES = {
+  UMLModel: "model",
+  UMLPackage: "package",
+  UMLSubsystem: "package",
+  UMLClass: "class",
+  UMLInterface: "class",
+  UMLEnumeration: "class",
+  UMLCollaboration: "interaction",
+  UMLInteraction: "interaction",
+  UMLStateMachine: "statemachine",
+  UMLActor: "actor",
+  UMLUseCase: "usecase",
+  UMLUseCaseSubject: "usecase"
+};
+function scopeOf2(elem, intent) {
+  if (elem === app.project.getProject()) {
+    const models2 = list9(elem.ownedElements).filter(
+      (e) => e instanceof type.UMLModel && list9(e.ownedElements).some((x) => !(x instanceof type.Diagram))
+    );
+    if (models2.length === 1) {
+      return { elem: models2[0], kind: "model", model: models2[0] };
+    }
+    const choice = decide({ intent, scope: "model" });
+    throw mismatch(
+      `the project holds ${models2.length} models; pass the one the diagram is about as scope`,
+      {
+        reason: "scope",
+        alternatives: choice.ok ? models2.map((m) => ({
+          viewpoint: choice.viewpoint,
+          kind: choice.kind,
+          why: `the same view of ${String(m.name)}`,
+          candidates: [pathOf(m)]
+        })) : []
+      }
+    );
+  }
+  return {
+    elem,
+    kind: SCOPE_TYPES[elem.constructor.name] ?? "other",
+    model: modelOf2(elem) ?? elem
+  };
+}
+function scopesWith(scope, alt, profile2) {
+  const shown2 = derive(
+    scope.model,
+    profile2,
+    /* @__PURE__ */ new Set([alt.kind]),
+    {
+      context: alt.viewpoint === "context"
+    }
+  ).filter((d) => d.viewpoint === alt.viewpoint);
+  if (shown2.length === 0) return [];
+  const out = /* @__PURE__ */ new Set();
+  const offer = (e) => {
+    const kind2 = e && SCOPE_TYPES[e.constructor.name];
+    if (kind2 && alt.scopes.includes(kind2)) out.add(pathOf(e));
+  };
+  offer(scope.model);
+  for (const d of shown2) {
+    offer(d.parent);
+    offer(d.parent._parent);
+  }
+  return [...out].slice(0, 10);
+}
+var typed = (e) => e.represent?.type;
+function candidatesFor(viewpoint, kind2, scope, base) {
+  const profile2 = {
+    ...base,
+    policy: { ...base.policy, packageOverview: true }
+  };
+  const kinds = /* @__PURE__ */ new Set([kind2]);
+  const of = (root, p = profile2) => derive(root, p, kinds, { context: viewpoint === "context" }).filter(
+    (d) => d.viewpoint === viewpoint
+  );
+  switch (scope.kind) {
+    case "model":
+    case "interaction":
+    case "statemachine":
+      return of(scope.elem);
+    case "package":
+      return of(scope.elem, {
+        ...profile2,
+        policy: { ...profile2.policy, classDiagrams: "perPackage" }
+      });
+    case "class":
+      if (kind2 === "class") return [classNeighbourhood(scope.elem)];
+      if (kind2 === "statemachine") return of(scope.elem);
+      return of(scope.model).filter(
+        (d) => [...d.bind.values()].some((l) => typed(l) === scope.elem)
+      );
+    default:
+      return of(scope.model).filter(
+        (d) => [...d.bind.values()].includes(scope.elem)
+      );
+  }
+}
+var STOP = new Set(
+  "the and for with from into over that this what when where which who how does show draw diagram view about".split(
+    " "
+  )
+);
+var tokens = (text5) => normalizeIntent(text5).split(" ").filter((w) => w.length > 2 && !STOP.has(w));
+function narrow(candidates, intent) {
+  const wanted = new Set(tokens(intent));
+  const scores = candidates.map(
+    (d) => new Set(tokens(d.name).filter((w) => wanted.has(w))).size
+  );
+  const best = Math.max(0, ...scores);
+  return best === 0 ? candidates : candidates.filter((_, i) => scores[i] === best);
+}
+function mismatch(message, details) {
+  return new ApiError(
+    "VIEWPOINT_MISMATCH",
+    `request_diagram: ${message}; details.alternatives lists the views that fit`,
+    details
+  );
+}
+function available(scope, profile2) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const d of derive(scope.model, profile2, void 0, { context: true })) {
+    const key2 = `${d.viewpoint}|${d.kind}`;
+    const c = counts.get(key2) ?? { viewpoint: d.viewpoint, kind: d.kind, n: 0 };
+    c.n++;
+    counts.set(key2, c);
+  }
+  return [...counts.values()].map((c) => ({
+    viewpoint: c.viewpoint,
+    kind: c.kind,
+    why: `${pathOf(scope.model)} has ${c.n} such view${c.n === 1 ? "" : "s"}: ${findViewpoint(c.viewpoint).question}`,
+    candidates: [pathOf(scope.model)].filter(Boolean)
+  }));
+}
+function requestDiagramEndpoint(endpoints2) {
+  return defineEndpoint({
+    path: "/request_diagram",
+    description: "Ask for the diagram that answers a question, and let the engine choose it: intent says what the reader wants to know ('how does a device publish telemetry', 'which states can an alarm be in'), audience who reads it, scope the model element it is about. A committed decision table maps the intent and the kind of scope to a viewpoint and a diagram kind (see /list_viewpoints); the answer gives the choice with its rule and reason, and the diagram is derived from the model as /derive_diagrams does (bound to the model, marked with its viewpoint, quality loop). A view that does not fit is refused with VIEWPOINT_MISMATCH and the views that do: an intent drawn for another kind of scope, a viewpoint not written for the audience, nothing to show in the scope, or more lifelines or elements than the viewpoint holds (then an activity or a split). Kinds, styles and layouts are never parameters.",
+    readOnly: false,
+    destructive: false,
+    request: object({
+      intent: doc(
+        string2().check(_minLength(1), _maxLength(500)),
+        "What the diagram should answer, in plain words."
+      ),
+      audience: optional(
+        doc(
+          _enum(AUDIENCES),
+          "Who reads it; a view not written for them is refused."
+        )
+      ),
+      scope: ref2(
+        "What it is about: a model, package, class, collaboration, state machine, actor or use case (the project stands for its only model)."
+      ),
+      dryRun: optional(boolean2())
+    }),
+    aliases: { ref: "scope" },
+    response: object({
+      choice: doc(
+        object({
+          viewpoint: _enum(VIEWPOINT_NAMES),
+          kind: string2(),
+          rule: doc(string2(), "The decision rule applied."),
+          reason: string2(),
+          question: doc(string2(), "What the view answers."),
+          matched: doc(
+            array(string2()),
+            "Phrases of the rule found in the intent."
+          )
+        }),
+        "The view the decision table picked."
+      ),
+      scope: nullable(string2()),
+      diagrams: array(derivedSchema()),
+      counts: derivedCountsSchema(),
+      quality: derivedQualitySchema(),
+      dryRun: optional(boolean2())
+    }),
+    handle: async (input) => {
+      const scope = scopeOf2(requireElement(input.scope, "Scope"), input.intent);
+      const decision = decide({
+        intent: input.intent,
+        scope: scope.kind,
+        ...input.audience !== void 0 && { audience: input.audience }
+      });
+      const profile2 = effectiveProfile().profile;
+      if (!decision.ok) {
+        const wanted = decision.wanted;
+        const offered = decision.alternatives.map((a) => ({ ...a, candidates: scopesWith(scope, a, profile2) })).filter((a) => a.candidates.length > 0);
+        throw mismatch(decision.reason, {
+          reason: decision.problem,
+          ...wanted && { wanted },
+          alternatives: offered.length > 0 ? offered : available(scope, profile2)
+        });
+      }
+      const vp = findViewpoint(decision.viewpoint);
+      const found = candidatesFor(
+        decision.viewpoint,
+        decision.kind,
+        scope,
+        profile2
+      );
+      if (found.length === 0) {
+        throw mismatch(
+          `${pathOf(scope.elem)} holds nothing a ${vp.title.toLowerCase()} view (${decision.kind}) draws`,
+          {
+            reason: "empty",
+            wanted: { viewpoint: vp.name, kind: decision.kind },
+            alternatives: available(scope, profile2)
+          }
+        );
+      }
+      const chosen = narrow(found, input.intent);
+      for (const d of chosen) {
+        const { nodes, lifelines } = countNodes(d);
+        const max = vp.limits.maxLifelines;
+        if (max !== void 0 && lifelines > max) {
+          throw mismatch(
+            `${d.name} has ${lifelines} lifelines, more than the ${max} a ${vp.title.toLowerCase()} view stays readable with`,
+            {
+              reason: "limits",
+              wanted: { viewpoint: vp.name, kind: d.kind },
+              alternatives: [
+                {
+                  viewpoint: "runtime",
+                  kind: "activity",
+                  why: "the steps as an activity, a lane per part, which grows by steps rather than by participants"
+                },
+                {
+                  viewpoint: "runtime",
+                  kind: d.kind,
+                  why: `split ${d.name} into scenarios of at most ${max} participants, one collaboration each`
+                }
+              ]
+            }
+          );
+        }
+        const limit = elementLimit(vp, d.kind);
+        if (nodes > limit) {
+          throw mismatch(
+            `${d.name} has ${nodes} elements, more than the ${limit} a ${vp.title.toLowerCase()} view holds`,
+            {
+              reason: "limits",
+              wanted: { viewpoint: vp.name, kind: d.kind },
+              alternatives: [
+                { viewpoint: vp.name, kind: d.kind, why: vp.split }
+              ]
+            }
+          );
+        }
+      }
+      const out = await buildDerived(chosen, endpoints2, {
+        dryRun: input.dryRun,
+        profile: profile2
+      });
+      return {
+        choice: {
+          viewpoint: decision.viewpoint,
+          kind: decision.kind,
+          rule: decision.rule,
+          reason: decision.reason,
+          question: vp.question,
+          matched: decision.matched
+        },
+        scope: pathOf(scope.elem),
+        ...out,
+        ...input.dryRun && { dryRun: true }
+      };
+    }
+  });
+}
+
 // src/routes.ts
 var endpoints = [
   getAllCommands,
@@ -35976,7 +37988,7 @@ var endpoints = [
   addTag,
   setStereotype,
   setDocumentation,
-  createDiagram,
+  viewpointRequired(createDiagram),
   switchDiagram,
   closeDiagram,
   listWorkingDiagrams,
@@ -36026,6 +38038,10 @@ var endpoints = [
   deriveDiagramsEndpoint(() => endpoints),
   explainModel,
   modelLint,
+  listViewpoints,
+  describeViewpoint,
+  viewpointLint,
+  requestDiagramEndpoint(() => endpoints),
   listPatterns,
   describePattern,
   applyPatternEndpoint(() => endpoints),

@@ -161,7 +161,18 @@ import {
   improveDiagram,
   withQuality,
 } from "./handlers/quality.js";
-import { saveGated, styleLocked, viewFieldLocked } from "./style/guard.js";
+import {
+  saveGated,
+  styleLocked,
+  viewFieldLocked,
+  viewpointRequired,
+} from "./style/guard.js";
+import {
+  describeViewpoint,
+  listViewpoints,
+  requestDiagramEndpoint,
+  viewpointLint,
+} from "./handlers/viewpoints.js";
 import type { Handler } from "./http-server.js";
 
 /** Endpoint paths are part of the contract with the staruml-mcp server; do not rename. */
@@ -207,7 +218,7 @@ export const endpoints: readonly Endpoint[] = [
   setStereotype,
   setDocumentation,
 
-  createDiagram,
+  viewpointRequired(createDiagram),
   switchDiagram,
   closeDiagram,
   listWorkingDiagrams,
@@ -266,6 +277,11 @@ export const endpoints: readonly Endpoint[] = [
   deriveDiagramsEndpoint(() => endpoints),
   explainModel,
   modelLint,
+
+  listViewpoints,
+  describeViewpoint,
+  viewpointLint,
+  requestDiagramEndpoint(() => endpoints),
 
   listPatterns,
   describePattern,

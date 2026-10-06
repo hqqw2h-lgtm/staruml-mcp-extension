@@ -80,6 +80,7 @@ All `POST` with `Content-Type: application/json` and a JSON object body. Base UR
 | Code          | `/list_code_generators`, `/generate_code`, `/reverse_code`                                                                                                                                 |
 | Batches       | `/batch`                                                                                                                                                                                   |
 | Model         | `/build_model`, `/derive_diagrams`, `/explain_model`, `/model_lint`, `/sync_operations`, `/check_messages`                                                                                 |
+| Viewpoints    | `/request_diagram`, `/list_viewpoints`, `/describe_viewpoint`, `/viewpoint_lint`                                                                                                           |
 | Patterns      | `/list_patterns`, `/describe_pattern`, `/apply_pattern`, `/detect_patterns`, `/apply_preset`, `/describe_type`                                                                             |
 | History       | `/undo`, `/redo`, `/is_modified`, `/snapshot`, `/diff_since`, `/restore_snapshot`                                                                                                          |
 | Style         | `/get_style_profile`, `/set_style_profile`, `/apply_style_profile`, `/explain_style_violation`                                                                                             |
@@ -345,6 +346,26 @@ The spec is strict (issue #33): every object has `additionalProperties: false` a
 
 - `/check_messages {diagram | scope}` lists the call messages of a sequence diagram (or every message within `scope`) that name no operation of their receiver: `no-operation`, `no-receiver` (the lifeline has no class: its role is untyped and no single class has its name) and `not-a-call` (prose such as "check limits"). Replies are not checked.
 - `/sync_operations {diagram, dryRun?}` adds each missing operation once to its receiver, with the parameters written in the message (`cancel(reason: String)`), and sets every call message's `signature` to its operation, as one undo step; prose and messages to a lifeline without a class are `skipped`.
+
+### Viewpoints and intent: `/request_diagram` (issue #42)
+
+A viewpoint is a contract for a kind of view: the question it answers, who it is written for, the model element and relationship types it may show, how many, and the parts it must carry. The catalogue is data in `src/viewpoints/*.json`, checked against `viewpoint.schema.json` and cross-checked on load:
+
+| Viewpoint      | Drawn as                          | Answers                                                                | Requires       |
+| -------------- | --------------------------------- | ---------------------------------------------------------------------- | -------------- |
+| `context`      | c4                                | Who and what does the system deal with, and what passes between them?  | title, legend  |
+| `container`    | c4                                | Which running parts make up the system, and how do they communicate?   | title, legend  |
+| `component`    | package, component, c4            | How is the system decomposed into parts, and which depends on which?   | title          |
+| `code`         | class                             | Which types make up this part of the system, and how are they related? | title          |
+| `runtime`      | sequence, communication, activity | What happens, step by step, when the scenario is triggered?            | title, trigger |
+| `lifecycle`    | statemachine                      | Which states can this object be in, and what moves it between them?    | title          |
+| `actors-goals` | usecase, mindmap                  | Who needs the system, and for what?                                    | title          |
+| `deployment`   | deployment                        | Where does the system run, and how are its environments connected?     | title, legend  |
+| `data`         | erd                               | What data does the system keep, and how are the records related?       | title          |
+
+`/request_diagram {intent, audience?, scope, dryRun?}` takes what the reader wants to know, not a diagram kind. The committed decision table (`src/viewpoints/decisions.json`, twelve rules) scores the intent's words against each rule's phrases (a word counts once per phrase it completes, a weak hint such as "how does" a quarter), keeps the best rule drawn for the kind of scope (model, package, class, collaboration, state machine, actor, use case), and answers the choice with its rule and reason; the diagram is then derived from the model as `/derive_diagrams` would, narrowed to the views whose names share the intent's words. It refuses with `VIEWPOINT_MISMATCH` (422) and `details.alternatives` (each with the scopes that have such a view): an intent naming no view, a view not drawn for the scope ("the lifecycle" of an actor), a viewpoint not written for the audience (a class diagram for `business`), a scope with nothing to show, or more lifelines or elements than the viewpoint holds (a scenario of 14 participants: an activity, or a split). The table is total and deterministic (property tests over arbitrary intents, scopes and audiences); every rule is reachable through a phrase of its own.
+
+Every diagram `/derive_diagrams` and `/request_diagram` draw, and every `/build_diagram {viewpoint}`, declares its viewpoint in a hidden tag on the diagram (`mcp.viewpoint`), gets the parts its viewpoint requires (a legend note below the drawing, kept across rebuilds) and answers whether it conforms. `/derive_diagrams {viewpoints?}` derives by viewpoint; a system context (people and outside systems around the system as one box) is drawn when `context` is named, and C4 components get a view of their own. `/viewpoint_lint {scope?, rules?, limit?}` checks diagrams against what they declare: `V001` elements outside the viewpoint, `V002` mixed viewpoints (split), `V003` a runtime view without initiator, `V004` a lifecycle not owned by a class, `V005` a context view showing the system's inside, `V006` a required part missing, `V007` past the viewpoint's limits, `V008` no viewpoint declared, `V009` a diagram kind the viewpoint is not drawn as. Under a strict profile `V008` is an error, and `/build_diagram` without a viewpoint and `/create_diagram` answer `VIEWPOINT_REQUIRED` (403). On StarUML 7.1.1 every one of the 31 diagrams the ThingsBoard spec derives to conforms (`tests/integration/viewpoints.live.test.ts`).
 
 ### Design patterns
 

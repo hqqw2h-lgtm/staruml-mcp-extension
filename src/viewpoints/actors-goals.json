@@ -1,0 +1,22 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "actors-goals",
+  "title": "Actors and goals",
+  "summary": "Who uses the system and what each of them wants to get done with it, or the features it offers, without how it is built.",
+  "question": "Who needs the system, and for what?",
+  "concerns": ["functional scope", "roles and their goals", "features offered"],
+  "stakeholders": ["business", "analyst", "tester", "architect"],
+  "kinds": ["usecase", "mindmap"],
+  "elements": ["UMLActor", "UMLUseCase", "UMLUseCaseSubject", "MMNode"],
+  "relationships": [
+    "UMLAssociation",
+    "UMLInclude",
+    "UMLExtend",
+    "UMLGeneralization",
+    "UMLDependency",
+    "MMEdge"
+  ],
+  "limits": { "maxElements": 25, "kinds": { "mindmap": 60 } },
+  "required": ["title"],
+  "split": "One view per actor, or a feature tree split into its top-level branches."
+}

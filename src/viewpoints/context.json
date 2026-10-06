@@ -1,0 +1,32 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "context",
+  "title": "System context",
+  "summary": "The system as a single box among the people who use it and the other systems it exchanges data with; nothing of its inside.",
+  "question": "Who and what does the system deal with, and what passes between them?",
+  "concerns": [
+    "scope and boundary of the system",
+    "users and their roles",
+    "external dependencies and integrations"
+  ],
+  "stakeholders": [
+    "business",
+    "analyst",
+    "architect",
+    "developer",
+    "tester",
+    "operator"
+  ],
+  "kinds": ["c4"],
+  "elements": ["C4Person", "C4SoftwareSystem", "UMLActor"],
+  "relationships": ["C4Relationship", "UMLAssociation", "UMLDependency"],
+  "limits": { "maxElements": 15 },
+  "required": ["title", "legend"],
+  "legend": [
+    "Person: someone who uses the system",
+    "Software system: the system in scope, or one it works with",
+    "Grey: outside the system's ownership",
+    "Arrow: who relies on whom, labelled with what for and how"
+  ],
+  "split": "One context per system in scope; past the limit, group the people and systems by role."
+}

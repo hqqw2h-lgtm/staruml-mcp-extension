@@ -1,0 +1,47 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "runtime",
+  "title": "Runtime scenario",
+  "summary": "One scenario in motion: who starts it, which parts take part and what they send each other, in order.",
+  "question": "What happens, step by step and between which parts, when the scenario is triggered?",
+  "concerns": [
+    "order of steps and messages",
+    "who starts a scenario",
+    "alternatives, loops and failures"
+  ],
+  "stakeholders": ["developer", "tester", "architect", "analyst"],
+  "kinds": ["sequence", "communication", "activity"],
+  "elements": [
+    "UMLLifeline",
+    "UMLCombinedFragment",
+    "UMLInteractionOperand",
+    "UMLEndpoint",
+    "UMLGate",
+    "UMLStateInvariant",
+    "UMLContinuation",
+    "UMLInteractionUse",
+    "UMLAction",
+    "UMLInitialNode",
+    "UMLActivityFinalNode",
+    "UMLFlowFinalNode",
+    "UMLDecisionNode",
+    "UMLMergeNode",
+    "UMLForkNode",
+    "UMLJoinNode",
+    "UMLObjectNode",
+    "UMLCentralBufferNode",
+    "UMLDataStoreNode",
+    "UMLActivityParameterNode",
+    "UMLActivityPartition"
+  ],
+  "relationships": [
+    "UMLMessage",
+    "UMLConnector",
+    "UMLControlFlow",
+    "UMLObjectFlow",
+    "UMLExceptionHandler"
+  ],
+  "limits": { "maxElements": 30, "maxLifelines": 12 },
+  "required": ["title", "trigger"],
+  "split": "One scenario per view; past the lifeline limit, draw the steps as an activity with a lane per part, or split the scenario where a fragment begins."
+}

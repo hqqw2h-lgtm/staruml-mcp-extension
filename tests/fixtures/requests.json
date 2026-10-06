@@ -155,7 +155,14 @@
   "/build_diagram": [
     { "result": "full", "text": "flowchart\n  A --> B" },
     { "result": "full", "kind": "class", "reuse": false, "spec": {} },
-    { "result": "full", "text": "@startuml\nA -> B : hi\n@enduml" }
+    { "result": "full", "text": "@startuml\nA -> B : hi\n@enduml" },
+    {
+      "result": "full",
+      "kind": "class",
+      "name": "Declared",
+      "viewpoint": "code",
+      "spec": { "classes": [{ "name": "A" }] }
+    }
   ],
   "/build_model": [
     {
@@ -307,7 +314,34 @@
   "/derive_diagrams": [
     { "scope": "Clinic" },
     { "scope": "AAAAAAGhDo+7wJyFuzc=" },
-    { "scope": "AAAAAAGhDpNv6u/vjms=", "kinds": ["communication"] }
+    { "scope": "AAAAAAGhDpNv6u/vjms=", "kinds": ["communication"] },
+    {
+      "scope": "AAAAAAGhEdt2gAXOAWs=",
+      "kinds": [
+        "package",
+        "class",
+        "sequence",
+        "usecase",
+        "statemachine",
+        "activity",
+        "erd",
+        "c4",
+        "deployment",
+        "mindmap",
+        "communication"
+      ],
+      "viewpoints": [
+        "context",
+        "container",
+        "component",
+        "code",
+        "runtime",
+        "lifecycle",
+        "actors-goals",
+        "deployment",
+        "data"
+      ]
+    }
   ],
   "/describe_commands": [
     { "ids": ["edit:undo", "project:save-as", "project:open"] }
@@ -319,6 +353,7 @@
   ],
   "/describe_pattern": [{ "name": "Strategy" }],
   "/describe_type": [{ "type": "UMLAssociationEnd" }],
+  "/describe_viewpoint": [{ "name": "context" }],
   "/detect_patterns": [
     { "scope": "Lending", "patterns": ["Strategy"] },
     { "patterns": ["Observer"], "minConfidence": 0.99 },
@@ -466,6 +501,7 @@
   "/list_extensions": [{}],
   "/list_patterns": [{}],
   "/list_templates": [{}],
+  "/list_viewpoints": [{}],
   "/list_working_diagrams": [{}],
   "/model_lint": [
     { "scope": "Clinic" },
@@ -492,6 +528,22 @@
   "/performance_stats": [{}],
   "/quick_find": [{ "text": "ZEBRA" }, { "text": "quarterl" }],
   "/redo": [{}],
+  "/request_diagram": [
+    {
+      "intent": "which states can an alarm be in",
+      "audience": "tester",
+      "scope": "ThingsBoard"
+    },
+    {
+      "intent": "what data is stored in the database",
+      "audience": "dba",
+      "scope": "ThingsBoard"
+    },
+    {
+      "intent": "its lifecycle",
+      "scope": "ThingsBoard/Domain Model \\(common\\.data\\)/Device"
+    }
+  ],
   "/resize_node": [
     { "ref": "Line", "width": 220, "height": 80 },
     { "id": "AAAAAAGhDpNeN+zIqVs=", "width": 600, "height": 400 },
@@ -605,5 +657,6 @@
     {},
     { "scope": "AAAAAAGhDpOKTvmuoCg=" },
     { "scope": "AAAAAAGhDpOLLvtsdzE=" }
-  ]
+  ],
+  "/viewpoint_lint": [{ "scope": "AAAAAAGhEdt2gAXOAWs=", "limit": 1000 }]
 }

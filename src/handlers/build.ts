@@ -60,6 +60,12 @@ import { summarize } from "../serialize.js";
 import { diagramOf } from "../create.js";
 import { resolveCreateType } from "../toolbox.js";
 import type { Element, View } from "../types.js";
+import { findViewpoint } from "../viewpoints/index.js";
+import { conformity } from "../viewpoints/lint.js";
+import { type Mark, partViews, readMark } from "../viewpoints/mark.js";
+import { type PartTexts, placeParts } from "../viewpoints/parts.js";
+import { VIEWPOINT_NAMES } from "../viewpoints/schema.js";
+import { isTrusted } from "../style/guard.js";
 import { modelTypeOf } from "./elements.js";
 import {
   labelSeparations,
@@ -149,13 +155,14 @@ const viewOnly = (type: string) =>
  * without a model are not the spec's, so they are neither matched nor
  * pruned.
  */
-function existing(diagram: Element) {
+function existing(diagram: Element, skip: ReadonlySet<string> = new Set()) {
   const nodes = new Pool<View>();
   const edges = new Pool<View>();
   const all: View[] = [];
   for (const view of diagram.ownedViews as View[]) {
     const model = view.model;
-    if (model instanceof type.Diagram) continue;
+    // The engine's own parts (a legend, a title block) are not the spec's.
+    if (model instanceof type.Diagram || skip.has(view._id)) continue;
     if (!model) {
       if (view instanceof type.UMLNoteView) {
         nodes.add(`Note|${String(view.text)}`, view);
@@ -468,6 +475,8 @@ export interface BuildOptions {
   bindEdges?: ReadonlyMap<number, Element>;
   /** Prune removes views only, never the elements they show. */
   pruneViewsOnly?: boolean;
+  /** Views of the diagram that are neither matched nor pruned: its parts. */
+  skip?: ReadonlySet<string>;
 }
 
 export interface Target {
@@ -519,7 +528,7 @@ export function opsFor(
       body: { ref: "$diagram._parent", field: "name", value: target.name },
     });
   }
-  const pools = target.diagram ? existing(target.diagram) : null;
+  const pools = target.diagram ? existing(target.diagram, options.skip) : null;
   const boxes = place(plan, direction);
   const refs = new Map<string, Ref>();
   if (plan.framed) {
@@ -1375,6 +1384,12 @@ const buildRequest = () =>
         "Default false: an element shown from another package (reuse) is drawn with its plain name. true keeps StarUML's '(from Owner)' line under it.",
       ),
     ),
+    viewpoint: z.optional(
+      doc(
+        z.enum(VIEWPOINT_NAMES),
+        "The viewpoint the diagram is a view of (see /list_viewpoints): stored on the diagram, its required parts (a legend) added, its conformance answered. The kind must be one the viewpoint is drawn as. Required under a strict profile.",
+      ),
+    ),
     result: resultField(
       "terse (default): counts, the diagram and warnings. ids: also the model and view ids of each node. full: also each edge's ids.",
     ),
@@ -1435,7 +1450,62 @@ const buildResponse = () =>
     plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
     style: z.optional(styleReportSchema()),
     quality: z.optional(qualitySchema()),
+    viewpoint: z.optional(viewpointReportSchema()),
   });
+
+export const viewpointReportSchema = () =>
+  doc(
+    z.object({
+      name: z.string(),
+      conforms: doc(
+        z.boolean(),
+        "No error or warning of /viewpoint_lint on the diagram.",
+      ),
+      findings: z.array(z.object({ rule: z.string(), message: z.string() })),
+    }),
+    "The viewpoint the diagram declares and whether it keeps to it (issue #42).",
+  );
+
+/**
+ * A build request refused before anything is made: under a strict profile
+ * every diagram declares its viewpoint, and a viewpoint is drawn only as
+ * its kinds.
+ */
+export function checkViewpoint(input: BuildInput, kind: Kind): void {
+  if (input.viewpoint === undefined) {
+    if (effectiveProfile().profile.strict && !isTrusted()) {
+      throw new ApiError(
+        "VIEWPOINT_REQUIRED",
+        `build_diagram: the style profile '${effectiveProfile().profile.name}' is strict, so every diagram declares the viewpoint it is a view of; pass viewpoint, or use /request_diagram or /derive_diagrams`,
+        { profile: effectiveProfile().profile.name },
+      );
+    }
+    return;
+  }
+  const vp = findViewpoint(input.viewpoint);
+  if (!(vp.kinds as string[]).includes(kind)) {
+    throw new ApiError(
+      "VIEWPOINT_MISMATCH",
+      `build_diagram: the ${vp.name} viewpoint is drawn as ${vp.kinds.join(", ")}, not ${kind}`,
+      {
+        reason: "kind",
+        alternatives: vp.kinds.map((k) => ({
+          viewpoint: vp.name,
+          kind: k,
+          why: vp.question,
+        })),
+      },
+    );
+  }
+}
+
+/** The parts a viewpoint requires that the engine draws: its legend. */
+export function partsFor(viewpoint: string): PartTexts {
+  const vp = findViewpoint(viewpoint);
+  return vp.required.includes("legend") && vp.legend
+    ? { legend: ["Legend", ...vp.legend].join("\n") }
+    : {};
+}
 
 export function buildDiagramEndpoint(
   endpoints: () => readonly Endpoint[],
@@ -1449,7 +1519,10 @@ export function buildDiagramEndpoint(
     request: buildRequest(),
     aliases: { parentId: "parent" },
     response: buildResponse(),
-    handle: (input) => buildDiagram(input, endpoints),
+    handle: (input) => {
+      checkViewpoint(input, readSource(input).kind);
+      return buildDiagram(input, endpoints);
+    },
   });
 }
 
@@ -1464,6 +1537,10 @@ export interface BuildExtras {
    * repository once per op.
    */
   opsOnly?: boolean;
+  /** What the diagram declares about itself, stored as its mark (issue #42). */
+  mark?: Mark;
+  /** The parts drawn below it; default the ones its viewpoint requires. */
+  parts?: PartTexts;
 }
 
 export type BuildInput = z.output<ReturnType<typeof buildRequest>>;
@@ -1494,6 +1571,15 @@ export async function buildDiagram(
     throw new ApiError("INVALID_ARGUMENT", "prune: needs upsert");
   }
   const diagram = input.upsert ? findDiagram(kind, name, parent) : null;
+  const mark =
+    extras.mark ??
+    (input.viewpoint !== undefined
+      ? { viewpoint: input.viewpoint }
+      : undefined);
+  const parts = mark && (extras.parts ?? partsFor(mark.viewpoint));
+  const skip = new Set(
+    diagram ? partViews(diagram, readMark(diagram)).map((v) => v._id) : [],
+  );
   const built = opsFor(
     plan,
     { diagram, parent, name },
@@ -1508,6 +1594,7 @@ export async function buildDiagram(
       reuse: input.reuse ?? true,
       allowDuplicateNames: input.allowDuplicateNames,
       showNamespace: input.showNamespace,
+      skip,
       ...extras,
     },
   );
@@ -1595,13 +1682,26 @@ export async function buildDiagram(
         styled,
         // An upsert that changed nothing leaves the picture as it was
         // arranged; it is only scored.
-        quality: (() => {
+        quality: await (async () => {
           const q =
             built.ops.length > 0
               ? improve(target, profile)
               : scoredAsIs(target, profile);
           deselect(target);
-          return q;
+          if (!mark || !(await placeParts(target, parts!, mark, endpoints))) {
+            return q;
+          }
+          // The parts sit below the drawing; the score is of what is shown,
+          // the loop's own record (before, steps) as the loop left it.
+          const {
+            before: _before,
+            target: _target,
+            iterations: _iterations,
+            steps: _steps,
+            ...now
+          } = scoredAsIs(target, profile);
+          const { failures: _failures, ...rest } = q;
+          return { ...rest, ...now };
         })(),
       };
     },
@@ -1624,5 +1724,8 @@ export async function buildDiagram(
     ...shaped(input.result, ids, edges),
     style: styleReport(profile, renames, styled),
     quality,
+    ...(mark && {
+      viewpoint: { name: mark.viewpoint, ...conformity(target) },
+    }),
   };
 }

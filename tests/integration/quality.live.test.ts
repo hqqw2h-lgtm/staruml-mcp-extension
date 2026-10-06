@@ -156,6 +156,7 @@ describeLive("quality loop", () => {
     const built = ok(
       await call<{ diagram: { _id: string } }>("/build_diagram", {
         kind: "class",
+        viewpoint: "code",
         spec: { classes: [{ name: "A" }, { name: "B" }] },
       }),
       "build",

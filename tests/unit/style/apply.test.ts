@@ -281,6 +281,7 @@ describe("visuals", () => {
       warnings: string[];
     }>(ep("/build_diagram"), {
       kind: "class",
+      viewpoint: "code",
       result: "ids",
       spec: {
         classes: [

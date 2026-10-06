@@ -200,3 +200,25 @@ export function saveGated(endpoint: Endpoint): Endpoint {
     );
   });
 }
+
+/**
+ * /create_diagram, refused from outside under a strict profile: a diagram
+ * made empty declares no viewpoint (issue #42). There is no override; a
+ * strict project draws through /request_diagram, /derive_diagrams or
+ * /build_diagram with a viewpoint.
+ */
+export function viewpointRequired(endpoint: Endpoint): Endpoint {
+  return {
+    ...endpoint,
+    handler: async (body) => {
+      if (profile().strict && !isTrusted()) {
+        return new ApiError(
+          "VIEWPOINT_REQUIRED",
+          `${endpoint.path}: the style profile '${profile().name}' is strict, so every diagram declares the viewpoint it is a view of; use /request_diagram, /derive_diagrams, or /build_diagram with viewpoint`,
+          { profile: profile().name, endpoint: endpoint.path },
+        ).toBody();
+      }
+      return endpoint.handler(body);
+    },
+  };
+}

@@ -24,6 +24,7 @@
 import type { Kind } from "../build/spec.js";
 import { limitsFor, type Profile } from "../style/profile.js";
 import type { Element } from "../types.js";
+import type { ViewpointName } from "../viewpoints/schema.js";
 import { VIEWS_TAG } from "./plan.js";
 import type { ModelViews } from "./spec.js";
 
@@ -51,6 +52,8 @@ export type DerivedKind = (typeof DERIVED_KINDS)[number];
 
 export interface Derived {
   kind: DerivedKind;
+  /** The viewpoint the diagram is a view of (issue #42). */
+  viewpoint: ViewpointName;
   name: string;
   /** Owner of the diagram: the package, interaction or state machine it shows. */
   parent: Element;
@@ -76,15 +79,38 @@ export const SECTION_HOMES = {
 
 const SHARED_TYPES = new Set(["UMLNode", "UMLArtifact"]);
 
+/** The C4 element type a c4 spec element makes (C4_TYPES in build/spec.ts). */
+const C4_MODEL_TYPES: Record<string, string> = {
+  person: "C4Person",
+  system: "C4SoftwareSystem",
+  container: "C4Container",
+  component: "C4Component",
+};
+
 /**
- * The nodes and artifacts a deployment spec names that its home already
- * holds, bound so the diagram shows them rather than making namesakes: a
- * PostgreSQL node drawn on two deployments is one node.
+ * The elements a section spec names that its home already holds, bound so
+ * the diagram shows them rather than making namesakes: a PostgreSQL node
+ * drawn on two deployments is one node, and a person on the context view
+ * is the one on the container view.
  */
 export function bindShared(d: Derived, home: Element): void {
+  const held = owned(home);
+  if (d.kind === "c4") {
+    const spec = d.spec as {
+      elements: { id?: string; name: string; type: string }[];
+    };
+    for (const el of spec.elements) {
+      const found = held.find(
+        (e) =>
+          e.constructor.name === C4_MODEL_TYPES[el.type] && e.name === el.name,
+      );
+      if (found) d.bind.set(el.id ?? el.name, found);
+    }
+    return;
+  }
   const spec = d.spec as { nodes: { name: string }[]; artifacts: string[] };
   const names = new Set([...spec.nodes.map((n) => n.name), ...spec.artifacts]);
-  for (const e of owned(home)) {
+  for (const e of held) {
     const name = String(e.name);
     if (SHARED_TYPES.has(e.constructor.name) && names.has(name)) {
       d.bind.set(name, e);
@@ -241,6 +267,7 @@ function classDiagram(
   for (const [e, k] of key) bind.set(k, e);
   return {
     kind: "class",
+    viewpoint: "code",
     name,
     parent,
     spec: {
@@ -302,12 +329,15 @@ function classDiagrams(s: Scope): Derived[] {
       );
     });
   }
+  // A package outside any model is its own model here: one group, not two.
   const groups: [Element, Element[]][] = [
     [s.model, classes.filter((c) => c._parent === s.model)],
-    ...packages.map((p): [Element, Element[]] => [
-      p,
-      classes.filter((c) => c._parent === p),
-    ]),
+    ...packages
+      .filter((p) => p !== s.model)
+      .map((p): [Element, Element[]] => [
+        p,
+        classes.filter((c) => c._parent === p),
+      ]),
   ];
   return groups
     .filter(([, own]) => own.length > 0)
@@ -350,6 +380,7 @@ function packageOverview(s: Scope): Derived[] {
   return [
     {
       kind: "package",
+      viewpoint: "component",
       name: `${String(s.model.name)} packages`,
       parent: s.model,
       spec: {
@@ -395,6 +426,7 @@ function sequenceDiagrams(s: Scope): Derived[] {
       return [
         {
           kind: "sequence" as const,
+          viewpoint: "runtime" as const,
           name: String(collab.name),
           parent: interaction,
           spec: {
@@ -442,6 +474,7 @@ function communicationDiagrams(s: Scope): Derived[] {
       return [
         {
           kind: "communication" as const,
+          viewpoint: "runtime" as const,
           name: `${String(collab.name)} communication`,
           parent: interaction,
           spec: {
@@ -501,6 +534,7 @@ function stateDiagrams(s: Scope): Derived[] {
       );
       return {
         kind: "statemachine" as const,
+        viewpoint: "lifecycle" as const,
         name: String(machine.name),
         parent: machine,
         spec: {
@@ -546,6 +580,7 @@ function usecaseDiagram(
   if (subject) bind.set(String(subject.name), subject);
   return {
     kind: "usecase",
+    viewpoint: "actors-goals",
     name,
     parent,
     spec: {
@@ -677,15 +712,142 @@ export function splitTree(root: Tree, max: number) {
   }));
 }
 
+type C4Element = NonNullable<ModelViews["components"]>["elements"][number];
+interface C4Relation {
+  from: string;
+  to: string;
+  label?: string;
+  technology?: string;
+  description?: string;
+}
+
+const RELATION_FIELDS = ["from", "to", "label", "technology", "description"];
+const keyOfC4 = (e: { id?: string; name: string }) => e.id ?? e.name;
+
+/**
+ * The C4 section as views: people, systems and containers on the
+ * container view; components, when there are any besides, on a view of
+ * their own, since a component lives inside one container and a container
+ * view shows none (issue #42).
+ */
+function c4Diagrams(s: Scope, plain: Plain): Derived[] {
+  const c = s.views.components;
+  if (!c) return [];
+  const name = c.name ?? `${String(s.model.name)} containers`;
+  const relations = (c.relations ?? []).map((r) =>
+    tuple<C4Relation & Record<string, unknown>>(r, RELATION_FIELDS),
+  );
+  const parts = c.elements.filter((e) => e.type === "component");
+  const rest = c.elements.filter((e) => e.type !== "component");
+  const view = (
+    viewpoint: ViewpointName,
+    title: string,
+    elements: C4Element[],
+  ): Derived => {
+    const keys = new Set(elements.map(keyOfC4));
+    return {
+      ...plain("c4", title, {
+        elements,
+        relations:
+          elements.length === c.elements.length
+            ? relations
+            : relations.filter((r) => keys.has(r.from) && keys.has(r.to)),
+      }),
+      viewpoint,
+      home: SECTION_HOMES.c4,
+    };
+  };
+  if (parts.length === 0) return [view("container", name, rest)];
+  if (rest.length === 0) return [view("component", name, parts)];
+  return [
+    view("container", name, rest),
+    view("component", `${name} components`, parts),
+  ];
+}
+
+/** The key the system in scope takes on a context view when the section names none. */
+export const SYSTEM_KEY = "system in scope";
+
+/**
+ * The C4 section as a system context: its people and outside systems
+ * around one box for the system, which every container and component of
+ * the section collapses into, a relationship kept once per pair of ends.
+ */
+function contextDiagram(s: Scope, plain: Plain): Derived[] {
+  const c = s.views.components;
+  if (!c) return [];
+  const own = c.elements.filter(
+    (e) => e.type === "system" && e.external !== true,
+  );
+  const system: C4Element = own[0] ?? {
+    id: SYSTEM_KEY,
+    name: String(s.model.name),
+    type: "system",
+  };
+  const inside = new Set(
+    c.elements
+      .filter((e) => e.type === "container" || e.type === "component")
+      .map(keyOfC4),
+  );
+  const elements = [
+    ...c.elements.filter((e) => e.type === "person"),
+    ...(own.length > 0 ? [] : [system]),
+    ...c.elements.filter((e) => e.type === "system"),
+  ];
+  // Relations the system's inside had with one neighbour become one,
+  // labelled as the first and carrying every technology used.
+  const merged = new Map<string, C4Relation & { techs: string[] }>();
+  for (const r of (c.relations ?? []).map((r) =>
+    tuple<C4Relation & Record<string, unknown>>(r, RELATION_FIELDS),
+  )) {
+    const at = (k: string) => (inside.has(k) ? keyOfC4(system) : k);
+    const [from, to] = [at(r.from), at(r.to)];
+    if (from === to) continue;
+    const key = `${from}|${to}`;
+    const known = merged.get(key) ?? { ...r, from, to, techs: [] };
+    if (r.technology && !known.techs.includes(r.technology)) {
+      known.techs.push(r.technology);
+    }
+    merged.set(key, known);
+  }
+  const relations = [...merged.values()].map(({ techs, ...r }) => ({
+    ...r,
+    ...(techs.length > 0 && { technology: techs.join(", ") }),
+  }));
+  return [
+    {
+      ...plain("c4", `${String(s.model.name)} context`, {
+        elements,
+        relations,
+      }),
+      viewpoint: "context",
+      home: SECTION_HOMES.c4,
+    },
+  ];
+}
+
+type Plain = (
+  kind: DerivedKind,
+  name: string,
+  spec: Record<string, unknown>,
+) => Derived;
+
+/** Viewpoints of the kinds a section draws in one way only. */
+const SECTION_VIEWPOINTS = {
+  activity: "runtime",
+  erd: "data",
+  deployment: "deployment",
+  mindmap: "actors-goals",
+} as const satisfies Partial<Record<DerivedKind, ViewpointName>>;
+
 /** Diagrams drawn from the view sections, made by the build the first time. */
-function sectionDiagrams(s: Scope): Derived[] {
+function sectionDiagrams(s: Scope, context: boolean): Derived[] {
   const v = s.views;
-  const plain = (
-    kind: DerivedKind,
-    name: string,
-    spec: Record<string, unknown>,
-  ): Derived => ({
+  const plain: Plain = (kind, name, spec) => ({
     kind,
+    viewpoint:
+      SECTION_VIEWPOINTS[kind as keyof typeof SECTION_VIEWPOINTS] ??
+      "container",
     name,
     parent: s.model,
     spec,
@@ -717,29 +879,8 @@ function sectionDiagrams(s: Scope): Derived[] {
           }),
         ]
       : []),
-    ...(v.components
-      ? [
-          {
-            ...plain(
-              "c4",
-              v.components.name ?? `${String(s.model.name)} containers`,
-              {
-                elements: v.components.elements,
-                relations: (v.components.relations ?? []).map((r) =>
-                  tuple(r, [
-                    "from",
-                    "to",
-                    "label",
-                    "technology",
-                    "description",
-                  ]),
-                ),
-              },
-            ),
-            home: SECTION_HOMES.c4,
-          },
-        ]
-      : []),
+    ...(context ? contextDiagram(s, plain) : []),
+    ...c4Diagrams(s, plain),
     ...(v.deployments ?? []).map((d) => ({
       home: SECTION_HOMES.deployment,
       ...plain("deployment", d.name, {
@@ -762,15 +903,22 @@ function sectionDiagrams(s: Scope): Derived[] {
   ];
 }
 
+export interface DeriveOptions {
+  /** Also a system context from the C4 section, which only a request for one draws. */
+  context?: boolean;
+}
+
 /**
  * Every diagram the model in `scope` derives to, by the policy, in a fixed
  * order: package overview, class, sequence, use case, state machine, then
- * the view sections' activities, ERD, C4, deployments and mind map.
+ * the view sections' activities, ERD, C4 context (when asked) and
+ * containers, deployments and mind map.
  */
 export function derive(
   scope: Element,
   profile: Profile,
   kinds?: ReadonlySet<DerivedKind>,
+  options: DeriveOptions = {},
 ): Derived[] {
   const model = modelOf(scope) ?? scope;
   const s: Scope = { model, all: owned(scope), views: viewsOf(model), profile };
@@ -780,7 +928,65 @@ export function derive(
     ...sequenceDiagrams(s),
     ...usecaseDiagrams(s),
     ...stateDiagrams(s),
-    ...sectionDiagrams(s),
+    ...sectionDiagrams(s, options.context === true),
     ...(kinds?.has("communication") ? communicationDiagrams(s) : []),
   ].filter((d) => !kinds || kinds.has(d.kind));
+}
+
+/**
+ * A class with every classifier it is directly related to, as one class
+ * diagram: the code view of a single class (issue #42).
+ */
+export function classNeighbourhood(cls: Element): Derived {
+  const related = app.repository
+    .getRelationshipsOf(cls)
+    .filter((r) => CLASS_RELATIONS.has(r.constructor.name))
+    .flatMap(ends)
+    .filter(
+      (e): e is Element =>
+        !!e && e !== cls && CLASSIFIERS.includes(e.constructor.name),
+    );
+  const shown = [cls, ...related].filter((c, i, all) => all.indexOf(c) === i);
+  return classDiagram(
+    `${String(cls.name)} and its collaborators`,
+    cls._parent!,
+    shown,
+  );
+}
+
+const treeSize = (t: Tree | undefined): number => (t ? size(t) : 0);
+
+/**
+ * How many nodes a derived diagram draws, and how many of them are
+ * lifelines, by its spec: what a viewpoint's limits are held to.
+ */
+export function countNodes(d: Derived): { nodes: number; lifelines: number } {
+  const spec = d.spec as Record<string, unknown[] | undefined> & {
+    root?: Tree;
+  };
+  const n = (field: string) => spec[field]?.length ?? 0;
+  switch (d.kind) {
+    case "sequence":
+      return { nodes: n("participants"), lifelines: n("participants") };
+    case "communication":
+      return { nodes: n("nodes"), lifelines: n("nodes") };
+    case "class":
+      return { nodes: n("classes"), lifelines: 0 };
+    case "package":
+      return { nodes: n("packages"), lifelines: 0 };
+    case "usecase":
+      return { nodes: n("actors") + n("useCases"), lifelines: 0 };
+    case "statemachine":
+      return { nodes: n("states"), lifelines: 0 };
+    case "erd":
+      return { nodes: n("entities"), lifelines: 0 };
+    case "c4":
+      return { nodes: n("elements"), lifelines: 0 };
+    case "deployment":
+      return { nodes: n("nodes") + n("artifacts"), lifelines: 0 };
+    case "mindmap":
+      return { nodes: treeSize(spec.root), lifelines: 0 };
+    default:
+      return { nodes: n("nodes"), lifelines: 0 };
+  }
 }

@@ -102,7 +102,11 @@ describeLive("style profile", () => {
       "set",
     );
     const built = ok(
-      await call<Built>("/build_diagram", { kind: "class", spec: SPEC }),
+      await call<Built>("/build_diagram", {
+        kind: "class",
+        viewpoint: "code",
+        spec: SPEC,
+      }),
       "build",
     );
     const a = built.ids["order line"]!.view;

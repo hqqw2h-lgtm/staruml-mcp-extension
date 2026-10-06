@@ -42,6 +42,12 @@ export const ERROR_STATUS = {
    * override: true to do it anyway (issue #31).
    */
   STYLE_LOCKED: 403,
+  /**
+   * The style profile is strict and the call would make a diagram that
+   * declares no viewpoint (issue #42); pass viewpoint, or draw it through
+   * /request_diagram or /derive_diagrams.
+   */
+  VIEWPOINT_REQUIRED: 403,
   /** An id that names no element, or an element of the wrong kind. */
   NOT_FOUND: 404,
   UNKNOWN_ENDPOINT: 404,
@@ -73,6 +79,13 @@ export const ERROR_STATUS = {
    * or export anyway.
    */
   SAVE_BLOCKED: 409,
+  /**
+   * The view asked for does not fit (issue #42): the intent names a
+   * viewpoint not drawn for this scope or not written for this audience,
+   * the scope holds nothing to show, or the content is past the
+   * viewpoint's limits. details.alternatives lists the views that fit.
+   */
+  VIEWPOINT_MISMATCH: 422,
   /** StarUML refused the operation, e.g. a factory precondition failed. */
   STARUML_ERROR: 422,
   /**
