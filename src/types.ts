@@ -278,6 +278,8 @@ export interface Engine {
   setFontSize(editor: unknown, views: View[], size: number): unknown;
   /** One of EdgeView.LS_*: 0 rectilinear, 1 oblique, 2 roundrect, 3 curve. */
   setLineStyle(editor: unknown, views: View[], lineStyle: number): unknown;
+  /** Replaces an edge's polyline as one operation (engine/engine.js). */
+  modifyEdge(editor: unknown, edge: View, points: unknown): unknown;
   /** One of UMLGeneralNodeView.SD_*, e.g. "label", "icon". */
   setStereotypeDisplay(editor: unknown, views: View[], value: string): unknown;
   setAutoResize(editor: unknown, views: View[], autoResize: boolean): unknown;

@@ -822,20 +822,30 @@ describe("/build_diagram result modes and new kinds (#35)", () => {
     expect(dryTerse.ids).toBeUndefined();
   });
 
-  it("lays a mind map out sideways from its root by default", async () => {
+  it("places a mind map itself: root in the middle, branches on both sides", async () => {
     const data = await ok<Full>(raw, {
       kind: "mindmap",
       dryRun: true,
-      spec: { root: { name: "R", children: [{ name: "A" }, { name: "B" }] } },
+      spec: {
+        root: {
+          name: "R",
+          children: [{ name: "A", children: [{ name: "A1" }] }, { name: "B" }],
+        },
+      },
     });
-    expect(data.preset).toBe("flow-right");
-    const down = await ok<Full>(raw, {
-      kind: "mindmap",
-      direction: "TB",
-      dryRun: true,
-      spec: { root: { name: "R" } },
-    });
-    expect(down.preset).toBe("flow-down");
+    expect(data.layout).toBe("placed");
+    const { ops } = (
+      data as unknown as {
+        plan: { ops: { path: string; body: { name?: string; x?: number } }[] };
+      }
+    ).plan;
+    const x = (name: string) =>
+      ops.find(
+        (o) => o.path === "/create_element_with_view" && o.body.name === name,
+      )!.body.x!;
+    expect(x("A")).toBeGreaterThan(x("R"));
+    expect(x("A1")).toBeGreaterThan(x("A"));
+    expect(x("B")).toBeLessThan(x("R"));
   });
 
   it("lays package diagrams out as hierarchies and the others as flows", async () => {

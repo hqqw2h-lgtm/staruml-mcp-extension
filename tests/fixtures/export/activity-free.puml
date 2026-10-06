@@ -1,5 +1,6 @@
 @startuml
 title Free flow
+left to right direction
 (*) --> "A" as N1
 N1 --> ===N2===
 ===N2=== --> "B" as N3

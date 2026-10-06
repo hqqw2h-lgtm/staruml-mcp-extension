@@ -1,5 +1,4 @@
 @startuml
-left to right direction
 "Start" as N0 --> "Check" as N1
 N1 --> [yes] "Done" as N2
 @enduml

@@ -1,51 +1,51 @@
 {
   "class": {
     "hash": "72a2a02022828200",
-    "score": 98,
+    "score": 99,
     "width": 231,
     "height": 251
   },
   "sequence": {
     "hash": "b4c5695d61714515",
-    "score": 97,
+    "score": 96,
     "width": 652,
     "height": 692
   },
   "usecase": {
-    "hash": "39692d682d3d2130",
-    "score": 95,
-    "width": 511,
-    "height": 390
+    "hash": "6871717ade966000",
+    "score": 99,
+    "width": 681,
+    "height": 295
   },
   "activity": {
     "hash": "a8a181292d292d21",
-    "score": 95,
+    "score": 97,
     "width": 570,
     "height": 580
   },
   "statemachine": {
-    "hash": "acce2d6baca40000",
-    "score": 94,
-    "width": 956,
-    "height": 91
+    "hash": "0030d04030c0f030",
+    "score": 99,
+    "width": 214,
+    "height": 476
   },
   "erd": {
     "hash": "c0cc5c94644c8000",
-    "score": 94,
+    "score": 95,
     "width": 490,
     "height": 138
   },
   "flowchart": {
-    "hash": "cccce4949c80a080",
+    "hash": "303036b2d2808000",
     "score": 97,
-    "width": 390,
-    "height": 320
+    "width": 530,
+    "height": 310
   },
   "mindmap": {
-    "hash": "7676d090b0b0f000",
-    "score": 97,
-    "width": 510,
-    "height": 250
+    "hash": "1a1a6a6a68181800",
+    "score": 96,
+    "width": 591,
+    "height": 134
   },
   "requirement": {
     "hash": "8c848d858d052d2d",
@@ -55,25 +55,25 @@
   },
   "c4": {
     "hash": "3070707070dcccc8",
-    "score": 98,
+    "score": 99,
     "width": 450,
     "height": 530
   },
   "package": {
     "hash": "1d349c94a0a08000",
-    "score": 98,
+    "score": 96,
     "width": 491,
     "height": 500
   },
   "component": {
     "hash": "0080c0a0929a8080",
-    "score": 90,
+    "score": 94,
     "width": 651,
     "height": 569
   },
   "deployment": {
-    "hash": "8474541834040e06",
-    "score": 96,
+    "hash": "8474543034040e06",
+    "score": 99,
     "width": 602,
     "height": 476
   }

@@ -184,12 +184,10 @@ function generateClasses(): Record<string, Ctor> {
         }
         /** View.initialize (core/core.js): an edge runs from (x1, y1) to (x2, y2). */
         initialize(_c: null, x1: number, y1: number, x2: number, y2: number) {
-          this.points = {
-            points: [
-              { x: x1, y: y1 },
-              { x: x2, y: y2 },
-            ],
-          };
+          this.points = mockPoints([
+            { x: x1, y: y1 },
+            { x: x2, y: y2 },
+          ]);
         }
       },
     }[name]!;
@@ -241,6 +239,16 @@ Object.defineProperty(mockTypes.View!.prototype, "canContainView", {
     return view !== this && (kinds ?? []).some((k) => is(view, k));
   },
 });
+
+/** core/graphics.js Points: the polyline, a copy of it, and its saved form. */
+export function mockPoints(points: { x: number; y: number }[]) {
+  const pts = {
+    points,
+    copy: () => mockPoints(points.map((p) => ({ ...p }))),
+    __write: () => pts.points.map((p) => `${p.x}:${p.y}`).join(";"),
+  };
+  return pts;
+}
 
 export function create<T extends MockElement = Element>(typeName: string): T {
   const ctor = mockTypes[typeName];
@@ -840,10 +848,7 @@ export class Factory {
           { x: options.x1 ?? 0, y: options.y1 },
           { x: options.x2 ?? 0, y: options.y2 ?? options.y1 },
         ];
-        view.points = {
-          points,
-          __write: () => points.map((p) => `${p.x}:${p.y}`).join(";"),
-        };
+        view.points = mockPoints(points);
       }
     }
     if (is(view, "NodeView")) place(view, options);
@@ -1184,6 +1189,11 @@ export class Engine {
     );
     void editor;
   }
+  /** Engine.modifyEdge: the edge's polyline replaced, as one operation. */
+  modifyEdge(editor: unknown, edge: MockElement, points: unknown): void {
+    if (!editor) return;
+    this.assign("modify edge", [[edge, { points }]]);
+  }
   setLineStyle(editor: unknown, views: MockElement[], lineStyle: number): void {
     this.setViewField(editor, views, "lineStyle", lineStyle);
   }
@@ -1255,7 +1265,6 @@ stub(Engine, [
   "_determineDeletingElements",
   "_determineOutsideElements",
   "addModelAndView",
-  "modifyEdge",
   "moveDown",
   "moveParasiticView",
   "moveUp",

@@ -1,4 +1,5 @@
 @startuml
+left to right direction
 state "Idle" as N1
 state "Working hard" as N2 {
   state "Running" as N4

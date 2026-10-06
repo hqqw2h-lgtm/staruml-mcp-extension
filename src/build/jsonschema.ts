@@ -187,7 +187,8 @@ export function parseJsonSchema(source: string, as?: Kind): Parsed {
     done.add(name);
     let own: Schema = s;
     if (Array.isArray(s.allOf)) {
-      const parts = s.allOf as Schema[];
+      // A part that is not a schema object (null, a number) adds nothing.
+      const parts = (s.allOf as unknown[]).filter(isObject);
       const bases = parts.filter((p) => typeof p.$ref === "string");
       const rest = parts.filter((p) => typeof p.$ref !== "string");
       if (

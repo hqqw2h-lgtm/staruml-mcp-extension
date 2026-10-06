@@ -1,5 +1,6 @@
 @startuml
 title Nested spec
+left to right direction
 state "Off" as N1
 state "On" as N2 {
   state "Low" as N4

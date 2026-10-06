@@ -20852,6 +20852,11 @@
                   "additionalProperties": false
                 },
                 "description": "/lint_diagram findings left, by rule."
+              },
+              "failures": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes."
               }
             },
             "required": [
@@ -22955,6 +22960,11 @@
                   "additionalProperties": false
                 },
                 "description": "/lint_diagram findings left, by rule."
+              },
+              "failures": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes."
               }
             },
             "required": [
@@ -25864,6 +25874,11 @@
                   "additionalProperties": false
                 },
                 "description": "/lint_diagram findings left, by rule."
+              },
+              "failures": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes."
               }
             },
             "required": [
@@ -26599,7 +26614,7 @@
     },
     {
       "path": "/diagram_quality",
-      "description": "Score a diagram 0–100 from its view geometry, no rendering: overlap of boxes, edges through nodes, crossing edges, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. rating is 1–5 (4 needs 80); target is the profile's threshold for the kind. Read-only.",
+      "description": "Score a diagram 0–100 from its view geometry, no rendering: boxes on boxes, labels printed over text or far from their edge or crossed by another edge, edges through nodes, crossing edges, edges sharing one line, boxes cut by a lane or fragment border, selection handles an export would draw, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. failures lists hard limits broken (aspect past maxAspect on a diagram larger than the page, more than maxNodes boxes); a failing diagram scores at most 59. rating is 1–5 (4 needs 80); target is the profile's threshold for the kind. The weights are fitted to human ratings (Spearman ≥ 0.7). Read-only.",
       "readOnly": true,
       "destructive": false,
       "request": {
@@ -26662,13 +26677,13 @@
             "type": "object",
             "propertyNames": { "type": "string" },
             "additionalProperties": { "type": "number" },
-            "description": "overlapArea, overlapPairs, overlapRatio, nodeEdgeCrossings, edgeCrossings, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges."
+            "description": "overlapArea, overlapPairs, overlapRatio, severeOverlaps, labelOverlaps, detachedLabels, labelCrossings, nodeEdgeCrossings, edgeCrossings, sharedSegments, borderCrossings, selected, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges."
           },
           "penalties": {
             "type": "object",
             "propertyNames": { "type": "string" },
             "additionalProperties": { "type": "number" },
-            "description": "Points lost per measure, at most: overlap 30, nodeEdge 20, edgeEdge 15, length 5, bends 5, alignment 10, whitespace 5, aspect 5, page 5."
+            "description": "Points lost per measure, at most: overlap 18, labels 18, nodeEdge 13, edgeEdge 12, shared 5, borders 8, selection 6, length 3, bends 1, alignment 2, whitespace 4, aspect 4, page 6."
           },
           "findings": {
             "type": "array",
@@ -26691,6 +26706,11 @@
               "additionalProperties": false
             },
             "description": "/lint_diagram findings left, by rule."
+          },
+          "failures": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes."
           }
         },
         "required": [
@@ -26844,6 +26864,11 @@
                   "additionalProperties": false
                 },
                 "description": "/lint_diagram findings left, by rule."
+              },
+              "failures": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes."
               }
             },
             "required": [

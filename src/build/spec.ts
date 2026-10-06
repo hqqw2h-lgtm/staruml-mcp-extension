@@ -32,6 +32,7 @@ import {
   parseOperation,
 } from "./members.js";
 import {
+  type Box,
   Builder,
   type ColumnSpec,
   common,
@@ -288,6 +289,12 @@ const usecaseSpec = () =>
     ),
     actors: z.optional(strings()),
     useCases: z.optional(strings()),
+    outside: z.optional(
+      doc(
+        strings(),
+        "Use cases of another system: drawn beside the boundary rather than in it.",
+      ),
+    ),
     relations: z.optional(
       z.array(
         z.object({
@@ -1150,13 +1157,15 @@ function usecasePlan(spec: Spec<"usecase">): Plan {
   const b = new Builder("usecase");
   const system = spec.system === undefined ? undefined : multiline(spec.system);
   const useCases = (spec.useCases ?? []).map(multiline);
+  const outside = new Set((spec.outside ?? []).map(multiline));
   if (system !== undefined) {
+    // Placement sizes the boundary to the grid of use cases it holds.
     b.node({
       key: system,
       type: "UMLUseCaseSubject",
       name: system,
       width: 260,
-      height: 100 + 80 * useCases.length,
+      height: 100,
     });
   }
   for (const a of spec.actors ?? []) {
@@ -1169,7 +1178,15 @@ function usecasePlan(spec: Spec<"usecase">): Plan {
     });
   }
   for (const u of useCases) {
-    b.node({ key: u, type: "UMLUseCase", name: u, width: 160, height: 50 });
+    b.node({
+      key: u,
+      type: "UMLUseCase",
+      name: u,
+      // An ellipse's text runs in its middle band: the name and some air.
+      width: Math.max(160, textWidth(u) + 3 * LABEL_PADDING),
+      height: 50,
+      ...(outside.has(u) && { outside: true }),
+    });
   }
   (spec.relations ?? []).forEach((r, i) =>
     b.edge(
@@ -1466,8 +1483,96 @@ function flowchartPlan(spec: Spec<"flowchart">): Plan {
   return b.plan();
 }
 
+/** A mind map's row pitch, the gap between its columns and the margin. */
+const MIND = { row: 48, gap: 70, margin: 40, height: 36 };
+
+/** Leaves under a mind map node: the rows its subtree takes. */
+const leaves = (n: MindNode): number =>
+  (n.children ?? []).reduce((sum, c) => sum + leaves(c), 0) || 1;
+
+/**
+ * Root in the middle, its branches split between the right and the left
+ * so both sides hold about as many leaves (the first branches go right,
+ * in order), each side a tidy tree growing outwards with a parent centred
+ * on its children. A map drawn down one side measured 1020×8292 for the
+ * ThingsBoard features (rated 1/5); balanced it is about square.
+ */
 function mindmapPlan(spec: Spec<"mindmap">): Plan {
   const b = new Builder("mindmap");
+  const widthOf = (n: MindNode) =>
+    Math.max(80, textWidth(multiline(n.name)) + 2 * LABEL_PADDING);
+  const root = spec.root;
+  const branches = root.children ?? [];
+  const total = branches.reduce((n, c) => n + leaves(c), 0);
+  const right: MindNode[] = [];
+  const left: MindNode[] = [];
+  let taken = 0;
+  for (const c of branches) {
+    if (taken < total / 2) {
+      right.push(c);
+      taken += leaves(c);
+    } else left.push(c);
+  }
+  // Column widths by depth, per side, so a long name does not overlap the
+  // next column.
+  const columns = (side: MindNode[]) => {
+    const widths: number[] = [];
+    const walk = (n: MindNode, d: number) => {
+      widths[d] = Math.max(widths[d] ?? 0, widthOf(n));
+      for (const c of n.children ?? []) walk(c, d + 1);
+    };
+    for (const c of side) walk(c, 0);
+    return widths;
+  };
+  const rows = (side: MindNode[]) => side.reduce((n, c) => n + leaves(c), 0);
+  const height = Math.max(rows(right), rows(left), 1) * MIND.row;
+  const leftCols = columns(left);
+  const rootW = widthOf(root);
+  const rootX = MIND.margin + leftCols.reduce((n, w) => n + w + MIND.gap, 0);
+  const rootKey = multiline(root.name);
+  const boxes = new Map<string, Box>();
+  boxes.set(rootKey, {
+    x: rootX,
+    y: MIND.margin + height / 2 - MIND.height / 2,
+    width: rootW,
+    height: MIND.height,
+  });
+  const layoutSide = (side: MindNode[], dir: 1 | -1) => {
+    const cols = columns(side);
+    // x of each depth's column: outwards from the root.
+    const xs: number[] = [];
+    let x = dir === 1 ? rootX + rootW + MIND.gap : rootX - MIND.gap;
+    cols.forEach((w, d) => {
+      xs[d] = dir === 1 ? x : x - w;
+      x += dir * (w + MIND.gap);
+    });
+    let top = MIND.margin + (height - rows(side) * MIND.row) / 2;
+    const place = (n: MindNode, key: string, d: number): number => {
+      const kids = n.children ?? [];
+      let centre: number;
+      if (kids.length === 0) {
+        centre = top + MIND.row / 2;
+        top += MIND.row;
+      } else {
+        const ys = kids.map((c) =>
+          place(c, `${key}/${multiline(c.name)}`, d + 1),
+        );
+        centre = (ys[0]! + ys.at(-1)!) / 2;
+      }
+      const w = widthOf(n);
+      boxes.set(key, {
+        // A node hugs its column on the root's side.
+        x: dir === 1 ? xs[d]! : xs[d]! + cols[d]! - w,
+        y: centre - MIND.height / 2,
+        width: w,
+        height: MIND.height,
+      });
+      return centre;
+    };
+    for (const c of side) place(c, `${rootKey}/${multiline(c.name)}`, 0);
+  };
+  layoutSide(right, 1);
+  layoutSide(left, -1);
   const visit = (node: MindNode, parent: string | null) => {
     const key =
       parent === null
@@ -1477,22 +1582,20 @@ function mindmapPlan(spec: Spec<"mindmap">): Plan {
       key,
       type: "MMNode",
       name: multiline(node.name),
-      width: 120,
-      height: 40,
+      width: boxes.get(key)!.width,
+      height: MIND.height,
+      box: boxes.get(key)!,
+      // MMNodeView wraps its name by default (mindmap elements.js 7.1.1),
+      // two lines in a box placed for one, onto the row below.
+      viewProperties: { wordWrap: false },
     });
     if (parent !== null) b.edge({ type: "MMEdge", from: parent, to: key }, key);
     for (const child of node.children ?? []) visit(child, key);
   };
-  visit(spec.root, null);
-  return b.plan();
+  visit(root, null);
+  return b.plan(true);
 }
 
-/**
- * Requirements as SysMLRequirements with Mermaid's type as stereotype, and
- * elements as classes stereotyped element with Type and DocRef attributes,
- * the way StarUML's own Mermaid importer builds them
- * (extensions/default/mermaid/factory/requirement-factory.js, 7.1.1).
- */
 function requirementPlan(spec: Spec<"requirement">): Plan {
   const b = new Builder("requirement");
   for (const r of spec.requirements ?? []) {

@@ -368,10 +368,10 @@ function readBody(req, limit) {
       return;
     }
     const chunks = [];
-    let size = 0;
+    let size2 = 0;
     const onData = (chunk) => {
-      size += chunk.length;
-      if (size > limit) {
+      size2 += chunk.length;
+      if (size2 > limit) {
         req.off("data", onData);
         req.resume();
         reject(new BodyTooLarge(limit));
@@ -403,6 +403,31 @@ function sendJson(res, status, body, handlerStarted) {
 }
 function stackOf(err) {
   return err instanceof Error ? String(err.stack) : String(err);
+}
+
+// src/fonts.ts
+var DIAGRAM_FACES = [
+  "13px Arial",
+  "bold 13px Arial",
+  "italic 13px Arial"
+];
+var FONT_WAIT_MS = 3e3;
+async function loadDiagramFonts(fonts = globalThis.document?.fonts, wait = FONT_WAIT_MS) {
+  if (!fonts) return false;
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(false), wait);
+  });
+  try {
+    return await Promise.race([
+      Promise.all(DIAGRAM_FACES.map((f) => fonts.load(f))).then(() => true),
+      timeout
+    ]);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // node_modules/zod/v4/core/util.js
@@ -4873,7 +4898,7 @@ function familySpec(kind2) {
   const f = family(kind2);
   const nodeTypes = Object.keys(f.nodes);
   const edgeTypes = Object.keys(f.edges);
-  const size = (what) => optional(doc(int().check(_gte(10)), `${what} of the view.`));
+  const size2 = (what) => optional(doc(int().check(_gte(10)), `${what} of the view.`));
   return object({
     ...common(),
     ...f.owner && {
@@ -4913,8 +4938,8 @@ function familySpec(kind2) {
             slots: optional(
               doc(array(name()), "Instance values, 'name = value'.")
             ),
-            width: size("Width"),
-            height: size("Height")
+            width: size2("Width"),
+            height: size2("Height")
           })
         ])
       )
@@ -5706,6 +5731,12 @@ var usecaseSpec = () => object({
   ),
   actors: optional(strings()),
   useCases: optional(strings()),
+  outside: optional(
+    doc(
+      strings(),
+      "Use cases of another system: drawn beside the boundary rather than in it."
+    )
+  ),
   relations: optional(
     array(
       object({
@@ -6423,13 +6454,14 @@ function usecasePlan(spec) {
   const b = new Builder("usecase");
   const system = spec.system === void 0 ? void 0 : multiline(spec.system);
   const useCases2 = (spec.useCases ?? []).map(multiline);
+  const outside = new Set((spec.outside ?? []).map(multiline));
   if (system !== void 0) {
     b.node({
       key: system,
       type: "UMLUseCaseSubject",
       name: system,
       width: 260,
-      height: 100 + 80 * useCases2.length
+      height: 100
     });
   }
   for (const a of spec.actors ?? []) {
@@ -6442,7 +6474,15 @@ function usecasePlan(spec) {
     });
   }
   for (const u of useCases2) {
-    b.node({ key: u, type: "UMLUseCase", name: u, width: 160, height: 50 });
+    b.node({
+      key: u,
+      type: "UMLUseCase",
+      name: u,
+      // An ellipse's text runs in its middle band: the name and some air.
+      width: Math.max(160, textWidth(u) + 3 * LABEL_PADDING),
+      height: 50,
+      ...outside.has(u) && { outside: true }
+    });
   }
   (spec.relations ?? []).forEach(
     (r, i) => b.edge(
@@ -6700,22 +6740,98 @@ function flowchartPlan(spec) {
   );
   return b.plan();
 }
+var MIND = { row: 48, gap: 70, margin: 40, height: 36 };
+var leaves = (n) => (n.children ?? []).reduce((sum, c) => sum + leaves(c), 0) || 1;
 function mindmapPlan(spec) {
   const b = new Builder("mindmap");
+  const widthOf = (n) => Math.max(80, textWidth(multiline(n.name)) + 2 * LABEL_PADDING);
+  const root = spec.root;
+  const branches = root.children ?? [];
+  const total = branches.reduce((n, c) => n + leaves(c), 0);
+  const right = [];
+  const left = [];
+  let taken = 0;
+  for (const c of branches) {
+    if (taken < total / 2) {
+      right.push(c);
+      taken += leaves(c);
+    } else left.push(c);
+  }
+  const columns = (side) => {
+    const widths = [];
+    const walk2 = (n, d) => {
+      widths[d] = Math.max(widths[d] ?? 0, widthOf(n));
+      for (const c of n.children ?? []) walk2(c, d + 1);
+    };
+    for (const c of side) walk2(c, 0);
+    return widths;
+  };
+  const rows2 = (side) => side.reduce((n, c) => n + leaves(c), 0);
+  const height = Math.max(rows2(right), rows2(left), 1) * MIND.row;
+  const leftCols = columns(left);
+  const rootW = widthOf(root);
+  const rootX = MIND.margin + leftCols.reduce((n, w) => n + w + MIND.gap, 0);
+  const rootKey = multiline(root.name);
+  const boxes = /* @__PURE__ */ new Map();
+  boxes.set(rootKey, {
+    x: rootX,
+    y: MIND.margin + height / 2 - MIND.height / 2,
+    width: rootW,
+    height: MIND.height
+  });
+  const layoutSide = (side, dir) => {
+    const cols = columns(side);
+    const xs = [];
+    let x = dir === 1 ? rootX + rootW + MIND.gap : rootX - MIND.gap;
+    cols.forEach((w, d) => {
+      xs[d] = dir === 1 ? x : x - w;
+      x += dir * (w + MIND.gap);
+    });
+    let top = MIND.margin + (height - rows2(side) * MIND.row) / 2;
+    const place2 = (n, key2, d) => {
+      const kids = n.children ?? [];
+      let centre3;
+      if (kids.length === 0) {
+        centre3 = top + MIND.row / 2;
+        top += MIND.row;
+      } else {
+        const ys = kids.map(
+          (c) => place2(c, `${key2}/${multiline(c.name)}`, d + 1)
+        );
+        centre3 = (ys[0] + ys.at(-1)) / 2;
+      }
+      const w = widthOf(n);
+      boxes.set(key2, {
+        // A node hugs its column on the root's side.
+        x: dir === 1 ? xs[d] : xs[d] + cols[d] - w,
+        y: centre3 - MIND.height / 2,
+        width: w,
+        height: MIND.height
+      });
+      return centre3;
+    };
+    for (const c of side) place2(c, `${rootKey}/${multiline(c.name)}`, 0);
+  };
+  layoutSide(right, 1);
+  layoutSide(left, -1);
   const visit = (node2, parent) => {
     const key2 = parent === null ? multiline(node2.name) : `${parent}/${multiline(node2.name)}`;
     b.node({
       key: key2,
       type: "MMNode",
       name: multiline(node2.name),
-      width: 120,
-      height: 40
+      width: boxes.get(key2).width,
+      height: MIND.height,
+      box: boxes.get(key2),
+      // MMNodeView wraps its name by default (mindmap elements.js 7.1.1),
+      // two lines in a box placed for one, onto the row below.
+      viewProperties: { wordWrap: false }
     });
     if (parent !== null) b.edge({ type: "MMEdge", from: parent, to: key2 }, key2);
     for (const child of node2.children ?? []) visit(child, key2);
   };
-  visit(spec.root, null);
-  return b.plan();
+  visit(root, null);
+  return b.plan(true);
 }
 function requirementPlan(spec) {
   const b = new Builder("requirement");
@@ -7928,6 +8044,20 @@ var LAYOUT_PRESETS = {
   "hierarchy-right": hierarchy("LR"),
   "hierarchy-left": hierarchy("RL")
 };
+var MAX_LABEL_ROOM = 300;
+function labelSeparations(width, preset) {
+  const { direction: direction2, separations } = LAYOUT_PRESETS[preset];
+  const room = Math.min(MAX_LABEL_ROOM, width + 20);
+  return direction2 === "TB" || direction2 === "BT" ? {
+    nodeSeparation: Math.max(separations.node, room),
+    rankSeparation: Math.max(separations.rank, 80)
+  } : {
+    // A label sits above its edge, so ranks side by side need it across
+    // and nodes stacked in a rank need its height between them.
+    nodeSeparation: Math.max(separations.node, 60),
+    rankSeparation: Math.max(separations.rank, room)
+  };
+}
 var PRESET_NAMES = Object.keys(LAYOUT_PRESETS);
 var separation = (description) => optional(doc(number2().check(_gte(0)), description));
 function isNode(view) {
@@ -8423,6 +8553,388 @@ var createViewOf = defineEndpoint({
     return created(view, input);
   }
 });
+
+// src/quality/metric.ts
+var WEIGHTS = {
+  overlap: 18,
+  labels: 18,
+  nodeEdge: 13,
+  edgeEdge: 12,
+  shared: 5,
+  borders: 8,
+  selection: 6,
+  length: 3,
+  bends: 1,
+  alignment: 2,
+  whitespace: 4,
+  aspect: 4,
+  page: 6
+};
+var LABEL_REACH = 24;
+var SHARED_MIN = 16;
+var EPS = 1e-6;
+function nestedIn(a, b, byId2) {
+  const seen = /* @__PURE__ */ new Set();
+  for (let p = a.parent; p !== null && !seen.has(p); p = byId2.get(p)?.parent ?? null) {
+    if (p === b.id) return true;
+    seen.add(p);
+  }
+  return false;
+}
+var contains = (outer, inner) => inner.left >= outer.left && inner.top >= outer.top && inner.left + inner.width <= outer.left + outer.width && inner.top + inner.height <= outer.top + outer.height;
+var intersection = (a, b) => {
+  const w = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+  const h = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+  return w > 1 && h > 1 ? w * h : 0;
+};
+function overlapOf(a, b, byId2) {
+  if (nestedIn(a, b, byId2) || nestedIn(b, a, byId2)) return 0;
+  if (a.attachedTo?.includes(b.id) || b.attachedTo?.includes(a.id)) return 0;
+  if (a.group !== void 0 && a.group === b.group) return 0;
+  if (a.through !== b.through) return 0;
+  if (contains(a, b) || contains(b, a)) {
+    return Math.min(a.width * a.height, b.width * b.height);
+  }
+  return intersection(a, b);
+}
+function segmentCrossesBox(p, q2, box3) {
+  const [x0, y0, x1, y1] = [
+    box3.left + 2,
+    box3.top + 2,
+    box3.left + box3.width - 2,
+    box3.top + box3.height - 2
+  ];
+  if (x1 <= x0 || y1 <= y0) return false;
+  const dx = q2.x - p.x;
+  const dy = q2.y - p.y;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [pk, qk] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y]
+  ]) {
+    if (pk === 0) {
+      if (qk < 0) return false;
+      continue;
+    }
+    const r = qk / pk;
+    if (pk < 0) t0 = Math.max(t0, r);
+    else t1 = Math.min(t1, r);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+var cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+function segmentsCross(a, b, c, d) {
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  return (d1 > EPS && d2 < -EPS || d1 < -EPS && d2 > EPS) && (d3 > EPS && d4 < -EPS || d3 < -EPS && d4 > EPS);
+}
+var segments = (points) => points.slice(1).map((p, i) => [points[i], p]);
+var length = (points) => segments(points).reduce(
+  (n, [a, b]) => n + Math.hypot(b.x - a.x, b.y - a.y),
+  0
+);
+function pointToSegment(p, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = dx * dx + dy * dy;
+  const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+function labelGap(label4, points) {
+  if (points.length === 0) return Infinity;
+  const segs = points.length > 1 ? segments(points) : [[points[0], points[0]]];
+  if (segs.some(([p, q2]) => segmentCrossesBox(p, q2, label4))) return 0;
+  const { left: l, top: t, width: w, height: h } = label4;
+  const probes = [
+    { x: l, y: t },
+    { x: l + w, y: t },
+    { x: l, y: t + h },
+    { x: l + w, y: t + h },
+    { x: l + w / 2, y: t },
+    { x: l + w / 2, y: t + h },
+    { x: l, y: t + h / 2 },
+    { x: l + w, y: t + h / 2 }
+  ];
+  const fromBox = Math.min(
+    ...probes.flatMap((p) => segs.map(([a, b]) => pointToSegment(p, a, b)))
+  );
+  const toBox = Math.min(
+    ...points.map(
+      (p) => Math.hypot(
+        Math.max(l - p.x, 0, p.x - (l + w)),
+        Math.max(t - p.y, 0, p.y - (t + h))
+      )
+    )
+  );
+  return Math.min(fromBox, toBox);
+}
+function runs(points) {
+  return segments(points).flatMap(([p, q2]) => {
+    if (Math.abs(p.y - q2.y) <= 1 && Math.abs(p.x - q2.x) > 1) {
+      return [
+        {
+          axis: "h",
+          at: p.y,
+          from: Math.min(p.x, q2.x),
+          to: Math.max(p.x, q2.x)
+        }
+      ];
+    }
+    if (Math.abs(p.x - q2.x) <= 1 && Math.abs(p.y - q2.y) > 1) {
+      return [
+        {
+          axis: "v",
+          at: p.x,
+          from: Math.min(p.y, q2.y),
+          to: Math.max(p.y, q2.y)
+        }
+      ];
+    }
+    return [];
+  });
+}
+function sharedRun(a, b) {
+  let best = 0;
+  const rb = runs(b);
+  for (const r of runs(a)) {
+    for (const s of rb) {
+      if (r.axis !== s.axis || Math.abs(r.at - s.at) > 2) continue;
+      best = Math.max(best, Math.min(r.to, s.to) - Math.max(r.from, s.from));
+    }
+  }
+  return best;
+}
+var shares = (a, b) => a.ends[1] !== b.ends[1] && sharedRun(a.points, b.points) > SHARED_MIN;
+function sharedEdges(g) {
+  const out = /* @__PURE__ */ new Set();
+  g.edges.forEach((a, i) => {
+    for (const b of g.edges.slice(i + 1)) {
+      if (shares(a, b)) {
+        out.add(a.id);
+        out.add(b.id);
+      }
+    }
+  });
+  return [...out];
+}
+function endOf(edge, node2, byId2) {
+  return edge.ends.some((id2) => {
+    if (id2 === node2.id) return true;
+    const end = byId2.get(id2);
+    return end !== void 0 && (nestedIn(end, node2, byId2) || nestedIn(node2, end, byId2));
+  });
+}
+function alignmentOf(nodes) {
+  if (nodes.length < 2) return 1;
+  const near = (a, b) => Math.abs(a - b) <= 2;
+  const lines2 = (n) => [
+    n.left + n.width / 2,
+    n.top + n.height / 2,
+    n.top,
+    n.left
+  ];
+  const aligned = nodes.filter(
+    (n) => nodes.some(
+      (o) => o !== n && lines2(n).some((v, i) => near(v, lines2(o)[i]))
+    )
+  );
+  return aligned.length / nodes.length;
+}
+function borderCrossingsOf(nodes) {
+  const areas = nodes.filter((n2) => n2.area);
+  let n = 0;
+  for (const v of nodes) {
+    if (v.area || v.through) continue;
+    for (const a of areas) {
+      if (intersection(a, v) > 0 && !contains(a, v) && !contains(v, a)) n++;
+    }
+  }
+  return n;
+}
+function labelProblems(g) {
+  const byId2 = new Map(g.nodes.map((n) => [n.id, n]));
+  const edgeById = new Map(g.edges.map((e) => [e.id, e]));
+  const solid = g.nodes.filter((n) => !n.area);
+  return solid.filter((l) => l.edge !== void 0).filter((l) => {
+    const own2 = edgeById.get(l.edge);
+    if (own2 && labelGap(l, own2.points) > LABEL_REACH) return true;
+    if (g.edges.some(
+      (e) => e.id !== l.edge && segments(e.points).some(([p, q2]) => segmentCrossesBox(p, q2, l))
+    )) {
+      return true;
+    }
+    return solid.some((o) => o !== l && overlapOf(l, o, byId2) > 0);
+  }).map((l) => l.id);
+}
+function measure(g) {
+  const byId2 = new Map(g.nodes.map((n) => [n.id, n]));
+  const solid = g.nodes.filter((n) => !n.area);
+  let overlapArea = 0;
+  let overlapPairs = 0;
+  let severeOverlaps = 0;
+  let labelOverlaps = 0;
+  for (let i = 0; i < solid.length; i++) {
+    for (let j = i + 1; j < solid.length; j++) {
+      const [a, b] = [solid[i], solid[j]];
+      const o = overlapOf(a, b, byId2);
+      if (o <= 0) continue;
+      if (a.label || b.label) {
+        labelOverlaps++;
+        continue;
+      }
+      overlapArea += o;
+      overlapPairs++;
+      if (o >= 0.25 * Math.min(a.width * a.height, b.width * b.height)) {
+        severeOverlaps++;
+      }
+    }
+  }
+  const boxes = solid.filter((n) => !n.label);
+  const solidArea = boxes.reduce((n, b) => n + b.width * b.height, 0);
+  const edgeById = new Map(g.edges.map((e) => [e.id, e]));
+  const detachedLabels = solid.filter((n) => {
+    const e = n.edge === void 0 ? void 0 : edgeById.get(n.edge);
+    return e !== void 0 && labelGap(n, e.points) > LABEL_REACH;
+  }).length;
+  const named3 = solid.filter((n) => n.edge !== void 0);
+  let labelCrossings = 0;
+  for (const e of g.edges) {
+    for (const l of named3) {
+      if (l.edge === e.id) continue;
+      if (segments(e.points).some(([p, q2]) => segmentCrossesBox(p, q2, l))) {
+        labelCrossings++;
+      }
+    }
+  }
+  let nodeEdgeCrossings = 0;
+  const obstacles = solid.filter((n) => !n.through && !n.label);
+  for (const e of g.edges) {
+    for (const n of obstacles) {
+      if (endOf(e, n, byId2)) continue;
+      if (segments(e.points).some(([p, q2]) => segmentCrossesBox(p, q2, n))) {
+        nodeEdgeCrossings++;
+      }
+    }
+  }
+  let edgeCrossings = 0;
+  let sharedSegments = 0;
+  for (let i = 0; i < g.edges.length; i++) {
+    for (let j = i + 1; j < g.edges.length; j++) {
+      const [a, b] = [g.edges[i], g.edges[j]];
+      if (shares(a, b)) sharedSegments++;
+      if (a.ends.some((id2) => b.ends.includes(id2))) continue;
+      for (const [p, q2] of segments(a.points)) {
+        for (const [r, s] of segments(b.points)) {
+          if (segmentsCross(p, q2, r, s)) edgeCrossings++;
+        }
+      }
+    }
+  }
+  const lengths = g.edges.map((e) => length(e.points));
+  const mean = lengths.reduce((n, l) => n + l, 0) / Math.max(1, lengths.length);
+  const sd = Math.sqrt(
+    lengths.reduce((n, l) => n + (l - mean) ** 2, 0) / Math.max(1, lengths.length)
+  );
+  const all = g.nodes;
+  const minX = Math.min(...all.map((n) => n.left));
+  const minY = Math.min(...all.map((n) => n.top));
+  const maxX = Math.max(...all.map((n) => n.left + n.width));
+  const maxY = Math.max(...all.map((n) => n.top + n.height));
+  const width = all.length > 0 ? maxX - minX : 0;
+  const height = all.length > 0 ? maxY - minY : 0;
+  const density = solidArea / Math.max(1, width * height);
+  const whitespace = density >= 1 / 6 && density <= 0.5 ? 1 : density < 1 / 6 ? density * 6 : Math.max(0, 1 - (density - 0.5) * 2);
+  return {
+    // Labels are drawn for edges; the size of a diagram is its boxes.
+    nodes: g.nodes.filter((n) => !n.label).length,
+    edges: g.edges.length,
+    overlapArea: Math.round(overlapArea),
+    overlapPairs,
+    overlapRatio: solidArea > 0 ? overlapArea / solidArea : 0,
+    severeOverlaps,
+    labelOverlaps,
+    detachedLabels,
+    labelCrossings,
+    nodeEdgeCrossings,
+    edgeCrossings,
+    sharedSegments,
+    borderCrossings: borderCrossingsOf(g.nodes),
+    selected: g.selected ?? 0,
+    lengthVariation: mean > 0 ? sd / mean : 0,
+    bends: g.edges.reduce((n, e) => n + Math.max(0, e.points.length - 2), 0),
+    // Labels sit where their edges put them; boxes are what lines up.
+    alignment: alignmentOf(boxes),
+    whitespace: all.length > 0 ? whitespace : 1,
+    aspect: width > 0 && height > 0 ? Math.max(width, height) / Math.min(width, height) : 1,
+    width,
+    height
+  };
+}
+var DEFAULT_LIMITS = { maxAspect: 3, maxNodes: 60 };
+function failures(m, limits) {
+  const maxAspect = limits.maxAspect ?? DEFAULT_LIMITS.maxAspect;
+  const maxNodes = limits.maxNodes ?? DEFAULT_LIMITS.maxNodes;
+  const fits3 = Math.max(m.width, m.height) <= 2 * Math.max(limits.width, limits.height);
+  return [
+    ...m.aspect > maxAspect && !fits3 ? [
+      `aspect ${m.aspect.toFixed(1)}:1 over ${maxAspect}:1 (${Math.round(m.width)}\xD7${Math.round(m.height)})`
+    ] : [],
+    ...m.nodes > maxNodes ? [`${m.nodes} nodes over ${maxNodes}`] : []
+  ];
+}
+var FAIL_CAP = 59;
+function penalties(m, page) {
+  const capped = (weight, x) => Math.min(weight, weight * x);
+  const edges = Math.max(1, m.edges);
+  const maxAspect = page.maxAspect ?? DEFAULT_LIMITS.maxAspect;
+  const over = Math.max(
+    0,
+    m.width / page.width - 1.5,
+    m.height / page.height - 1.5
+  );
+  return {
+    overlap: capped(
+      WEIGHTS.overlap,
+      // One box on another hides what it covers: the whole weight.
+      0.5 * (1 - Math.exp(-4 * m.overlapRatio)) + 0.1 * m.overlapPairs + m.severeOverlaps
+    ),
+    labels: capped(
+      WEIGHTS.labels,
+      (m.labelOverlaps + m.detachedLabels + m.labelCrossings) / 6
+    ),
+    nodeEdge: capped(WEIGHTS.nodeEdge, m.nodeEdgeCrossings / 3),
+    edgeEdge: capped(
+      WEIGHTS.edgeEdge,
+      1 - Math.exp(-3 * m.edgeCrossings / edges)
+    ),
+    shared: capped(WEIGHTS.shared, m.sharedSegments / 8),
+    borders: capped(WEIGHTS.borders, m.borderCrossings / 6),
+    selection: capped(WEIGHTS.selection, m.selected),
+    length: capped(WEIGHTS.length, m.lengthVariation / 1.5),
+    bends: capped(WEIGHTS.bends, m.bends / edges / 4),
+    alignment: WEIGHTS.alignment * (1 - m.alignment),
+    whitespace: WEIGHTS.whitespace * (1 - m.whitespace),
+    // Up to two thirds of the limit costs nothing; the rest of the weight
+    // is spent by the time the limit is reached.
+    aspect: capped(
+      WEIGHTS.aspect,
+      Math.max(0, m.aspect - maxAspect) / maxAspect
+    ),
+    page: capped(WEIGHTS.page, over)
+  };
+}
+function scoreOf(m, page) {
+  const lost = Object.values(penalties(m, page)).reduce((n, p) => n + p, 0);
+  const score2 = Math.max(0, Math.min(100, Math.round(100 - lost)));
+  return failures(m, page).length > 0 ? Math.min(FAIL_CAP, score2) : score2;
+}
+var ratingOf = (score2) => score2 >= 90 ? 5 : score2 >= 80 ? 4 : score2 >= 60 ? 3 : score2 >= 40 ? 2 : 1;
 
 // src/style/profiles.json
 var profiles_default = {
@@ -9110,6 +9622,18 @@ var profileSchema = () => strictObject({
       }),
       "Target canvas in diagram units (px at 100%); the quality metric penalises diagrams far wider or taller."
     ),
+    maxAspect: optional(
+      doc(
+        number2().check(_gte(1), _lte(20)),
+        "Longer side over shorter side past which a diagram larger than the page fails the quality gate; default 3."
+      )
+    ),
+    maxNodes: optional(
+      doc(
+        int().check(_gte(2), _lte(1e3)),
+        "Boxes past which a diagram fails the quality gate and /derive_diagrams splits it; default 60."
+      )
+    ),
     labelWrap: doc(
       int().check(_gte(40), _lte(1e3)),
       "Width in px past which a node's name is wrapped."
@@ -9232,6 +9756,11 @@ function effectiveProfile() {
 }
 var profile = () => effectiveProfile().profile;
 var presetFor = (p, kind2) => p.layout.presets[kind2];
+var limitsFor = (p) => ({
+  ...p.layout.page,
+  maxAspect: p.layout.maxAspect ?? DEFAULT_LIMITS.maxAspect,
+  maxNodes: p.layout.maxNodes ?? DEFAULT_LIMITS.maxNodes
+});
 var thresholdFor = (p, kind2) => p.quality.thresholds[kind2] ?? p.quality.minScore;
 
 // src/style/guard.ts
@@ -9651,10 +10180,10 @@ async function runBatch(endpoints2, ops, atomic = true, max = maxBatchOps()) {
     }
     return out;
   });
-  const failures = results.filter((r) => !r.success);
-  if (atomic && failures.length > 0) {
+  const failures2 = results.filter((r) => !r.success);
+  if (atomic && failures2.length > 0) {
     rollBack(operations);
-    const failed = failures[0];
+    const failed = failures2[0];
     const index = results.length - 1;
     throw new ApiError(
       failed.code,
@@ -9665,8 +10194,8 @@ async function runBatch(endpoints2, ops, atomic = true, max = maxBatchOps()) {
   if (atomic && operations.length > 1 && !insideStep()) squash(operations);
   return {
     atomic,
-    succeeded: results.length - failures.length,
-    failed: failures.length,
+    succeeded: results.length - failures2.length,
+    failed: failures2.length,
     results
   };
 }
@@ -9834,7 +10363,7 @@ function parseJsonSchema(source, as) {
     done.add(name4);
     let own2 = s;
     if (Array.isArray(s.allOf)) {
-      const parts = s.allOf;
+      const parts = s.allOf.filter(isObject2);
       const bases = parts.filter((p) => typeof p.$ref === "string");
       const rest = parts.filter((p) => typeof p.$ref !== "string");
       if (bases.length > 1 || rest.some((p) => !isObject2(p.properties) && Object.keys(p).length > 0)) {
@@ -12521,30 +13050,75 @@ function grid(nodes, edges, direction2, origin) {
   }
   return boxes;
 }
+var CASE = { gap: 50, row: 80, header: 50, pad: 30, actorStep: 130 };
 function usecaseBoxes(plan) {
   const boxes = /* @__PURE__ */ new Map();
   const actors = plan.nodes.filter((n) => n.type === "UMLActor");
-  const cases = plan.nodes.filter((n) => n.type === "UMLUseCase");
+  const all = plan.nodes.filter((n) => n.type === "UMLUseCase");
   const subject = plan.nodes.find((n) => n.type === "UMLUseCaseSubject");
-  actors.forEach(
-    (a, i) => boxes.set(a.key, {
-      x: MARGIN,
-      y: MARGIN + 40 + i * 140,
-      width: a.width,
-      height: a.height
-    })
+  const actorKeys = new Set(actors.map((a) => a.key));
+  const associated = new Set(
+    plan.edges.filter((e) => actorKeys.has(e.from) || actorKeys.has(e.to)).flatMap((e) => [e.from, e.to])
   );
+  const reachedBy = /* @__PURE__ */ new Map();
+  for (const e of plan.edges) {
+    if (e.type === "UMLInclude" && !reachedBy.has(e.to)) {
+      reachedBy.set(e.to, e.from);
+    }
+    if (e.type === "UMLExtend" && !reachedBy.has(e.from)) {
+      reachedBy.set(e.from, e.to);
+    }
+  }
+  const inside3 = all.filter((n) => !n.outside);
+  const secondary = inside3.filter(
+    (n) => !associated.has(n.key) && reachedBy.has(n.key)
+  );
+  const primary = inside3.filter((n) => !secondary.includes(n));
+  const width1 = Math.max(160, ...primary.map((c) => c.width));
+  const width2 = Math.max(0, ...secondary.map((c) => c.width));
   const left = MARGIN + 200;
-  boxes.set(subject.key, {
-    x: left,
-    y: MARGIN,
-    width: subject.width,
-    height: subject.height
+  const rowOf = /* @__PURE__ */ new Map();
+  primary.forEach((c, i) => rowOf.set(c.key, i));
+  const taken = /* @__PURE__ */ new Set();
+  for (const c of secondary) {
+    let row = rowOf.get(reachedBy.get(c.key)) ?? 0;
+    while (taken.has(row)) row++;
+    taken.add(row);
+    rowOf.set(c.key, row);
+  }
+  const rows2 = Math.max(1, ...[...rowOf.values()].map((r) => r + 1));
+  const width = Math.max(
+    subject.width,
+    2 * CASE.pad + width1 + (secondary.length > 0 ? CASE.gap + width2 : 0)
+  );
+  const height = CASE.header + rows2 * CASE.row + CASE.pad / 2;
+  boxes.set(subject.key, { x: left, y: MARGIN, width, height });
+  const column2 = left + CASE.pad + width1 + CASE.gap;
+  for (const c of inside3) {
+    const second = secondary.includes(c);
+    boxes.set(c.key, {
+      // Left-aligned, so an actor's line reaches its use case before it
+      // comes near any other in the column.
+      x: second ? column2 : left + CASE.pad,
+      y: MARGIN + CASE.header + rowOf.get(c.key) * CASE.row,
+      width: c.width,
+      height: c.height
+    });
+  }
+  const middle = (a) => {
+    const rows3 = plan.edges.filter((e) => e.from === a.key || e.to === a.key).map((e) => rowOf.get(e.from === a.key ? e.to : e.from)).filter((r) => r !== void 0);
+    return rows3.length > 0 ? MARGIN + CASE.header + rows3.reduce((n, r) => n + r, 0) / rows3.length * CASE.row - 15 : MARGIN + height / 2 - 40;
+  };
+  let next = MARGIN;
+  [...actors].map((a) => ({ a, y: middle(a) })).sort((p, q2) => p.y - q2.y).forEach(({ a, y }) => {
+    const top = Math.max(y, next);
+    boxes.set(a.key, { x: MARGIN, y: top, width: a.width, height: a.height });
+    next = top + CASE.actorStep;
   });
-  cases.forEach(
+  all.filter((n) => n.outside).forEach(
     (c, i) => boxes.set(c.key, {
-      x: left + (subject.width - c.width) / 2,
-      y: MARGIN + 60 + i * 80,
+      x: left + CASE.pad + (width1 - c.width) / 2,
+      y: MARGIN + height + CASE.gap + i * CASE.row,
       width: c.width,
       height: c.height
     })
@@ -13020,8 +13594,8 @@ function visualFor(view, profile2) {
 function fontOf(view) {
   const font = view.font;
   if (!font || typeof font.__write !== "function") return null;
-  const [face, size] = String(font.__write()).split(";");
-  return { face, size: Number(size) };
+  const [face, size2] = String(font.__write()).split(";");
+  return { face, size: Number(size2) };
 }
 function viewChanges(view, profile2) {
   const assigns = [];
@@ -13032,7 +13606,7 @@ function viewChanges(view, profile2) {
     assigns.push([view, field, value]);
   };
   let face;
-  let size;
+  let size2;
   if (view instanceof type.EdgeView) {
     const e = profile2.visuals.edges;
     set(
@@ -13055,10 +13629,10 @@ function viewChanges(view, profile2) {
       face = v.fontFace;
     }
     if (font && v.fontSize !== void 0 && font.size !== v.fontSize) {
-      size = v.fontSize;
+      size2 = v.fontSize;
     }
   }
-  return { assigns, face, size };
+  return { assigns, face, size: size2 };
 }
 function offProfile(view, profile2) {
   const c = viewChanges(view, profile2);
@@ -13104,8 +13678,8 @@ function styleViews(diagram, views, profile2) {
     for (const [face, vs] of faces) {
       inStarUML(() => app.engine.setFontFace(editor, vs, face));
     }
-    for (const [size, vs] of sizes) {
-      inStarUML(() => app.engine.setFontSize(editor, vs, size));
+    for (const [size2, vs] of sizes) {
+      inStarUML(() => app.engine.setFontSize(editor, vs, size2));
     }
   }
   return changed.size;
@@ -13588,251 +14162,98 @@ function ownerNode(view) {
   return v;
 }
 var box = (v) => v;
+var LABELS = [
+  "nameLabel",
+  "stereotypeLabel",
+  "tailRoleNameLabel",
+  "headRoleNameLabel",
+  "tailMultiplicityLabel",
+  "headMultiplicityLabel"
+];
+var boxNode = (v, fields) => {
+  const b = box(v);
+  return {
+    id: v._id,
+    left: b.left,
+    top: b.top,
+    width: b.width,
+    height: b.height,
+    ...fields
+  };
+};
+var drawn = (v) => {
+  if (!v || v.visible === false) return false;
+  const b = box(v);
+  return b.width > 0 && b.height > 0;
+};
 function geometryOf(diagram) {
   const views = nodeViews(diagram);
   const listed2 = new Set(views);
   const nodes = views.map((v) => {
-    const b = box(v);
     const kind2 = v.constructor.name;
     const container = holderOf(v, listed2);
-    return {
-      id: v._id,
-      left: b.left,
-      top: b.top,
-      width: b.width,
-      height: b.height,
+    return boxNode(v, {
       area: AREA2.test(kind2),
       through: THROUGH.test(kind2),
       parent: container ? container._id : null
-    };
+    });
   });
-  const edges = edgeViewsOf(diagram).map((e) => ({
+  const frame = diagram.ownedViews.find(
+    (v) => v.model === diagram && v instanceof type.NodeView && drawn(v)
+  );
+  if (frame)
+    nodes.push(boxNode(frame, { area: true, through: false, parent: null }));
+  for (const f of views.filter(
+    (v) => v instanceof type.UMLCombinedFragmentView
+  )) {
+    const operands = f.operandCompartment?.subViews ?? [];
+    for (const o of operands.filter(drawn)) {
+      nodes.push(boxNode(o, { area: true, through: false, parent: f._id }));
+    }
+  }
+  const edgeViews3 = edgeViewsOf(diagram);
+  const edges = edgeViews3.map((e) => ({
     id: e._id,
     points: edgePoints(e),
     ends: [ownerNode(e.tail)._id, ownerNode(e.head)._id]
   }));
-  edgeViewsOf(diagram).forEach((e, i) => {
-    const label4 = e.nameLabel;
-    if (!label4 || label4.visible === false || !String(label4.text ?? "")) return;
-    const b = box(label4);
-    if (!(b.width > 0 && b.height > 0)) return;
-    nodes.push({
-      id: label4._id,
-      left: b.left,
-      top: b.top,
-      width: b.width,
-      height: b.height,
-      area: false,
-      // A message's label sits over the lifelines it spans; on a box or
-      // on another label it hides text.
-      through: false,
-      label: true,
-      parent: null,
-      attachedTo: edges[i].ends
-    });
+  edgeViews3.forEach((e, i) => {
+    const ends4 = edges[i].ends;
+    for (const field of LABELS) {
+      const label4 = e[field];
+      if (!drawn(label4) || !String(label4.text ?? "")) continue;
+      nodes.push(
+        boxNode(label4, {
+          area: false,
+          through: false,
+          label: true,
+          parent: null,
+          attachedTo: ends4,
+          edge: e._id
+        })
+      );
+    }
+    const activation = e.activation;
+    if (drawn(activation)) {
+      nodes.push(
+        boxNode(activation, {
+          area: false,
+          through: false,
+          label: true,
+          parent: null,
+          attachedTo: ends4,
+          group: ends4[1]
+        })
+      );
+    }
   });
-  return { nodes, edges };
+  const selected = diagram.selectedViews?.length ?? 0;
+  return { nodes, edges, ...selected > 0 && { selected } };
 }
 var KINDS_BY_TYPE = new Map(
   Object.entries(DIAGRAM_TYPES).map(([k, t]) => [t, k])
 );
 var kindOf = (diagram) => KINDS_BY_TYPE.get(diagram.constructor.name) ?? null;
-
-// src/quality/metric.ts
-var WEIGHTS = {
-  overlap: 30,
-  nodeEdge: 20,
-  edgeEdge: 15,
-  length: 5,
-  bends: 5,
-  alignment: 10,
-  whitespace: 5,
-  aspect: 5,
-  page: 5
-};
-var EPS = 1e-6;
-function nestedIn(a, b, byId2) {
-  const seen = /* @__PURE__ */ new Set();
-  for (let p = a.parent; p !== null && !seen.has(p); p = byId2.get(p)?.parent ?? null) {
-    if (p === b.id) return true;
-    seen.add(p);
-  }
-  return false;
-}
-var contains = (outer, inner) => inner.left >= outer.left && inner.top >= outer.top && inner.left + inner.width <= outer.left + outer.width && inner.top + inner.height <= outer.top + outer.height;
-function overlapOf(a, b, byId2) {
-  if (nestedIn(a, b, byId2) || nestedIn(b, a, byId2)) return 0;
-  if (a.attachedTo?.includes(b.id) || b.attachedTo?.includes(a.id)) return 0;
-  if (a.through !== b.through) return 0;
-  if (contains(a, b) || contains(b, a)) {
-    return Math.min(a.width * a.height, b.width * b.height);
-  }
-  const w = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
-  const h = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
-  return w > 1 && h > 1 ? w * h : 0;
-}
-function segmentCrossesBox(p, q2, box3) {
-  const [x0, y0, x1, y1] = [
-    box3.left + 2,
-    box3.top + 2,
-    box3.left + box3.width - 2,
-    box3.top + box3.height - 2
-  ];
-  if (x1 <= x0 || y1 <= y0) return false;
-  const dx = q2.x - p.x;
-  const dy = q2.y - p.y;
-  let t0 = 0;
-  let t1 = 1;
-  for (const [pk, qk] of [
-    [-dx, p.x - x0],
-    [dx, x1 - p.x],
-    [-dy, p.y - y0],
-    [dy, y1 - p.y]
-  ]) {
-    if (pk === 0) {
-      if (qk < 0) return false;
-      continue;
-    }
-    const r = qk / pk;
-    if (pk < 0) t0 = Math.max(t0, r);
-    else t1 = Math.min(t1, r);
-    if (t0 > t1) return false;
-  }
-  return true;
-}
-var cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-function segmentsCross(a, b, c, d) {
-  const d1 = cross(c, d, a);
-  const d2 = cross(c, d, b);
-  const d3 = cross(a, b, c);
-  const d4 = cross(a, b, d);
-  return (d1 > EPS && d2 < -EPS || d1 < -EPS && d2 > EPS) && (d3 > EPS && d4 < -EPS || d3 < -EPS && d4 > EPS);
-}
-var segments = (points) => points.slice(1).map((p, i) => [points[i], p]);
-var length = (points) => segments(points).reduce(
-  (n, [a, b]) => n + Math.hypot(b.x - a.x, b.y - a.y),
-  0
-);
-function endOf(edge, node2, byId2) {
-  return edge.ends.some((id2) => {
-    if (id2 === node2.id) return true;
-    const end = byId2.get(id2);
-    return end !== void 0 && (nestedIn(end, node2, byId2) || nestedIn(node2, end, byId2));
-  });
-}
-function alignmentOf(nodes) {
-  if (nodes.length < 2) return 1;
-  const near = (a, b) => Math.abs(a - b) <= 2;
-  const lines2 = (n) => [
-    n.left + n.width / 2,
-    n.top + n.height / 2,
-    n.top,
-    n.left
-  ];
-  const aligned = nodes.filter(
-    (n) => nodes.some(
-      (o) => o !== n && lines2(n).some((v, i) => near(v, lines2(o)[i]))
-    )
-  );
-  return aligned.length / nodes.length;
-}
-function measure(g) {
-  const byId2 = new Map(g.nodes.map((n) => [n.id, n]));
-  const solid = g.nodes.filter((n) => !n.area);
-  let overlapArea = 0;
-  let overlapPairs = 0;
-  for (let i = 0; i < solid.length; i++) {
-    for (let j = i + 1; j < solid.length; j++) {
-      const o = overlapOf(solid[i], solid[j], byId2);
-      if (o > 0) {
-        overlapArea += o;
-        overlapPairs++;
-      }
-    }
-  }
-  const solidArea = solid.reduce((n, b) => n + b.width * b.height, 0);
-  let nodeEdgeCrossings = 0;
-  const obstacles = solid.filter((n) => !n.through && !n.label);
-  for (const e of g.edges) {
-    for (const n of obstacles) {
-      if (endOf(e, n, byId2)) continue;
-      if (segments(e.points).some(([p, q2]) => segmentCrossesBox(p, q2, n))) {
-        nodeEdgeCrossings++;
-      }
-    }
-  }
-  let edgeCrossings = 0;
-  for (let i = 0; i < g.edges.length; i++) {
-    for (let j = i + 1; j < g.edges.length; j++) {
-      const [a, b] = [g.edges[i], g.edges[j]];
-      if (a.ends.some((id2) => b.ends.includes(id2))) continue;
-      for (const [p, q2] of segments(a.points)) {
-        for (const [r, s] of segments(b.points)) {
-          if (segmentsCross(p, q2, r, s)) edgeCrossings++;
-        }
-      }
-    }
-  }
-  const lengths = g.edges.map((e) => length(e.points));
-  const mean = lengths.reduce((n, l) => n + l, 0) / Math.max(1, lengths.length);
-  const sd = Math.sqrt(
-    lengths.reduce((n, l) => n + (l - mean) ** 2, 0) / Math.max(1, lengths.length)
-  );
-  const all = g.nodes;
-  const minX = Math.min(...all.map((n) => n.left));
-  const minY = Math.min(...all.map((n) => n.top));
-  const maxX = Math.max(...all.map((n) => n.left + n.width));
-  const maxY = Math.max(...all.map((n) => n.top + n.height));
-  const width = all.length > 0 ? maxX - minX : 0;
-  const height = all.length > 0 ? maxY - minY : 0;
-  const density = solidArea / Math.max(1, width * height);
-  const whitespace = density >= 1 / 6 && density <= 0.5 ? 1 : density < 1 / 6 ? density * 6 : Math.max(0, 1 - (density - 0.5) * 2);
-  return {
-    nodes: g.nodes.length,
-    edges: g.edges.length,
-    overlapArea: Math.round(overlapArea),
-    overlapPairs,
-    overlapRatio: solidArea > 0 ? overlapArea / solidArea : 0,
-    nodeEdgeCrossings,
-    edgeCrossings,
-    lengthVariation: mean > 0 ? sd / mean : 0,
-    bends: g.edges.reduce((n, e) => n + Math.max(0, e.points.length - 2), 0),
-    // Labels sit where their edges put them; boxes are what lines up.
-    alignment: alignmentOf(solid.filter((n) => !n.label)),
-    whitespace: all.length > 0 ? whitespace : 1,
-    aspect: width > 0 && height > 0 ? Math.max(width, height) / Math.min(width, height) : 1,
-    width,
-    height
-  };
-}
-function penalties(m, page) {
-  const capped = (weight, x) => Math.min(weight, weight * x);
-  const edges = Math.max(1, m.edges);
-  const over = Math.max(
-    0,
-    m.width / page.width - 1.5,
-    m.height / page.height - 1.5
-  );
-  return {
-    overlap: capped(
-      WEIGHTS.overlap,
-      0.5 * (1 - Math.exp(-4 * m.overlapRatio)) + 0.1 * m.overlapPairs
-    ),
-    nodeEdge: capped(WEIGHTS.nodeEdge, m.nodeEdgeCrossings / 4),
-    edgeEdge: capped(WEIGHTS.edgeEdge, 1 - Math.exp(-m.edgeCrossings / edges)),
-    length: capped(WEIGHTS.length, m.lengthVariation / 1.5),
-    bends: capped(WEIGHTS.bends, m.bends / edges / 4),
-    alignment: WEIGHTS.alignment * (1 - m.alignment),
-    whitespace: WEIGHTS.whitespace * (1 - m.whitespace),
-    aspect: capped(WEIGHTS.aspect, Math.max(0, m.aspect - 3) / 3),
-    page: capped(WEIGHTS.page, over)
-  };
-}
-function scoreOf(m, page) {
-  const lost = Object.values(penalties(m, page)).reduce((n, p) => n + p, 0);
-  return Math.max(0, Math.min(100, Math.round(100 - lost)));
-}
-var ratingOf = (score2) => score2 >= 90 ? 5 : score2 >= 80 ? 4 : score2 >= 60 ? 3 : score2 >= 40 ? 2 : 1;
 
 // src/quality/loop.ts
 var GAP3 = 40;
@@ -13875,6 +14296,9 @@ var Mover = class {
         b.top + b.height
       )
     );
+  }
+  modifyEdge(edge, points) {
+    inStarUML(() => app.engine.modifyEdge(this.ed(), edge, points));
   }
   assign(view, field, value) {
     const builder = app.repository.getOperationBuilder();
@@ -13974,14 +14398,14 @@ function laneOf(diagram, view) {
   });
 }
 function snap(diagram, profile2, m) {
-  const { size, snap: snap2 } = profile2.visuals.grid;
+  const { size: size2, snap: snap2 } = profile2.visuals.grid;
   if (!snap2) return;
   for (const v of nodeViews(diagram).filter((v2) => !v2.containerView)) {
     const b = box(v);
     m.move(
       [v],
-      Math.round(b.left / size) * size - b.left,
-      Math.round(b.top / size) * size - b.top
+      Math.round(b.left / size2) * size2 - b.left,
+      Math.round(b.top / size2) * size2 - b.top
     );
   }
 }
@@ -14061,6 +14485,7 @@ function sequence(diagram, m) {
       x += box(l).width + GAP3 * 1.5;
     }
   }
+  fitFragments(diagram, lifelines, m);
   const frame = diagram.ownedViews.find(
     (v) => v.model === diagram && v instanceof type.UMLFrameView
   );
@@ -14075,6 +14500,29 @@ function sequence(diagram, m) {
       width: Math.max(f.width, right - f.left + 20),
       height: Math.max(f.height, bottom - f.top + 20)
     });
+  }
+}
+function fitFragments(diagram, lifelines, m) {
+  const fragments = nodeViews(diagram).filter(
+    (v) => v instanceof type.UMLCombinedFragmentView
+  );
+  const ownerOf = (end) => lifelines.find((l) => l === end || end._parent === l);
+  const messages2 = edgeViewsOf(diagram);
+  for (const f of fragments) {
+    const b = box(f);
+    const inside3 = messages2.filter((e) => {
+      const y = edgeY(e);
+      return y > b.top && y < b.top + b.height;
+    });
+    const held = inside3.flatMap((e) => [ownerOf(e.tail), ownerOf(e.head)]).filter((l) => l !== void 0);
+    if (held.length === 0) continue;
+    const outer = fragments.filter((g) => {
+      const o = box(g);
+      return g !== f && o.top <= b.top && o.top + o.height >= b.top + b.height && o.height > b.height;
+    }).length;
+    const left = Math.min(...held.map((l) => box(l).left)) - 30 + 10 * outer;
+    const right = Math.max(...held.map((l) => box(l).left + box(l).width)) + 30 - 10 * outer;
+    m.resize(f, { ...b, left, width: right - left });
   }
 }
 function edgeY(edge) {
@@ -14135,6 +14583,272 @@ function alignChains(diagram, vertical2, m) {
     else m.move([b], 0, Math.round(ca.y - cb.y));
   }
 }
+var LABEL_SPOTS = [1, 2, 0].flatMap(
+  (edgePosition) => [15, 30, 45].flatMap(
+    (distance) => [Math.PI / 2, -Math.PI / 2].map((alpha) => ({
+      edgePosition,
+      distance,
+      alpha
+    }))
+  )
+);
+function placeLabels(diagram, score2, strip, m) {
+  const wasStrip = strip();
+  for (const id2 of labelProblems(geometryOf(diagram))) {
+    const label4 = app.repository.get(id2);
+    const was = {
+      edgePosition: label4.edgePosition,
+      distance: label4.distance,
+      alpha: label4.alpha
+    };
+    let best = score2();
+    for (const spot of LABEL_SPOTS) {
+      if (spot.edgePosition === was.edgePosition && spot.distance === was.distance && spot.alpha === was.alpha) {
+        continue;
+      }
+      const r = record2();
+      for (const [field, value] of Object.entries(spot)) {
+        m.assign(label4, field, value);
+      }
+      app.diagrams.repaint();
+      const now = score2();
+      if (now > best && (wasStrip || !strip())) {
+        best = now;
+        r.stop();
+        if (!labelProblems(geometryOf(diagram)).includes(id2)) break;
+      } else r.revert();
+    }
+  }
+}
+function unbundle(diagram) {
+  const g = geometryOf(diagram);
+  const views = new Map(edgeViewsOf(diagram).map((e) => [e._id, e]));
+  const straighten2 = sharedEdges(g).filter(
+    (id2) => views.get(id2).lineStyle === LINE_STYLES.rectilinear
+  );
+  if (straighten2.length === 0) return;
+  inStarUML(
+    () => app.engine.setLineStyle(
+      editorShowing(diagram),
+      straighten2.map((id2) => views.get(id2)),
+      LINE_STYLES.oblique
+    )
+  );
+}
+function fitLanes(diagram, m) {
+  const lanes = nodeViews(diagram).filter((v) => /Swimlane|Partition/.test(v.constructor.name)).sort((a, b) => box(a).left - box(b).left);
+  if (lanes.length === 0) return;
+  const nodes = nodeViews(diagram).filter(
+    (v) => !AREA2.test(v.constructor.name)
+  );
+  const PAD = 20;
+  const members3 = new Map(lanes.map((l) => [l, []]));
+  for (const v of nodes) {
+    const lane = laneOf(diagram, v);
+    if (lane) members3.get(lane).push(v);
+  }
+  let shift = 0;
+  for (const lane of lanes) {
+    const own2 = members3.get(lane);
+    const l = { ...box(lane) };
+    const left = l.left + shift;
+    if (shift !== 0) m.move(own2, shift, 0);
+    for (const v of own2) {
+      const b = box(v);
+      if (b.left < left + PAD) m.move([v], Math.round(left + PAD - b.left), 0);
+    }
+    const right = Math.max(
+      left + l.width,
+      ...own2.map((v) => box(v).left + box(v).width + PAD)
+    );
+    m.resize(lane, { ...l, left, width: Math.round(right - left) });
+    shift = Math.round(right - (l.left + l.width));
+  }
+  const bottom = Math.max(...nodes.map((v) => box(v).top + box(v).height)) + 40;
+  for (const lane of lanes) {
+    const l = box(lane);
+    if (l.top + l.height < bottom)
+      m.resize(lane, { ...l, height: bottom - l.top });
+  }
+}
+var TURNED = {
+  "flow-down": "flow-right",
+  "flow-up": "flow-left",
+  "flow-right": "flow-down",
+  "flow-left": "flow-up",
+  "hierarchy-down": "hierarchy-right",
+  "hierarchy-up": "hierarchy-left",
+  "hierarchy-right": "hierarchy-down",
+  "hierarchy-left": "hierarchy-up"
+};
+function wrapRows(diagram, m) {
+  const views = solids(diagram);
+  const g = measure(geometryOf(diagram));
+  if (views.length < 2 || g.width <= g.height) return;
+  const width = g.width / Math.ceil(g.aspect / 1.5);
+  let pushed = 0;
+  for (const row of rows(views)) {
+    if (pushed !== 0) m.move(row, 0, pushed);
+    const sorted = [...row].sort((a, b) => box(a).left - box(b).left);
+    const left = box(sorted[0]).left;
+    const span = box(sorted.at(-1)).left + box(sorted.at(-1)).width - left;
+    if (span <= width || sorted.length < 2) continue;
+    const pitch = Math.max(...sorted.map((v) => box(v).height)) + GAP3;
+    const chunks = [[]];
+    let x = 0;
+    for (const v of sorted) {
+      if (x > 0 && x + box(v).width > width) {
+        chunks.push([]);
+        x = 0;
+      }
+      chunks.at(-1).push(v);
+      x += box(v).width + GAP3;
+    }
+    chunks.forEach((chunk, j) => {
+      let at = left + (j % 2 === 1 ? GAP3 * 2 : 0);
+      for (const v of chunk) {
+        m.move([v], Math.round(at - box(v).left), Math.round(j * pitch));
+        at += box(v).width + GAP3;
+      }
+    });
+    pushed += (chunks.length - 1) * pitch;
+  }
+  straighten(diagram, new Set(views), m);
+}
+function unstrip(diagram, preset, limits, score2, m) {
+  const maxAspect = limits.maxAspect;
+  const labels = geometryOf(diagram).nodes.filter((n) => n.edge !== void 0);
+  const widest = Math.max(0, ...labels.map((l) => l.width));
+  const turn = () => applyLayout(diagram, {
+    preset: TURNED[preset],
+    fit: true,
+    ...labelSeparations(widest, TURNED[preset])
+  });
+  const ways = [
+    () => fold(diagram, limits, m),
+    () => wrapRows(diagram, m),
+    ...preset ? [
+      turn,
+      () => {
+        turn();
+        fold(diagram, limits, m);
+      }
+    ] : []
+  ];
+  const tried = ways.map((way, i) => {
+    const r = record2();
+    way();
+    app.diagrams.repaint();
+    const result = {
+      i,
+      aspect: measure(geometryOf(diagram)).aspect,
+      score: score2()
+    };
+    r.revert();
+    return result;
+  });
+  const now = score2();
+  const within5 = tried.filter((t) => t.aspect <= maxAspect);
+  if (measure(geometryOf(diagram)).aspect <= maxAspect * 1.15 && within5.every((t) => t.score < now - 15)) {
+    return;
+  }
+  const best = within5.length > 0 ? within5.sort((a, b) => b.score - a.score)[0] : tried.sort((a, b) => a.aspect - b.aspect)[0];
+  ways[best.i]();
+}
+var UNFOLDED = /* @__PURE__ */ new Set(["sequence", "timing", "mindmap"]);
+function foldable(diagram, kind2) {
+  return !UNFOLDED.has(kind2) && !placedByBuild(diagram, null);
+}
+function straighten(diagram, moved, m) {
+  for (const e of edgeViewsOf(diagram)) {
+    if (!moved.has(ownerNode(e.tail)) && !moved.has(ownerNode(e.head))) {
+      continue;
+    }
+    const points = e.points;
+    if ((points?.points?.length ?? 0) <= 2) continue;
+    const next = points.copy();
+    const [a, b] = [next.points[0], next.points.at(-1)];
+    const mid = next.points[1];
+    mid.x = Math.round((a.x + b.x) / 2);
+    mid.y = Math.round((a.y + b.y) / 2);
+    next.points.splice(2, next.points.length - 3);
+    m.modifyEdge(e, next);
+  }
+}
+var BAND_GAP = 80;
+function cuts(spans) {
+  const sorted = [...spans].sort((a, b) => a[0] - b[0]);
+  const out = [];
+  let end = sorted[0][1];
+  for (const [from, to] of sorted.slice(1)) {
+    if (from > end) out.push((from + end) / 2);
+    end = Math.max(end, to);
+  }
+  return out;
+}
+function fold(diagram, limits, m) {
+  const views = nodeViews(diagram).filter((v) => !v.containerView);
+  const g = measure(geometryOf(diagram));
+  const maxAspect = limits.maxAspect;
+  if (views.length < 2 || g.aspect <= maxAspect) return;
+  const wide = g.width >= g.height;
+  const along = (v) => wide ? box(v).left : box(v).top;
+  const size2 = (v) => wide ? box(v).width : box(v).height;
+  const across = (v) => wide ? box(v).top : box(v).left;
+  const depth3 = (v) => wide ? box(v).height : box(v).width;
+  const places = cuts(views.map((v) => [along(v), along(v) + size2(v)]));
+  const start = Math.min(...views.map(along));
+  const end = Math.max(...views.map((v) => along(v) + size2(v)));
+  const target = Math.max(limits.width, limits.height) / Math.min(limits.width, limits.height);
+  const bandsFor = (k) => {
+    const chosen = [];
+    for (let i = 1; i < k; i++) {
+      const ideal = start + (end - start) * i / k;
+      const best2 = places.filter((c) => c > (chosen.at(-1) ?? -Infinity)).sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal))[0];
+      if (best2 !== void 0) chosen.push(best2);
+    }
+    const edges = [-Infinity, ...chosen, Infinity];
+    return edges.slice(1).map((to, i) => {
+      const inBand = views.filter((v) => {
+        const c = along(v) + size2(v) / 2;
+        return c > edges[i] && c < to;
+      });
+      return {
+        views: inBand,
+        from: Math.min(...inBand.map(along)),
+        to: Math.max(...inBand.map((v) => along(v) + size2(v))),
+        lo: Math.min(...inBand.map(across)),
+        hi: Math.max(...inBand.map((v) => across(v) + depth3(v)))
+      };
+    });
+  };
+  const shape = (bands) => {
+    const long = Math.max(...bands.map((b) => b.to - b.from));
+    const thick = bands.reduce((n, b) => n + b.hi - b.lo, 0) + BAND_GAP * (bands.length - 1);
+    return Math.max(long, thick) / Math.min(long, thick);
+  };
+  let best = null;
+  for (let k = 2; k <= Math.min(8, places.length + 1); k++) {
+    const bands = bandsFor(k);
+    const a = shape(bands);
+    const fits3 = (b) => shape(b) <= maxAspect;
+    if (best === null || fits3(bands) && !fits3(best) || fits3(bands) === fits3(best) && Math.abs(a - target) < Math.abs(shape(best) - target)) {
+      best = bands;
+    }
+  }
+  if (best === null) return;
+  let offset = Math.min(...views.map(across));
+  best.forEach((band, i) => {
+    for (const v of band.views) {
+      const pos = i % 2 === 1 ? band.to - (along(v) - band.from) - size2(v) : along(v);
+      const d = Math.round(start + (pos - band.from) - along(v));
+      const e = Math.round(offset + (across(v) - band.lo) - across(v));
+      m.move([v], wide ? d : e, wide ? e : d);
+    }
+    offset += band.hi - band.lo + BAND_GAP;
+  });
+  straighten(diagram, new Set(views), m);
+}
 function presetOf(kind2, profile2, asked) {
   return asked ?? (kind2 ? presetFor(profile2, kind2) : void 0) ?? (kind2 === "class" || kind2 === "package" ? "hierarchy-down" : "flow-down");
 }
@@ -14145,7 +14859,8 @@ function vertical(kind2, profile2) {
 }
 function assess(diagram, profile2) {
   const metrics = measure(geometryOf(diagram));
-  const score2 = scoreOf(metrics, profile2.layout.page);
+  const limits = limitsFor(profile2);
+  const score2 = scoreOf(metrics, limits);
   const counts = /* @__PURE__ */ new Map();
   const lint = lintLayout(
     diagram,
@@ -14158,33 +14873,43 @@ function assess(diagram, profile2) {
     severity: lint.find((f) => f.rule === rule).severity,
     count
   }));
-  return { metrics, score: score2, findings };
+  return { metrics, score: score2, findings, failures: failures(metrics, limits) };
 }
 function scoredAsIs(diagram, profile2) {
-  const { score: score2, findings } = assess(diagram, profile2);
+  const { score: score2, findings, failures: failures2 } = assess(diagram, profile2);
   const target = thresholdFor(profile2, kindOf(diagram));
   return {
     score: score2,
     rating: ratingOf(score2),
     before: score2,
     target,
-    passes: score2 >= target,
+    passes: score2 >= target && failures2.length === 0,
     iterations: 0,
     steps: [],
-    findings
+    findings,
+    ...failures2.length > 0 && { failures: failures2 }
   };
 }
 var AUTOFIXED = /* @__PURE__ */ new Set(["L001", "L002", "L003", "L004", "L005"]);
 function improve(diagram, profile2, options = {}) {
   const kind2 = kindOf(diagram);
   const m = new Mover(diagram);
-  const page = profile2.layout.page;
-  const score2 = () => scoreOf(measure(geometryOf(diagram)), page);
+  const limits = limitsFor(profile2);
+  editorShowing(diagram);
+  const score2 = () => {
+    app.diagrams.repaint();
+    return scoreOf(measure(geometryOf(diagram)), limits);
+  };
   const target = options.target ?? (kind2 ? thresholdFor(profile2, kind2) : profile2.quality.minScore);
   const max = options.maxIterations ?? profile2.quality.maxIterations;
   const placed = placedByBuild(diagram, kind2);
   const steps = [];
   const before = score2();
+  const strip = () => {
+    app.diagrams.repaint();
+    const g = measure(geometryOf(diagram));
+    return g.aspect > limits.maxAspect && Math.max(g.width, g.height) > Math.min(limits.width, limits.height) / 2;
+  };
   const attempt = (name4, step, rule = false) => {
     const recording2 = record2();
     const s0 = score2();
@@ -14247,7 +14972,8 @@ function improve(diagram, profile2, options = {}) {
     } else if (kind2 === "activity" || kind2 === "statemachine" || kind2 === "flowchart") {
       attempt(
         "align chains",
-        () => alignChains(diagram, vertical(kind2, profile2), m)
+        () => alignChains(diagram, vertical(kind2, profile2), m),
+        true
       );
     } else {
       attempt("order ranks", () => orderRanks(diagram, m));
@@ -14275,19 +15001,41 @@ function improve(diagram, profile2, options = {}) {
       attempt("snap", () => snap(diagram, profile2, m));
       attempt("trim", () => trim(diagram, m));
     }
+    attempt("fit lanes", () => fitLanes(diagram, m), true);
+    if (kind2 !== "sequence") {
+      attempt("unbundle", () => unbundle(diagram));
+      attempt("place labels", () => placeLabels(diagram, score2, strip, m));
+    }
+    if (foldable(diagram, kind2) && strip()) {
+      attempt(
+        "unstrip",
+        () => unstrip(
+          diagram,
+          placed ? null : presetOf(kind2, profile2, options.preset),
+          limits,
+          score2,
+          m
+        ),
+        true
+      );
+      attempt("unbundle", () => unbundle(diagram));
+      attempt("place labels", () => placeLabels(diagram, score2, strip, m));
+    }
     const now = score2();
     if (now >= target || now <= start) break;
   }
+  app.diagrams.repaint();
   const after = assess(diagram, profile2);
   return {
     score: after.score,
     rating: ratingOf(after.score),
     before,
     target,
-    passes: after.score >= target,
+    passes: after.score >= target && after.failures.length === 0,
     iterations,
     steps,
-    findings: after.findings
+    findings: after.findings,
+    ...after.failures.length > 0 && { failures: after.failures }
   };
 }
 function autofix(diagram, noRelayout, m) {
@@ -14328,6 +15076,12 @@ var qualitySchema = () => doc(
         })
       ),
       "/lint_diagram findings left, by rule."
+    ),
+    failures: optional(
+      doc(
+        array(string2()),
+        "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes."
+      )
     )
   }),
   "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32)."
@@ -14460,10 +15214,21 @@ function propertyOps(node2, model) {
   }));
 }
 function viewPropertyOps(node2, view, current) {
-  return Object.entries(node2.viewProperties ?? {}).filter(([field, value]) => current?.[field] !== value).map(([field, value]) => ({
+  const ops = Object.entries(node2.viewProperties ?? {}).filter(([field, value]) => current?.[field] !== value).map(([field, value]) => ({
     path: "/update_element",
     body: { ref: view, field, value }
   }));
+  if (ops.length > 0 && node2.box && !current) {
+    ops.push({
+      path: "/resize_node",
+      body: {
+        ref: view,
+        width: Math.round(node2.box.width),
+        height: Math.round(node2.box.height)
+      }
+    });
+  }
+  return ops;
 }
 function namespaced(model) {
   const viewType = app.metamodels.getViewTypeOf(model.constructor.name);
@@ -14664,6 +15429,13 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
         ops.push({
           path: "/update_element",
           body: { ref: `$${as}.view`, field: "showNamespace", value: false }
+        });
+      }
+      ops.push(...lifelineOps(model, `$${as}.view`));
+      if (node2.operandAt) {
+        ops.push({
+          path: "/divide_fragment",
+          body: { ref: `$${as}.view`, at: node2.operandAt }
         });
       }
       return;
@@ -14888,20 +15660,9 @@ function opsFor(plan, target, direction2, autoLayout, preset = defaultPreset(pla
     ...engine && { preset }
   };
 }
-var MAX_LABEL_ROOM = 300;
 function labelRoom(plan, preset) {
   if (plan.edgeLabelWidth === void 0) return {};
-  const { direction: direction2, separations } = LAYOUT_PRESETS[preset];
-  const room = Math.min(MAX_LABEL_ROOM, plan.edgeLabelWidth + 20);
-  return direction2 === "TB" || direction2 === "BT" ? {
-    nodeSeparation: Math.max(separations.node, room),
-    rankSeparation: Math.max(separations.rank, 80)
-  } : {
-    // A label sits above its edge, so ranks side by side need it across
-    // and nodes stacked in a rank need its height between them.
-    nodeSeparation: Math.max(separations.node, 60),
-    rankSeparation: Math.max(separations.rank, room)
-  };
+  return labelSeparations(plan.edgeLabelWidth, preset);
 }
 function frameOf(diagram) {
   const frame = diagram.ownedViews.find((v) => v.model === diagram);
@@ -14960,6 +15721,26 @@ function defaultPreset(kind2, direction2) {
   return `${family2}-${SIDES[direction2]}`;
 }
 var defaultDirection = (kind2) => kind2 === "mindmap" || kind2 === "communication" ? "LR" : "TB";
+function lifelineOps(model, view) {
+  if (!(model instanceof type.UMLLifeline)) return [];
+  const represent = model.represent;
+  const typed = represent?.type;
+  if (!typed || typeof typed !== "object") return [];
+  return [
+    ...typed instanceof type.UMLActor ? [
+      {
+        path: "/update_element",
+        body: { ref: view, field: "stereotypeDisplay", value: "icon" }
+      }
+    ] : [],
+    ...typed.name === model.name ? [
+      {
+        path: "/update_element",
+        body: { ref: view, field: "showType", value: false }
+      }
+    ] : []
+  ];
+}
 function findDiagram(kind2, name4, parent) {
   if (name4 === void 0) return null;
   return app.repository.getInstancesOf(DIAGRAM_TYPES[kind2]).find((d) => d.name === name4 && within(d, parent)) ?? null;
@@ -27728,13 +28509,21 @@ function parseModelSpec(input) {
       ...doc3 !== void 0 && { documentation: doc3 }
     };
   });
+  const system = raw.system === void 0 ? void 0 : multiline(raw.system);
   const useCases2 = (raw.useCases ?? []).map((u) => {
     if (typeof u === "string") {
-      return { name: multiline(u), actors: [], includes: [], extends: [] };
+      return {
+        name: multiline(u),
+        ...system !== void 0 && { subject: system },
+        actors: [],
+        includes: [],
+        extends: []
+      };
     }
+    const subject = u.system ? multiline(u.system) : system;
     return {
       name: multiline(u.name),
-      ...u.system && { subject: multiline(u.system) },
+      ...subject !== void 0 && { subject },
       actors: u.actors ?? [],
       includes: u.includes ?? [],
       extends: u.extends ?? [],
@@ -30882,11 +31671,11 @@ function renderSvg(diagram, background) {
       (open) => `${open}<rect width="100%" height="100%" fill="${background}"/>`
     );
   }
-  const size = (attr) => Number(new RegExp(`<svg\\b[^>]*\\b${attr}="([\\d.]+)`).exec(svg)?.[1] ?? 0);
+  const size2 = (attr) => Number(new RegExp(`<svg\\b[^>]*\\b${attr}="([\\d.]+)`).exec(svg)?.[1] ?? 0);
   return {
     data: Buffer.from(svg, "utf-8"),
-    width: size("width"),
-    height: size("height")
+    width: size2("width"),
+    height: size2("height")
   };
 }
 var absolutePath = (description) => doc(
@@ -32877,8 +33666,9 @@ var USECASE_RELATIONS3 = {
   UMLExtend: "extend",
   UMLGeneralization: "generalization"
 };
-function usecaseDiagram2(name4, parent, actors, cases, subject) {
+function usecaseDiagram2(name4, parent, actors, cases, subject, systemOf) {
   const shown = [...actors, ...cases];
+  const outside = subject ? cases.filter((u) => systemOf(u) !== subject.name) : [];
   const relations = relationsAmong(
     shown,
     new Set(Object.keys(USECASE_RELATIONS3))
@@ -32893,6 +33683,9 @@ function usecaseDiagram2(name4, parent, actors, cases, subject) {
       ...subject && { system: String(subject.name) },
       actors: actors.map((a) => String(a.name)),
       useCases: cases.map((u) => String(u.name)),
+      ...outside.length > 0 && {
+        outside: outside.map((u) => String(u.name))
+      },
       relations: relations.map((r) => {
         const [a, b] = ends3(r);
         return {
@@ -32913,10 +33706,15 @@ function usecaseDiagrams(s) {
   const subjects = s.all.filter((e) => is(e, "UMLUseCaseSubject"));
   if (cases.length === 0) return [];
   const named3 = (pool, names4 = []) => names4.flatMap((n) => pool.filter((e) => e.name === n).slice(0, 1));
+  const systemOf = (u) => s.views.subjects?.[String(u.name)];
   const subjectOf = (shown) => {
-    const names4 = new Set(shown.map((u) => s.views.subjects?.[String(u.name)]));
-    const [only] = [...names4];
-    return names4.size === 1 && only !== void 0 ? subjects.find((x) => x.name === only) : void 0;
+    const count = /* @__PURE__ */ new Map();
+    for (const u of shown) {
+      const name4 = systemOf(u);
+      if (name4 !== void 0) count.set(name4, (count.get(name4) ?? 0) + 1);
+    }
+    const [top] = [...count].sort((a, b) => b[1] - a[1]);
+    return top && subjects.find((x) => x.name === top[0]);
   };
   const actorsOf = (shown) => actors.filter(
     (a) => relationsAmong([a, ...shown], /* @__PURE__ */ new Set(["UMLAssociation"])).length > 0
@@ -32929,7 +33727,14 @@ function usecaseDiagrams(s) {
         ...v.actors ?? [],
         ...v.extraActors ?? []
       ]);
-      return usecaseDiagram2(v.name, s.model, people, shown, subjectOf(shown));
+      return usecaseDiagram2(
+        v.name,
+        s.model,
+        people,
+        shown,
+        subjectOf(shown),
+        systemOf
+      );
     });
   }
   const groups = /* @__PURE__ */ new Map();
@@ -32943,7 +33748,8 @@ function usecaseDiagrams(s) {
       s.model,
       actorsOf(shown),
       shown,
-      subjectOf(shown)
+      subjectOf(shown),
+      systemOf
     )
   );
 }
@@ -32954,6 +33760,26 @@ function tuple(value, fields) {
       (v, i) => v === void 0 || !fields[i] ? [] : [[fields[i], v]]
     )
   );
+}
+var size = (t) => 1 + (t.children ?? []).reduce((n, c) => n + size(c), 0);
+function splitTree(root, max) {
+  if (size(root) <= max) return [{ name: root.name, root }];
+  const parts = [];
+  let count = 1;
+  for (const branch of root.children ?? []) {
+    const last = parts.at(-1);
+    if (last && count + size(branch) <= max) {
+      last.push(branch);
+      count += size(branch);
+    } else {
+      parts.push([branch]);
+      count = 1 + size(branch);
+    }
+  }
+  return parts.map((children, i) => ({
+    name: `${root.name} (${i + 1}/${parts.length})`,
+    root: { ...root, children }
+  }));
 }
 function sectionDiagrams(s) {
   const v = s.views;
@@ -33012,7 +33838,9 @@ function sectionDiagrams(s) {
         paths: (d.links ?? []).map((l) => tuple(l, ["from", "to", "name"]))
       })
     ),
-    ...v.features ? [plain("mindmap", v.features.name, { root: v.features })] : []
+    ...v.features ? splitTree(v.features, limitsFor(s.profile).maxNodes).map(
+      (part) => plain("mindmap", part.name, { root: part.root })
+    ) : []
   ];
 }
 function derive(scope, profile2, kinds) {
@@ -33532,7 +34360,7 @@ var summary = (d) => ({
 });
 var diagramQuality = defineEndpoint({
   path: "/diagram_quality",
-  description: "Score a diagram 0\u2013100 from its view geometry, no rendering: overlap of boxes, edges through nodes, crossing edges, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. rating is 1\u20135 (4 needs 80); target is the profile's threshold for the kind. Read-only.",
+  description: "Score a diagram 0\u2013100 from its view geometry, no rendering: boxes on boxes, labels printed over text or far from their edge or crossed by another edge, edges through nodes, crossing edges, edges sharing one line, boxes cut by a lane or fragment border, selection handles an export would draw, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. failures lists hard limits broken (aspect past maxAspect on a diagram larger than the page, more than maxNodes boxes); a failing diagram scores at most 59. rating is 1\u20135 (4 needs 80); target is the profile's threshold for the kind. The weights are fitted to human ratings (Spearman \u2265 0.7). Read-only.",
   readOnly: true,
   destructive: false,
   request: object({
@@ -33548,33 +34376,35 @@ var diagramQuality = defineEndpoint({
     passes: boolean2(),
     metrics: doc(
       record(string2(), number2()),
-      "overlapArea, overlapPairs, overlapRatio, nodeEdgeCrossings, edgeCrossings, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges."
+      "overlapArea, overlapPairs, overlapRatio, severeOverlaps, labelOverlaps, detachedLabels, labelCrossings, nodeEdgeCrossings, edgeCrossings, sharedSegments, borderCrossings, selected, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges."
     ),
     penalties: doc(
       record(string2(), number2()),
       `Points lost per measure, at most: ${Object.entries(WEIGHTS).map(([k, w]) => `${k} ${w}`).join(", ")}.`
     ),
-    findings: qualitySchema().shape.findings
+    findings: qualitySchema().shape.findings,
+    failures: optional(qualitySchema().shape.failures)
   }),
   handle: (input) => {
     const diagram = requireDiagram(input.ref ?? "@current");
     const profile2 = effectiveProfile().profile;
     const kind2 = kindOf(diagram);
-    const { metrics, score: score2, findings } = assess(diagram, profile2);
+    const { metrics, score: score2, findings, failures: failures2 } = assess(diagram, profile2);
     const target = kind2 ? thresholdFor(profile2, kind2) : profile2.quality.minScore;
-    const lost = penalties(metrics, profile2.layout.page);
+    const lost = penalties(metrics, limitsFor(profile2));
     return {
       diagram: summary(diagram),
       kind: kind2,
       score: score2,
       rating: ratingOf(score2),
       target,
-      passes: score2 >= target,
+      passes: score2 >= target && failures2.length === 0,
       metrics: { ...metrics },
       penalties: Object.fromEntries(
         Object.entries(lost).map(([k, v]) => [k, Math.round(v * 10) / 10])
       ),
-      findings
+      findings,
+      ...failures2.length > 0 && { failures: failures2 }
     };
   }
 });
@@ -33794,6 +34624,7 @@ async function init() {
     );
     return;
   }
+  await loadDiagramFonts();
   const candidate2 = new ExtensionHttpServer({
     port,
     handlers: routes,

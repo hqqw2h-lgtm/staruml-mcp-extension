@@ -239,7 +239,11 @@ describe("/build_model", () => {
       "Kind: human.\nGoals: buy.",
     );
     expect(named("UMLActor", "Clerk").documentation).toBe("");
-    expect(all("UMLUseCaseSubject").map((s) => s.name)).toEqual(["Web shop"]);
+    // A use case without a system of its own belongs to the spec's.
+    expect(all("UMLUseCaseSubject").map((s) => s.name)).toEqual([
+      "Web shop",
+      "Shop",
+    ]);
     expect(named("UMLUseCase", "Refund").documentation).toBe("d");
     expect(all("UMLInclude")[0]).toMatchObject({
       source: named("UMLUseCase", "Buy"),

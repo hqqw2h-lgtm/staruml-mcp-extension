@@ -162,7 +162,7 @@ describeLive("issue #35 structural kinds", () => {
     expect(text).toContain("D1 -- D2 : JDBC");
   });
 
-  it("lays a mind map out sideways from its root", async () => {
+  it("lays a mind map out on both sides of its root", async () => {
     const children = Array.from({ length: 14 }, (_, i) => ({
       name: `Topic ${i + 1}`,
       children: [{ name: `Detail ${i + 1}` }],
@@ -173,15 +173,18 @@ describeLive("issue #35 structural kinds", () => {
       result: "terse",
       spec: { root: { name: "ThingsBoard", children } },
     });
-    expect(data.preset).toBe("flow-right");
+    // The build places a mind map itself (issue #38); no engine preset.
+    expect(data.preset).toBeUndefined();
     expect(data.ids).toBeUndefined();
     const image = await call<{ base64: string; width: number; height: number }>(
       "/export_diagram",
       { diagram: data.diagram._id, background: "#ffffff" },
     );
-    // A row of 28 nodes would be over 3000 px wide; a tree two levels deep
-    // grows down instead.
-    expect(image.data.width).toBeLessThan(image.data.height);
+    // A row of 28 nodes would be over 3000 px wide and one side 14 rows
+    // tall; on both sides the map is about square.
+    const ratio = image.data.width / image.data.height;
+    expect(ratio).toBeGreaterThan(1 / 3);
+    expect(ratio).toBeLessThan(3);
     const pixels = decodePng(Buffer.from(image.data.base64, "base64"));
     expect(
       inkIn(pixels, { x: 0, y: 0, width: pixels.width, height: pixels.height }),

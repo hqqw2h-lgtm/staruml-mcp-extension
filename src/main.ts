@@ -23,6 +23,7 @@
 
 import { ExtensionHttpServer } from "./http-server.js";
 import { errorMessage } from "./errors.js";
+import { loadDiagramFonts } from "./fonts.js";
 import { routes } from "./routes.js";
 import { randomBytes } from "node:crypto";
 import type { LogLevel } from "./http-server.js";
@@ -84,6 +85,7 @@ export async function init(): Promise<void> {
     return;
   }
 
+  await loadDiagramFonts();
   const candidate = new ExtensionHttpServer({
     port: port as number,
     handlers: routes,

@@ -377,3 +377,11 @@ describe("parser fuzzing (issue #27)", () => {
     );
   });
 });
+
+describe("JSON Schema regressions found by fuzzing", () => {
+  it("reads an allOf part that is not a schema as nothing", () => {
+    expect(() =>
+      parseJsonSchema('{"$defs":{"A":{"allOf":[null]}}}', undefined),
+    ).not.toThrow(TypeError);
+  });
+});

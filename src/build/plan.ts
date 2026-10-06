@@ -67,6 +67,8 @@ export interface PlanNode {
   columns?: ColumnSpec[];
   /** Activity lane key; placement puts the node inside that lane. */
   lane?: string;
+  /** A use case of another system: placed beside the boundary, not in it. */
+  outside?: boolean;
   /** Guard of a combined fragment's first operand. */
   guard?: string;
   /** Guards of a combined fragment's further operands. */

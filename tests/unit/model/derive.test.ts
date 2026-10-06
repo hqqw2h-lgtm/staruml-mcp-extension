@@ -7,6 +7,7 @@ import {
   DERIVED_KINDS,
   derive,
   modelOf,
+  splitTree,
   viewsOf,
 } from "../../../src/model/derive.js";
 import { pathOf } from "../../../src/refs.js";
@@ -346,10 +347,7 @@ describe("/derive_diagrams", () => {
       scope: m.model._id,
       kinds: ["usecase"],
     });
-    expect(out.diagrams.map((d) => d.name)).toEqual([
-      "Store",
-      "Shop use cases",
-    ]);
+    expect(out.diagrams.map((d) => d.name)).toEqual(["Store", "Shop"]);
     const none = await model({ system: "Empty", classes: [{ name: "A" }] });
     expect(
       (
@@ -664,5 +662,29 @@ describe("derived specs (golden)", () => {
     await expect(
       golden(derive(get(m.model._id), profile, all)),
     ).toMatchFileSnapshot(`../../fixtures/domains/${label}.derived.json`);
+  });
+});
+
+describe("splitTree (#38)", () => {
+  const leaf = (name: string) => ({ name });
+  const tree = {
+    name: "R",
+    children: [
+      { name: "a", children: [leaf("a1"), leaf("a2")] },
+      { name: "b", children: [leaf("b1")] },
+      { name: "c", children: [leaf("c1"), leaf("c2"), leaf("c3"), leaf("c4")] },
+    ],
+  };
+
+  it("keeps a tree within the limit whole", () => {
+    expect(splitTree(tree, 20)).toEqual([{ name: "R", root: tree }]);
+  });
+
+  it("splits a larger one into whole branches under the root, a big branch alone", () => {
+    const parts = splitTree(tree, 6);
+    expect(parts.map((p) => p.name)).toEqual(["R (1/2)", "R (2/2)"]);
+    expect(parts[0]!.root.children!.map((c) => c.name)).toEqual(["a", "b"]);
+    expect(parts[1]!.root.children!.map((c) => c.name)).toEqual(["c"]);
+    expect(splitTree({ name: "R" }, 0)).toEqual([]);
   });
 });

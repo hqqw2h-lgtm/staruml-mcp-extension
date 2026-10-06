@@ -110,35 +110,108 @@ function grid(
   return boxes;
 }
 
-/** Actors in a column on the left, use cases stacked inside the boundary. */
+/** Room around and between use cases in the boundary, and its name band. */
+const CASE = { gap: 50, row: 80, header: 50, pad: 30, actorStep: 130 };
+
+/**
+ * The classic use case layout: actors in a column on the left, the use
+ * cases they take part in in one column inside the boundary (so no actor's
+ * line passes through another use case, as a grid's did), the use cases
+ * only reached by «include» or «extend» in a second column beside the
+ * first use case that reaches them, and use cases of other systems under
+ * the boundary, where the actors' lines reach them without crossing it.
+ */
 function usecaseBoxes(plan: Plan): Map<string, Box> {
   const boxes = new Map<string, Box>();
   const actors = plan.nodes.filter((n) => n.type === "UMLActor");
-  const cases = plan.nodes.filter((n) => n.type === "UMLUseCase");
+  const all = plan.nodes.filter((n) => n.type === "UMLUseCase");
   const subject = plan.nodes.find((n) => n.type === "UMLUseCaseSubject")!;
-  actors.forEach((a, i) =>
-    boxes.set(a.key, {
-      x: MARGIN,
-      y: MARGIN + 40 + i * 140,
-      width: a.width,
-      height: a.height,
-    }),
+  const actorKeys = new Set(actors.map((a) => a.key));
+  const associated = new Set(
+    plan.edges
+      .filter((e) => actorKeys.has(e.from) || actorKeys.has(e.to))
+      .flatMap((e) => [e.from, e.to]),
   );
+  // The use case that reaches each secondary one: the includer, or the
+  // base an extension extends.
+  const reachedBy = new Map<string, string>();
+  for (const e of plan.edges) {
+    if (e.type === "UMLInclude" && !reachedBy.has(e.to)) {
+      reachedBy.set(e.to, e.from);
+    }
+    if (e.type === "UMLExtend" && !reachedBy.has(e.from)) {
+      reachedBy.set(e.from, e.to);
+    }
+  }
+  const inside = all.filter((n) => !n.outside);
+  const secondary = inside.filter(
+    (n) => !associated.has(n.key) && reachedBy.has(n.key),
+  );
+  const primary = inside.filter((n) => !secondary.includes(n));
+  const width1 = Math.max(160, ...primary.map((c) => c.width));
+  const width2 = Math.max(0, ...secondary.map((c) => c.width));
   const left = MARGIN + 200;
-  boxes.set(subject.key, {
-    x: left,
-    y: MARGIN,
-    width: subject.width,
-    height: subject.height,
-  });
-  cases.forEach((c, i) =>
+  const rowOf = new Map<string, number>();
+  primary.forEach((c, i) => rowOf.set(c.key, i));
+  const taken = new Set<number>();
+  for (const c of secondary) {
+    let row = rowOf.get(reachedBy.get(c.key)!) ?? 0;
+    while (taken.has(row)) row++;
+    taken.add(row);
+    rowOf.set(c.key, row);
+  }
+  const rows = Math.max(1, ...[...rowOf.values()].map((r) => r + 1));
+  const width = Math.max(
+    subject.width,
+    2 * CASE.pad + width1 + (secondary.length > 0 ? CASE.gap + width2 : 0),
+  );
+  const height = CASE.header + rows * CASE.row + CASE.pad / 2;
+  boxes.set(subject.key, { x: left, y: MARGIN, width, height });
+  const column2 = left + CASE.pad + width1 + CASE.gap;
+  for (const c of inside) {
+    const second = secondary.includes(c);
     boxes.set(c.key, {
-      x: left + (subject.width - c.width) / 2,
-      y: MARGIN + 60 + i * 80,
+      // Left-aligned, so an actor's line reaches its use case before it
+      // comes near any other in the column.
+      x: second ? column2 : left + CASE.pad,
+      y: MARGIN + CASE.header + rowOf.get(c.key)! * CASE.row,
       width: c.width,
       height: c.height,
-    }),
-  );
+    });
+  }
+  // Each actor level with the middle of its use cases, in that order down
+  // the column, at least actorStep apart.
+  const middle = (a: PlanNode) => {
+    const rows = plan.edges
+      .filter((e) => e.from === a.key || e.to === a.key)
+      .map((e) => rowOf.get(e.from === a.key ? e.to : e.from))
+      .filter((r) => r !== undefined);
+    return rows.length > 0
+      ? MARGIN +
+          CASE.header +
+          (rows.reduce((n, r) => n + r, 0) / rows.length) * CASE.row -
+          15
+      : MARGIN + height / 2 - 40;
+  };
+  let next = MARGIN;
+  [...actors]
+    .map((a) => ({ a, y: middle(a) }))
+    .sort((p, q) => p.y - q.y)
+    .forEach(({ a, y }) => {
+      const top = Math.max(y, next);
+      boxes.set(a.key, { x: MARGIN, y: top, width: a.width, height: a.height });
+      next = top + CASE.actorStep;
+    });
+  all
+    .filter((n) => n.outside)
+    .forEach((c, i) =>
+      boxes.set(c.key, {
+        x: left + CASE.pad + (width1 - c.width) / 2,
+        y: MARGIN + height + CASE.gap + i * CASE.row,
+        width: c.width,
+        height: c.height,
+      }),
+    );
   return boxes;
 }
 

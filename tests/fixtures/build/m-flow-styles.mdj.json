@@ -44,8 +44,8 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 190,
-     "top": 40,
+     "left": 40,
+     "top": 110,
      "width": 140,
      "height": 70
     },
@@ -56,8 +56,8 @@
       "$ref": "#9"
      },
      "containerView": null,
-     "left": 340,
-     "top": 40,
+     "left": 40,
+     "top": 180,
      "width": 140,
      "height": 50
     },

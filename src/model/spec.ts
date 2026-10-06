@@ -733,13 +733,24 @@ export function parseModelSpec(input: unknown): ModelSpec {
       ...(doc !== undefined && { documentation: doc }),
     };
   });
+  // A use case names the system it belongs to, else it is the spec's own
+  // system's: the boundary a use case diagram draws (UML 2.5.1 §18.1.3,
+  // a use case's subject).
+  const system = raw.system === undefined ? undefined : multiline(raw.system);
   const useCases = (raw.useCases ?? []).map((u): UseCaseSpec => {
     if (typeof u === "string") {
-      return { name: multiline(u), actors: [], includes: [], extends: [] };
+      return {
+        name: multiline(u),
+        ...(system !== undefined && { subject: system }),
+        actors: [],
+        includes: [],
+        extends: [],
+      };
     }
+    const subject = u.system ? multiline(u.system) : system;
     return {
       name: multiline(u.name),
-      ...(u.system && { subject: multiline(u.system) }),
+      ...(subject !== undefined && { subject }),
       actors: u.actors ?? [],
       includes: u.includes ?? [],
       extends: u.extends ?? [],

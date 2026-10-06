@@ -61,7 +61,7 @@ import { resolveCreateType } from "../toolbox.js";
 import type { Element, View } from "../types.js";
 import { modelTypeOf } from "./elements.js";
 import {
-  LAYOUT_PRESETS,
+  labelSeparations,
   type LayoutPresetName,
   PRESET_NAMES,
 } from "./views.js";
@@ -251,12 +251,26 @@ function propertyOps(node: PlanNode, model: Element): Op[] {
 
 /** /update_element ops giving `view` the node's view attributes that differ. */
 function viewPropertyOps(node: PlanNode, view: string, current?: View): Op[] {
-  return Object.entries(node.viewProperties ?? {})
+  const ops: Op[] = Object.entries(node.viewProperties ?? {})
     .filter(([field, value]) => current?.[field] !== value)
     .map(([field, value]) => ({
       path: "/update_element",
       body: { ref: view, field, value },
     }));
+  // A view drawn before its attributes changed keeps the size it grew to
+  // (a wrapped name's height, View.sizeConstraints in core/core.js 7.1.1);
+  // a placed node gets its planned size back.
+  if (ops.length > 0 && node.box && !current) {
+    ops.push({
+      path: "/resize_node",
+      body: {
+        ref: view,
+        width: Math.round(node.box.width),
+        height: Math.round(node.box.height),
+      },
+    });
+  }
+  return ops;
 }
 
 /**
@@ -619,6 +633,15 @@ export function opsFor(
           body: { ref: `$${as}.view`, field: "showNamespace", value: false },
         });
       }
+      ops.push(...lifelineOps(model, `$${as}.view`));
+      // A shown fragment keeps its operands; its dividers still go between
+      // the messages the plan put in each (issue #38).
+      if (node.operandAt) {
+        ops.push({
+          path: "/divide_fragment",
+          body: { ref: `$${as}.view`, at: node.operandAt },
+        });
+      }
       return;
     }
     const note = node.type === "Note";
@@ -874,9 +897,6 @@ export function opsFor(
   };
 }
 
-/** Most room left for an edge label; longer ones may touch a neighbour. */
-const MAX_LABEL_ROOM = 300;
-
 /**
  * Separations giving edge labels room: dagre places a label beside its
  * edge, so between the nodes of a rank when ranks run down and across the
@@ -887,19 +907,7 @@ function labelRoom(
   preset: LayoutPresetName,
 ): { nodeSeparation?: number; rankSeparation?: number } {
   if (plan.edgeLabelWidth === undefined) return {};
-  const { direction, separations } = LAYOUT_PRESETS[preset];
-  const room = Math.min(MAX_LABEL_ROOM, plan.edgeLabelWidth + 20);
-  return direction === "TB" || direction === "BT"
-    ? {
-        nodeSeparation: Math.max(separations.node, room),
-        rankSeparation: Math.max(separations.rank, 80),
-      }
-    : {
-        // A label sits above its edge, so ranks side by side need it across
-        // and nodes stacked in a rank need its height between them.
-        nodeSeparation: Math.max(separations.node, 60),
-        rankSeparation: Math.max(separations.rank, room),
-      };
+  return labelSeparations(plan.edgeLabelWidth, preset);
 }
 
 /**
@@ -999,6 +1007,37 @@ export function defaultPreset(kind: Kind, direction: Direction) {
  */
 export const defaultDirection = (kind: Kind): Direction =>
   kind === "mindmap" || kind === "communication" ? "LR" : "TB";
+
+/**
+ * How a lifeline of the model is drawn: one representing an actor as the
+ * actor's figure (UMLSeqLifelineView.drawIcon in the 7.1.1 uml
+ * elements.js draws it only for the icon display), and one named like its
+ * type by its name alone, not "Device: Device".
+ */
+export function lifelineOps(model: Element, view: string) {
+  if (!(model instanceof type.UMLLifeline)) return [];
+  const represent = model.represent as Element | null;
+  const typed = represent?.type as Element | null | undefined;
+  if (!typed || typeof typed !== "object") return [];
+  return [
+    ...(typed instanceof type.UMLActor
+      ? [
+          {
+            path: "/update_element",
+            body: { ref: view, field: "stereotypeDisplay", value: "icon" },
+          },
+        ]
+      : []),
+    ...(typed.name === model.name
+      ? [
+          {
+            path: "/update_element",
+            body: { ref: view, field: "showType", value: false },
+          },
+        ]
+      : []),
+  ];
+}
 
 /** The diagram an upsert updates: same type and name, under the parent. */
 function findDiagram(kind: Kind, name: string | undefined, parent: Element) {

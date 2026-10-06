@@ -30,6 +30,7 @@ import {
   PRESET_NAMES,
   STEREOTYPE_DISPLAYS,
 } from "../handlers/views.js";
+import { DEFAULT_LIMITS, type Limits } from "../quality/metric.js";
 import type { Element } from "../types.js";
 import data from "./profiles.json";
 import { compilePattern, FIXES } from "./naming.js";
@@ -173,6 +174,18 @@ export const profileSchema = () =>
           height: z.int().check(z.minimum(200)),
         }),
         "Target canvas in diagram units (px at 100%); the quality metric penalises diagrams far wider or taller.",
+      ),
+      maxAspect: z.optional(
+        doc(
+          z.number().check(z.minimum(1), z.maximum(20)),
+          "Longer side over shorter side past which a diagram larger than the page fails the quality gate; default 3.",
+        ),
+      ),
+      maxNodes: z.optional(
+        doc(
+          z.int().check(z.minimum(2), z.maximum(1000)),
+          "Boxes past which a diagram fails the quality gate and /derive_diagrams splits it; default 60.",
+        ),
       ),
       labelWrap: doc(
         z.int().check(z.minimum(40), z.maximum(1000)),
@@ -341,6 +354,13 @@ export const profile = (): Profile => effectiveProfile().profile;
 
 /** The preset a diagram kind is laid out with under the profile, if it names one. */
 export const presetFor = (p: Profile, kind: Kind) => p.layout.presets[kind];
+
+/** The page and hard limits the quality metric holds a diagram to. */
+export const limitsFor = (p: Profile): Required<Limits> => ({
+  ...p.layout.page,
+  maxAspect: p.layout.maxAspect ?? DEFAULT_LIMITS.maxAspect,
+  maxNodes: p.layout.maxNodes ?? DEFAULT_LIMITS.maxNodes,
+});
 
 /** minScore for a diagram kind. */
 export const thresholdFor = (p: Profile, kind: Kind): number =>

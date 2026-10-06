@@ -45,7 +45,7 @@
      },
      "containerView": null,
      "left": 190,
-     "top": 40,
+     "top": 180,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -57,7 +57,7 @@
       "$ref": "#9"
      },
      "containerView": null,
-     "left": 340,
+     "left": 100,
      "top": 40,
      "width": 26,
      "height": 26
@@ -69,8 +69,8 @@
       "$ref": "#11"
      },
      "containerView": null,
-     "left": 490,
-     "top": 40,
+     "left": 270,
+     "top": 282,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -82,8 +82,8 @@
       "$ref": "#13"
      },
      "containerView": null,
-     "left": 640,
-     "top": 40,
+     "left": 190,
+     "top": 384,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -95,8 +95,8 @@
       "$ref": "#15"
      },
      "containerView": null,
-     "left": 790,
-     "top": 40,
+     "left": 120,
+     "top": 110,
      "width": 30,
      "height": 30
     },
@@ -107,8 +107,8 @@
       "$ref": "#17"
      },
      "containerView": null,
-     "left": 940,
-     "top": 40,
+     "left": 40,
+     "top": 180,
      "width": 26,
      "height": 26
     },
@@ -119,8 +119,8 @@
       "$ref": "#19"
      },
      "containerView": null,
-     "left": 1090,
-     "top": 40,
+     "left": 270,
+     "top": 486,
      "width": 120,
      "height": 62,
      "showNamespace": false

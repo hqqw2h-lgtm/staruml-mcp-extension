@@ -22,7 +22,7 @@
  */
 
 import type { Kind } from "../build/spec.js";
-import type { Profile } from "../style/profile.js";
+import { limitsFor, type Profile } from "../style/profile.js";
 import type { Element } from "../types.js";
 import { VIEWS_TAG } from "./plan.js";
 import type { ModelViews } from "./spec.js";
@@ -494,8 +494,12 @@ function usecaseDiagram(
   actors: Element[],
   cases: Element[],
   subject: Element | undefined,
+  systemOf: (u: Element) => string | undefined,
 ): Derived {
   const shown = [...actors, ...cases];
+  const outside = subject
+    ? cases.filter((u) => systemOf(u) !== subject.name)
+    : [];
   const relations = relationsAmong(
     shown,
     new Set(Object.keys(USECASE_RELATIONS)),
@@ -510,6 +514,9 @@ function usecaseDiagram(
       ...(subject && { system: String(subject.name) }),
       actors: actors.map((a) => String(a.name)),
       useCases: cases.map((u) => String(u.name)),
+      ...(outside.length > 0 && {
+        outside: outside.map((u) => String(u.name)),
+      }),
       relations: relations.map((r) => {
         const [a, b] = ends(r) as [Element, Element];
         return {
@@ -532,12 +539,19 @@ function usecaseDiagrams(s: Scope): Derived[] {
   if (cases.length === 0) return [];
   const named = (pool: Element[], names: string[] = []) =>
     names.flatMap((n) => pool.filter((e) => e.name === n).slice(0, 1));
+  const systemOf = (u: Element) => s.views.subjects?.[String(u.name)];
+  /**
+   * The boundary a diagram draws: the system most of its use cases belong
+   * to (the first on a tie); the others are drawn beside it.
+   */
   const subjectOf = (shown: Element[]) => {
-    const names = new Set(shown.map((u) => s.views.subjects?.[String(u.name)]));
-    const [only] = [...names];
-    return names.size === 1 && only !== undefined
-      ? subjects.find((x) => x.name === only)
-      : undefined;
+    const count = new Map<string, number>();
+    for (const u of shown) {
+      const name = systemOf(u);
+      if (name !== undefined) count.set(name, (count.get(name) ?? 0) + 1);
+    }
+    const [top] = [...count].sort((a, b) => b[1] - a[1]);
+    return top && subjects.find((x) => x.name === top[0]);
   };
   const actorsOf = (shown: Element[]) =>
     actors.filter(
@@ -552,7 +566,14 @@ function usecaseDiagrams(s: Scope): Derived[] {
         ...(v.actors ?? []),
         ...(v.extraActors ?? []),
       ]);
-      return usecaseDiagram(v.name, s.model, people, shown, subjectOf(shown));
+      return usecaseDiagram(
+        v.name,
+        s.model,
+        people,
+        shown,
+        subjectOf(shown),
+        systemOf,
+      );
     });
   }
   const groups = new Map<string, Element[]>();
@@ -567,6 +588,7 @@ function usecaseDiagrams(s: Scope): Derived[] {
       actorsOf(shown),
       shown,
       subjectOf(shown),
+      systemOf,
     ),
   );
 }
@@ -582,6 +604,39 @@ function tuple<T extends Record<string, unknown>>(
       v === undefined || !fields[i] ? [] : [[fields[i], v]],
     ),
   ) as T;
+}
+
+interface Tree {
+  name: string;
+  children?: Tree[];
+}
+
+const size = (t: Tree): number =>
+  1 + (t.children ?? []).reduce((n, c) => n + size(c), 0);
+
+/**
+ * A tree of more than `max` nodes as several, each the root with as many
+ * whole branches as fit, named "Name (i/n)"; a branch larger than `max`
+ * on its own goes alone. A 109-view mind map is a poster, not a diagram.
+ */
+export function splitTree(root: Tree, max: number) {
+  if (size(root) <= max) return [{ name: root.name, root }];
+  const parts: Tree[][] = [];
+  let count = 1;
+  for (const branch of root.children ?? []) {
+    const last = parts.at(-1);
+    if (last && count + size(branch) <= max) {
+      last.push(branch);
+      count += size(branch);
+    } else {
+      parts.push([branch]);
+      count = 1 + size(branch);
+    }
+  }
+  return parts.map((children, i) => ({
+    name: `${root.name} (${i + 1}/${parts.length})`,
+    root: { ...root, children },
+  }));
 }
 
 /** Diagrams drawn from the view sections, made by the build the first time. */
@@ -652,7 +707,9 @@ function sectionDiagrams(s: Scope): Derived[] {
       }),
     ),
     ...(v.features
-      ? [plain("mindmap", v.features.name, { root: v.features })]
+      ? splitTree(v.features, limitsFor(s.profile).maxNodes).map((part) =>
+          plain("mindmap", part.name, { root: part.root }),
+        )
       : []),
   ];
 }

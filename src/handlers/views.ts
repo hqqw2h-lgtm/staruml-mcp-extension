@@ -177,6 +177,32 @@ export const LAYOUT_PRESETS = {
 
 export type LayoutPresetName = keyof typeof LAYOUT_PRESETS;
 
+/** Most room left for an edge label; longer ones may touch a neighbour. */
+const MAX_LABEL_ROOM = 300;
+
+/**
+ * Node and rank separations that leave room for edge labels `width` wide
+ * under `preset`.
+ */
+export function labelSeparations(
+  width: number,
+  preset: LayoutPresetName,
+): { nodeSeparation: number; rankSeparation: number } {
+  const { direction, separations } = LAYOUT_PRESETS[preset];
+  const room = Math.min(MAX_LABEL_ROOM, width + 20);
+  return direction === "TB" || direction === "BT"
+    ? {
+        nodeSeparation: Math.max(separations.node, room),
+        rankSeparation: Math.max(separations.rank, 80),
+      }
+    : {
+        // A label sits above its edge, so ranks side by side need it across
+        // and nodes stacked in a rank need its height between them.
+        nodeSeparation: Math.max(separations.node, 60),
+        rankSeparation: Math.max(separations.rank, room),
+      };
+}
+
 export const PRESET_NAMES = Object.keys(LAYOUT_PRESETS) as [
   LayoutPresetName,
   ...LayoutPresetName[],

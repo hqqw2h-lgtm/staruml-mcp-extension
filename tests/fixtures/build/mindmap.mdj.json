@@ -32,10 +32,10 @@
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 20,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 190,
+     "top": 70,
+     "width": 80,
+     "height": 36
     },
     {
      "_id": "#6",
@@ -44,10 +44,10 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 170,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 340,
+     "top": 46,
+     "width": 89,
+     "height": 36
     },
     {
      "_id": "#8",
@@ -56,10 +56,10 @@
       "$ref": "#9"
      },
      "containerView": null,
-     "left": 320,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 499,
+     "top": 46,
+     "width": 82,
+     "height": 36
     },
     {
      "_id": "#10",
@@ -68,10 +68,10 @@
       "$ref": "#11"
      },
      "containerView": null,
-     "left": 470,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 340,
+     "top": 94,
+     "width": 80,
+     "height": 36
     },
     {
      "_id": "#12",
@@ -80,10 +80,10 @@
       "$ref": "#13"
      },
      "containerView": null,
-     "left": 620,
-     "top": 20,
-     "width": 120,
-     "height": 40
+     "left": 40,
+     "top": 70,
+     "width": 80,
+     "height": 36
     },
     {
      "_id": "#14",

@@ -34,7 +34,7 @@ import {
 import { penalties, ratingOf, WEIGHTS } from "../quality/metric.js";
 import { ref } from "../schemas.js";
 import { isTrusted } from "../style/guard.js";
-import { effectiveProfile, thresholdFor } from "../style/profile.js";
+import { effectiveProfile, limitsFor, thresholdFor } from "../style/profile.js";
 import type { Element } from "../types.js";
 import { oneStep, rehearse } from "../undo.js";
 import { PRESET_NAMES } from "./views.js";
@@ -60,7 +60,7 @@ const summary = (d: Element) => ({
 export const diagramQuality = defineEndpoint({
   path: "/diagram_quality",
   description:
-    "Score a diagram 0–100 from its view geometry, no rendering: overlap of boxes, edges through nodes, crossing edges, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. rating is 1–5 (4 needs 80); target is the profile's threshold for the kind. Read-only.",
+    "Score a diagram 0–100 from its view geometry, no rendering: boxes on boxes, labels printed over text or far from their edge or crossed by another edge, edges through nodes, crossing edges, edges sharing one line, boxes cut by a lane or fragment border, selection handles an export would draw, edge length variation, bends, alignment, whitespace balance, aspect ratio and size against the style profile's page. failures lists hard limits broken (aspect past maxAspect on a diagram larger than the page, more than maxNodes boxes); a failing diagram scores at most 59. rating is 1–5 (4 needs 80); target is the profile's threshold for the kind. The weights are fitted to human ratings (Spearman ≥ 0.7). Read-only.",
   readOnly: true,
   destructive: false,
   request: z.object({
@@ -76,7 +76,7 @@ export const diagramQuality = defineEndpoint({
     passes: z.boolean(),
     metrics: doc(
       z.record(z.string(), z.number()),
-      "overlapArea, overlapPairs, overlapRatio, nodeEdgeCrossings, edgeCrossings, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges.",
+      "overlapArea, overlapPairs, overlapRatio, severeOverlaps, labelOverlaps, detachedLabels, labelCrossings, nodeEdgeCrossings, edgeCrossings, sharedSegments, borderCrossings, selected, lengthVariation, bends, alignment, whitespace, aspect, width, height, nodes, edges.",
     ),
     penalties: doc(
       z.record(z.string(), z.number()),
@@ -85,28 +85,30 @@ export const diagramQuality = defineEndpoint({
         .join(", ")}.`,
     ),
     findings: qualitySchema().shape.findings,
+    failures: z.optional(qualitySchema().shape.failures),
   }),
   handle: (input) => {
     const diagram = requireDiagram(input.ref ?? "@current");
     const profile = effectiveProfile().profile;
     const kind = kindOf(diagram);
-    const { metrics, score, findings } = assess(diagram, profile);
+    const { metrics, score, findings, failures } = assess(diagram, profile);
     const target = kind
       ? thresholdFor(profile, kind)
       : profile.quality.minScore;
-    const lost = penalties(metrics, profile.layout.page);
+    const lost = penalties(metrics, limitsFor(profile));
     return {
       diagram: summary(diagram),
       kind,
       score,
       rating: ratingOf(score),
       target,
-      passes: score >= target,
+      passes: score >= target && failures.length === 0,
       metrics: { ...metrics },
       penalties: Object.fromEntries(
         Object.entries(lost).map(([k, v]) => [k, Math.round(v * 10) / 10]),
       ),
       findings,
+      ...(failures.length > 0 && { failures }),
     };
   },
 });

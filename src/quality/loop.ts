@@ -36,10 +36,17 @@ import {
 import {
   applyLayout,
   editorShowing,
+  labelSeparations,
   LAYOUT_PRESETS,
+  LINE_STYLES,
   type LayoutPresetName,
 } from "../handlers/views.js";
-import { presetFor, type Profile, thresholdFor } from "../style/profile.js";
+import {
+  limitsFor,
+  presetFor,
+  type Profile,
+  thresholdFor,
+} from "../style/profile.js";
 import type { Element, View } from "../types.js";
 import { record } from "../undo.js";
 import {
@@ -49,8 +56,19 @@ import {
   geometryOf,
   kindOf,
   nodeViews,
+  ownerNode,
 } from "./geometry.js";
-import { measure, type Metrics, ratingOf, scoreOf } from "./metric.js";
+import {
+  failures,
+  labelProblems,
+  type Limits,
+  measure,
+  type Point,
+  sharedEdges,
+  type Metrics,
+  ratingOf,
+  scoreOf,
+} from "./metric.js";
 
 /*
  * The quality loop (issue #32): StarUML's dagre layout gives ranks, the
@@ -77,7 +95,7 @@ function solids(diagram: Element): View[] {
   );
 }
 
-class Mover {
+export class Mover {
   private editor: unknown = null;
   constructor(private readonly diagram: Element) {}
   private ed(): unknown {
@@ -108,6 +126,9 @@ class Mover {
         b.top + b.height,
       ),
     );
+  }
+  modifyEdge(edge: View, points: unknown): void {
+    inStarUML(() => app.engine.modifyEdge(this.ed(), edge, points));
   }
   assign(view: View, field: string, value: unknown): void {
     const builder = app.repository.getOperationBuilder();
@@ -371,6 +392,7 @@ function sequence(diagram: Element, m: Mover): void {
       x += box(l).width + GAP * 1.5;
     }
   }
+  fitFragments(diagram, lifelines, m);
   const frame = (diagram.ownedViews as View[]).find(
     (v) => v.model === diagram && v instanceof type.UMLFrameView,
   );
@@ -385,6 +407,51 @@ function sequence(diagram: Element, m: Mover): void {
       width: Math.max(f.width, right - f.left + 20),
       height: Math.max(f.height, bottom - f.top + 20),
     });
+  }
+}
+
+/**
+ * Each combined fragment spans the lifelines of the messages it holds
+ * (those whose line runs between its top and bottom), 30 beyond the
+ * outermost, 10 further in per fragment around it: moving the lifelines
+ * apart otherwise leaves a fragment over the wrong ones.
+ */
+export function fitFragments(
+  diagram: Element,
+  lifelines: View[],
+  m: Mover,
+): void {
+  const fragments = nodeViews(diagram).filter(
+    (v) => v instanceof type.UMLCombinedFragmentView,
+  );
+  const ownerOf = (end: View) =>
+    lifelines.find((l) => l === end || end._parent === l);
+  const messages = edgeViewsOf(diagram);
+  for (const f of fragments) {
+    const b = box(f);
+    const inside = messages.filter((e) => {
+      const y = edgeY(e);
+      return y > b.top && y < b.top + b.height;
+    });
+    const held = inside
+      .flatMap((e) => [ownerOf(e.tail as View), ownerOf(e.head as View)])
+      .filter((l): l is View => l !== undefined);
+    if (held.length === 0) continue;
+    const outer = fragments.filter((g) => {
+      const o = box(g);
+      return (
+        g !== f &&
+        o.top <= b.top &&
+        o.top + o.height >= b.top + b.height &&
+        o.height > b.height
+      );
+    }).length;
+    const left = Math.min(...held.map((l) => box(l).left)) - 30 + 10 * outer;
+    const right =
+      Math.max(...held.map((l) => box(l).left + box(l).width)) +
+      30 -
+      10 * outer;
+    m.resize(f, { ...b, left, width: right - left });
   }
 }
 
@@ -465,6 +532,408 @@ function alignChains(diagram: Element, vertical: boolean, m: Mover): void {
   }
 }
 
+/**
+ * Where StarUML may put an edge's label (EdgeParasiticView in core/core.js
+ * 7.1.1: at the head, middle or tail, `distance` from the edge at angle
+ * `alpha`), in the order tried: the side away from the edge first, then
+ * further out, then towards an end.
+ */
+const LABEL_SPOTS: { edgePosition: number; distance: number; alpha: number }[] =
+  [1, 2, 0].flatMap((edgePosition) =>
+    [15, 30, 45].flatMap((distance) =>
+      [Math.PI / 2, -Math.PI / 2].map((alpha) => ({
+        edgePosition,
+        distance,
+        alpha,
+      })),
+    ),
+  );
+
+/**
+ * Each edge label printed over text, crossed by an edge or far from its
+ * edge tried at the other spots StarUML offers; the first that raises the
+ * score stays.
+ */
+export function placeLabels(
+  diagram: Element,
+  score: () => number,
+  strip: () => boolean,
+  m: Mover,
+): void {
+  // A label pushed out past the drawing's edge may make a strip of it.
+  const wasStrip = strip();
+  for (const id of labelProblems(geometryOf(diagram))) {
+    const label = app.repository.get(id) as View;
+    const was = {
+      edgePosition: label.edgePosition,
+      distance: label.distance,
+      alpha: label.alpha,
+    };
+    let best = score();
+    for (const spot of LABEL_SPOTS) {
+      if (
+        spot.edgePosition === was.edgePosition &&
+        spot.distance === was.distance &&
+        spot.alpha === was.alpha
+      ) {
+        continue;
+      }
+      const r = record();
+      for (const [field, value] of Object.entries(spot)) {
+        m.assign(label, field, value);
+      }
+      app.diagrams.repaint();
+      const now = score();
+      if (now > best && (wasStrip || !strip())) {
+        best = now;
+        r.stop();
+        if (!labelProblems(geometryOf(diagram)).includes(id)) break;
+      } else r.revert();
+    }
+  }
+}
+
+/**
+ * Edges drawn along another edge to a different end, straightened: a
+ * rectilinear router sends fan-outs through one bus line, where no reader
+ * can follow which line goes where (ThingsBoard's rule engine: 26 pairs).
+ * Edges into one target keep their shared trunk.
+ */
+export function unbundle(diagram: Element): void {
+  const g = geometryOf(diagram);
+  const views = new Map(edgeViewsOf(diagram).map((e) => [e._id, e]));
+  const straighten = sharedEdges(g).filter(
+    (id) => views.get(id)!.lineStyle === LINE_STYLES.rectilinear,
+  );
+  if (straighten.length === 0) return;
+  inStarUML(() =>
+    app.engine.setLineStyle(
+      editorShowing(diagram),
+      straighten.map((id) => views.get(id)!),
+      LINE_STYLES.oblique,
+    ),
+  );
+}
+
+/** Lanes widened and lengthened to hold their nodes, the lanes after them moved over. */
+export function fitLanes(diagram: Element, m: Mover): void {
+  const lanes = nodeViews(diagram)
+    .filter((v) => /Swimlane|Partition/.test(v.constructor.name))
+    .sort((a, b) => box(a).left - box(b).left);
+  if (lanes.length === 0) return;
+  const nodes = nodeViews(diagram).filter(
+    (v) => !AREA.test(v.constructor.name),
+  );
+  const PAD = 20;
+  const members = new Map(lanes.map((l) => [l, [] as View[]]));
+  for (const v of nodes) {
+    const lane = laneOf(diagram, v);
+    if (lane) members.get(lane)!.push(v);
+  }
+  let shift = 0;
+  for (const lane of lanes) {
+    const own = members.get(lane)!;
+    // A copy: box() is the view itself, which the resize below changes.
+    const l = { ...box(lane) };
+    const left = l.left + shift;
+    if (shift !== 0) m.move(own, shift, 0);
+    for (const v of own) {
+      const b = box(v);
+      if (b.left < left + PAD) m.move([v], Math.round(left + PAD - b.left), 0);
+    }
+    const right = Math.max(
+      left + l.width,
+      ...own.map((v) => box(v).left + box(v).width + PAD),
+    );
+    m.resize(lane, { ...l, left, width: Math.round(right - left) });
+    shift = Math.round(right - (l.left + l.width));
+  }
+  const bottom = Math.max(...nodes.map((v) => box(v).top + box(v).height)) + 40;
+  for (const lane of lanes) {
+    const l = box(lane);
+    if (l.top + l.height < bottom)
+      m.resize(lane, { ...l, height: bottom - l.top });
+  }
+}
+
+/** The preset that lays the same ranks out across the other axis. */
+const TURNED: Record<LayoutPresetName, LayoutPresetName> = {
+  "flow-down": "flow-right",
+  "flow-up": "flow-left",
+  "flow-right": "flow-down",
+  "flow-left": "flow-up",
+  "hierarchy-down": "hierarchy-right",
+  "hierarchy-up": "hierarchy-left",
+  "hierarchy-right": "hierarchy-down",
+  "hierarchy-left": "hierarchy-up",
+};
+
+/**
+ * A wide drawing's widest rows broken into staggered sub-rows, the rows
+ * below moved down to make room: the hierarchy stays top to bottom where
+ * folding would cut it, and eight subclasses under one interface become
+ * three short rows rather than one 1600 wide.
+ */
+export function wrapRows(diagram: Element, m: Mover): void {
+  const views = solids(diagram);
+  const g = measure(geometryOf(diagram));
+  if (views.length < 2 || g.width <= g.height) return;
+  const width = g.width / Math.ceil(g.aspect / 1.5);
+  let pushed = 0;
+  for (const row of rows(views)) {
+    if (pushed !== 0) m.move(row, 0, pushed);
+    const sorted = [...row].sort((a, b) => box(a).left - box(b).left);
+    const left = box(sorted[0]!).left;
+    const span = box(sorted.at(-1)!).left + box(sorted.at(-1)!).width - left;
+    if (span <= width || sorted.length < 2) continue;
+    const pitch = Math.max(...sorted.map((v) => box(v).height)) + GAP;
+    const chunks: View[][] = [[]];
+    let x = 0;
+    for (const v of sorted) {
+      if (x > 0 && x + box(v).width > width) {
+        chunks.push([]);
+        x = 0;
+      }
+      chunks.at(-1)!.push(v);
+      x += box(v).width + GAP;
+    }
+    chunks.forEach((chunk, j) => {
+      // Every other sub-row half a cell over, so lines from the lower ones
+      // pass between the boxes above.
+      let at = left + (j % 2 === 1 ? GAP * 2 : 0);
+      for (const v of chunk) {
+        m.move([v], Math.round(at - box(v).left), Math.round(j * pitch));
+        at += box(v).width + GAP;
+      }
+    });
+    pushed += (chunks.length - 1) * pitch;
+  }
+  straighten(diagram, new Set(views), m);
+}
+
+/**
+ * A strip made into a picture: laid out again across the other axis
+ * (eight rule nodes under one interface are a row 1608 wide in ranks down,
+ * a column beside it in ranks right), folded into bands, or both. Each is
+ * tried and undone; the one kept is the best scored of those within
+ * maxAspect, else the least strip-like.
+ */
+export function unstrip(
+  diagram: Element,
+  preset: LayoutPresetName | null,
+  limits: Required<Limits>,
+  score: () => number,
+  m: Mover,
+): void {
+  const maxAspect = limits.maxAspect;
+  // Laid out again, the edges' labels need the room the build gave them.
+  const labels = geometryOf(diagram).nodes.filter((n) => n.edge !== undefined);
+  const widest = Math.max(0, ...labels.map((l) => l.width));
+  const turn = () =>
+    applyLayout(diagram, {
+      preset: TURNED[preset!],
+      fit: true,
+      ...labelSeparations(widest, TURNED[preset!]),
+    });
+  const ways: (() => void)[] = [
+    () => fold(diagram, limits, m),
+    () => wrapRows(diagram, m),
+    ...(preset
+      ? [
+          turn,
+          () => {
+            turn();
+            fold(diagram, limits, m);
+          },
+        ]
+      : []),
+  ];
+  const tried = ways.map((way, i) => {
+    const r = record();
+    way();
+    app.diagrams.repaint();
+    const result = {
+      i,
+      aspect: measure(geometryOf(diagram)).aspect,
+      score: score(),
+    };
+    r.revert();
+    return result;
+  });
+  const now = score();
+  const within = tried.filter((t) => t.aspect <= maxAspect);
+  // Just past the limit, a relayout that loses more than 15 points is a
+  // worse picture than the slightly wide one (ThingsBoard's transport
+  // classes: 84 at 3.05:1, 69 turned).
+  if (
+    measure(geometryOf(diagram)).aspect <= maxAspect * 1.15 &&
+    within.every((t) => t.score < now - 15)
+  ) {
+    return;
+  }
+  // Sorting is stable: of equals, the way tried first.
+  const best =
+    within.length > 0
+      ? within.sort((a, b) => b.score - a.score)[0]!
+      : tried.sort((a, b) => a.aspect - b.aspect)[0]!;
+  ways[best.i]!();
+}
+
+/** Kinds whose long axis means something: time on a sequence or timing diagram, a mind map's tree. */
+const UNFOLDED = new Set<Kind | null>(["sequence", "timing", "mindmap"]);
+
+/** Whether a strip of this diagram may be folded: not along time or a tree, nothing held in lanes or a boundary. */
+function foldable(diagram: Element, kind: Kind | null): boolean {
+  return !UNFOLDED.has(kind) && !placedByBuild(diagram, null);
+}
+
+/**
+ * Edges of moved boxes drawn again from end to end: moveViews carries an
+ * edge's bends along only when both its ends move by the same offset, so
+ * an edge into a mirrored or another band kept the bends of the strip it
+ * left (curves looping out to where the boxes had been).
+ */
+function straighten(diagram: Element, moved: ReadonlySet<View>, m: Mover) {
+  for (const e of edgeViewsOf(diagram)) {
+    if (
+      !moved.has(ownerNode(e.tail as View)) &&
+      !moved.has(ownerNode(e.head as View))
+    ) {
+      continue;
+    }
+    // An edge drawn straight, or not drawn yet, has no bends to drop.
+    const points = e.points as
+      { points?: Point[]; copy(): { points: Point[] } } | null | undefined;
+    if ((points?.points?.length ?? 0) <= 2) continue;
+    // One bend, half way: a curve is drawn through its middle points and
+    // throws on fewer than three (EdgeView.drawObject, core/core.js 7.1.1);
+    // a rectilinear edge is routed again from it.
+    const next = points!.copy();
+    const [a, b] = [next.points[0]!, next.points.at(-1)!];
+    const mid = next.points[1]!;
+    mid.x = Math.round((a.x + b.x) / 2);
+    mid.y = Math.round((a.y + b.y) / 2);
+    next.points.splice(2, next.points.length - 3);
+    m.modifyEdge(e, next);
+  }
+}
+
+/** Gap between the bands a folded strip is cut into. */
+const BAND_GAP = 80;
+
+/**
+ * Where a strip can be cut across its long axis without cutting a box:
+ * the middles of the gaps between the boxes' merged extents.
+ */
+function cuts(spans: readonly [number, number][]): number[] {
+  const sorted = [...spans].sort((a, b) => a[0] - b[0]);
+  const out: number[] = [];
+  let end = sorted[0]![1];
+  for (const [from, to] of sorted.slice(1)) {
+    if (from > end) out.push((from + end) / 2);
+    end = Math.max(end, to);
+  }
+  return out;
+}
+
+/**
+ * A strip longer than the profile's maxAspect folded into bands, the way
+ * text wraps: cut where no box is cut, the bands stacked across the long
+ * axis, every other band mirrored so a chain runs on where the band
+ * before it ended (a state machine reads as a snake rather than a row
+ * 3552 px wide). The number of bands is the one that comes closest to the
+ * page's own aspect without passing maxAspect.
+ */
+export function fold(
+  diagram: Element,
+  limits: Required<Limits>,
+  m: Mover,
+): void {
+  const views = nodeViews(diagram).filter((v) => !v.containerView);
+  const g = measure(geometryOf(diagram));
+  const maxAspect = limits.maxAspect;
+  if (views.length < 2 || g.aspect <= maxAspect) return;
+  const wide = g.width >= g.height;
+  // Along the strip's long axis: a box's start, its length, its extent across.
+  const along = (v: View) => (wide ? box(v).left : box(v).top);
+  const size = (v: View) => (wide ? box(v).width : box(v).height);
+  const across = (v: View) => (wide ? box(v).top : box(v).left);
+  const depth = (v: View) => (wide ? box(v).height : box(v).width);
+  const places = cuts(views.map((v) => [along(v), along(v) + size(v)]));
+  const start = Math.min(...views.map(along));
+  const end = Math.max(...views.map((v) => along(v) + size(v)));
+  const target =
+    Math.max(limits.width, limits.height) /
+    Math.min(limits.width, limits.height);
+  type Band = {
+    views: View[];
+    from: number;
+    to: number;
+    lo: number;
+    hi: number;
+  };
+  const bandsFor = (k: number): Band[] => {
+    const chosen: number[] = [];
+    for (let i = 1; i < k; i++) {
+      const ideal = start + ((end - start) * i) / k;
+      const best = places
+        .filter((c) => c > (chosen.at(-1) ?? -Infinity))
+        .sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal))[0];
+      if (best !== undefined) chosen.push(best);
+    }
+    const edges = [-Infinity, ...chosen, Infinity];
+    // Every cut lies in a gap between boxes, so each band holds some.
+    return edges.slice(1).map((to, i) => {
+      const inBand = views.filter((v) => {
+        const c = along(v) + size(v) / 2;
+        return c > edges[i]! && c < to;
+      });
+      return {
+        views: inBand,
+        from: Math.min(...inBand.map(along)),
+        to: Math.max(...inBand.map((v) => along(v) + size(v))),
+        lo: Math.min(...inBand.map(across)),
+        hi: Math.max(...inBand.map((v) => across(v) + depth(v))),
+      };
+    });
+  };
+  const shape = (bands: Band[]) => {
+    const long = Math.max(...bands.map((b) => b.to - b.from));
+    const thick =
+      bands.reduce((n, b) => n + b.hi - b.lo, 0) +
+      BAND_GAP * (bands.length - 1);
+    return Math.max(long, thick) / Math.min(long, thick);
+  };
+  let best: Band[] | null = null;
+  for (let k = 2; k <= Math.min(8, places.length + 1); k++) {
+    const bands = bandsFor(k);
+    const a = shape(bands);
+    const fits = (b: Band[]) => shape(b) <= maxAspect;
+    if (
+      best === null ||
+      (fits(bands) && !fits(best)) ||
+      (fits(bands) === fits(best) &&
+        Math.abs(a - target) < Math.abs(shape(best) - target))
+    ) {
+      best = bands;
+    }
+  }
+  if (best === null) return;
+  let offset = Math.min(...views.map(across));
+  best.forEach((band, i) => {
+    for (const v of band.views) {
+      // Odd bands run back the other way, so the flow turns rather than jumps.
+      const pos =
+        i % 2 === 1 ? band.to - (along(v) - band.from) - size(v) : along(v);
+      const d = Math.round(start + (pos - band.from) - along(v));
+      const e = Math.round(offset + (across(v) - band.lo) - across(v));
+      m.move([v], wide ? d : e, wide ? e : d);
+    }
+    offset += band.hi - band.lo + BAND_GAP;
+  });
+  straighten(diagram, new Set(views), m);
+}
+
 /** The preset a kind is laid out with: asked, the profile's, else the build's default. */
 function presetOf(
   kind: Kind | null,
@@ -515,12 +984,15 @@ export interface Quality {
   /** Steps that were kept, in order. */
   steps: string[];
   findings: QualityFinding[];
+  /** Hard limits broken (aspect, size): the diagram fails whatever its score. */
+  failures?: string[];
 }
 
 /** The score and the /lint_diagram findings of a diagram as it is. */
 export function assess(diagram: Element, profile: Profile) {
   const metrics = measure(geometryOf(diagram));
-  const score = scoreOf(metrics, profile.layout.page);
+  const limits = limitsFor(profile);
+  const score = scoreOf(metrics, limits);
   const counts = new Map<LayoutRule, number>();
   const lint = lintLayout(
     diagram,
@@ -533,12 +1005,12 @@ export function assess(diagram: Element, profile: Profile) {
     severity: lint.find((f) => f.rule === rule)!.severity,
     count,
   }));
-  return { metrics, score, findings };
+  return { metrics, score, findings, failures: failures(metrics, limits) };
 }
 
 /** The loop's answer for a built diagram left as it is: its score, no steps. */
 export function scoredAsIs(diagram: Element, profile: Profile): Quality {
-  const { score, findings } = assess(diagram, profile);
+  const { score, findings, failures } = assess(diagram, profile);
   // Only a build calls it, and a build's diagram is of a kind it builds.
   const target = thresholdFor(profile, kindOf(diagram)!);
   return {
@@ -546,10 +1018,11 @@ export function scoredAsIs(diagram: Element, profile: Profile): Quality {
     rating: ratingOf(score),
     before: score,
     target,
-    passes: score >= target,
+    passes: score >= target && failures.length === 0,
     iterations: 0,
     steps: [],
     findings,
+    ...(failures.length > 0 && { failures }),
   };
 }
 
@@ -566,8 +1039,16 @@ export function improve(
 ): Quality {
   const kind = kindOf(diagram);
   const m = new Mover(diagram);
-  const page = profile.layout.page;
-  const score = () => scoreOf(measure(geometryOf(diagram)), page);
+  const limits = limitsFor(profile);
+  // Edge labels take their place when the diagram is drawn (EdgeLabelView
+  // arranges itself on repaint, core/core.js 7.1.1); measured before that,
+  // a label sits where the edge was, and a borderline strip reads either
+  // side of maxAspect from one run to the next.
+  editorShowing(diagram);
+  const score = () => {
+    app.diagrams.repaint();
+    return scoreOf(measure(geometryOf(diagram)), limits);
+  };
   const target =
     options.target ??
     (kind ? thresholdFor(profile, kind) : profile.quality.minScore);
@@ -575,6 +1056,16 @@ export function improve(
   const placed = placedByBuild(diagram, kind);
   const steps: string[] = [];
   const before = score();
+  // Two states side by side are no strip: past maxAspect only counts once
+  // the long side passes half the page's short one.
+  const strip = () => {
+    app.diagrams.repaint();
+    const g = measure(geometryOf(diagram));
+    return (
+      g.aspect > limits.maxAspect &&
+      Math.max(g.width, g.height) > Math.min(limits.width, limits.height) / 2
+    );
+  };
   /**
    * Runs one step and keeps it only if the score did not drop; a rule of
    * the notation (lifelines in time order, actors outside the boundary) is
@@ -653,8 +1144,13 @@ export function improve(
       kind === "statemachine" ||
       kind === "flowchart"
     ) {
-      attempt("align chains", () =>
-        alignChains(diagram, vertical(kind, profile), m),
+      // A chain drawn straight is how a flow reads; the score, which
+      // weighs alignment lightly since the calibration, would let a 37 unit
+      // kink stand.
+      attempt(
+        "align chains",
+        () => alignChains(diagram, vertical(kind, profile), m),
+        true,
       );
     } else {
       attempt("order ranks", () => orderRanks(diagram, m));
@@ -690,24 +1186,52 @@ export function improve(
       attempt("snap", () => snap(diagram, profile, m));
       attempt("trim", () => trim(diagram, m));
     }
+    // A node across a lane's border belongs to neither lane.
+    attempt("fit lanes", () => fitLanes(diagram, m), true);
+    if (kind !== "sequence") {
+      attempt("unbundle", () => unbundle(diagram));
+      attempt("place labels", () => placeLabels(diagram, score, strip, m));
+    }
+    // Last, so nothing after it widens the drawing again; a strip is a rule
+    // broken, not a matter of taste, so this is kept whatever the finer
+    // measures say.
+    if (foldable(diagram, kind) && strip()) {
+      attempt(
+        "unstrip",
+        () =>
+          unstrip(
+            diagram,
+            placed ? null : presetOf(kind, profile, options.preset),
+            limits,
+            score,
+            m,
+          ),
+        true,
+      );
+      // A foldable diagram is never a sequence diagram.
+      attempt("unbundle", () => unbundle(diagram));
+      attempt("place labels", () => placeLabels(diagram, score, strip, m));
+    }
     const now = score();
     if (now >= target || now <= start) break;
   }
+  app.diagrams.repaint();
   const after = assess(diagram, profile);
   return {
     score: after.score,
     rating: ratingOf(after.score),
     before,
     target,
-    passes: after.score >= target,
+    passes: after.score >= target && after.failures.length === 0,
     iterations,
     steps,
     findings: after.findings,
+    ...(after.failures.length > 0 && { failures: after.failures }),
   };
 }
 
 /** /lint_diagram's autofixes for the geometry rules, relayouts only when allowed. */
-function autofix(diagram: Element, noRelayout: boolean, m: Mover): void {
+export function autofix(diagram: Element, noRelayout: boolean, m: Mover): void {
   const findings = lintLayout(diagram, AUTOFIXED);
   let relaid = false;
   for (const f of findings) {
@@ -748,6 +1272,12 @@ export const qualitySchema = () =>
           }),
         ),
         "/lint_diagram findings left, by rule.",
+      ),
+      failures: z.optional(
+        doc(
+          z.array(z.string()),
+          "Hard limits broken: aspect past the profile's maxAspect on a diagram larger than the page, more boxes than maxNodes.",
+        ),
       ),
     }),
     "The quality loop's result: layout preset, post-processing, lint, autofix, re-lint (issue #32).",

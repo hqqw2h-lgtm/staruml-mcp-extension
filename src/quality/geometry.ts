@@ -75,7 +75,7 @@ function holderOf(view: View, listed: ReadonlySet<View>): View | null {
 }
 
 /** The node view an edge end belongs to: a lifeline's line part counts as its lifeline. */
-function ownerNode(view: View): View {
+export function ownerNode(view: View): View {
   let v = view;
   while (v._parent instanceof type.View) {
     v = v._parent as View;
@@ -86,52 +86,108 @@ function ownerNode(view: View): View {
 export const box = (v: View) =>
   v as unknown as { left: number; top: number; width: number; height: number };
 
+/** The labels an edge prints beside it (EdgeView sub-views, core/core.js and uml/elements.js in 7.1.1). */
+const LABELS = [
+  "nameLabel",
+  "stereotypeLabel",
+  "tailRoleNameLabel",
+  "headRoleNameLabel",
+  "tailMultiplicityLabel",
+  "headMultiplicityLabel",
+] as const;
+
+const boxNode = (v: View, fields: Omit<GNode, keyof Box | "id">): GNode => {
+  const b = box(v);
+  return {
+    id: v._id,
+    left: b.left,
+    top: b.top,
+    width: b.width,
+    height: b.height,
+    ...fields,
+  };
+};
+
+type Box = { left: number; top: number; width: number; height: number };
+
+const drawn = (v: View | null | undefined): v is View => {
+  if (!v || v.visible === false) return false;
+  const b = box(v);
+  return b.width > 0 && b.height > 0;
+};
+
 export function geometryOf(diagram: Element): Geometry {
   const views = nodeViews(diagram);
   const listed = new Set(views);
   const nodes: GNode[] = views.map((v) => {
-    const b = box(v);
     const kind = v.constructor.name;
     const container = holderOf(v, listed);
-    return {
-      id: v._id,
-      left: b.left,
-      top: b.top,
-      width: b.width,
-      height: b.height,
+    return boxNode(v, {
       area: AREA.test(kind),
       through: THROUGH.test(kind),
       parent: container ? container._id : null,
-    };
+    });
   });
-  const edges: GEdge[] = edgeViewsOf(diagram).map((e) => ({
+  const frame = (diagram.ownedViews as View[]).find(
+    (v) => v.model === diagram && v instanceof type.NodeView && drawn(v),
+  );
+  // The diagram's own frame holds everything: an area like a boundary.
+  if (frame)
+    nodes.push(boxNode(frame, { area: true, through: false, parent: null }));
+  // An operand's top is the divider a reader takes for "else"; a message
+  // label it cuts reads as belonging to either branch.
+  for (const f of views.filter(
+    (v) => v instanceof type.UMLCombinedFragmentView,
+  )) {
+    const operands = ((f.operandCompartment as View | undefined)?.subViews ??
+      []) as View[];
+    for (const o of operands.filter(drawn)) {
+      nodes.push(boxNode(o, { area: true, through: false, parent: f._id }));
+    }
+  }
+  const edgeViews = edgeViewsOf(diagram);
+  const edges: GEdge[] = edgeViews.map((e) => ({
     id: e._id,
     points: edgePoints(e),
     ends: [ownerNode(e.tail as View)._id, ownerNode(e.head as View)._id],
   }));
-  // A transition's or association's name sits beside its edge
-  // (EdgeLabelView, core/core.js); one on a box or another label hides text.
-  edgeViewsOf(diagram).forEach((e, i) => {
-    const label = e.nameLabel as View | null | undefined;
-    if (!label || label.visible === false || !String(label.text ?? "")) return;
-    const b = box(label);
-    if (!(b.width > 0 && b.height > 0)) return;
-    nodes.push({
-      id: label._id,
-      left: b.left,
-      top: b.top,
-      width: b.width,
-      height: b.height,
-      area: false,
-      // A message's label sits over the lifelines it spans; on a box or
-      // on another label it hides text.
-      through: false,
-      label: true,
-      parent: null,
-      attachedTo: edges[i]!.ends,
-    });
+  edgeViews.forEach((e, i) => {
+    const ends = edges[i]!.ends;
+    // A transition's name, a dependency's stereotype, an association's
+    // role and multiplicity sit beside their edge (EdgeLabelView); one on
+    // a box or another label hides text.
+    for (const field of LABELS) {
+      const label = e[field] as View | null | undefined;
+      if (!drawn(label) || !String(label.text ?? "")) continue;
+      nodes.push(
+        boxNode(label, {
+          area: false,
+          through: false,
+          label: true,
+          parent: null,
+          attachedTo: ends,
+          edge: e._id,
+        }),
+      );
+    }
+    // A message's activation bar covers its lifeline; a label under it is
+    // hidden, the bars of one lifeline stack by design.
+    const activation = e.activation as View | null | undefined;
+    if (drawn(activation)) {
+      nodes.push(
+        boxNode(activation, {
+          area: false,
+          through: false,
+          label: true,
+          parent: null,
+          attachedTo: ends,
+          group: ends[1],
+        }),
+      );
+    }
   });
-  return { nodes, edges };
+  const selected = (diagram.selectedViews as View[] | undefined)?.length ?? 0;
+  return { nodes, edges, ...(selected > 0 && { selected }) };
 }
 
 const KINDS_BY_TYPE = new Map<string, Kind>(

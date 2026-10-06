@@ -23,7 +23,9 @@ describe("mock app surface", () => {
 
   it("stubs fail loudly instead of inventing behaviour", () => {
     expect(() =>
-      (app.engine as unknown as { modifyEdge: () => void }).modifyEdge(),
-    ).toThrow("mock: Engine.modifyEdge is not modelled");
+      (
+        app.engine as unknown as { moveParasiticView: () => void }
+      ).moveParasiticView(),
+    ).toThrow("mock: Engine.moveParasiticView is not modelled");
   });
 });

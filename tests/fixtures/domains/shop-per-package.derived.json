@@ -379,6 +379,7 @@
   "name": "Audit",
   "parent": "Shop",
   "spec": {
+   "system": "Shop",
    "actors": [],
    "useCases": [
     "Audit books"
@@ -390,6 +391,11 @@
     "Audit books",
     "UMLUseCase",
     "Shop/Audit books"
+   ],
+   [
+    "Shop",
+    "UMLUseCaseSubject",
+    "Shop/Shop"
    ]
   ],
   "bindEdges": [],

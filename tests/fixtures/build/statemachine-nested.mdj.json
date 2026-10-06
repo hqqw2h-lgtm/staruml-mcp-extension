@@ -32,7 +32,7 @@
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 110,
+     "left": 40,
      "top": 50,
      "width": 20,
      "height": 20
@@ -44,8 +44,8 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 60,
-     "top": 420,
+     "left": 420,
+     "top": 180,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -57,8 +57,8 @@
       "$ref": "#9"
      },
      "containerView": null,
-     "left": 40,
-     "top": 670,
+     "left": 560,
+     "top": 40,
      "width": 160,
      "height": 330,
      "showNamespace": false
@@ -112,7 +112,7 @@
      "_type": "UMLNoteView",
      "model": null,
      "containerView": null,
-     "left": 270,
+     "left": 200,
      "top": 40,
      "width": 140,
      "height": 40

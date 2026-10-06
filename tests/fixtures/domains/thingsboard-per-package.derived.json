@@ -3738,6 +3738,7 @@
   "name": "Use Cases - Tenant Administrator",
   "parent": "ThingsBoard",
   "spec": {
+   "system": "ThingsBoard",
    "actors": [
     "Tenant Administrator",
     "External System",
@@ -3926,6 +3927,11 @@
     "Forward events externally",
     "UMLUseCase",
     "ThingsBoard/Forward events externally"
+   ],
+   [
+    "ThingsBoard",
+    "UMLUseCaseSubject",
+    "ThingsBoard/ThingsBoard"
    ]
   ],
   "bindEdges": [
@@ -4022,6 +4028,7 @@
   "name": "Use Cases - Customer User",
   "parent": "ThingsBoard",
   "spec": {
+   "system": "ThingsBoard",
    "actors": [
     "Customer User",
     "Device"
@@ -4117,6 +4124,11 @@
     "Claim device",
     "UMLUseCase",
     "ThingsBoard/Claim device"
+   ],
+   [
+    "ThingsBoard",
+    "UMLUseCaseSubject",
+    "ThingsBoard/ThingsBoard"
    ]
   ],
   "bindEdges": [
@@ -4168,6 +4180,7 @@
   "name": "Use Cases - Device",
   "parent": "ThingsBoard",
   "spec": {
+   "system": "ThingsBoard",
    "actors": [
     "Device",
     "Gateway"
@@ -4284,6 +4297,11 @@
     "Claim device",
     "UMLUseCase",
     "ThingsBoard/Claim device"
+   ],
+   [
+    "ThingsBoard",
+    "UMLUseCaseSubject",
+    "ThingsBoard/ThingsBoard"
    ]
   ],
   "bindEdges": [
@@ -4350,6 +4368,7 @@
   "name": "Use Cases - System Administrator",
   "parent": "ThingsBoard",
   "spec": {
+   "system": "Platform Administration",
    "actors": [
     "System Administrator"
    ],
@@ -4357,6 +4376,9 @@
     "Log in",
     "Manage tenants",
     "Configure system settings"
+   ],
+   "outside": [
+    "Log in"
    ],
    "relations": [
     {
@@ -4396,6 +4418,11 @@
     "Configure system settings",
     "UMLUseCase",
     "ThingsBoard/Configure system settings"
+   ],
+   [
+    "Platform Administration",
+    "UMLUseCaseSubject",
+    "ThingsBoard/Platform Administration"
    ]
   ],
   "bindEdges": [

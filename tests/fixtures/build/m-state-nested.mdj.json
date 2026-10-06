@@ -32,8 +32,8 @@
       "$ref": "#5"
      },
      "containerView": null,
-     "left": 130,
-     "top": 50,
+     "left": 40,
+     "top": 450,
      "width": 20,
      "height": 20
     },
@@ -44,8 +44,8 @@
       "$ref": "#7"
      },
      "containerView": null,
-     "left": 80,
-     "top": 940,
+     "left": 760,
+     "top": 620,
      "width": 120,
      "height": 50,
      "showNamespace": false
@@ -57,8 +57,8 @@
       "$ref": "#9"
      },
      "containerView": null,
-     "left": 40,
-     "top": 1440,
+     "left": 720,
+     "top": 440,
      "width": 200,
      "height": 840,
      "showNamespace": false
@@ -143,8 +143,8 @@
       "$ref": "#23"
      },
      "containerView": null,
-     "left": 130,
-     "top": 2750,
+     "left": 930,
+     "top": 844,
      "width": 26,
      "height": 26
     },
@@ -153,8 +153,8 @@
      "_type": "UMLNoteView",
      "model": null,
      "containerView": null,
-     "left": 330,
-     "top": 40,
+     "left": 240,
+     "top": 440,
      "width": 140,
      "height": 48
     },
@@ -163,8 +163,8 @@
      "_type": "UMLNoteView",
      "model": null,
      "containerView": null,
-     "left": 590,
-     "top": 40,
+     "left": 500,
+     "top": 440,
      "width": 140,
      "height": 48
     },

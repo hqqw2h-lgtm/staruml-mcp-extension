@@ -12,6 +12,12 @@ import {
   segmentCrossesBox,
   segmentsCross,
   WEIGHTS,
+  labelProblems,
+  sharedEdges,
+  labelGap,
+  failures,
+  FAIL_CAP,
+  LABEL_REACH,
 } from "../../../src/quality/metric.js";
 
 const PAGE = { width: 1600, height: 1200 };
@@ -158,7 +164,9 @@ describe("measure", () => {
         },
       ],
     });
-    expect(m.overlapPairs).toBe(1); // the label on the package's border box
+    // The label on the package's border box is printed over it.
+    expect(m.overlapPairs).toBe(0);
+    expect(m.labelOverlaps).toBe(1);
     expect(m.nodeEdgeCrossings).toBe(0);
   });
 
@@ -202,8 +210,15 @@ const metrics = (): fc.Arbitrary<Metrics> =>
     overlapArea: fc.nat(100_000),
     overlapPairs: fc.nat(20),
     overlapRatio: fc.double({ min: 0, max: 3, noNaN: true }),
+    severeOverlaps: fc.nat(10),
+    labelOverlaps: fc.nat(20),
+    detachedLabels: fc.nat(20),
+    labelCrossings: fc.nat(20),
     nodeEdgeCrossings: fc.nat(30),
     edgeCrossings: fc.nat(30),
+    sharedSegments: fc.nat(30),
+    borderCrossings: fc.nat(30),
+    selected: fc.nat(5),
     lengthVariation: fc.double({ min: 0, max: 5, noNaN: true }),
     bends: fc.nat(50),
     alignment: fc.double({ min: 0, max: 1, noNaN: true }),
@@ -222,13 +237,21 @@ describe("score (properties)", () => {
         fc.nat(10),
         fc.nat(10),
         fc.nat(10),
-        (m, ratio, pairs, nodeEdge, edgeEdge) => {
+        fc.nat(10),
+        (m, ratio, pairs, nodeEdge, edgeEdge, more) => {
           const worse: Metrics = {
             ...m,
             overlapRatio: m.overlapRatio + ratio,
             overlapPairs: m.overlapPairs + pairs,
             nodeEdgeCrossings: m.nodeEdgeCrossings + nodeEdge,
             edgeCrossings: m.edgeCrossings + edgeEdge,
+            severeOverlaps: m.severeOverlaps + more,
+            labelOverlaps: m.labelOverlaps + more,
+            detachedLabels: m.detachedLabels + more,
+            labelCrossings: m.labelCrossings + more,
+            sharedSegments: m.sharedSegments + more,
+            borderCrossings: m.borderCrossings + more,
+            selected: m.selected + more,
           };
           expect(scoreOf(worse, PAGE)).toBeLessThanOrEqual(scoreOf(m, PAGE));
           for (const field of [
@@ -236,6 +259,13 @@ describe("score (properties)", () => {
             "overlapPairs",
             "nodeEdgeCrossings",
             "edgeCrossings",
+            "severeOverlaps",
+            "labelOverlaps",
+            "detachedLabels",
+            "labelCrossings",
+            "sharedSegments",
+            "borderCrossings",
+            "selected",
           ] as const) {
             const one = { ...m, [field]: worse[field] };
             expect(scoreOf(one, PAGE)).toBeLessThanOrEqual(scoreOf(m, PAGE));
@@ -291,6 +321,9 @@ describe("score (properties)", () => {
       area: fc.boolean(),
       through: fc.boolean(),
       parent: fc.option(fc.string({ maxLength: 3 }), { nil: null }),
+      label: fc.boolean(),
+      edge: fc.option(fc.string({ maxLength: 3 }), { nil: undefined }),
+      group: fc.option(fc.string({ maxLength: 3 }), { nil: undefined }),
     });
     const gedge = fc.record({
       id: fc.string({ maxLength: 3 }),
@@ -303,6 +336,8 @@ describe("score (properties)", () => {
         fc.array(gedge, { maxLength: 6 }),
         (nodes, edges) => {
           const m = measure({ nodes, edges });
+          labelProblems({ nodes, edges });
+          sharedEdges({ nodes, edges });
           const s = scoreOf(m, PAGE);
           expect(Number.isFinite(s)).toBe(true);
           for (const v of Object.values(m)) expect(Number.isNaN(v)).toBe(false);
@@ -314,5 +349,185 @@ describe("score (properties)", () => {
 
   it("rates by the reviewers' scale", () => {
     expect([95, 85, 65, 45, 10].map(ratingOf)).toEqual([5, 4, 3, 2, 1]);
+  });
+});
+
+describe("what a reader sees (#38)", () => {
+  const label = (
+    id: string,
+    left: number,
+    top: number,
+    onEdge: string,
+  ): GNode => ({
+    ...node(id, left, top, 60, 14),
+    label: true,
+    edge: onEdge,
+    attachedTo: [],
+  });
+
+  it("counts a box laid over a quarter of another as severe", () => {
+    const m = measure({
+      nodes: [node("a", 0, 0), node("b", 10, 10), node("c", 105, 55)],
+      edges: [],
+    });
+    expect(m.overlapPairs).toBe(2);
+    expect(m.severeOverlaps).toBe(1);
+    expect(penalties(m, PAGE).overlap).toBe(WEIGHTS.overlap);
+  });
+
+  it("finds labels over text, crossed by another edge or far from their own", () => {
+    const a = node("a", 0, 0);
+    const b = node("b", 400, 0);
+    const c = node("c", 0, 300);
+    const ab = edge("ab", a, b);
+    const ac = edge("ac", a, c);
+    const near = label("near", 170, 5, "ab");
+    const far = label("far", 170, 200, "ab");
+    const over = label("over", 175, 8, "ab");
+    const crossed = label("crossed", 20, 150, "ab");
+    const g: Geometry = {
+      nodes: [a, b, c, near, far, over, crossed],
+      edges: [ab, ac],
+    };
+    const m = measure(g);
+    expect(m.labelOverlaps).toBe(1);
+    expect(m.detachedLabels).toBe(2);
+    expect(m.labelCrossings).toBe(1);
+    expect(labelProblems(g).sort()).toEqual(
+      ["crossed", "far", "near", "over"].sort(),
+    );
+    expect(labelProblems({ nodes: [a, b, near], edges: [ab] })).toEqual([]);
+    // Close to its own edge yet crossed by another.
+    expect(
+      labelProblems({
+        nodes: [a, b, c, label("x2", 30, 30, "ab")],
+        edges: [ab, ac],
+      }),
+    ).toEqual(["x2"]);
+    // A label whose edge is not drawn is judged by what it covers alone.
+    expect(
+      labelProblems({ nodes: [a, label("lost", 300, 300, "gone")], edges: [] }),
+    ).toEqual([]);
+  });
+
+  it("measures a label's gap to its edge", () => {
+    const box = { left: 0, top: 0, width: 10, height: 10 };
+    expect(labelGap(box, [])).toBe(Infinity);
+    expect(
+      labelGap(box, [
+        { x: 5, y: -5 },
+        { x: 5, y: 20 },
+      ]),
+    ).toBe(0);
+    expect(labelGap(box, [{ x: 20, y: 5 }])).toBe(10);
+    expect(
+      labelGap(box, [
+        { x: 5, y: 40 },
+        { x: 5, y: 40 },
+      ]),
+    ).toBe(30);
+    expect(
+      labelGap(box, [
+        { x: 0, y: 50 },
+        { x: 100, y: 50 },
+      ]),
+    ).toBeGreaterThan(LABEL_REACH);
+  });
+
+  it("counts edges drawn on one line unless they share their target", () => {
+    const run = (id: string, y: number, ends: [string, string]) => ({
+      id,
+      points: [
+        { x: 0, y },
+        { x: 100, y },
+        { x: 100, y: y + 50 },
+      ],
+      ends,
+    });
+    const g = {
+      nodes: [],
+      edges: [
+        run("p", 0, ["a", "t"]),
+        run("q", 1, ["b", "u"]),
+        run("r", 0, ["c", "t"]),
+        {
+          id: "s",
+          points: [
+            { x: 0, y: 0 },
+            { x: 0, y: 0 },
+          ],
+          ends: ["d", "v"] as [string, string],
+        },
+        {
+          id: "d",
+          points: [
+            { x: 0, y: 0 },
+            { x: 50, y: 50 },
+          ],
+          ends: ["d", "w"] as [string, string],
+        },
+      ],
+    };
+    const m = measure(g);
+    // p–q and q–r share a run; p–r end at one target.
+    expect(m.sharedSegments).toBe(2);
+    expect(sharedEdges(g).sort()).toEqual(["p", "q", "r"]);
+  });
+
+  it("counts boxes and labels cut by an area's border, not lifelines", () => {
+    const lane: GNode = { ...node("lane", 0, 0, 200, 400), area: true };
+    const m = measure({
+      nodes: [
+        lane,
+        node("in", 20, 20),
+        node("across", 150, 100),
+        { ...node("life", 100, -50, 20, 500), through: true },
+        { ...node("big", -10, -10, 300, 500) },
+      ],
+      edges: [],
+    });
+    expect(m.borderCrossings).toBe(1);
+  });
+
+  it("charges selection handles an export would draw", () => {
+    const m = measure({ nodes: [node("a", 0, 0)], edges: [], selected: 2 });
+    expect(m.selected).toBe(2);
+    expect(penalties(m, PAGE).selection).toBe(WEIGHTS.selection);
+    expect(measure({ nodes: [], edges: [] }).selected).toBe(0);
+  });
+
+  it("lets activations of one lifeline stack", () => {
+    const act = (id: string, top: number): GNode => ({
+      ...node(id, 0, top, 14, 60),
+      label: true,
+      group: "life",
+    });
+    expect(
+      measure({ nodes: [act("x", 0), act("y", 20)], edges: [] }).labelOverlaps,
+    ).toBe(0);
+  });
+
+  it("fails a strip larger than twice the page and a poster, whatever else", () => {
+    const strip = measure({
+      nodes: Array.from({ length: 12 }, (_, i) => node(`n${i}`, i * 400, 0)),
+      edges: [],
+    });
+    expect(failures(strip, PAGE)[0]).toMatch(/^aspect .* over 3:1/);
+    expect(scoreOf(strip, PAGE)).toBeLessThanOrEqual(FAIL_CAP);
+    expect(failures(strip, { ...PAGE, maxAspect: 100 })).toEqual([]);
+    // Small enough to show whole: wide is fine.
+    const row = measure({
+      nodes: [node("a", 0, 0), node("b", 300, 0), node("c", 600, 0)],
+      edges: [],
+    });
+    expect(failures(row, PAGE)).toEqual([]);
+    const poster = measure({
+      nodes: Array.from({ length: 61 }, (_, i) =>
+        node(`n${i}`, (i % 8) * 150, Math.floor(i / 8) * 100),
+      ),
+      edges: [],
+    });
+    expect(failures(poster, PAGE)).toEqual(["61 nodes over 60"]);
+    expect(failures(poster, { ...PAGE, maxNodes: 61 })).toEqual([]);
   });
 });
