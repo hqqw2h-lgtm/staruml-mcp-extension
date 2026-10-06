@@ -488,3 +488,58 @@ describe("/export_html", () => {
     );
   });
 });
+
+describe("/export_diagram drawio (issue #41)", () => {
+  it("writes the diagram's draw.io file, ignoring raster options", async () => {
+    const view = create("UMLClassView");
+    Object.assign(view, {
+      model: create("UMLClass"),
+      left: 10,
+      top: 20,
+      width: 100,
+      height: 40,
+    });
+    (env.mainDiagram.ownedViews as Element[]).push(view);
+    const path = join(dir, "out", "main.drawio");
+    const data = await ok<{
+      mimeType: string;
+      width: number;
+      height: number;
+      bytes: number;
+      annotations?: unknown;
+    }>(exportDiagram, {
+      diagram: env.mainDiagram._id,
+      format: "drawio",
+      path,
+      scale: 3,
+      annotate: "ids",
+    });
+    const text = readFileSync(path, "utf-8");
+    expect(text).toMatch(/^<mxfile host="staruml-mcp-extension"/);
+    expect(text).toContain(`<mxCell id="${view._id}"`);
+    expect(data).toMatchObject({
+      mimeType: "application/vnd.jgraph.mxfile",
+      width: 110,
+      height: 60,
+      bytes: Buffer.byteLength(text),
+    });
+    expect(data.annotations).toBeUndefined();
+    expect(svgExport.getImageData).not.toHaveBeenCalled();
+    const inline = await ok<{ base64: string }>(exportDiagram, {
+      diagram: env.mainDiagram._id,
+      format: "drawio",
+    });
+    expect(Buffer.from(inline.base64, "base64").toString("utf-8")).toBe(text);
+  });
+
+  it("writes one .drawio file per diagram", async () => {
+    const data = await ok<{ files: { file: string }[] }>(exportDiagrams, {
+      path: dir,
+      format: "drawio",
+    });
+    expect(data.files.map((f) => f.file)).toEqual([join(dir, "Main.drawio")]);
+    expect(readFileSync(join(dir, "Main.drawio"), "utf-8")).toContain(
+      "<mxGraphModel",
+    );
+  });
+});

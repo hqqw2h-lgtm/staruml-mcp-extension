@@ -31,7 +31,8 @@
  * fires read-only requests at a fixed concurrency: summaries, full and
  * field-projected elements, owned elements expanded one level, paged
  * find_elements, /introspect sections, /search_types queries, /export_text
- * of a built class diagram as Mermaid and PlantUML, a read-only /batch
+ * of a built class diagram as Mermaid, PlantUML and draw.io, the same
+ * diagram as a draw.io file from /export_diagram (returned, not written), a read-only /batch
  * of five lookups, and reads that address elements by path ("Load/C7",
  * "Order.total", "Order#place()", the diagram by name) rather than by id,
  * /lint_diagram and /uml_lint over them, and the read-only planning
@@ -480,8 +481,15 @@ async function main() {
     () => ["/introspect", { include: ["factory", "toolbox"] }],
     (i) => [
       "/export_text",
-      { diagram: exportId, format: i % 2 ? "plantuml" : "mermaid" },
+      {
+        diagram: exportId,
+        // By round, so each format comes up whatever the mix's length.
+        format: ["mermaid", "plantuml", "drawio"][
+          Math.floor(i / mix.length) % 3
+        ],
+      },
     ],
+    () => ["/export_diagram", { diagram: exportId, format: "drawio" }],
     (i) => [
       "/search_types",
       { query: SEARCHES[i % SEARCHES.length], limit: 10 },

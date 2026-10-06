@@ -42,11 +42,19 @@ import { defineEndpoint, doc } from "../endpoint.js";
 import { ApiError, inStarUML } from "../errors.js";
 import { requireDiagram, requireProject } from "../lookup.js";
 import { ref } from "../schemas.js";
+import { profile } from "../style/profile.js";
+import { toDrawio } from "../text/drawio-writer.js";
 import type { Element } from "../types.js";
 
 export const MAX_SCALE = 4;
 
-const MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
+const MIME = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  svg: "image/svg+xml",
+  // The type draw.io registers for .drawio files (IANA has none).
+  drawio: "application/vnd.jgraph.mxfile",
+};
 
 type Format = keyof typeof MIME;
 
@@ -207,6 +215,12 @@ export function renderSvg(
   };
 }
 
+/** The diagram as a .drawio file; width and height are its views' extent. */
+export function renderDrawio(diagram: Element): Rendered {
+  const { text, width, height } = toDrawio(diagram, profile());
+  return { data: Buffer.from(text, "utf-8"), width, height };
+}
+
 const absolutePath = (description: string) =>
   doc(
     z
@@ -226,13 +240,16 @@ function currentOr(id: string | undefined): Element {
 export const exportDiagram = defineEndpoint({
   path: "/export_diagram",
   description:
-    "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
+    "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, or write it as a draw.io file (format drawio, as /export_text writes it), and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
   readOnly: false,
   destructive: true,
   request: z.object({
     diagram: z.optional(ref("Diagram; default the current diagram.")),
     format: z.optional(
-      doc(z.enum(["png", "jpeg", "svg"]), "Image format; default png."),
+      doc(
+        z.enum(["png", "jpeg", "svg", "drawio"]),
+        "Image format; default png. drawio: an uncompressed .drawio file, which scale, background and annotate do not apply to.",
+      ),
     ),
     scale: z.optional(
       doc(
@@ -263,9 +280,12 @@ export const exportDiagram = defineEndpoint({
     diagram: z.string(),
     format: z.string(),
     mimeType: z.string(),
-    width: doc(z.number(), "Pixels; SVG user units for svg."),
+    width: doc(
+      z.number(),
+      "Pixels; SVG user units for svg; for drawio the right edge of the rightmost view.",
+    ),
     height: z.number(),
-    bytes: doc(z.int(), "Size of the encoded image."),
+    bytes: doc(z.int(), "Size of the encoded image or file."),
     path: z.optional(
       doc(z.string(), "The file written, when 'path' was given."),
     ),
@@ -293,11 +313,15 @@ export const exportDiagram = defineEndpoint({
     const format: Format = input.format ?? "png";
     const scale = format === "svg" ? 1 : (input.scale ?? 1);
     const labels =
-      input.annotate === undefined || input.annotate === "none"
+      input.annotate === undefined ||
+      input.annotate === "none" ||
+      format === "drawio"
         ? undefined
         : labelsFor(diagram, input.annotate, scale);
     let image: Rendered;
-    if (format === "svg") {
+    if (format === "drawio") {
+      image = renderDrawio(diagram);
+    } else if (format === "svg") {
       image = inStarUML(() => renderSvg(diagram, input.background));
       if (labels) {
         image = {
@@ -384,7 +408,10 @@ export const exportDiagrams = defineEndpoint({
       ),
     ),
     format: z.optional(
-      doc(z.enum(["png", "jpeg", "svg"]), "Image format; default png."),
+      doc(
+        z.enum(["png", "jpeg", "svg", "drawio"]),
+        "Image format; default png. drawio writes one .drawio file per diagram.",
+      ),
     ),
     scale: z.optional(
       doc(
@@ -428,14 +455,16 @@ export const exportDiagrams = defineEndpoint({
     const files = [];
     for (const diagram of diagrams as SelectableDiagram[]) {
       const image =
-        format === "svg"
-          ? inStarUML(() => renderSvg(diagram, input.background))
-          : await renderRaster(
-              diagram,
-              format,
-              input.scale ?? 1,
-              input.background,
-            );
+        format === "drawio"
+          ? renderDrawio(diagram)
+          : format === "svg"
+            ? inStarUML(() => renderSvg(diagram, input.background))
+            : await renderRaster(
+                diagram,
+                format,
+                input.scale ?? 1,
+                input.background,
+              );
       const file = join(input.path, `${fileStem(diagram, taken)}.${extension}`);
       writeFile(file, image.data);
       files.push({

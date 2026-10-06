@@ -32883,7 +32883,13 @@ function svgLabels(svg, labels) {
 
 // src/handlers/export.ts
 var MAX_SCALE = 4;
-var MIME = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
+var MIME = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  svg: "image/svg+xml",
+  // The type draw.io registers for .drawio files (IANA has none).
+  drawio: "application/vnd.jgraph.mxfile"
+};
 function withoutSelection(diagram, run) {
   const selected = diagram.selectedViews;
   diagram.selectedViews = [];
@@ -32974,6 +32980,10 @@ function renderSvg(diagram, background) {
     height: size2("height")
   };
 }
+function renderDrawio(diagram) {
+  const { text: text4, width, height } = toDrawio(diagram, profile());
+  return { data: Buffer.from(text4, "utf-8"), width, height };
+}
 var absolutePath = (description) => doc(
   string2().check(refine((p) => (0, import_node_path3.isAbsolute)(p), "must be an absolute path")),
   description
@@ -32987,13 +32997,16 @@ function currentOr(id2) {
 }
 var exportDiagram = defineEndpoint({
   path: "/export_diagram",
-  description: "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
+  description: "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, or write it as a draw.io file (format drawio, as /export_text writes it), and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
   readOnly: false,
   destructive: true,
   request: object({
     diagram: optional(ref2("Diagram; default the current diagram.")),
     format: optional(
-      doc(_enum(["png", "jpeg", "svg"]), "Image format; default png.")
+      doc(
+        _enum(["png", "jpeg", "svg", "drawio"]),
+        "Image format; default png. drawio: an uncompressed .drawio file, which scale, background and annotate do not apply to."
+      )
     ),
     scale: optional(
       doc(
@@ -33024,9 +33037,12 @@ var exportDiagram = defineEndpoint({
     diagram: string2(),
     format: string2(),
     mimeType: string2(),
-    width: doc(number2(), "Pixels; SVG user units for svg."),
+    width: doc(
+      number2(),
+      "Pixels; SVG user units for svg; for drawio the right edge of the rightmost view."
+    ),
     height: number2(),
-    bytes: doc(int(), "Size of the encoded image."),
+    bytes: doc(int(), "Size of the encoded image or file."),
     path: optional(
       doc(string2(), "The file written, when 'path' was given.")
     ),
@@ -33053,9 +33069,11 @@ var exportDiagram = defineEndpoint({
     const diagram = currentOr(input.diagram);
     const format = input.format ?? "png";
     const scale = format === "svg" ? 1 : input.scale ?? 1;
-    const labels = input.annotate === void 0 || input.annotate === "none" ? void 0 : labelsFor(diagram, input.annotate, scale);
+    const labels = input.annotate === void 0 || input.annotate === "none" || format === "drawio" ? void 0 : labelsFor(diagram, input.annotate, scale);
     let image;
-    if (format === "svg") {
+    if (format === "drawio") {
+      image = renderDrawio(diagram);
+    } else if (format === "svg") {
       image = inStarUML(() => renderSvg(diagram, input.background));
       if (labels) {
         image = {
@@ -33128,7 +33146,10 @@ var exportDiagrams = defineEndpoint({
       )
     ),
     format: optional(
-      doc(_enum(["png", "jpeg", "svg"]), "Image format; default png.")
+      doc(
+        _enum(["png", "jpeg", "svg", "drawio"]),
+        "Image format; default png. drawio writes one .drawio file per diagram."
+      )
     ),
     scale: optional(
       doc(
@@ -33169,7 +33190,7 @@ var exportDiagrams = defineEndpoint({
     const taken = /* @__PURE__ */ new Set();
     const files = [];
     for (const diagram of diagrams) {
-      const image = format === "svg" ? inStarUML(() => renderSvg(diagram, input.background)) : await renderRaster(
+      const image = format === "drawio" ? renderDrawio(diagram) : format === "svg" ? inStarUML(() => renderSvg(diagram, input.background)) : await renderRaster(
         diagram,
         format,
         input.scale ?? 1,

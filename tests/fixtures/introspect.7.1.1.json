@@ -21832,7 +21832,7 @@
     },
     {
       "path": "/export_diagram",
-      "description": "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
+      "description": "Render a diagram as PNG, JPEG or SVG, as File > Export Diagram As does, or write it as a draw.io file (format drawio, as /export_text writes it), and return it base64-encoded or write it to a file. annotate draws each view's element id or path on the image, so what is seen can be named.",
       "readOnly": false,
       "destructive": true,
       "request": {
@@ -21846,8 +21846,8 @@
           },
           "format": {
             "type": "string",
-            "enum": ["png", "jpeg", "svg"],
-            "description": "Image format; default png."
+            "enum": ["png", "jpeg", "svg", "drawio"],
+            "description": "Image format; default png. drawio: an uncompressed .drawio file, which scale, background and annotate do not apply to."
           },
           "scale": {
             "type": "number",
@@ -21891,14 +21891,14 @@
           "mimeType": { "type": "string" },
           "width": {
             "type": "number",
-            "description": "Pixels; SVG user units for svg."
+            "description": "Pixels; SVG user units for svg; for drawio the right edge of the rightmost view."
           },
           "height": { "type": "number" },
           "bytes": {
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
-            "description": "Size of the encoded image."
+            "description": "Size of the encoded image or file."
           },
           "path": {
             "type": "string",
@@ -21961,8 +21961,8 @@
           },
           "format": {
             "type": "string",
-            "enum": ["png", "jpeg", "svg"],
-            "description": "Image format; default png."
+            "enum": ["png", "jpeg", "svg", "drawio"],
+            "description": "Image format; default png. drawio writes one .drawio file per diagram."
           },
           "scale": {
             "type": "number",
