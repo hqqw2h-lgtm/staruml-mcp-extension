@@ -10388,6 +10388,13 @@ function parseJsonSchema(source, as) {
       }
     }
     if (Array.isArray(s.anyOf)) {
+      if (!s.anyOf.every(isObject2)) {
+        fail(
+          pointer,
+          "anyOf entries must be schema objects",
+          "UNSUPPORTED_SYNTAX"
+        );
+      }
       const options = s.anyOf.filter((o) => o.type !== "null");
       if (options.length !== 1 || options.length === s.anyOf.length) {
         fail(

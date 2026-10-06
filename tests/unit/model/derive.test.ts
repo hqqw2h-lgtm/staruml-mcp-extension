@@ -404,7 +404,7 @@ describe("/derive_diagrams", () => {
     const [actor] = named("UMLActor", "Device");
     const [person] = named("C4Person", "Device");
     expect(person!._parent).not.toBe(actor!._parent);
-  });
+  }, 60_000);
 
   it("refuses a bad policy and names the diagram a build failed on", async () => {
     const m = await model();

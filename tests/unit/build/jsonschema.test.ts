@@ -262,6 +262,15 @@ describe("parseJsonSchema", () => {
     expect(refused({ properties: { a: { oneOf: [] } } })).toBe(
       "UNSUPPORTED_SYNTAX json schema #/properties/a: oneOf has no class or ERD form",
     );
+    // fast-check counterexample from CI run 37454399123: a null entry used to throw on `.type`.
+    expect(refused({ properties: { a: { anyOf: [null] } } })).toBe(
+      "UNSUPPORTED_SYNTAX json schema #/properties/a: anyOf entries must be schema objects",
+    );
+    expect(
+      refused({ properties: { a: { anyOf: [true, { type: "string" }] } } }),
+    ).toBe(
+      "UNSUPPORTED_SYNTAX json schema #/properties/a: anyOf entries must be schema objects",
+    );
     expect(
       refused({
         properties: { a: { anyOf: [{ type: "string" }, { type: "integer" }] } },

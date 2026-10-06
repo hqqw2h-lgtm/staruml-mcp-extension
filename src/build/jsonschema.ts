@@ -143,6 +143,15 @@ export function parseJsonSchema(source: string, as?: Kind): Parsed {
       }
     }
     if (Array.isArray(s.anyOf)) {
+      // JSON Schema allows booleans here; the fuzz test also produced null. Neither has a
+      // class or ERD reading, and indexing `.type` on them is what used to throw.
+      if (!(s.anyOf as unknown[]).every(isObject)) {
+        fail(
+          pointer,
+          "anyOf entries must be schema objects",
+          "UNSUPPORTED_SYNTAX",
+        );
+      }
       const options = (s.anyOf as Schema[]).filter((o) => o.type !== "null");
       if (options.length !== 1 || options.length === s.anyOf.length) {
         fail(
