@@ -18833,6 +18833,11 @@
                 "items": { "type": "string" },
                 "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
               },
+              "escaped": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id."
+              },
               "styled": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -19048,6 +19053,11 @@
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "escaped": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id."
               },
               "styled": {
                 "type": "integer",
@@ -22888,6 +22898,11 @@
                 "items": { "type": "string" },
                 "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
               },
+              "escaped": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id."
+              },
               "styled": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -24853,6 +24868,11 @@
                 "items": { "type": "string" },
                 "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
               },
+              "escaped": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id."
+              },
               "styled": {
                 "type": "integer",
                 "minimum": -9007199254740991,
@@ -25801,6 +25821,11 @@
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+              },
+              "escaped": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id."
               },
               "styled": {
                 "type": "integer",

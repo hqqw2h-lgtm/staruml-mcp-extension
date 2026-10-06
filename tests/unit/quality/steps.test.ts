@@ -606,3 +606,21 @@ describe("placement for #38", () => {
     expect(get(built.ids.R!.view).width).toBeGreaterThanOrEqual(80);
   });
 });
+
+describe("deselect (#39)", () => {
+  it("clears what a write left selected, and only then", async () => {
+    const { deselect } = await import("../../../src/quality/geometry.js");
+    let cleared = 0;
+    const diagram = {
+      selectedViews: [{}],
+      deselectAll: () => {
+        cleared++;
+      },
+    } as unknown as Element;
+    deselect(diagram);
+    expect(cleared).toBe(1);
+    deselect({ ...diagram, selectedViews: [] } as unknown as Element);
+    deselect({} as Element);
+    expect(cleared).toBe(1);
+  });
+});

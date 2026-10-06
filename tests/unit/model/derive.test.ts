@@ -375,6 +375,37 @@ describe("/derive_diagrams", () => {
     );
   });
 
+  it("keeps view sections in packages of their own and shares deployment nodes (#39)", async () => {
+    const m = await model(tb as unknown as Record<string, unknown>);
+    const packages = () =>
+      env.app.repository
+        .getInstancesOf("UMLPackage")
+        .map((p) => String(p.name));
+    await ok<Derived>(ep("/derive_diagrams"), {
+      scope: m.model._id,
+      dryRun: true,
+      kinds: ["deployment", "c4"],
+    });
+    // A dry run draws under the model and makes no package.
+    expect(packages()).not.toContain("Deployment");
+    await ok<Derived>(ep("/derive_diagrams"), {
+      scope: m.model._id,
+      kinds: ["deployment", "c4"],
+    });
+    expect(packages()).toEqual(
+      expect.arrayContaining(["Deployment", "Containers"]),
+    );
+    const named = (type: string, name: string) =>
+      env.app.repository.getInstancesOf(type).filter((e) => e.name === name);
+    // Both deployments show the one PostgreSQL node.
+    expect(named("UMLNode", "PostgreSQL").length).toBeLessThanOrEqual(1);
+    expect(named("UMLArtifact", "Browser")).toHaveLength(1);
+    // The C4 person is no sibling of the actor of the same name.
+    const [actor] = named("UMLActor", "Device");
+    const [person] = named("C4Person", "Device");
+    expect(person!._parent).not.toBe(actor!._parent);
+  });
+
   it("refuses a bad policy and names the diagram a build failed on", async () => {
     const m = await model();
     await fails(

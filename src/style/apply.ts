@@ -29,6 +29,7 @@ import { editorShowing, LINE_STYLES } from "../handlers/views.js";
 import type { ModelSpec, ModelViews } from "../model/spec.js";
 import { modelTypeOf } from "../handlers/elements.js";
 import { resolveCreateType } from "../toolbox.js";
+import { escapeName } from "../refs.js";
 import type { Element, View } from "../types.js";
 import { normalize, settle } from "./naming.js";
 import {
@@ -476,8 +477,21 @@ export function styleReport(
     ...(renames.unfixed.length > 0 && {
       unfixed: renames.unfixed.slice(0, 50).map((u) => `${u.kind} ${u.name}`),
     }),
+    ...escapedNames(renames.unfixed.map((u) => u.name)),
     ...(styled > 0 && { styled }),
   };
+}
+
+/**
+ * Names kept that a path ref must escape, each as a path writes it: a
+ * package "Actor System (application.actors)" is reached by
+ * "Actor System \(application\.actors\)/RuleNodeActor" (issue #39).
+ */
+function escapedNames(names: readonly string[]) {
+  const special = [...new Set(names)].filter((n) => escapeName(n) !== n);
+  return special.length > 0
+    ? { escaped: special.slice(0, 50).map((n) => `${n} -> ${escapeName(n)}`) }
+    : {};
 }
 
 export const styleReportSchema = () =>
@@ -496,6 +510,12 @@ export const styleReportSchema = () =>
         doc(
           z.array(z.string()),
           "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern).",
+        ),
+      ),
+      escaped: z.optional(
+        doc(
+          z.array(z.string()),
+          "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id.",
         ),
       ),
       styled: z.optional(doc(z.int(), "Views given the profile's look.")),

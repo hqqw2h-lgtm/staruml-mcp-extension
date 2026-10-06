@@ -13692,8 +13692,13 @@ function styleReport(profile2, renames, styled) {
     ...renames.unfixed.length > 0 && {
       unfixed: renames.unfixed.slice(0, 50).map((u) => `${u.kind} ${u.name}`)
     },
+    ...escapedNames(renames.unfixed.map((u) => u.name)),
     ...styled > 0 && { styled }
   };
+}
+function escapedNames(names4) {
+  const special = [...new Set(names4)].filter((n) => escapeName(n) !== n);
+  return special.length > 0 ? { escaped: special.slice(0, 50).map((n) => `${n} -> ${escapeName(n)}`) } : {};
 }
 var styleReportSchema = () => doc(
   object({
@@ -13710,6 +13715,12 @@ var styleReportSchema = () => doc(
       doc(
         array(string2()),
         "Names off the rules that the profile only reports (fix none, or no fix matches a custom pattern)."
+      )
+    ),
+    escaped: optional(
+      doc(
+        array(string2()),
+        "Kept names holding / . # @ ( ) , or \\, as a path ref writes them escaped (name -> escaped); or rename them in the spec, keeping the id."
       )
     ),
     styled: optional(doc(int(), "Views given the profile's look."))
@@ -14249,6 +14260,10 @@ function geometryOf(diagram) {
   });
   const selected = diagram.selectedViews?.length ?? 0;
   return { nodes, edges, ...selected > 0 && { selected } };
+}
+function deselect(diagram) {
+  const d = diagram;
+  if (d.selectedViews && d.selectedViews.length > 0) d.deselectAll?.();
 }
 var KINDS_BY_TYPE = new Map(
   Object.entries(DIAGRAM_TYPES).map(([k, t]) => [t, k])
@@ -16152,7 +16167,11 @@ async function buildDiagram(input, endpoints2, extras = {}) {
         styled: styled2,
         // An upsert that changed nothing leaves the picture as it was
         // arranged; it is only scored.
-        quality: built.ops.length > 0 ? improve(target2, profile2) : scoredAsIs(target2, profile2)
+        quality: (() => {
+          const q2 = built.ops.length > 0 ? improve(target2, profile2) : scoredAsIs(target2, profile2);
+          deselect(target2);
+          return q2;
+        })()
       };
     }
   );
@@ -29275,6 +29294,7 @@ function applyPatternEndpoint(endpoints2) {
             0
           );
           const quality2 = diagrams.map((d) => improve(d, profile2))[0];
+          diagrams.forEach(deselect);
           return { run: run2, styled: styled2, quality: quality2 };
         }
       );
@@ -33341,6 +33361,21 @@ var DERIVED_KINDS = [
   "mindmap",
   "communication"
 ];
+var SECTION_HOMES = {
+  c4: "Containers",
+  deployment: "Deployment"
+};
+var SHARED_TYPES = /* @__PURE__ */ new Set(["UMLNode", "UMLArtifact"]);
+function bindShared(d, home) {
+  const spec = d.spec;
+  const names4 = /* @__PURE__ */ new Set([...spec.nodes.map((n) => n.name), ...spec.artifacts]);
+  for (const e of owned(home)) {
+    const name4 = String(e.name);
+    if (SHARED_TYPES.has(e.constructor.name) && names4.has(name4)) {
+      d.bind.set(name4, e);
+    }
+  }
+}
 var list5 = (value) => Array.isArray(value) ? value : [];
 var is = (e, typeName5) => !!e && e.constructor.name === typeName5;
 function owned(root) {
@@ -33509,8 +33544,11 @@ function classDiagrams(s) {
     );
   });
 }
+var isHome = (p, model) => p._parent === model && Object.values(SECTION_HOMES).includes(String(p.name));
 function packageOverview(s) {
-  const packages = s.all.filter((e) => is(e, "UMLPackage"));
+  const packages = s.all.filter(
+    (e) => is(e, "UMLPackage") && !isHome(e, s.model)
+  );
   if (!s.profile.policy.packageOverview || packages.length < 2) return [];
   const key2 = keys(packages);
   const deps = relationsAmong(packages, /* @__PURE__ */ new Set(["UMLDependency"]));
@@ -33815,19 +33853,29 @@ function sectionDiagrams(s) {
       })
     ] : [],
     ...v.components ? [
-      plain(
-        "c4",
-        v.components.name ?? `${String(s.model.name)} containers`,
-        {
-          elements: v.components.elements,
-          relations: (v.components.relations ?? []).map(
-            (r) => tuple(r, ["from", "to", "label", "technology", "description"])
-          )
-        }
-      )
+      {
+        ...plain(
+          "c4",
+          v.components.name ?? `${String(s.model.name)} containers`,
+          {
+            elements: v.components.elements,
+            relations: (v.components.relations ?? []).map(
+              (r) => tuple(r, [
+                "from",
+                "to",
+                "label",
+                "technology",
+                "description"
+              ])
+            )
+          }
+        ),
+        home: SECTION_HOMES.c4
+      }
     ] : [],
-    ...(v.deployments ?? []).map(
-      (d) => plain("deployment", d.name, {
+    ...(v.deployments ?? []).map((d) => ({
+      home: SECTION_HOMES.deployment,
+      ...plain("deployment", d.name, {
         nodes: d.nodes.map((n) => ({
           name: n.name,
           ...n.kind !== void 0 && n.kind !== "node" && { stereotype: n.kind },
@@ -33837,7 +33885,7 @@ function sectionDiagrams(s) {
         artifacts: [...new Set(d.nodes.flatMap((n) => n.contains ?? []))],
         paths: (d.links ?? []).map((l) => tuple(l, ["from", "to", "name"]))
       })
-    ),
+    })),
     ...v.features ? splitTree(v.features, limitsFor(s.profile).maxNodes).map(
       (part) => plain("mindmap", part.name, { root: part.root })
     ) : []
@@ -33940,11 +33988,13 @@ function deriveDiagramsEndpoint(endpoints2) {
       const kinds = input.kinds && new Set(input.kinds);
       const derived = derive(scope, profile2, kinds);
       const one2 = async (d) => {
+        const home = d.home === void 0 ? null : homeOf(d, !input.dryRun);
+        if (home && d.kind === "deployment") bindShared(d, home);
         const body = {
           kind: d.kind,
           spec: d.spec,
           name: d.name,
-          parent: d.parent._id,
+          parent: (home ?? d.parent)._id,
           upsert: true,
           prune: true,
           // Elements a section draws are its model's own; another model's
@@ -33967,6 +34017,10 @@ function deriveDiagramsEndpoint(endpoints2) {
       const run = async () => {
         for (const d of derived) {
           const built = await one2(d);
+          if (!input.dryRun && d.kind === "deployment" && built.created > 0) {
+            const again = await one2(d);
+            built.deleted = built.deleted + again.deleted;
+          }
           if (!input.dryRun && profile2.policy.hideGetters && d.kind === "class") {
             hideAccessors(requireElement(built.diagram._id), d.accessorsOnly);
           }
@@ -34020,6 +34074,19 @@ function deriveDiagramsEndpoint(endpoints2) {
         },
         ...input.dryRun && { dryRun: true }
       };
+    }
+  });
+}
+function homeOf(d, make) {
+  const found = d.parent.ownedElements.find(
+    (e) => e instanceof type.UMLPackage && e.name === d.home
+  );
+  if (found || !make) return found ?? null;
+  return app.factory.createModel({
+    id: "UMLPackage",
+    parent: d.parent,
+    modelInitializer: (e) => {
+      e.name = d.home;
     }
   });
 }

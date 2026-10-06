@@ -47,6 +47,7 @@ import {
 } from "../style/apply.js";
 import { effectiveProfile } from "../style/profile.js";
 import { oneStep } from "../undo.js";
+import { deselect } from "../quality/geometry.js";
 import { improve, qualitySchema } from "../quality/loop.js";
 import type { Element } from "../types.js";
 import { batchRunner, type OpResult } from "./batch.js";
@@ -371,6 +372,7 @@ export function applyPatternEndpoint(
             0,
           );
           const quality = diagrams.map((d) => improve(d, profile))[0];
+          diagrams.forEach(deselect);
           return { run, styled, quality };
         },
       );

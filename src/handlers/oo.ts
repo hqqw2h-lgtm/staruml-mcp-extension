@@ -26,6 +26,7 @@ import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError } from "../errors.js";
 import { requireElement, requireProject } from "../lookup.js";
 import {
+  bindShared,
   DERIVED_KINDS,
   type Derived,
   type DerivedKind,
@@ -167,11 +168,13 @@ export function deriveDiagramsEndpoint(
       const kinds = input.kinds && new Set<DerivedKind>(input.kinds);
       const derived = derive(scope, profile, kinds);
       const one = async (d: Derived): Promise<Built> => {
+        const home = d.home === undefined ? null : homeOf(d, !input.dryRun);
+        if (home && d.kind === "deployment") bindShared(d, home);
         const body = {
           kind: d.kind,
           spec: d.spec,
           name: d.name,
-          parent: d.parent._id,
+          parent: (home ?? d.parent)._id,
           upsert: true,
           prune: true,
           // Elements a section draws are its model's own; another model's
@@ -194,6 +197,15 @@ export function deriveDiagramsEndpoint(
       const run = async () => {
         for (const d of derived) {
           const built = await one(d);
+          if (!input.dryRun && d.kind === "deployment" && built.created > 0) {
+            // A node shown from another deployment brings its other
+            // relationships along (Factory.createViewAndRelationships,
+            // engine/factory.js 7.1.1); a second pass prunes those, so the
+            // next derivation finds the diagram as this one leaves it.
+            const again = await one(d);
+            // Every derived build prunes, so each answers what it deleted.
+            built.deleted = built.deleted! + again.deleted!;
+          }
           if (
             !input.dryRun &&
             profile.policy.hideGetters &&
@@ -256,6 +268,24 @@ export function deriveDiagramsEndpoint(
       };
     },
   });
+}
+
+/**
+ * A section's home package under the model, made when `make` (a real
+ * derivation; a dry run draws under the model and changes nothing).
+ */
+function homeOf(d: Derived, make: boolean): Element | null {
+  const found = (d.parent.ownedElements as Element[]).find(
+    (e) => e instanceof type.UMLPackage && e.name === d.home,
+  );
+  if (found || !make) return found ?? null;
+  return app.factory.createModel({
+    id: "UMLPackage",
+    parent: d.parent,
+    modelInitializer: (e: Element) => {
+      e.name = d.home;
+    },
+  })!;
 }
 
 // ------------------------------------------------------------- explain

@@ -190,6 +190,17 @@ export function geometryOf(diagram: Element): Geometry {
   return { nodes, edges, ...(selected > 0 && { selected }) };
 }
 
+/**
+ * Clears what a write left selected on `diagram`: the factory selects a
+ * view it makes, and a renderer other than this extension's export (the
+ * built-in API's image, a screenshot) draws its handles, as the
+ * ThingsBoard PNGs after apply_pattern showed (issue #39).
+ */
+export function deselect(diagram: Element): void {
+  const d = diagram as { deselectAll?: () => void; selectedViews?: View[] };
+  if (d.selectedViews && d.selectedViews.length > 0) d.deselectAll?.();
+}
+
 const KINDS_BY_TYPE = new Map<string, Kind>(
   (Object.entries(DIAGRAM_TYPES) as [Kind, string][]).map(([k, t]) => [t, k]),
 );

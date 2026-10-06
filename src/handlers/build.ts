@@ -50,6 +50,7 @@ import {
 } from "../style/apply.js";
 import { effectiveProfile, presetFor } from "../style/profile.js";
 import { oneStep } from "../undo.js";
+import { deselect } from "../quality/geometry.js";
 import { improve, qualitySchema, scoredAsIs } from "../quality/loop.js";
 import { batchRunner } from "./batch.js";
 import { byId, pathOf, tryResolve } from "../refs.js";
@@ -1594,10 +1595,14 @@ export async function buildDiagram(
         styled,
         // An upsert that changed nothing leaves the picture as it was
         // arranged; it is only scored.
-        quality:
-          built.ops.length > 0
-            ? improve(target, profile)
-            : scoredAsIs(target, profile),
+        quality: (() => {
+          const q =
+            built.ops.length > 0
+              ? improve(target, profile)
+              : scoredAsIs(target, profile);
+          deselect(target);
+          return q;
+        })(),
       };
     },
   );

@@ -59,6 +59,37 @@ export interface Derived {
   bindEdges: Map<number, Element>;
   /** Classes whose operations are all accessors, for policy.hideGetters. */
   accessorsOnly: Element[];
+  /**
+   * The package under the model a section's diagram and the elements it
+   * makes live in, so they share no namespace with the object model (a C4
+   * person "Device" beside the actor "Device" is UML002) and two
+   * deployments find each other's nodes.
+   */
+  home?: string;
+}
+
+/** The package each view section's elements live in. */
+export const SECTION_HOMES = {
+  c4: "Containers",
+  deployment: "Deployment",
+} as const;
+
+const SHARED_TYPES = new Set(["UMLNode", "UMLArtifact"]);
+
+/**
+ * The nodes and artifacts a deployment spec names that its home already
+ * holds, bound so the diagram shows them rather than making namesakes: a
+ * PostgreSQL node drawn on two deployments is one node.
+ */
+export function bindShared(d: Derived, home: Element): void {
+  const spec = d.spec as { nodes: { name: string }[]; artifacts: string[] };
+  const names = new Set([...spec.nodes.map((n) => n.name), ...spec.artifacts]);
+  for (const e of owned(home)) {
+    const name = String(e.name);
+    if (SHARED_TYPES.has(e.constructor.name) && names.has(name)) {
+      d.bind.set(name, e);
+    }
+  }
 }
 
 const list = (value: unknown) =>
@@ -304,8 +335,15 @@ function classDiagrams(s: Scope): Derived[] {
     });
 }
 
+/** Whether `p` is a view section's home, which holds no part of the object model. */
+const isHome = (p: Element, model: Element) =>
+  p._parent === model &&
+  (Object.values(SECTION_HOMES) as string[]).includes(String(p.name));
+
 function packageOverview(s: Scope): Derived[] {
-  const packages = s.all.filter((e) => is(e, "UMLPackage"));
+  const packages = s.all.filter(
+    (e) => is(e, "UMLPackage") && !isHome(e, s.model),
+  );
   if (!s.profile.policy.packageOverview || packages.length < 2) return [];
   const key = keys(packages);
   const deps = relationsAmong(packages, new Set(["UMLDependency"]));
@@ -681,20 +719,30 @@ function sectionDiagrams(s: Scope): Derived[] {
       : []),
     ...(v.components
       ? [
-          plain(
-            "c4",
-            v.components.name ?? `${String(s.model.name)} containers`,
-            {
-              elements: v.components.elements,
-              relations: (v.components.relations ?? []).map((r) =>
-                tuple(r, ["from", "to", "label", "technology", "description"]),
-              ),
-            },
-          ),
+          {
+            ...plain(
+              "c4",
+              v.components.name ?? `${String(s.model.name)} containers`,
+              {
+                elements: v.components.elements,
+                relations: (v.components.relations ?? []).map((r) =>
+                  tuple(r, [
+                    "from",
+                    "to",
+                    "label",
+                    "technology",
+                    "description",
+                  ]),
+                ),
+              },
+            ),
+            home: SECTION_HOMES.c4,
+          },
         ]
       : []),
-    ...(v.deployments ?? []).map((d) =>
-      plain("deployment", d.name, {
+    ...(v.deployments ?? []).map((d) => ({
+      home: SECTION_HOMES.deployment,
+      ...plain("deployment", d.name, {
         nodes: d.nodes.map((n) => ({
           name: n.name,
           ...(n.kind !== undefined &&
@@ -705,7 +753,7 @@ function sectionDiagrams(s: Scope): Derived[] {
         artifacts: [...new Set(d.nodes.flatMap((n) => n.contains ?? []))],
         paths: (d.links ?? []).map((l) => tuple(l, ["from", "to", "name"])),
       }),
-    ),
+    })),
     ...(v.features
       ? splitTree(v.features, limitsFor(s.profile).maxNodes).map((part) =>
           plain("mindmap", part.name, { root: part.root }),

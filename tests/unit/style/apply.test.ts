@@ -202,6 +202,23 @@ describe("naming in authoring", () => {
     ]);
   });
 
+  it("says how a path writes a kept name that holds path syntax (#39)", () => {
+    const renames = new Renames({
+      ...standard(),
+      naming: {
+        ...standard().naming,
+        package: { pattern: "^[a-z.]+$", fix: "none" },
+      },
+    });
+    renames.name("Actor System (application.actors)", "package");
+    renames.name("Actor System (application.actors)", "package");
+    renames.name("Plain Name", "package");
+    const report = styleReport(standard(), renames, 0);
+    expect(report.escaped).toEqual([
+      "Actor System (application.actors) -> Actor System \\(application\\.actors\\)",
+    ]);
+  });
+
   it("reports at most fifty renames and what it cannot fix", () => {
     const renames = new Renames({
       ...standard(),
