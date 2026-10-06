@@ -408,6 +408,7 @@ async function main() {
     ],
     () => ["/diff_since", { snapshot: "load", limit: 20 }],
     () => ["/build_model", { spec: MODEL_SPEC, dryRun: true }],
+    () => ["/build_model", { spec: MODEL_SPEC, dryRun: true, detail: "full" }],
     () => ["/check_messages", { scope: "Load" }],
     (i) => [
       "/apply_pattern",
@@ -447,6 +448,12 @@ async function main() {
     () => ["/get_project_metadata", {}],
     () => ["/performance_stats", {}],
     () => ["/explain_model", { scope: "LoadModel", maxChars: 2000 }],
+    // Issue #40: a section of the text read on from a cursor.
+    () => [
+      "/explain_model",
+      { scope: "LoadModel", sections: ["classes"], maxChars: 500, cursor: 200 },
+    ],
+    () => ["/detect_patterns", { scope: "Load", minConfidence: 0.5 }],
     () => ["/explain_style_violation", { ref: "Order" }],
     () => ["/apply_style_profile", { scope: "Export", dryRun: true }],
     (i) => [

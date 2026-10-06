@@ -3911,7 +3911,7 @@ function refine(fn, _params = {}) {
 config(en_default());
 config({ jitless: true });
 function defineEndpoint(spec) {
-  const { handle, ...endpoint } = spec;
+  const { handle, unknownKeyHint, ...endpoint } = spec;
   const handler = async (body) => {
     let renamed;
     try {
@@ -3922,9 +3922,10 @@ function defineEndpoint(spec) {
     const parsed = safeParse(spec.request, renamed.body);
     if (!parsed.success) {
       const issues = parsed.error.issues.map((i) => toIssue(i, renamed.used));
+      const unknown2 = unknownKeyHint !== void 0 && parsed.error.issues.some((i) => i.code === "unrecognized_keys");
       return new ApiError(
         "INVALID_ARGUMENT",
-        issues.map((i) => `${i.path}: ${i.message}`).join("; "),
+        issues.map((i) => `${i.path}: ${i.message}`).join("; ") + (unknown2 ? `; ${unknownKeyHint}` : ""),
         issues
       ).toBody();
     }
@@ -4291,7 +4292,13 @@ function resolveRef(ref3, options = {}) {
   }
   if (found.length === 1) return found[0];
   if (found.length === 0) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${ref3}`);
+    const near = nearest(ref3, kind2);
+    throw new ApiError(
+      "NOT_FOUND",
+      // nearest offers no views, the only elements without a path.
+      `${role} not found: ${ref3}${near.length > 0 ? `; nearest: ${near.map((c) => c.path).join(", ")}` : ""}`,
+      near.length > 0 ? { candidates: near } : void 0
+    );
   }
   throw new ApiError(
     "AMBIGUOUS_REF",
@@ -4308,6 +4315,60 @@ function tryResolve(ref3, options = {}) {
   }
 }
 var unique = (list7) => [...new Set(list7)];
+var MAX_NEAREST = 5;
+function distance(a, b) {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) {
+      next.push(
+        Math.min(
+          row[j] + 1,
+          next[j - 1] + 1,
+          row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        )
+      );
+    }
+    row = next;
+  }
+  return row[b.length];
+}
+function lastName(ref3) {
+  const at = splitAt(ref3);
+  const text4 = at ? at[0] : ref3;
+  let start = 0;
+  let depth3 = 0;
+  for (let i = 0; i < text4.length; i++) {
+    const c = text4[i];
+    if (c === "\\") i++;
+    else if (c === "(") depth3++;
+    else if (c === ")") depth3 = Math.max(0, depth3 - 1);
+    else if (depth3 > 0) continue;
+    else if ("/#.".includes(c)) start = i + 1;
+    else if (text4.startsWith("::", i)) start = i + 2;
+  }
+  return text4.slice(start).replace(/\\(.)/g, "$1").replace(/\(.*$/, "").trim();
+}
+function nearest(ref3, kind2) {
+  const wanted = lastName(ref3).toLowerCase();
+  if (!wanted) return [];
+  const scored = [];
+  for (const elem of Object.values(app.repository.getIdMap())) {
+    if (isView(elem) || typeof elem.name !== "string" || !elem.name) continue;
+    if (kind2 === "diagram" && !(elem instanceof type.Diagram)) continue;
+    if (kind2 === "view" && viewsOf(elem).length === 0) continue;
+    const name4 = elem.name.toLowerCase();
+    const edits = distance(wanted, name4);
+    const inside3 = name4.includes(wanted) || wanted.includes(name4);
+    if (!inside3 && edits > Math.max(1, Math.round(wanted.length / 3))) {
+      continue;
+    }
+    scored.push({ elem, score: inside3 ? edits / 2 : edits });
+  }
+  return scored.sort(
+    (a, b) => a.score - b.score || String(a.elem.name).localeCompare(String(b.elem.name))
+  ).slice(0, MAX_NEAREST).map((s) => candidate(s.elem));
+}
 function candidate(elem) {
   return {
     _id: elem._id,
@@ -14600,9 +14661,9 @@ function alignChains(diagram, vertical2, m) {
 }
 var LABEL_SPOTS = [1, 2, 0].flatMap(
   (edgePosition) => [15, 30, 45].flatMap(
-    (distance) => [Math.PI / 2, -Math.PI / 2].map((alpha) => ({
+    (distance2) => [Math.PI / 2, -Math.PI / 2].map((alpha) => ({
       edgePosition,
-      distance,
+      distance: distance2,
       alpha
     }))
   )
@@ -23052,13 +23113,59 @@ var restoreSnapshot = defineEndpoint({
   }
 });
 
+// src/patterns/adapt.ts
+function adaptRole(pattern2, role, type2) {
+  if (type2 === role.type) return role;
+  if (role.type === "UMLClass" && type2 === "UMLInterface") {
+    if (role.properties?.isAbstract !== true) {
+      return `${role.name} is a concrete class in ${pattern2.name}, which the pattern instantiates; bind a class`;
+    }
+    const ops = role.operations ?? [];
+    if (ops.some((o) => o.isAbstract === true) && ops.some((o) => o.isAbstract !== true)) {
+      return `${role.name} keeps concrete operations next to abstract ones in ${pattern2.name}, which an interface cannot hold; bind a class`;
+    }
+    const { isAbstract: _abstract, ...properties2 } = role.properties;
+    return {
+      ...role,
+      type: "UMLInterface",
+      ...Object.keys(properties2).length > 0 ? { properties: properties2 } : { properties: void 0 },
+      operations: ops.map((o) => ({
+        ...o,
+        isAbstract: true,
+        ...o.visibility !== void 0 && { visibility: "public" }
+      }))
+    };
+  }
+  if (role.type === "UMLInterface" && type2 === "UMLClass") {
+    return {
+      ...role,
+      type: "UMLClass",
+      properties: { ...role.properties, isAbstract: true }
+    };
+  }
+  return `${role.name} is a ${role.type} in ${pattern2.name}; a ${type2} cannot play it`;
+}
+function adaptation(pattern2, role, type2, path) {
+  return role.type === "UMLClass" ? `${role.name} is an abstract class in ${pattern2.name}; ${path} is a ${type2}: its operations are abstract and public, and generalizations to it are realizations` : `${role.name} is an interface in ${pattern2.name}; ${path} is a ${type2}: it is made abstract, and realizations of it are generalizations`;
+}
+function relationType(written, from, to) {
+  if (written !== "generalization" && written !== "realization") {
+    return written;
+  }
+  return to === "UMLInterface" && from !== "UMLInterface" ? "realization" : "generalization";
+}
+
 // src/patterns/detect.ts
 var list2 = (v) => v;
-function fits(role, elem) {
+function fits(pattern2, role, elem) {
   const t = elem.constructor.name;
   if (t === role.type) return true;
-  return role.type === "UMLInterface" && t === "UMLClass" && elem.isAbstract === true;
+  if (role.type === "UMLInterface") {
+    return t === "UMLClass" && elem.isAbstract === true;
+  }
+  return typeof adaptRole(pattern2, role, t) !== "string";
 }
+var asPlayed = (pattern2, role, elem) => adaptRole(pattern2, role, elem.constructor.name);
 var ends2 = (r) => "source" in r ? [r.source, r.target] : [
   r.end1?.reference,
   r.end2?.reference
@@ -23087,8 +23194,13 @@ var RELATION_TYPES2 = {
   realization: "UMLInterfaceRealization",
   dependency: "UMLDependency"
 };
+var FAMILY = {
+  UMLGeneralization: ["UMLGeneralization", "UMLInterfaceRealization"],
+  UMLInterfaceRealization: ["UMLGeneralization", "UMLInterfaceRealization"]
+};
+var familyOf = (r) => FAMILY[RELATION_TYPES2[r.type]] ?? [RELATION_TYPES2[r.type]];
 function relationsFor(r, from, to) {
-  const type2 = RELATION_TYPES2[r.type];
+  const type2 = RELATION_TYPES2[relationType(r.type, from.constructor.name, to.constructor.name)];
   return relationshipsOf(from).filter((m) => {
     if (m.constructor.name !== type2) return false;
     const [a, b] = ends2(m);
@@ -23097,9 +23209,10 @@ function relationsFor(r, from, to) {
 }
 function neighbours(r, elem, fromSide) {
   const type2 = RELATION_TYPES2[r.type];
+  const family2 = familyOf(r);
   const out = [];
   for (const m of relationshipsOf(elem)) {
-    if (m.constructor.name !== type2) continue;
+    if (!family2.includes(m.constructor.name)) continue;
     const [a, b] = ends2(m);
     if (fromSide && a === elem && b) out.push(b);
     else if (!fromSide && b === elem && a) out.push(a);
@@ -23129,12 +23242,14 @@ function sameType(written, actual, binding) {
     return (binding.get(role) ?? []).includes(elem);
   return (typeof elem === "object" && elem !== null ? elem.name : elem) === written;
 }
-function scoreRole(s, role, elem, binding, share) {
+function scoreRole(s, pattern2, written, elem, binding, share) {
   const at = pathOf(elem);
+  const fit = fits(pattern2, written, elem);
+  const role = fit ? asPlayed(pattern2, written, elem) : written;
   s.add(
     share,
-    fits(role, elem),
-    () => `${at} is a ${elem.constructor.name}, not a ${role.type}`
+    fit,
+    () => `${at} is a ${elem.constructor.name}, not a ${written.type}`
   );
   for (const [k, v] of Object.entries(role.properties ?? {})) {
     s.add(share, elem[k] === v, () => `${at}.${k} is not ${String(v)}`);
@@ -23226,7 +23341,7 @@ function score(pattern2, binding) {
       continue;
     }
     for (const elem of elems)
-      scoreRole(s, role, elem, binding, 1 / elems.length);
+      scoreRole(s, pattern2, role, elem, binding, 1 / elems.length);
   }
   for (const r of pattern2.relationships) {
     const optional2 = [r.from, r.to].some(
@@ -23297,7 +23412,7 @@ function extend3(pattern2, edges, binding, inScope, out) {
       }
     }
     if (sets.length === 0) continue;
-    const ok = (x) => !used.has(x) && inScope(x) && fits(role2, x);
+    const ok = (x) => !used.has(x) && inScope(x) && fits(pattern2, role2, x);
     const nonEmpty = sets.map((set) => [...new Set(set)].filter(ok)).filter((set) => set.length > 0);
     if (nonEmpty.length === 0) {
       empty.push(role2);
@@ -23360,10 +23475,10 @@ function detect2(pattern2, classifiers, min, variant) {
   const needed = new Set(
     pattern2.relationships.filter(
       (r) => r.from === anchor.name && !optional2.has(r.to) || r.to === anchor.name && !optional2.has(r.from)
-    ).map((r) => RELATION_TYPES2[r.type])
+    ).flatMap(familyOf)
   );
   for (const elem of classifiers) {
-    if (!fits(anchor, elem)) continue;
+    if (!fits(pattern2, anchor, elem)) continue;
     if (needed.size > 0 && !relationshipsOf(elem).some((r) => needed.has(r.constructor.name))) {
       continue;
     }
@@ -27148,19 +27263,26 @@ function planPattern(pattern2, options) {
       role.name,
       resolveBinding(role, options.bindings[role.name]).map((b) => {
         if ("elem" in b) {
-          if (b.elem.constructor.name !== role.type) {
-            warnings.push(
-              `${role.name} is a ${role.type} in ${pattern2.name}; ${pathOf(b.elem)} is a ${b.elem.constructor.name}`
+          const type2 = b.elem.constructor.name;
+          const path = pathOf(b.elem);
+          const played = adaptRole(pattern2, role, type2);
+          if (typeof played === "string") {
+            throw new ApiError(
+              "INVALID_ARGUMENT",
+              `bindings.${role.name}: ${path} is a ${type2}; ${played}`
             );
           }
+          if (played !== role)
+            warnings.push(adaptation(pattern2, role, type2, path));
           return {
-            node: { ref: b.elem._id, elem: b.elem, path: pathOf(b.elem) },
+            node: { ref: b.elem._id, elem: b.elem, path },
             created: false,
-            name: b.elem.name
+            name: b.elem.name,
+            role: played
           };
         }
         const node2 = p.element(parent, role.type, b.name, {});
-        return { node: node2, created: node2.elem === null, name: b.name };
+        return { node: node2, created: node2.elem === null, name: b.name, role };
       })
     );
   }
@@ -27178,8 +27300,8 @@ function planPattern(pattern2, options) {
     }
     return fill(text4, names4);
   };
-  for (const role of pattern2.roles) {
-    for (const { node: node2, name: name4 } of bound.get(role.name)) {
+  for (const { name: roleName2 } of pattern2.roles) {
+    for (const { node: node2, name: name4, role } of bound.get(roleName2)) {
       const doc2 = role.documentation !== void 0 && (node2.elem === null || !node2.elem.documentation) ? fill(role.documentation, names4) : void 0;
       const props2 = {
         ...role.properties,
@@ -27201,7 +27323,10 @@ function planPattern(pattern2, options) {
     const froms = bound.get(r.from);
     const tos = bound.get(r.to);
     for (const from of froms) {
-      for (const to of tos) edges.push(relationship(p, r, from.node, to.node));
+      for (const to of tos) {
+        const type2 = relationType(r.type, from.role.type, to.role.type);
+        edges.push(relationship(p, { ...r, type: type2 }, from.node, to.node));
+      }
     }
   }
   const roles = Object.fromEntries(
@@ -27218,7 +27343,7 @@ function planPattern(pattern2, options) {
   let diagram;
   if (options.diagram) {
     const shown = pattern2.roles.flatMap(
-      (role) => bound.get(role.name).map((b) => ({ node: b.node, type: role.type }))
+      (role) => bound.get(role.name).map((b) => ({ node: b.node, type: b.role.type }))
     );
     diagram = classDiagram5(
       ops,
@@ -28033,14 +28158,24 @@ var RELATIONS = {
   knows: "directed association: from navigates to to",
   association: "association with no navigability or aggregation"
 };
-var RELATION_ALIASES = {
+var UML_WORDS = {
   composition: "owns",
   aggregation: "has",
   dependency: "uses",
   generalization: "isA",
+  inheritance: "isA",
+  extends: "isA",
   realization: "implements",
-  directed: "knows"
+  interfaceRealization: "implements",
+  directed: "knows",
+  directedAssociation: "knows"
 };
+function relationTypeError(input) {
+  const verb = typeof input === "string" && Object.hasOwn(UML_WORDS, input) ? UML_WORDS[input] : void 0;
+  return verb === void 0 ? void 0 : `${input} is a UML word; an object spec writes the verb ${verb} (${RELATIONS[verb]})`;
+}
+var geometryHint = (endpoint) => `geometry and colours are never part of a spec (the style profile lays out and styles every view); see describe_endpoints ${endpoint}`;
+var GEOMETRY_HINT = geometryHint("build_model");
 var memberList = () => optional(array(union([string2(), strictObject({ name: name3() })])));
 var packageSchema = () => union([
   name3(),
@@ -28083,10 +28218,9 @@ var relationSchema = () => strictObject({
   from: name3(),
   to: name3(),
   type: doc(
-    _enum([
-      ...Object.keys(RELATIONS),
-      ...Object.keys(RELATION_ALIASES)
-    ]),
+    _enum(Object.keys(RELATIONS), {
+      error: (issue2) => relationTypeError(issue2.input)
+    }),
     Object.entries(RELATIONS).map(([k, v]) => `${k}: ${v}`).join("; ")
   ),
   name: optional(string2()),
@@ -28443,7 +28577,7 @@ function parseModelSpec(input) {
     const issue2 = parsed.error.issues[0];
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `spec.${issue2.path.map(String).join(".")}: ${issue2.message}`,
+      `spec.${issue2.path.map(String).join(".")}: ${issue2.message}${issue2.code === "unrecognized_keys" ? `; ${GEOMETRY_HINT}` : ""}`,
       parsed.error.issues
     );
   }
@@ -28508,7 +28642,7 @@ function parseModelSpec(input) {
     return {
       from: r.from,
       to: r.to,
-      type: RELATION_ALIASES[r.type] ?? r.type,
+      type: r.type,
       ...r.name !== void 0 && { name: r.name },
       ...from !== void 0 && { fromMultiplicity: from },
       ...to !== void 0 && { toMultiplicity: to },
@@ -28693,6 +28827,62 @@ var changeSchema = () => object({
   type: string2(),
   fields: optional(array(string2()))
 });
+var DRY_RUN_PATHS = 20;
+var DRY_RUN_DETAILS = ["summary", "full"];
+var detailField = () => optional(
+  doc(
+    _enum(DRY_RUN_DETAILS),
+    `With dryRun: summary (default; /build_model with result full defaults to full) lists the first ${DRY_RUN_PATHS} changes, ops and steps of each kind with the counts of the rest in omitted, strings in ops cut at ${CLIP} characters; full lists every one whole. A 645-op ThingsBoard model's full dry run is 80 KB.`
+  )
+);
+var omittedSchema = () => optional(
+  doc(
+    object({
+      created: int(),
+      updated: int(),
+      ops: int(),
+      steps: int()
+    }),
+    "With a summary dry run: how many of each were left out of changes and plan."
+  )
+);
+var CLIP = 200;
+function clip(value) {
+  if (typeof value === "string") {
+    return value.length > CLIP ? `${value.slice(0, CLIP)}... [${value.length - CLIP} more chars]` : value;
+  }
+  if (Array.isArray(value)) return value.map(clip);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, clip(v)])
+    );
+  }
+  return value;
+}
+function summarize2(changes, plan, detail) {
+  if (detail === "full") return { changes, plan };
+  const first = (list7) => list7.slice(0, DRY_RUN_PATHS);
+  const rest = (list7) => Math.max(0, list7.length - DRY_RUN_PATHS);
+  const omitted = {
+    created: rest(changes.created),
+    updated: rest(changes.updated),
+    ops: rest(plan.ops),
+    steps: rest(plan.creates) + rest(plan.updates) + rest(plan.deletes)
+  };
+  return {
+    changes: {
+      created: first(changes.created),
+      updated: first(changes.updated)
+    },
+    plan: {
+      ops: first(plan.ops).map((op) => clip(op)),
+      creates: first(plan.creates),
+      updates: first(plan.updates),
+      deletes: first(plan.deletes)
+    },
+    ...Object.values(omitted).some((n) => n > 0) && { omitted }
+  };
+}
 var countBy = (changes) => {
   const out = {};
   for (const c of changes) out[c.type] = (out[c.type] ?? 0) + 1;
@@ -28704,7 +28894,8 @@ function idOf(result, ref3) {
 function buildModelEndpoint(endpoints2) {
   return defineEndpoint({
     path: "/build_model",
-    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. The spec is strict (additionalProperties false, no geometry or colour fields); its view sections (classViews, useCaseViews, activities, erd, components, deployments, features) are stored with the model as a hidden tag for /derive_diagrams. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.`,
+    unknownKeyHint: GEOMETRY_HINT,
+    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. The spec is strict (additionalProperties false, no geometry or colour fields); its view sections (classViews, useCaseViews, activities, erd, components, deployments, features) are stored with the model as a hidden tag for /derive_diagrams. Relationship types are these verbs only: a UML word (composition, generalization...) is refused with the verb to write. dryRun answers the counts with the first 20 changes and /batch ops (detail full: every one); upsert updates the model of the same name.`,
     readOnly: false,
     destructive: false,
     request: object({
@@ -28726,9 +28917,10 @@ function buildModelEndpoint(endpoints2) {
       dryRun: optional(
         doc(
           boolean2(),
-          "Answer the changes and the exact /batch ops, and change nothing."
+          "Answer the changes and the /batch ops, and change nothing; detail says how many."
         )
       ),
+      detail: detailField(),
       result: resultField(
         "terse (default): counts by element type. ids: also the id of each package, classifier, collaboration and state machine by path. full: also every created and updated element."
       )
@@ -28770,6 +28962,7 @@ function buildModelEndpoint(endpoints2) {
       ),
       dryRun: optional(boolean2()),
       plan: optional(doc(planSchema(), "With dryRun: what applying runs.")),
+      omitted: omittedSchema(),
       style: optional(styleReportSchema())
     }),
     handle: async (input) => {
@@ -28786,7 +28979,7 @@ function buildModelEndpoint(endpoints2) {
           updated: countBy(plan.updated),
           unchanged: plan.unchanged
         },
-        ...(mode === "full" || input.dryRun) && {
+        ...mode === "full" && !input.dryRun && {
           changes: { created: plan.created, updated: plan.updated }
         },
         style: styleReport(profile2, renames, 0)
@@ -28802,7 +28995,12 @@ function buildModelEndpoint(endpoints2) {
           ...report,
           ...mode !== "terse" && { ids: Object.fromEntries(plan.refs) },
           dryRun: true,
-          plan: planOf(plan.ops)
+          ...summarize2(
+            { created: plan.created, updated: plan.updated },
+            planOf(plan.ops),
+            // Asking for every result asks for every change too.
+            input.detail ?? (mode === "full" ? "full" : void 0)
+          )
         };
       }
       const run = plan.ops.length > 0 ? await batchRunner.run(endpoints2(), plan.ops, true, MODEL_MAX_OPS) : { results: [] };
@@ -29166,9 +29364,10 @@ function applyPatternEndpoint(endpoints2) {
       dryRun: optional(
         doc(
           boolean2(),
-          "Answer what would be made and set, and change nothing."
+          "Answer what would be made and set, and change nothing; detail says how many."
         )
-      )
+      ),
+      detail: detailField()
     }),
     response: object({
       pattern: string2(),
@@ -29204,6 +29403,7 @@ function applyPatternEndpoint(endpoints2) {
       warnings: optional(array(string2())),
       dryRun: optional(boolean2()),
       plan: optional(planSchema()),
+      omitted: omittedSchema(),
       style: optional(styleReportSchema()),
       quality: optional(qualitySchema())
     }),
@@ -29264,7 +29464,11 @@ function applyPatternEndpoint(endpoints2) {
         return {
           ...answer((r) => r, p.properties),
           dryRun: true,
-          plan: planOf(plan.ops)
+          ...summarize2(
+            { created: p.created, updated: p.updated },
+            planOf(plan.ops),
+            input.detail
+          )
         };
       }
       const profile2 = effectiveProfile().profile;
@@ -29315,7 +29519,7 @@ function applyPatternEndpoint(endpoints2) {
 }
 var detectPatterns = defineEndpoint({
   path: "/detect_patterns",
-  description: "Find instances of the library's patterns in the model by structure: roles bound along the relationships the pattern prescribes, scored by the share of its element types, properties, members and relationship ends the model has. Answers candidates with their confidence (1: everything the pattern prescribes), the elements in each role and what is missing. Read-only.",
+  description: "Find instances of the library's patterns in the model by structure: roles bound along the relationships the pattern prescribes, scored by the share of its element types, properties, members and relationship ends the model has. Answers candidates at or above minConfidence (default 0.8) with their confidence (1: everything the pattern prescribes, as /apply_pattern builds it), the elements in each role and what is missing; a candidate whose elements a better one of the same pattern already binds is dropped and counted in duplicates. Read-only.",
   readOnly: true,
   destructive: false,
   request: object({
@@ -29326,7 +29530,10 @@ var detectPatterns = defineEndpoint({
       doc(array(string2().check(_minLength(1))), "Only these patterns.")
     ),
     minConfidence: optional(
-      doc(number2().check(_gte(0), _lte(1)), "Default 0.6.")
+      doc(
+        number2().check(_gte(0), _lte(1)),
+        "Default 0.8: below it a candidate is mostly a guess from names and shape."
+      )
     ),
     limit: optional(
       doc(int().check(_gte(1), _lte(500)), "Default 50.")
@@ -29334,6 +29541,12 @@ var detectPatterns = defineEndpoint({
   }),
   response: object({
     count: doc(int(), "Candidates found, before limit."),
+    duplicates: optional(
+      doc(
+        int(),
+        "Candidates dropped: a better one of the same pattern binds all their elements."
+      )
+    ),
     detections: array(
       object({
         pattern: string2(),
@@ -29349,17 +29562,34 @@ var detectPatterns = defineEndpoint({
   }),
   handle: (input) => {
     const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
-    const found = detectIn(
+    const all = detectIn(
       scope,
       input.patterns === void 0 ? patterns() : input.patterns.map(findPattern),
-      input.minConfidence ?? 0.6
+      input.minConfidence ?? DEFAULT_MIN_CONFIDENCE
     );
+    const found = withoutDuplicates(all);
+    const duplicates = all.length - found.length;
     return {
       count: found.length,
+      ...duplicates > 0 && { duplicates },
       detections: found.slice(0, input.limit ?? 50).map(({ binding: _b, ...d }) => d)
     };
   }
 });
+var DEFAULT_MIN_CONFIDENCE = 0.8;
+function withoutDuplicates(found) {
+  const kept = [];
+  for (const d of found) {
+    const ids2 = Object.values(d.roles).flatMap(
+      (list7) => list7.map((e) => e._id)
+    );
+    const covered = kept.some(
+      (k) => k.d.pattern === d.pattern && ids2.every((id2) => k.ids.has(id2))
+    );
+    if (!covered) kept.push({ d, ids: new Set(ids2) });
+  }
+  return kept.map((k) => k.d);
+}
 function classifiersIn(scope) {
   return ["UMLClass", "UMLInterface", "UMLEnumeration"].flatMap(
     (t) => app.repository.getInstancesOf(t).filter((e) => {
@@ -34114,60 +34344,91 @@ function verbOf(r, c) {
   const verb = e1.aggregation === "composite" ? "owns" : e1.aggregation === "shared" ? "has" : "knows";
   return `${verb} ${other}${e2.multiplicity ? ` [${String(e2.multiplicity)}]` : ""}`;
 }
+var EXPLAIN_SECTIONS = [
+  "summary",
+  "classes",
+  "collaborations",
+  "lifecycles",
+  "useCases",
+  "views"
+];
+function viewLines(views) {
+  const names4 = (list7) => list7.map((x) => x.name).join(", ");
+  return [
+    ...views.classViews ? [`- class views: ${names4(views.classViews)}`] : [],
+    ...views.useCaseViews ? [`- use case views: ${names4(views.useCaseViews)}`] : [],
+    ...views.activities ? [`- activities: ${names4(views.activities)}`] : [],
+    ...views.erd ? [
+      `- ERD${views.erd.name ? ` ${views.erd.name}` : ""}: ${views.erd.entities.length} entities`
+    ] : [],
+    ...views.components ? [
+      `- C4${views.components.name ? ` ${views.components.name}` : ""}: ${views.components.elements.length} elements`
+    ] : [],
+    ...views.deployments ? [`- deployments: ${names4(views.deployments)}`] : [],
+    ...views.features ? [`- mind map: ${views.features.name}`] : []
+  ];
+}
 function explain(scope) {
   const all = app.repository.findAll((e) => within4(e, scope)).filter((e) => !(e instanceof type.View) && !(e instanceof type.Diagram));
   const of = (t) => all.filter((e) => e.constructor.name === t);
-  const classes = all.filter(
+  const classifiers = all.filter(
     (e) => ["UMLClass", "UMLInterface", "UMLEnumeration"].includes(e.constructor.name)
   );
-  const out = [
-    `${String(scope.name)}: ${of("UMLPackage").length} packages, ${classes.length} classifiers, ${of("UMLActor").length} actors, ${of("UMLUseCase").length} use cases, ${of("UMLCollaboration").length} collaborations, ${of("UMLStateMachine").length} lifecycles`
+  const summary2 = [
+    `${String(scope.name)}: ${of("UMLPackage").length} packages, ${classifiers.length} classifiers, ${of("UMLActor").length} actors, ${of("UMLUseCase").length} use cases, ${of("UMLCollaboration").length} collaborations, ${of("UMLStateMachine").length} lifecycles`
   ];
   const doc2 = lines(scope.documentation)[0];
-  if (doc2) out.push(doc2);
+  if (doc2) summary2.push(doc2);
+  const classes = [];
   const owners = [scope, ...of("UMLPackage")];
   for (const owner of owners) {
-    const own2 = classes.filter((c) => c._parent === owner);
+    const own2 = classifiers.filter((c) => c._parent === owner);
     if (own2.length === 0) continue;
-    out.push("", `## ${owner === scope ? String(scope.name) : pathOf(owner)}`);
+    classes.push(
+      "",
+      `## ${owner === scope ? String(scope.name) : pathOf(owner)}`
+    );
     const d = owner === scope ? void 0 : lines(owner.documentation)[0];
-    if (d) out.push(d);
+    if (d) classes.push(d);
     for (const c of own2) {
       const kind2 = c.constructor.name === "UMLClass" ? c.isAbstract ? "abstract" : "class" : c.constructor.name.slice(3).toLowerCase();
       const relations = app.repository.getRelationshipsOf(c).flatMap((r) => verbOf(r, c) ?? []);
       const ops = list6(c.operations).map((o) => `${String(o.name)}()`);
-      out.push(
+      classes.push(
         `- ${String(c.name)} (${kind2})${lines(c.documentation).length > 0 ? `: ${lines(c.documentation).join(" ")}` : ""}`,
         ...relations.length > 0 ? [`  ${relations.join("; ")}`] : [],
         ...ops.length > 0 ? [`  does: ${ops.join(", ")}`] : []
       );
     }
   }
-  const collaborations = of("UMLCollaboration");
-  if (collaborations.length > 0) out.push("", "## Collaborations");
-  for (const c of collaborations) {
+  const collaborations = [];
+  const talks = of("UMLCollaboration");
+  if (talks.length > 0) collaborations.push("", "## Collaborations");
+  for (const c of talks) {
     const interaction = list6(c.ownedElements).find(
       (e) => e.constructor.name === "UMLInteraction"
     );
     const messages2 = list6(interaction?.messages).map(
       (m) => `${String(m.source.name)} -> ${String(m.target.name)}: ${String(m.name)}`
     );
-    out.push(`- ${String(c.name)}: ${messages2.join("; ")}`);
+    collaborations.push(`- ${String(c.name)}: ${messages2.join("; ")}`);
   }
+  const lifecycles = [];
   const machines = of("UMLStateMachine");
-  if (machines.length > 0) out.push("", "## Lifecycles");
+  if (machines.length > 0) lifecycles.push("", "## Lifecycles");
   for (const m of machines) {
     const transitions = list6(list6(m.regions)[0]?.transitions).map((t) => {
       const name4 = (e) => String(e.name) || e.constructor.name.slice(3);
       return `${name4(t.source)} -> ${name4(t.target)}${t.name ? ` on ${String(t.name)}` : ""}`;
     });
-    out.push(
+    lifecycles.push(
       `- ${String(m.name)}${m._parent !== scope ? ` (of ${String(m._parent.name)})` : ""}: ${transitions.join("; ")}`
     );
   }
+  const useCases2 = [];
   const cases = of("UMLUseCase");
   if (cases.length > 0) {
-    out.push("", "## Use cases");
+    useCases2.push("", "## Use cases");
     for (const a of of("UMLActor")) {
       const goals = app.repository.getRelationshipsOf(a).flatMap((r) => {
         if (r.constructor.name !== "UMLAssociation") return [];
@@ -34177,34 +34438,95 @@ function explain(scope) {
         ].find((e) => e !== a);
         return other && cases.includes(other) ? [String(other.name)] : [];
       });
-      out.push(`- ${String(a.name)}: ${goals.join(", ") || "(no use case)"}`);
+      useCases2.push(
+        `- ${String(a.name)}: ${goals.join(", ") || "(no use case)"}`
+      );
     }
   }
-  return out.join("\n");
+  const stored = viewLines(viewsOf2(modelOf2(scope)));
+  const views = stored.length > 0 ? ["", "## Views", ...stored] : [];
+  return {
+    summary: summary2,
+    classes,
+    collaborations,
+    lifecycles,
+    useCases: useCases2,
+    views
+  };
+}
+function joined(parts, sections) {
+  let text4 = "";
+  const starts = [];
+  for (const name4 of sections) {
+    const body = parts[name4];
+    if (body.length === 0) continue;
+    if (text4) text4 += "\n";
+    starts.push([name4, text4.length]);
+    text4 += body.join("\n");
+  }
+  return { text: text4, starts };
 }
 var explainModel = defineEndpoint({
   path: "/explain_model",
-  description: "The model as compact text to reason about: per package each class with its responsibilities (documentation), what it owns, has, knows, is, implements and uses, and its operations; each collaboration's messages; each lifecycle's transitions; each actor's use cases. Read-only.",
+  description: "The model as compact text to reason about, by section: summary; classes (per package each class with its responsibilities, what it owns, has, knows, is, implements and uses, and its operations); collaborations (each one's messages); lifecycles (each one's transitions); useCases (each actor's use cases); views (the view sections stored for /derive_diagrams). sections picks some, scope narrows to a package, maxChars bounds the answer: longer text ends with a marker naming the section it stopped in and the cursor to pass to read on. Read-only.",
   readOnly: true,
   destructive: false,
   request: object({
     scope: optional(ref2("A model or package; default the project.")),
+    sections: optional(
+      doc(
+        array(_enum(EXPLAIN_SECTIONS)).check(_minLength(1)),
+        "Only these sections, in the text's order; default all."
+      )
+    ),
     maxChars: optional(
-      doc(int().check(_gte(200)), "Default 20000; longer text is cut.")
+      doc(
+        int().check(_gte(200)),
+        "Default 20000; longer text is cut at a line end and a marker line follows."
+      )
+    ),
+    cursor: optional(
+      doc(
+        int().check(_gte(0)),
+        "Where to start in the text, the next of a cut answer; default 0."
+      )
     )
   }),
   aliases: { ref: "scope" },
   response: object({
     text: string2(),
-    truncated: boolean2()
+    truncated: boolean2(),
+    next: optional(
+      doc(int(), "With truncated: the cursor that reads on from the cut.")
+    ),
+    stoppedIn: optional(
+      doc(_enum(EXPLAIN_SECTIONS), "With truncated: the section cut.")
+    ),
+    total: optional(doc(int(), "With truncated: the whole text's length."))
   }),
   handle: (input) => {
     const scope = input.scope === void 0 ? requireProject() : requireElement(input.scope, "Scope");
-    const text4 = explain(scope);
+    const wanted = new Set(input.sections ?? EXPLAIN_SECTIONS);
+    const { text: text4, starts } = joined(
+      explain(scope),
+      EXPLAIN_SECTIONS.filter((s) => wanted.has(s))
+    );
     const max = input.maxChars ?? 2e4;
+    const from = Math.min(input.cursor ?? 0, text4.length);
+    const rest = text4.slice(from);
+    if (rest.length <= max) return { text: rest, truncated: false };
+    const end = rest.lastIndexOf("\n", max);
+    const atLine = end >= max / 2;
+    const body = rest.slice(0, atLine ? end : max);
+    const next = from + body.length + (atLine ? 1 : 0);
+    const stoppedIn = starts.filter(([, at]) => at <= next).at(-1)[0];
     return {
-      text: text4.length > max ? text4.slice(0, max) : text4,
-      truncated: text4.length > max
+      text: `${body}
+[truncated in ${stoppedIn} at ${next} of ${text4.length} chars; call again with cursor: ${next}, or narrow sections or scope]`,
+      truncated: true,
+      next,
+      stoppedIn,
+      total: text4.length
     };
   }
 });

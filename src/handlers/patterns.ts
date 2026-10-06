@@ -52,7 +52,12 @@ import { improve, qualitySchema } from "../quality/loop.js";
 import type { Element } from "../types.js";
 import { batchRunner, type OpResult } from "./batch.js";
 import { planOf, planSchema } from "./build.js";
-import { MODEL_MAX_OPS } from "./model.js";
+import {
+  detailField,
+  MODEL_MAX_OPS,
+  omittedSchema,
+  summarize,
+} from "./model.js";
 
 /*
  * Design patterns as data (issue #30): list and describe the library,
@@ -233,9 +238,10 @@ export function applyPatternEndpoint(
       dryRun: z.optional(
         doc(
           z.boolean(),
-          "Answer what would be made and set, and change nothing.",
+          "Answer what would be made and set, and change nothing; detail says how many.",
         ),
       ),
+      detail: detailField(),
     }),
     response: z.object({
       pattern: z.string(),
@@ -271,6 +277,7 @@ export function applyPatternEndpoint(
       warnings: z.optional(z.array(z.string())),
       dryRun: z.optional(z.boolean()),
       plan: z.optional(planSchema()),
+      omitted: omittedSchema(),
       style: z.optional(styleReportSchema()),
       quality: z.optional(qualitySchema()),
     }),
@@ -337,7 +344,11 @@ export function applyPatternEndpoint(
         return {
           ...answer((r) => r, p.properties),
           dryRun: true,
-          plan: planOf(plan.ops),
+          ...summarize(
+            { created: p.created, updated: p.updated },
+            planOf(plan.ops),
+            input.detail,
+          ),
         };
       }
       const profile = effectiveProfile().profile;
@@ -395,7 +406,7 @@ export function applyPatternEndpoint(
 export const detectPatterns = defineEndpoint({
   path: "/detect_patterns",
   description:
-    "Find instances of the library's patterns in the model by structure: roles bound along the relationships the pattern prescribes, scored by the share of its element types, properties, members and relationship ends the model has. Answers candidates with their confidence (1: everything the pattern prescribes), the elements in each role and what is missing. Read-only.",
+    "Find instances of the library's patterns in the model by structure: roles bound along the relationships the pattern prescribes, scored by the share of its element types, properties, members and relationship ends the model has. Answers candidates at or above minConfidence (default 0.8) with their confidence (1: everything the pattern prescribes, as /apply_pattern builds it), the elements in each role and what is missing; a candidate whose elements a better one of the same pattern already binds is dropped and counted in duplicates. Read-only.",
   readOnly: true,
   destructive: false,
   request: z.object({
@@ -406,7 +417,10 @@ export const detectPatterns = defineEndpoint({
       doc(z.array(z.string().check(z.minLength(1))), "Only these patterns."),
     ),
     minConfidence: z.optional(
-      doc(z.number().check(z.minimum(0), z.maximum(1)), "Default 0.6."),
+      doc(
+        z.number().check(z.minimum(0), z.maximum(1)),
+        "Default 0.8: below it a candidate is mostly a guess from names and shape.",
+      ),
     ),
     limit: z.optional(
       doc(z.int().check(z.minimum(1), z.maximum(500)), "Default 50."),
@@ -414,6 +428,12 @@ export const detectPatterns = defineEndpoint({
   }),
   response: z.object({
     count: doc(z.int(), "Candidates found, before limit."),
+    duplicates: z.optional(
+      doc(
+        z.int(),
+        "Candidates dropped: a better one of the same pattern binds all their elements.",
+      ),
+    ),
     detections: z.array(
       z.object({
         pattern: z.string(),
@@ -432,21 +452,50 @@ export const detectPatterns = defineEndpoint({
       input.scope === undefined
         ? requireProject()
         : requireElement(input.scope, "Scope");
-    const found = detectIn(
+    const all = detectIn(
       scope,
       input.patterns === undefined
         ? patterns()
         : input.patterns.map(findPattern),
-      input.minConfidence ?? 0.6,
+      input.minConfidence ?? DEFAULT_MIN_CONFIDENCE,
     );
+    const found = withoutDuplicates(all);
+    const duplicates = all.length - found.length;
     return {
       count: found.length,
+      ...(duplicates > 0 && { duplicates }),
       detections: found
         .slice(0, input.limit ?? 50)
         .map(({ binding: _b, ...d }) => d),
     };
   },
 });
+
+/**
+ * Confidence /detect_patterns answers from by default. The ThingsBoard
+ * validation found 71 candidates at 0.6, 66 of them below 1 and 18 of
+ * them Facade guesses; what /apply_pattern builds scores 1.
+ */
+export const DEFAULT_MIN_CONFIDENCE = 0.8;
+
+/**
+ * Detections, best first, without those whose elements a detection of the
+ * same pattern already kept binds: the same instance found from another
+ * anchor with fewer roles filled.
+ */
+export function withoutDuplicates(found: readonly Detection[]): Detection[] {
+  const kept: { d: Detection; ids: Set<string> }[] = [];
+  for (const d of found) {
+    const ids = Object.values(d.roles).flatMap((list) =>
+      list.map((e) => e._id),
+    );
+    const covered = kept.some(
+      (k) => k.d.pattern === d.pattern && ids.every((id) => k.ids.has(id)),
+    );
+    if (!covered) kept.push({ d, ids: new Set(ids) });
+  }
+  return kept.map((k) => k.d);
+}
 
 /** Classifiers within `scope` that patterns are made of. */
 export function classifiersIn(scope: Element): Element[] {

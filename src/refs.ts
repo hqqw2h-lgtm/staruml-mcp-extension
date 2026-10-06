@@ -389,7 +389,13 @@ export function resolveRef(ref: string, options: ResolveOptions = {}): Element {
   }
   if (found.length === 1) return found[0]!;
   if (found.length === 0) {
-    throw new ApiError("NOT_FOUND", `${role} not found: ${ref}`);
+    const near = nearest(ref, kind);
+    throw new ApiError(
+      "NOT_FOUND",
+      // nearest offers no views, the only elements without a path.
+      `${role} not found: ${ref}${near.length > 0 ? `; nearest: ${near.map((c) => c.path!).join(", ")}` : ""}`,
+      near.length > 0 ? { candidates: near } : undefined,
+    );
   }
   throw new ApiError(
     "AMBIGUOUS_REF",
@@ -412,6 +418,83 @@ export function tryResolve(
 }
 
 const unique = <T>(list: T[]) => [...new Set(list)];
+
+/** At most this many near names are offered with NOT_FOUND. */
+export const MAX_NEAREST = 5;
+
+/** Edit distance of two strings (Levenshtein), one row at a time. */
+export function distance(a: string, b: string): number {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) {
+      next.push(
+        Math.min(
+          row[j]! + 1,
+          next[j - 1]! + 1,
+          row[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+        ),
+      );
+    }
+    row = next;
+  }
+  return row[b.length]!;
+}
+
+/**
+ * The last name a reference spells: after its last unescaped separator,
+ * its escapes removed, without a "@diagram" suffix.
+ */
+export function lastName(ref: string): string {
+  const at = splitAt(ref);
+  const text = at ? at[0] : ref;
+  // A separator inside parentheses is part of a name or a signature:
+  // "Actor System (application.actors)", "run(a.B)".
+  let start = 0;
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (c === "\\") i++;
+    else if (c === "(") depth++;
+    else if (c === ")") depth = Math.max(0, depth - 1);
+    else if (depth > 0) continue;
+    else if ("/#.".includes(c)) start = i + 1;
+    else if (text.startsWith("::", i)) start = i + 2;
+  }
+  return text.slice(start).replace(/\\(.)/g, "$1").replace(/\(.*$/, "").trim();
+}
+
+/**
+ * Elements of the kind a reference asks for whose names are nearest the
+ * name it spells, closest first: a name containing it or contained in it,
+ * or within a third of its length in edits, rounded (case aside), so a typo or a
+ * missing word is offered and an unrelated name is not.
+ */
+function nearest(ref: string, kind: RefKind): Candidate[] {
+  const wanted = lastName(ref).toLowerCase();
+  if (!wanted) return [];
+  const scored: { elem: Element; score: number }[] = [];
+  for (const elem of Object.values(app.repository.getIdMap())) {
+    if (isView(elem) || typeof elem.name !== "string" || !elem.name) continue;
+    if (kind === "diagram" && !(elem instanceof type.Diagram)) continue;
+    if (kind === "view" && viewsOf(elem).length === 0) continue;
+    const name = elem.name.toLowerCase();
+    const edits = distance(wanted, name);
+    const inside = name.includes(wanted) || wanted.includes(name);
+    if (!inside && edits > Math.max(1, Math.round(wanted.length / 3))) {
+      continue;
+    }
+    scored.push({ elem, score: inside ? edits / 2 : edits });
+  }
+  return scored
+    .sort(
+      (a, b) =>
+        a.score - b.score ||
+        String(a.elem.name).localeCompare(String(b.elem.name)),
+    )
+    .slice(0, MAX_NEAREST)
+    .map((s) => candidate(s.elem));
+}
 
 export function candidate(elem: Element): Candidate {
   return {

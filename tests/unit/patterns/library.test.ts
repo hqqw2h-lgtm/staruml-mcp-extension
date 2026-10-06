@@ -265,7 +265,11 @@ describe("/apply_pattern on every pattern", () => {
         diagram: name,
         sequence: pattern.sequence !== undefined,
       };
-      const dry = await ok<Applied>(apply, { ...body, dryRun: true });
+      const dry = await ok<Applied>(apply, {
+        ...body,
+        dryRun: true,
+        detail: "full",
+      });
       const spy = vi.spyOn(batchRunner, "run");
       const applied = await ok<Applied>(apply, body);
       expect(spy.mock.calls[0]![1]).toEqual(dry.plan!.ops);

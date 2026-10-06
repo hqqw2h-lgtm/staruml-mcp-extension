@@ -31,7 +31,10 @@ import {
   type Derived,
   type DerivedKind,
   derive,
+  modelOf,
+  viewsOf,
 } from "../model/derive.js";
+import type { ModelViews } from "../model/spec.js";
 import { pathOf } from "../refs.js";
 import { ref } from "../schemas.js";
 import { saveChecks } from "../style/guard.js";
@@ -332,26 +335,69 @@ function verbOf(r: Element, c: Element): string | null {
   return `${verb} ${other}${e2.multiplicity ? ` [${String(e2.multiplicity)}]` : ""}`;
 }
 
-function explain(scope: Element): string {
+/** Parts of /explain_model's text, in the order it writes them. */
+export const EXPLAIN_SECTIONS = [
+  "summary",
+  "classes",
+  "collaborations",
+  "lifecycles",
+  "useCases",
+  "views",
+] as const;
+type Section = (typeof EXPLAIN_SECTIONS)[number];
+
+/** The view sections /build_model stored, one line each. */
+function viewLines(views: ModelViews): string[] {
+  const names = (list: readonly { name: string }[]) =>
+    list.map((x) => x.name).join(", ");
+  return [
+    ...(views.classViews ? [`- class views: ${names(views.classViews)}`] : []),
+    ...(views.useCaseViews
+      ? [`- use case views: ${names(views.useCaseViews)}`]
+      : []),
+    ...(views.activities ? [`- activities: ${names(views.activities)}`] : []),
+    ...(views.erd
+      ? [
+          `- ERD${views.erd.name ? ` ${views.erd.name}` : ""}: ${views.erd.entities.length} entities`,
+        ]
+      : []),
+    ...(views.components
+      ? [
+          `- C4${views.components.name ? ` ${views.components.name}` : ""}: ${views.components.elements.length} elements`,
+        ]
+      : []),
+    ...(views.deployments
+      ? [`- deployments: ${names(views.deployments)}`]
+      : []),
+    ...(views.features ? [`- mind map: ${views.features.name}`] : []),
+  ];
+}
+
+/** The model as text, by section; a section with nothing to say is empty. */
+function explain(scope: Element): Record<Section, string[]> {
   const all = app.repository
     .findAll((e) => within(e, scope))
     .filter((e) => !(e instanceof type.View) && !(e instanceof type.Diagram));
   const of = (t: string) => all.filter((e) => e.constructor.name === t);
-  const classes = all.filter((e) =>
+  const classifiers = all.filter((e) =>
     ["UMLClass", "UMLInterface", "UMLEnumeration"].includes(e.constructor.name),
   );
-  const out: string[] = [
-    `${String(scope.name)}: ${of("UMLPackage").length} packages, ${classes.length} classifiers, ${of("UMLActor").length} actors, ${of("UMLUseCase").length} use cases, ${of("UMLCollaboration").length} collaborations, ${of("UMLStateMachine").length} lifecycles`,
+  const summary: string[] = [
+    `${String(scope.name)}: ${of("UMLPackage").length} packages, ${classifiers.length} classifiers, ${of("UMLActor").length} actors, ${of("UMLUseCase").length} use cases, ${of("UMLCollaboration").length} collaborations, ${of("UMLStateMachine").length} lifecycles`,
   ];
   const doc = lines(scope.documentation)[0];
-  if (doc) out.push(doc);
+  if (doc) summary.push(doc);
+  const classes: string[] = [];
   const owners = [scope, ...of("UMLPackage")];
   for (const owner of owners) {
-    const own = classes.filter((c) => c._parent === owner);
+    const own = classifiers.filter((c) => c._parent === owner);
     if (own.length === 0) continue;
-    out.push("", `## ${owner === scope ? String(scope.name) : pathOf(owner)}`);
+    classes.push(
+      "",
+      `## ${owner === scope ? String(scope.name) : pathOf(owner)}`,
+    );
     const d = owner === scope ? undefined : lines(owner.documentation)[0];
-    if (d) out.push(d);
+    if (d) classes.push(d);
     for (const c of own) {
       const kind =
         c.constructor.name === "UMLClass"
@@ -363,16 +409,17 @@ function explain(scope: Element): string {
         .getRelationshipsOf(c)
         .flatMap((r) => verbOf(r, c) ?? []);
       const ops = list(c.operations).map((o) => `${String(o.name)}()`);
-      out.push(
+      classes.push(
         `- ${String(c.name)} (${kind})${lines(c.documentation).length > 0 ? `: ${lines(c.documentation).join(" ")}` : ""}`,
         ...(relations.length > 0 ? [`  ${relations.join("; ")}`] : []),
         ...(ops.length > 0 ? [`  does: ${ops.join(", ")}`] : []),
       );
     }
   }
-  const collaborations = of("UMLCollaboration");
-  if (collaborations.length > 0) out.push("", "## Collaborations");
-  for (const c of collaborations) {
+  const collaborations: string[] = [];
+  const talks = of("UMLCollaboration");
+  if (talks.length > 0) collaborations.push("", "## Collaborations");
+  for (const c of talks) {
     const interaction = list(c.ownedElements).find(
       (e) => e.constructor.name === "UMLInteraction",
     );
@@ -380,23 +427,25 @@ function explain(scope: Element): string {
       (m) =>
         `${String((m.source as Element).name)} -> ${String((m.target as Element).name)}: ${String(m.name)}`,
     );
-    out.push(`- ${String(c.name)}: ${messages.join("; ")}`);
+    collaborations.push(`- ${String(c.name)}: ${messages.join("; ")}`);
   }
+  const lifecycles: string[] = [];
   const machines = of("UMLStateMachine");
-  if (machines.length > 0) out.push("", "## Lifecycles");
+  if (machines.length > 0) lifecycles.push("", "## Lifecycles");
   for (const m of machines) {
     const transitions = list(list(m.regions)[0]?.transitions).map((t) => {
       const name = (e: unknown) =>
         String((e as Element).name) || (e as Element).constructor.name.slice(3);
       return `${name(t.source)} -> ${name(t.target)}${t.name ? ` on ${String(t.name)}` : ""}`;
     });
-    out.push(
+    lifecycles.push(
       `- ${String(m.name)}${m._parent !== scope ? ` (of ${String(m._parent!.name)})` : ""}: ${transitions.join("; ")}`,
     );
   }
+  const useCases: string[] = [];
   const cases = of("UMLUseCase");
   if (cases.length > 0) {
-    out.push("", "## Use cases");
+    useCases.push("", "## Use cases");
     for (const a of of("UMLActor")) {
       const goals = app.repository.getRelationshipsOf(a).flatMap((r) => {
         if (r.constructor.name !== "UMLAssociation") return [];
@@ -406,39 +455,106 @@ function explain(scope: Element): string {
         ].find((e) => e !== a) as Element | undefined;
         return other && cases.includes(other) ? [String(other.name)] : [];
       });
-      out.push(`- ${String(a.name)}: ${goals.join(", ") || "(no use case)"}`);
+      useCases.push(
+        `- ${String(a.name)}: ${goals.join(", ") || "(no use case)"}`,
+      );
     }
   }
-  return out.join("\n");
+  const stored = viewLines(viewsOf(modelOf(scope)));
+  const views = stored.length > 0 ? ["", "## Views", ...stored] : [];
+  return {
+    summary,
+    classes,
+    collaborations,
+    lifecycles,
+    useCases,
+    views,
+  };
+}
+
+/** Where the text of each section starts, and the whole text. */
+function joined(
+  parts: Record<Section, string[]>,
+  sections: readonly Section[],
+): { text: string; starts: [Section, number][] } {
+  let text = "";
+  const starts: [Section, number][] = [];
+  for (const name of sections) {
+    const body = parts[name];
+    if (body.length === 0) continue;
+    if (text) text += "\n";
+    starts.push([name, text.length]);
+    text += body.join("\n");
+  }
+  return { text, starts };
 }
 
 export const explainModel = defineEndpoint({
   path: "/explain_model",
   description:
-    "The model as compact text to reason about: per package each class with its responsibilities (documentation), what it owns, has, knows, is, implements and uses, and its operations; each collaboration's messages; each lifecycle's transitions; each actor's use cases. Read-only.",
+    "The model as compact text to reason about, by section: summary; classes (per package each class with its responsibilities, what it owns, has, knows, is, implements and uses, and its operations); collaborations (each one's messages); lifecycles (each one's transitions); useCases (each actor's use cases); views (the view sections stored for /derive_diagrams). sections picks some, scope narrows to a package, maxChars bounds the answer: longer text ends with a marker naming the section it stopped in and the cursor to pass to read on. Read-only.",
   readOnly: true,
   destructive: false,
   request: z.object({
     scope: z.optional(ref("A model or package; default the project.")),
+    sections: z.optional(
+      doc(
+        z.array(z.enum(EXPLAIN_SECTIONS)).check(z.minLength(1)),
+        "Only these sections, in the text's order; default all.",
+      ),
+    ),
     maxChars: z.optional(
-      doc(z.int().check(z.minimum(200)), "Default 20000; longer text is cut."),
+      doc(
+        z.int().check(z.minimum(200)),
+        "Default 20000; longer text is cut at a line end and a marker line follows.",
+      ),
+    ),
+    cursor: z.optional(
+      doc(
+        z.int().check(z.minimum(0)),
+        "Where to start in the text, the next of a cut answer; default 0.",
+      ),
     ),
   }),
   aliases: { ref: "scope" },
   response: z.object({
     text: z.string(),
     truncated: z.boolean(),
+    next: z.optional(
+      doc(z.int(), "With truncated: the cursor that reads on from the cut."),
+    ),
+    stoppedIn: z.optional(
+      doc(z.enum(EXPLAIN_SECTIONS), "With truncated: the section cut."),
+    ),
+    total: z.optional(doc(z.int(), "With truncated: the whole text's length.")),
   }),
   handle: (input) => {
     const scope =
       input.scope === undefined
         ? requireProject()
         : requireElement(input.scope, "Scope");
-    const text = explain(scope);
+    const wanted = new Set(input.sections ?? EXPLAIN_SECTIONS);
+    const { text, starts } = joined(
+      explain(scope),
+      EXPLAIN_SECTIONS.filter((s) => wanted.has(s)),
+    );
     const max = input.maxChars ?? 20_000;
+    const from = Math.min(input.cursor ?? 0, text.length);
+    const rest = text.slice(from);
+    if (rest.length <= max) return { text: rest, truncated: false };
+    // Cut at the last line end that keeps at least half the room, so the
+    // cut part reads whole; a single line longer than that is cut inside.
+    const end = rest.lastIndexOf("\n", max);
+    const atLine = end >= max / 2;
+    const body = rest.slice(0, atLine ? end : max);
+    const next = from + body.length + (atLine ? 1 : 0);
+    const stoppedIn = starts.filter(([, at]) => at <= next).at(-1)![0];
     return {
-      text: text.length > max ? text.slice(0, max) : text,
-      truncated: text.length > max,
+      text: `${body}\n[truncated in ${stoppedIn} at ${next} of ${text.length} chars; call again with cursor: ${next}, or narrow sections or scope]`,
+      truncated: true,
+      next,
+      stoppedIn,
+      total: text.length,
     };
   },
 });

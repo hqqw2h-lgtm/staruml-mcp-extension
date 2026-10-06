@@ -22,6 +22,7 @@
  */
 
 import { pathOf } from "../refs.js";
+import { adaptRole, relationType } from "./adapt.js";
 import type { Element } from "../types.js";
 import type {
   Pattern,
@@ -55,14 +56,23 @@ export interface Detection {
 /** Owned lists of classifiers and operations, which every instance has. */
 const list = (v: unknown) => v as Element[];
 
-/** Whether `elem` can play a role of `type`: an abstract class stands for an interface. */
-function fits(role: Role, elem: Element): boolean {
+/**
+ * Whether `elem` can play `role`: an abstract class stands for an
+ * interface, and an interface for an abstract class role that /apply_pattern
+ * would adapt to it (adapt.ts).
+ */
+function fits(pattern: Pattern, role: Role, elem: Element): boolean {
   const t = elem.constructor.name;
   if (t === role.type) return true;
-  return (
-    role.type === "UMLInterface" && t === "UMLClass" && elem.isAbstract === true
-  );
+  if (role.type === "UMLInterface") {
+    return t === "UMLClass" && elem.isAbstract === true;
+  }
+  return typeof adaptRole(pattern, role, t) !== "string";
 }
+
+/** The role as `elem`, which fits it, plays it: adapted to its metaclass. */
+const asPlayed = (pattern: Pattern, role: Role, elem: Element) =>
+  adaptRole(pattern, role, elem.constructor.name) as Role;
 
 const ends = (r: Element): [Element | undefined, Element | undefined] =>
   "source" in r
@@ -105,13 +115,28 @@ const RELATION_TYPES: Record<PatternRelationship["type"], string> = {
   dependency: "UMLDependency",
 };
 
+/**
+ * Model relationship types `r` may be found as while binding: a
+ * generalization and a realization stand for each other between a class
+ * and an interface (adapt.ts), so either leads to the other role.
+ */
+const FAMILY: Record<string, readonly string[]> = {
+  UMLGeneralization: ["UMLGeneralization", "UMLInterfaceRealization"],
+  UMLInterfaceRealization: ["UMLGeneralization", "UMLInterfaceRealization"],
+};
+const familyOf = (r: PatternRelationship) =>
+  FAMILY[RELATION_TYPES[r.type]] ?? [RELATION_TYPES[r.type]];
+
 /** The model relationships that can stand for `r` from `from` to `to`. */
 export function relationsFor(
   r: PatternRelationship,
   from: Element,
   to: Element,
 ): Element[] {
-  const type = RELATION_TYPES[r.type];
+  const type =
+    RELATION_TYPES[
+      relationType(r.type, from.constructor.name, to.constructor.name)
+    ];
   return relationshipsOf(from).filter((m) => {
     if (m.constructor.name !== type) return false;
     const [a, b] = ends(m);
@@ -130,9 +155,10 @@ function neighbours(
   fromSide: boolean,
 ): Element[] {
   const type = RELATION_TYPES[r.type];
+  const family = familyOf(r);
   const out: Element[] = [];
   for (const m of relationshipsOf(elem)) {
-    if (m.constructor.name !== type) continue;
+    if (!family.includes(m.constructor.name)) continue;
     const [a, b] = ends(m);
     if (fromSide && a === elem && b) out.push(b);
     else if (!fromSide && b === elem && a) out.push(a);
@@ -178,16 +204,20 @@ function sameType(written: string, actual: unknown, binding: Binding): boolean {
 
 function scoreRole(
   s: Score,
-  role: Role,
+  pattern: Pattern,
+  written: Role,
   elem: Element,
   binding: Binding,
   share: number,
 ) {
   const at = pathOf(elem)!;
+  const fit = fits(pattern, written, elem);
+  // A misfit is counted once, against the role as written.
+  const role = fit ? asPlayed(pattern, written, elem) : written;
   s.add(
     share,
-    fits(role, elem),
-    () => `${at} is a ${elem.constructor.name}, not a ${role.type}`,
+    fit,
+    () => `${at} is a ${elem.constructor.name}, not a ${written.type}`,
   );
   for (const [k, v] of Object.entries(role.properties ?? {})) {
     s.add(share, elem[k] === v, () => `${at}.${k} is not ${String(v)}`);
@@ -292,7 +322,7 @@ export function score(pattern: Pattern, binding: Binding): Score {
       continue;
     }
     for (const elem of elems)
-      scoreRole(s, role, elem, binding, 1 / elems.length);
+      scoreRole(s, pattern, role, elem, binding, 1 / elems.length);
   }
   for (const r of pattern.relationships) {
     const optional = [r.from, r.to].some(
@@ -406,7 +436,8 @@ function extend(
       }
     }
     if (sets.length === 0) continue;
-    const ok = (x: Element) => !used.has(x) && inScope(x) && fits(role, x);
+    const ok = (x: Element) =>
+      !used.has(x) && inScope(x) && fits(pattern, role, x);
     const nonEmpty = sets
       .map((set) => [...new Set(set)].filter(ok))
       .filter((set) => set.length > 0);
@@ -507,10 +538,10 @@ export function detect(
           (r.from === anchor.name && !optional.has(r.to)) ||
           (r.to === anchor.name && !optional.has(r.from)),
       )
-      .map((r) => RELATION_TYPES[r.type]),
+      .flatMap(familyOf),
   );
   for (const elem of classifiers) {
-    if (!fits(anchor, elem)) continue;
+    if (!fits(pattern, anchor, elem)) continue;
     if (
       needed.size > 0 &&
       !relationshipsOf(elem).some((r) => needed.has(r.constructor.name))

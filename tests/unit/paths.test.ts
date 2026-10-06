@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import * as z from "zod/mini";
 import { defineEndpoint, renameAliases } from "../../src/endpoint.js";
 import { manifest } from "../../src/handlers/introspect.js";
+import { distance, lastName } from "../../src/refs.js";
 import { endpoints } from "../../src/routes.js";
 import {
   installMockApp,
@@ -178,12 +179,63 @@ describe("path references through endpoints", () => {
     expect(
       await ok<Summary>(endpoint("/get_element_by_id"), { ref: "Model/P" }),
     ).toMatchObject({ path: "Model/P" });
-    await fails(
+    // A miss offers the nearest names of the kind asked for.
+    const miss = await fails(
       endpoint("/create_element"),
       { type: "UMLClass", parent: "Nope/P" },
       "NOT_FOUND",
-      "Parent element not found: Nope/P",
+      "Parent element not found: Nope/P; nearest: Model/P, Model/Other/P",
     );
+    expect(miss.details).toEqual({
+      candidates: [
+        expect.objectContaining({ path: "Model/P", _type: "UMLPackage" }),
+        expect.objectContaining({ path: "Model/Other/P" }),
+      ],
+    });
+    // A typo, case aside, within a third of the name's length.
+    const typo = await fails(
+      endpoint("/get_element_by_id"),
+      { ref: "model/othre" },
+      "NOT_FOUND",
+    );
+    expect(typo.error).toContain("nearest: Model/Other");
+    // Far from every name: no candidates, the message as before.
+    const far = await fails(
+      endpoint("/get_element_by_id"),
+      { ref: "Zzzzzzzzzz" },
+      "NOT_FOUND",
+      "Element not found: Zzzzzzzzzz",
+    );
+    expect(far.details).toBeUndefined();
+    // Only diagrams are offered for a diagram.
+    const diagram = await fails(
+      endpoint("/switch_diagram"),
+      { diagram: "Other" },
+      "NOT_FOUND",
+    );
+    expect(diagram.error).not.toContain("Model/Other");
+    // Only elements drawn somewhere are offered for a view.
+    const view = await fails(
+      endpoint("/move_views"),
+      { refs: ["Othe"], dx: 1, dy: 1 },
+      "NOT_FOUND",
+    );
+    expect(view.error).not.toContain("Model/Other");
+  });
+});
+
+describe("nearest names", () => {
+  it("measure edits and read the last name a reference spells", () => {
+    expect(distance("kitten", "sitting")).toBe(3);
+    expect(distance("", "abc")).toBe(3);
+    expect(lastName("Model/Pkg/Klass")).toBe("Klass");
+    expect(lastName("Klass#op(a.B)")).toBe("op");
+    expect(lastName("Actor System (application.actors)")).toBe("Actor System");
+    expect(lastName("A\\/B")).toBe("A/B");
+    expect(lastName("Model::Pkg")).toBe("Pkg");
+    expect(lastName("Klass@Main")).toBe("Klass");
+    expect(lastName("a)b.c")).toBe("c");
+    expect(lastName("/")).toBe("");
   });
 });
 

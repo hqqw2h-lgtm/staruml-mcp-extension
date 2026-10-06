@@ -156,8 +156,9 @@ describe("/apply_pattern bindings", () => {
     });
     expect(get(target._id).documentation).toBe("Mine.");
     expect(applied.warnings).toEqual([
-      "Target is a UMLInterface in Adapter; Model/Target is a UMLClass",
+      "Target is an interface in Adapter; Model/Target is a UMLClass: it is made abstract, and realizations of it are generalizations",
     ]);
+    expect(get(target._id).isAbstract).toBe(true);
     expect(applied.changes.updated).toContainEqual({
       path: "Model/Target#request()",
       type: "UMLOperation",

@@ -62,14 +62,42 @@ export const RELATIONS = {
 } as const;
 export type RelationType = keyof typeof RELATIONS;
 
-const RELATION_ALIASES: Record<string, RelationType> = {
+/**
+ * UML words a spec might use for a relationship, with the verb that says
+ * it. They are refused (issue #40): an object-level spec states what one
+ * object does to another, and the build alone decides the UML it means.
+ */
+export const UML_WORDS: Readonly<Record<string, RelationType>> = {
   composition: "owns",
   aggregation: "has",
   dependency: "uses",
   generalization: "isA",
+  inheritance: "isA",
+  extends: "isA",
   realization: "implements",
+  interfaceRealization: "implements",
   directed: "knows",
+  directedAssociation: "knows",
 };
+
+/** The message for a relationship type that is not a verb. */
+export function relationTypeError(input: unknown): string | undefined {
+  const verb =
+    typeof input === "string" && Object.hasOwn(UML_WORDS, input)
+      ? UML_WORDS[input]
+      : undefined;
+  return verb === undefined
+    ? undefined
+    : `${input} is a UML word; an object spec writes the verb ${verb} (${RELATIONS[verb]})`;
+}
+
+/**
+ * Appended to an unknown-field error of a spec: the field most often
+ * refused is a position, a size or a colour.
+ */
+export const geometryHint = (endpoint: string) =>
+  `geometry and colours are never part of a spec (the style profile lays out and styles every view); see describe_endpoints ${endpoint}`;
+export const GEOMETRY_HINT = geometryHint("build_model");
 
 const memberList = () =>
   z.optional(z.array(z.union([z.string(), z.strictObject({ name: name() })])));
@@ -120,10 +148,9 @@ const relationSchema = () =>
     from: name(),
     to: name(),
     type: doc(
-      z.enum([
-        ...(Object.keys(RELATIONS) as RelationType[]),
-        ...Object.keys(RELATION_ALIASES),
-      ] as [string, ...string[]]),
+      z.enum(Object.keys(RELATIONS) as [RelationType, ...RelationType[]], {
+        error: (issue) => relationTypeError(issue.input),
+      }),
       Object.entries(RELATIONS)
         .map(([k, v]) => `${k}: ${v}`)
         .join("; "),
@@ -648,7 +675,7 @@ export function parseModelSpec(input: unknown): ModelSpec {
     const issue = parsed.error.issues[0]!;
     throw new ApiError(
       "INVALID_ARGUMENT",
-      `spec.${issue.path.map(String).join(".")}: ${issue.message}`,
+      `spec.${issue.path.map(String).join(".")}: ${issue.message}${issue.code === "unrecognized_keys" ? `; ${GEOMETRY_HINT}` : ""}`,
       parsed.error.issues,
     );
   }
@@ -713,7 +740,7 @@ export function parseModelSpec(input: unknown): ModelSpec {
     return {
       from: r.from,
       to: r.to,
-      type: RELATION_ALIASES[r.type] ?? (r.type as RelationType),
+      type: r.type,
       ...(r.name !== undefined && { name: r.name }),
       ...(from !== undefined && { fromMultiplicity: from }),
       ...(to !== undefined && { toMultiplicity: to }),

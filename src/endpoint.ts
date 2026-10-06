@@ -60,6 +60,11 @@ export interface EndpointSpec<
   request: Req;
   response: Res;
   handle(input: z.output<Req>): z.output<Res> | Promise<z.output<Res>>;
+  /**
+   * Said after an unknown-field error: what such a field usually is and
+   * where the accepted ones are listed.
+   */
+  unknownKeyHint?: string;
 }
 
 export interface Issue {
@@ -76,7 +81,7 @@ export function defineEndpoint<
   Req extends z.ZodMiniType,
   Res extends z.ZodMiniType,
 >(spec: EndpointSpec<Req, Res>): Endpoint {
-  const { handle, ...endpoint } = spec;
+  const { handle, unknownKeyHint, ...endpoint } = spec;
   const handler: Handler = async (body) => {
     let renamed: Renamed;
     try {
@@ -87,9 +92,13 @@ export function defineEndpoint<
     const parsed = z.safeParse(spec.request, renamed.body);
     if (!parsed.success) {
       const issues = parsed.error.issues.map((i) => toIssue(i, renamed.used));
+      const unknown =
+        unknownKeyHint !== undefined &&
+        parsed.error.issues.some((i) => i.code === "unrecognized_keys");
       return new ApiError(
         "INVALID_ARGUMENT",
-        issues.map((i) => `${i.path}: ${i.message}`).join("; "),
+        issues.map((i) => `${i.path}: ${i.message}`).join("; ") +
+          (unknown ? `; ${unknownKeyHint}` : ""),
         issues,
       ).toBody();
     }

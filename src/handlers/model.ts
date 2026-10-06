@@ -26,7 +26,12 @@ import { defineEndpoint, doc, type Endpoint } from "../endpoint.js";
 import { ApiError } from "../errors.js";
 import { requireDiagram, requireElement, requireProject } from "../lookup.js";
 import { calledName, type Change, planModel } from "../model/plan.js";
-import { modelSpecSchema, parseModelSpec, RELATIONS } from "../model/spec.js";
+import {
+  GEOMETRY_HINT,
+  modelSpecSchema,
+  parseModelSpec,
+  RELATIONS,
+} from "../model/spec.js";
 import { pathOf } from "../refs.js";
 import {
   normalizeModelSpec,
@@ -61,6 +66,91 @@ const changeSchema = () =>
     fields: z.optional(z.array(z.string())),
   });
 
+/** Paths of each kind a dry run lists unless asked for the full detail. */
+export const DRY_RUN_PATHS = 20;
+
+export const DRY_RUN_DETAILS = ["summary", "full"] as const;
+
+export const detailField = () =>
+  z.optional(
+    doc(
+      z.enum(DRY_RUN_DETAILS),
+      `With dryRun: summary (default; /build_model with result full defaults to full) lists the first ${DRY_RUN_PATHS} changes, ops and steps of each kind with the counts of the rest in omitted, strings in ops cut at ${CLIP} characters; full lists every one whole. A 645-op ThingsBoard model's full dry run is 80 KB.`,
+    ),
+  );
+
+export const omittedSchema = () =>
+  z.optional(
+    doc(
+      z.object({
+        created: z.int(),
+        updated: z.int(),
+        ops: z.int(),
+        steps: z.int(),
+      }),
+      "With a summary dry run: how many of each were left out of changes and plan.",
+    ),
+  );
+
+type Plan = ReturnType<typeof planOf>;
+
+/** Longest string a summary dry run quotes in an op's body. */
+export const CLIP = 200;
+
+/**
+ * Strings longer than CLIP cut to it with how many characters were left:
+ * the stored view sections ride in one tag op of 20 KB for ThingsBoard,
+ * a summary's first ops would otherwise carry them whole.
+ */
+export function clip(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value.length > CLIP
+      ? `${value.slice(0, CLIP)}... [${value.length - CLIP} more chars]`
+      : value;
+  }
+  if (Array.isArray(value)) return value.map(clip);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, clip(v)]),
+    );
+  }
+  return value;
+}
+
+/**
+ * A dry run's changes and plan as a summary: the first DRY_RUN_PATHS of
+ * each list, and how many were left out. The counts answer the size; the
+ * first paths show what kind of change it is.
+ */
+export function summarize<C>(
+  changes: { created: C[]; updated: C[] },
+  plan: Plan,
+  detail: (typeof DRY_RUN_DETAILS)[number] | undefined,
+) {
+  if (detail === "full") return { changes, plan };
+  const first = <T>(list: T[]) => list.slice(0, DRY_RUN_PATHS);
+  const rest = (list: unknown[]) => Math.max(0, list.length - DRY_RUN_PATHS);
+  const omitted = {
+    created: rest(changes.created),
+    updated: rest(changes.updated),
+    ops: rest(plan.ops),
+    steps: rest(plan.creates) + rest(plan.updates) + rest(plan.deletes),
+  };
+  return {
+    changes: {
+      created: first(changes.created),
+      updated: first(changes.updated),
+    },
+    plan: {
+      ops: first(plan.ops).map((op) => clip(op) as (typeof plan.ops)[number]),
+      creates: first(plan.creates),
+      updates: first(plan.updates),
+      deletes: first(plan.deletes),
+    },
+    ...(Object.values(omitted).some((n) => n > 0) && { omitted }),
+  };
+}
+
 const countBy = (changes: readonly Change[]) => {
   const out: Record<string, number> = {};
   for (const c of changes) out[c.type] = (out[c.type] ?? 0) + 1;
@@ -77,7 +167,8 @@ export function buildModelEndpoint(
 ): Endpoint {
   return defineEndpoint({
     path: "/build_model",
-    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. The spec is strict (additionalProperties false, no geometry or colour fields); its view sections (classViews, useCaseViews, activities, erd, components, deployments, features) are stored with the model as a hidden tag for /derive_diagrams. dryRun lists the changes and the /batch ops; upsert updates the model of the same name.`,
+    unknownKeyHint: GEOMETRY_HINT,
+    description: `Make or update a model from an object-level spec, without diagrams, as one undo step: packages (contexts), classes with members and responsibilities (documentation), relationships (${Object.keys(RELATIONS).join(", ")}), actors and use cases, collaborations as interactions with lifelines and messages, lifecycles as state machines. The spec is strict (additionalProperties false, no geometry or colour fields); its view sections (classViews, useCaseViews, activities, erd, components, deployments, features) are stored with the model as a hidden tag for /derive_diagrams. Relationship types are these verbs only: a UML word (composition, generalization...) is refused with the verb to write. dryRun answers the counts with the first 20 changes and /batch ops (detail full: every one); upsert updates the model of the same name.`,
     readOnly: false,
     destructive: false,
     request: z.object({
@@ -101,9 +192,10 @@ export function buildModelEndpoint(
       dryRun: z.optional(
         doc(
           z.boolean(),
-          "Answer the changes and the exact /batch ops, and change nothing.",
+          "Answer the changes and the /batch ops, and change nothing; detail says how many.",
         ),
       ),
+      detail: detailField(),
       result: resultField(
         "terse (default): counts by element type. ids: also the id of each package, classifier, collaboration and state machine by path. full: also every created and updated element.",
       ),
@@ -145,6 +237,7 @@ export function buildModelEndpoint(
       ),
       dryRun: z.optional(z.boolean()),
       plan: z.optional(doc(planSchema(), "With dryRun: what applying runs.")),
+      omitted: omittedSchema(),
       style: z.optional(styleReportSchema()),
     }),
     handle: async (input) => {
@@ -164,9 +257,10 @@ export function buildModelEndpoint(
           updated: countBy(plan.updated),
           unchanged: plan.unchanged,
         },
-        ...((mode === "full" || input.dryRun) && {
-          changes: { created: plan.created, updated: plan.updated },
-        }),
+        ...(mode === "full" &&
+          !input.dryRun && {
+            changes: { created: plan.created, updated: plan.updated },
+          }),
         style: styleReport(profile, renames, 0),
       };
       const model = {
@@ -180,7 +274,12 @@ export function buildModelEndpoint(
           ...report,
           ...(mode !== "terse" && { ids: Object.fromEntries(plan.refs) }),
           dryRun: true,
-          plan: planOf(plan.ops),
+          ...summarize(
+            { created: plan.created, updated: plan.updated },
+            planOf(plan.ops),
+            // Asking for every result asks for every change too.
+            input.detail ?? (mode === "full" ? "full" : undefined),
+          ),
         };
       }
       const run =

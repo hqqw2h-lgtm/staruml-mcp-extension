@@ -116,7 +116,11 @@ describe("build_model properties", () => {
     await fc.assert(
       fc.asyncProperty(specArb, async (spec) => {
         installMockApp();
-        const dry = await buildModel.handler({ spec, dryRun: true });
+        const dry = await buildModel.handler({
+          spec,
+          dryRun: true,
+          detail: "full",
+        });
         expect(dry.success, JSON.stringify(dry)).toBe(true);
         const counts = (
           dry as { data: { counts: { created: Record<string, number> } } }

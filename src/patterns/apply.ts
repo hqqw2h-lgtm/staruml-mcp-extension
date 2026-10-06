@@ -27,6 +27,7 @@ import { ApiError } from "../errors.js";
 import { type ModelOp, type Node, Planner } from "../model/planner.js";
 import { pathOf, tryResolve } from "../refs.js";
 import type { Element } from "../types.js";
+import { adaptation, adaptRole, relationType } from "./adapt.js";
 import type {
   Pattern,
   PatternAttribute,
@@ -148,26 +149,35 @@ export function planPattern(
   // Bind every role first: members refer to other roles' elements.
   const bound = new Map<
     string,
-    { node: Node; created: boolean; name: string }[]
+    { node: Node; created: boolean; name: string; role: Role }[]
   >();
   for (const role of pattern.roles) {
     bound.set(
       role.name,
       resolveBinding(role, options.bindings[role.name]).map((b) => {
         if ("elem" in b) {
-          if (b.elem.constructor.name !== role.type) {
-            warnings.push(
-              `${role.name} is a ${role.type} in ${pattern.name}; ${pathOf(b.elem)} is a ${b.elem.constructor.name}`,
+          const type = b.elem.constructor.name;
+          const path = pathOf(b.elem)!;
+          // An element of another metaclass plays the role adapted, the
+          // way /detect_patterns reads it back, or not at all.
+          const played = adaptRole(pattern, role, type);
+          if (typeof played === "string") {
+            throw new ApiError(
+              "INVALID_ARGUMENT",
+              `bindings.${role.name}: ${path} is a ${type}; ${played}`,
             );
           }
+          if (played !== role)
+            warnings.push(adaptation(pattern, role, type, path));
           return {
-            node: { ref: b.elem._id, elem: b.elem, path: pathOf(b.elem)! },
+            node: { ref: b.elem._id, elem: b.elem, path },
             created: false,
             name: b.elem.name!,
+            role: played,
           };
         }
         const node = p.element(parent, role.type, b.name, {});
-        return { node, created: node.elem === null, name: b.name };
+        return { node, created: node.elem === null, name: b.name, role };
       }),
     );
   }
@@ -187,8 +197,8 @@ export function planPattern(
     return fill(text, names);
   };
 
-  for (const role of pattern.roles) {
-    for (const { node, name } of bound.get(role.name)!) {
+  for (const { name: roleName } of pattern.roles) {
+    for (const { node, name, role } of bound.get(roleName)!) {
       const doc =
         role.documentation !== undefined &&
         (node.elem === null || !node.elem.documentation)
@@ -216,7 +226,10 @@ export function planPattern(
     const froms = bound.get(r.from)!;
     const tos = bound.get(r.to)!;
     for (const from of froms) {
-      for (const to of tos) edges.push(relationship(p, r, from.node, to.node));
+      for (const to of tos) {
+        const type = relationType(r.type, from.role.type, to.role.type);
+        edges.push(relationship(p, { ...r, type }, from.node, to.node));
+      }
     }
   }
 
@@ -234,7 +247,7 @@ export function planPattern(
   let diagram: string | undefined;
   if (options.diagram) {
     const shown = pattern.roles.flatMap((role) =>
-      bound.get(role.name)!.map((b) => ({ node: b.node, type: role.type })),
+      bound.get(role.name)!.map((b) => ({ node: b.node, type: b.role.type })),
     );
     diagram = classDiagram(
       ops,

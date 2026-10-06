@@ -361,7 +361,11 @@ describe("/build_model", () => {
   });
 
   it("plans exactly what it applies, and a dry run changes nothing", async () => {
-    const dry = await ok<Built>(buildModel, { spec: SHOP, dryRun: true });
+    const dry = await ok<Built>(buildModel, {
+      spec: SHOP,
+      dryRun: true,
+      detail: "full",
+    });
     expect(dry.dryRun).toBe(true);
     expect(all("UMLClass")).toHaveLength(0);
     expect(dry.model._id).toBe("$m0");
@@ -370,6 +374,55 @@ describe("/build_model", () => {
     expect(applied.counts).toEqual(dry.counts);
     expect(applied.changes).toEqual(dry.changes);
     expect(dry.plan!.ops.length).toBe(total(dry.counts.created));
+  });
+
+  it("answers a dry run as a summary unless asked for every change", async () => {
+    const summary = await ok<
+      Built & {
+        omitted?: {
+          created: number;
+          updated: number;
+          ops: number;
+          steps: number;
+        };
+        plan?: { ops: unknown[]; creates: unknown[]; updates: unknown[] };
+      }
+    >(buildModel, { spec: tb, dryRun: true });
+    const full = await ok<Built & { omitted?: unknown }>(buildModel, {
+      spec: tb,
+      dryRun: true,
+      detail: "full",
+    });
+    expect(full.omitted).toBeUndefined();
+    const everything = await ok<Built & { omitted?: unknown }>(buildModel, {
+      spec: tb,
+      dryRun: true,
+      result: "full",
+    });
+    expect(everything.omitted).toBeUndefined();
+    expect(everything.changes).toEqual(full.changes);
+    expect(summary.counts).toEqual(full.counts);
+    expect(summary.changes!.created).toEqual(
+      full.changes!.created.slice(0, 20),
+    );
+    expect(summary.plan!.ops).toHaveLength(20);
+    expect(summary.omitted).toEqual({
+      created: full.changes!.created.length - 20,
+      updated: 0,
+      ops: full.plan!.ops.length - 20,
+      steps: expect.any(Number),
+    });
+    // The ThingsBoard dry run answered 80 KB in the validation.
+    expect(JSON.stringify(summary).length).toBeLessThan(
+      JSON.stringify(full).length / 5,
+    );
+    // A small plan is answered whole either way.
+    const small = await ok<Built & { omitted?: unknown }>(buildModel, {
+      spec: { name: "Tiny", classes: [{ name: "A" }] },
+      dryRun: true,
+    });
+    expect(small.omitted).toBeUndefined();
+    expect(small.plan!.ops.length).toBeGreaterThan(0);
   });
 
   it("refuses a model that exists unless upserting, and then changes only what differs", async () => {
@@ -629,9 +682,9 @@ describe("/build_model spec forms", () => {
           { name: "B" },
         ],
         relationships: [
-          { from: "A", to: "B", type: "dependency", name: "calls" },
+          { from: "A", to: "B", type: "uses", name: "calls" },
           { from: "A", to: "B", type: "association" },
-          { from: "B", to: "A", type: "composition", fromRole: "whole" },
+          { from: "B", to: "A", type: "owns", fromRole: "whole" },
         ],
         actors: [{ name: "Admin", documentation: "Runs it." }],
         collaborations: [
