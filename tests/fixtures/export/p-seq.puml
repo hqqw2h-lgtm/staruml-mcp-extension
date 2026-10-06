@@ -1,0 +1,25 @@
+@startuml
+participant "User" as P0
+participant "Web App" as P1
+participant "Server" as P2
+participant "DB" as P3
+participant "Log" as P4
+P0 -> P1 : open
+P1 ->> P2 : fetch
+P2 --> P1 : data
+alt cache hit
+P2 -> P2 : read cache
+else miss
+P2 -> P3 : query
+P3 --> P2 : rows
+end
+create P4
+P2 -> P4 : new
+note over P1, P2
+  all HTTPS
+end note
+note right of P0
+  happy
+  path
+end note
+@enduml

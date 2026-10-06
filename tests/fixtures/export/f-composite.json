@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {
+      "name": "Car",
+      "type": "class",
+      "attributes": [
+        "+vin: String"
+      ]
+    },
+    {
+      "name": "engine",
+      "type": "part",
+      "in": "Car"
+    },
+    {
+      "name": "wheels",
+      "type": "part",
+      "in": "Car"
+    },
+    {
+      "name": "power",
+      "type": "port",
+      "in": "Car"
+    }
+  ],
+  "edges": [
+    {
+      "from": "engine",
+      "to": "wheels",
+      "type": "connector",
+      "name": "drives"
+    }
+  ]
+}

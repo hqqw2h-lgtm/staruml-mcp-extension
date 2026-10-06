@@ -1,0 +1,17 @@
+flowchart TD
+  subgraph L0["Customer"]
+    N0(["start"])
+    N1["Order"]
+  end
+  subgraph L1["Shop"]
+    N2{"stock?"}
+    N3["Ship"]
+    N4["Refund"]
+    N5(["end"])
+  end
+  N0 --> N1
+  N1 --> N2
+  N2 -->|yes| N3
+  N2 -->|no| N4
+  N3 --> N5
+  N4 --> N5

@@ -1,0 +1,95 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Unit of Work",
+  "category": "domain",
+  "intent": "Track the objects a business transaction changes and write the changes out together.",
+  "roles": [
+    {
+      "name": "UnitOfWork",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Records new, changed and removed objects and commits them as one.",
+      "attributes": [
+        {
+          "name": "newObjects",
+          "type": "{Entity}",
+          "visibility": "private",
+          "multiplicity": "0..*"
+        },
+        {
+          "name": "dirtyObjects",
+          "type": "{Entity}",
+          "visibility": "private",
+          "multiplicity": "0..*"
+        },
+        {
+          "name": "removedObjects",
+          "type": "{Entity}",
+          "visibility": "private",
+          "multiplicity": "0..*"
+        }
+      ],
+      "operations": [
+        {
+          "name": "registerNew",
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "registerDirty",
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "registerRemoved",
+          "parameters": [
+            {
+              "name": "entity",
+              "type": "{Entity}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "commit"
+        },
+        {
+          "name": "rollback"
+        }
+      ]
+    },
+    {
+      "name": "Entity",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "A domain object whose changes are tracked.",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "Object",
+          "visibility": "private",
+          "isID": true,
+          "isReadOnly": true
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "dependency",
+      "from": "UnitOfWork",
+      "to": "Entity"
+    }
+  ]
+}

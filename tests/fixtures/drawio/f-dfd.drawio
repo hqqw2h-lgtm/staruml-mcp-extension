@@ -1,0 +1,34 @@
+<mxfile host="staruml-mcp-extension" type="device" compressed="false">
+  <diagram id="ID1" name="Order processing">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ID2" value="Customer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ID3" value="Place order" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="160" width="140" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ID4" value="Ship order" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="140" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ID5" value="Orders" style="shape=partialRectangle;top=1;bottom=1;left=1;right=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ID6" value="order" style="html=1;labelBackgroundColor=default;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.57;exitY=0.67;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID7" value="order record" style="html=1;labelBackgroundColor=default;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0;exitY=0.75;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID3" target="ID5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID8" value="pending order" style="html=1;labelBackgroundColor=default;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.57;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID5" target="ID4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID9" value="parcel" style="html=1;labelBackgroundColor=default;endArrow=block;endFill=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.57;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.57;entryY=0.67;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID4" target="ID2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

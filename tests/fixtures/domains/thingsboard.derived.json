@@ -1,0 +1,6572 @@
+[
+ {
+  "kind": "package",
+  "name": "ThingsBoard packages",
+  "parent": "ThingsBoard",
+  "spec": {
+   "packages": [
+    {
+     "name": "Domain Model (common.data)"
+    },
+    {
+     "name": "Messaging (common.message, common.queue)"
+    },
+    {
+     "name": "Actor Framework (common.actor)"
+    },
+    {
+     "name": "Persistence (dao)"
+    },
+    {
+     "name": "Rule Engine API"
+    },
+    {
+     "name": "Rule Node Library"
+    },
+    {
+     "name": "Transport API (common.transport)"
+    },
+    {
+     "name": "Protocol Transports"
+    },
+    {
+     "name": "Actor System (application.actors)"
+    },
+    {
+     "name": "Application Services"
+    },
+    {
+     "name": "Security"
+    },
+    {
+     "name": "REST and WebSocket API (application.controller)"
+    },
+    {
+     "name": "Angular UI (ui-ngx)"
+    },
+    {
+     "name": "Microservice Packaging (msa)"
+    },
+    {
+     "name": "Entity Data Query Service"
+    }
+   ],
+   "dependencies": [
+    {
+     "from": "Messaging (common.message, common.queue)",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Persistence (dao)",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Rule Engine API",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Transport API (common.transport)",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Application Services",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Security",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Entity Data Query Service",
+     "to": "Domain Model (common.data)"
+    },
+    {
+     "from": "Actor Framework (common.actor)",
+     "to": "Messaging (common.message, common.queue)"
+    },
+    {
+     "from": "Rule Engine API",
+     "to": "Messaging (common.message, common.queue)"
+    },
+    {
+     "from": "Transport API (common.transport)",
+     "to": "Messaging (common.message, common.queue)"
+    },
+    {
+     "from": "Application Services",
+     "to": "Messaging (common.message, common.queue)"
+    },
+    {
+     "from": "Entity Data Query Service",
+     "to": "Messaging (common.message, common.queue)"
+    },
+    {
+     "from": "Actor System (application.actors)",
+     "to": "Actor Framework (common.actor)"
+    },
+    {
+     "from": "Rule Node Library",
+     "to": "Persistence (dao)"
+    },
+    {
+     "from": "Application Services",
+     "to": "Persistence (dao)"
+    },
+    {
+     "from": "Security",
+     "to": "Persistence (dao)"
+    },
+    {
+     "from": "REST and WebSocket API (application.controller)",
+     "to": "Persistence (dao)"
+    },
+    {
+     "from": "Rule Node Library",
+     "to": "Rule Engine API"
+    },
+    {
+     "from": "Actor System (application.actors)",
+     "to": "Rule Engine API"
+    },
+    {
+     "from": "Actor System (application.actors)",
+     "to": "Rule Node Library"
+    },
+    {
+     "from": "Protocol Transports",
+     "to": "Transport API (common.transport)"
+    },
+    {
+     "from": "Microservice Packaging (msa)",
+     "to": "Protocol Transports"
+    },
+    {
+     "from": "Actor System (application.actors)",
+     "to": "Application Services"
+    },
+    {
+     "from": "Microservice Packaging (msa)",
+     "to": "Actor System (application.actors)"
+    },
+    {
+     "from": "REST and WebSocket API (application.controller)",
+     "to": "Application Services"
+    },
+    {
+     "from": "REST and WebSocket API (application.controller)",
+     "to": "Security"
+    },
+    {
+     "from": "Angular UI (ui-ngx)",
+     "to": "REST and WebSocket API (application.controller)"
+    },
+    {
+     "from": "Microservice Packaging (msa)",
+     "to": "REST and WebSocket API (application.controller)"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Domain Model (common.data)",
+    "UMLPackage",
+    "ThingsBoard/Domain Model \\(common\\.data\\)"
+   ],
+   [
+    "Messaging (common.message, common.queue)",
+    "UMLPackage",
+    "ThingsBoard/Messaging \\(common\\.message\\, common\\.queue\\)"
+   ],
+   [
+    "Actor Framework (common.actor)",
+    "UMLPackage",
+    "ThingsBoard/Actor Framework \\(common\\.actor\\)"
+   ],
+   [
+    "Persistence (dao)",
+    "UMLPackage",
+    "ThingsBoard/Persistence \\(dao\\)"
+   ],
+   [
+    "Rule Engine API",
+    "UMLPackage",
+    "ThingsBoard/Rule Engine API"
+   ],
+   [
+    "Rule Node Library",
+    "UMLPackage",
+    "ThingsBoard/Rule Node Library"
+   ],
+   [
+    "Transport API (common.transport)",
+    "UMLPackage",
+    "ThingsBoard/Transport API \\(common\\.transport\\)"
+   ],
+   [
+    "Protocol Transports",
+    "UMLPackage",
+    "ThingsBoard/Protocol Transports"
+   ],
+   [
+    "Actor System (application.actors)",
+    "UMLPackage",
+    "ThingsBoard/Actor System \\(application\\.actors\\)"
+   ],
+   [
+    "Application Services",
+    "UMLPackage",
+    "ThingsBoard/Application Services"
+   ],
+   [
+    "Security",
+    "UMLPackage",
+    "ThingsBoard/Security"
+   ],
+   [
+    "REST and WebSocket API (application.controller)",
+    "UMLPackage",
+    "ThingsBoard/REST and WebSocket API \\(application\\.controller\\)"
+   ],
+   [
+    "Angular UI (ui-ngx)",
+    "UMLPackage",
+    "ThingsBoard/Angular UI \\(ui-ngx\\)"
+   ],
+   [
+    "Microservice Packaging (msa)",
+    "UMLPackage",
+    "ThingsBoard/Microservice Packaging \\(msa\\)"
+   ],
+   [
+    "Entity Data Query Service",
+    "UMLPackage",
+    "ThingsBoard/Entity Data Query Service"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLDependency",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ],
+   [
+    2,
+    "UMLDependency",
+    ""
+   ],
+   [
+    3,
+    "UMLDependency",
+    ""
+   ],
+   [
+    4,
+    "UMLDependency",
+    ""
+   ],
+   [
+    5,
+    "UMLDependency",
+    ""
+   ],
+   [
+    6,
+    "UMLDependency",
+    ""
+   ],
+   [
+    7,
+    "UMLDependency",
+    ""
+   ],
+   [
+    8,
+    "UMLDependency",
+    ""
+   ],
+   [
+    9,
+    "UMLDependency",
+    ""
+   ],
+   [
+    10,
+    "UMLDependency",
+    ""
+   ],
+   [
+    11,
+    "UMLDependency",
+    ""
+   ],
+   [
+    12,
+    "UMLDependency",
+    ""
+   ],
+   [
+    13,
+    "UMLDependency",
+    ""
+   ],
+   [
+    14,
+    "UMLDependency",
+    ""
+   ],
+   [
+    15,
+    "UMLDependency",
+    ""
+   ],
+   [
+    16,
+    "UMLDependency",
+    ""
+   ],
+   [
+    17,
+    "UMLDependency",
+    ""
+   ],
+   [
+    18,
+    "UMLDependency",
+    ""
+   ],
+   [
+    19,
+    "UMLDependency",
+    ""
+   ],
+   [
+    20,
+    "UMLDependency",
+    ""
+   ],
+   [
+    21,
+    "UMLDependency",
+    ""
+   ],
+   [
+    22,
+    "UMLDependency",
+    ""
+   ],
+   [
+    23,
+    "UMLDependency",
+    ""
+   ],
+   [
+    24,
+    "UMLDependency",
+    ""
+   ],
+   [
+    25,
+    "UMLDependency",
+    ""
+   ],
+   [
+    26,
+    "UMLDependency",
+    ""
+   ],
+   [
+    27,
+    "UMLDependency",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Class - Entities and DAO",
+  "parent": "ThingsBoard",
+  "spec": {
+   "classes": [
+    {
+     "name": "Tenant",
+     "kind": "class"
+    },
+    {
+     "name": "Customer",
+     "kind": "class"
+    },
+    {
+     "name": "User",
+     "kind": "class"
+    },
+    {
+     "name": "Device",
+     "kind": "class"
+    },
+    {
+     "name": "DeviceProfile",
+     "kind": "class"
+    },
+    {
+     "name": "DeviceCredentials",
+     "kind": "class"
+    },
+    {
+     "name": "Asset",
+     "kind": "class"
+    },
+    {
+     "name": "Alarm",
+     "kind": "class"
+    },
+    {
+     "name": "RuleChain",
+     "kind": "class"
+    },
+    {
+     "name": "RuleNode",
+     "kind": "class"
+    },
+    {
+     "name": "EntityRelation",
+     "kind": "class"
+    },
+    {
+     "name": "EntityType",
+     "kind": "enum"
+    },
+    {
+     "name": "AlarmStatus",
+     "kind": "enum"
+    },
+    {
+     "name": "AlarmSeverity",
+     "kind": "enum"
+    },
+    {
+     "name": "Dao",
+     "kind": "interface"
+    },
+    {
+     "name": "DeviceDao",
+     "kind": "interface"
+    },
+    {
+     "name": "DeviceService",
+     "kind": "interface"
+    },
+    {
+     "name": "DeviceServiceImpl",
+     "kind": "class"
+    },
+    {
+     "name": "DeviceCredentialsService",
+     "kind": "interface"
+    },
+    {
+     "name": "DeviceProfileService",
+     "kind": "interface"
+    },
+    {
+     "name": "TimeseriesService",
+     "kind": "interface"
+    },
+    {
+     "name": "AlarmService",
+     "kind": "interface"
+    }
+   ],
+   "relations": [
+    {
+     "from": "Tenant",
+     "to": "Customer",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "Tenant",
+     "to": "Device",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "Customer",
+     "to": "User",
+     "type": "aggregation",
+     "fromMultiplicity": "0..1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "Customer",
+     "to": "Device",
+     "type": "aggregation",
+     "fromMultiplicity": "0..1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "Device",
+     "to": "DeviceProfile",
+     "type": "directed",
+     "fromMultiplicity": "0..*",
+     "toMultiplicity": "1"
+    },
+    {
+     "from": "Device",
+     "to": "DeviceCredentials",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1"
+    },
+    {
+     "from": "Alarm",
+     "to": "Device",
+     "type": "directed",
+     "name": "originator",
+     "fromMultiplicity": "0..*",
+     "toMultiplicity": "1"
+    },
+    {
+     "from": "EntityRelation",
+     "to": "Device",
+     "type": "directed"
+    },
+    {
+     "from": "DeviceDao",
+     "to": "Device",
+     "type": "dependency"
+    },
+    {
+     "from": "DeviceProfile",
+     "to": "RuleChain",
+     "type": "directed",
+     "name": "default chain",
+     "fromMultiplicity": "0..*",
+     "toMultiplicity": "0..1"
+    },
+    {
+     "from": "EntityRelation",
+     "to": "Asset",
+     "type": "directed"
+    },
+    {
+     "from": "Alarm",
+     "to": "AlarmStatus",
+     "type": "dependency"
+    },
+    {
+     "from": "Alarm",
+     "to": "AlarmSeverity",
+     "type": "dependency"
+    },
+    {
+     "from": "AlarmService",
+     "to": "Alarm",
+     "type": "dependency"
+    },
+    {
+     "from": "RuleChain",
+     "to": "RuleNode",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "DeviceDao",
+     "to": "Dao",
+     "type": "generalization"
+    },
+    {
+     "from": "DeviceServiceImpl",
+     "to": "DeviceDao",
+     "type": "dependency"
+    },
+    {
+     "from": "DeviceServiceImpl",
+     "to": "DeviceService",
+     "type": "realization"
+    },
+    {
+     "from": "DeviceServiceImpl",
+     "to": "DeviceCredentialsService",
+     "type": "dependency"
+    },
+    {
+     "from": "DeviceServiceImpl",
+     "to": "DeviceProfileService",
+     "type": "dependency"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Tenant",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Tenant"
+   ],
+   [
+    "Customer",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Customer"
+   ],
+   [
+    "User",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/User"
+   ],
+   [
+    "Device",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device"
+   ],
+   [
+    "DeviceProfile",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/DeviceProfile"
+   ],
+   [
+    "DeviceCredentials",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/DeviceCredentials"
+   ],
+   [
+    "Asset",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Asset"
+   ],
+   [
+    "Alarm",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm"
+   ],
+   [
+    "RuleChain",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/RuleChain"
+   ],
+   [
+    "RuleNode",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/RuleNode"
+   ],
+   [
+    "EntityRelation",
+    "UMLClass",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/EntityRelation"
+   ],
+   [
+    "EntityType",
+    "UMLEnumeration",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/EntityType"
+   ],
+   [
+    "AlarmStatus",
+    "UMLEnumeration",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/AlarmStatus"
+   ],
+   [
+    "AlarmSeverity",
+    "UMLEnumeration",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/AlarmSeverity"
+   ],
+   [
+    "Dao",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/Dao"
+   ],
+   [
+    "DeviceDao",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/DeviceDao"
+   ],
+   [
+    "DeviceService",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/DeviceService"
+   ],
+   [
+    "DeviceServiceImpl",
+    "UMLClass",
+    "ThingsBoard/Persistence \\(dao\\)/DeviceServiceImpl"
+   ],
+   [
+    "DeviceCredentialsService",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/DeviceCredentialsService"
+   ],
+   [
+    "DeviceProfileService",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/DeviceProfileService"
+   ],
+   [
+    "TimeseriesService",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/TimeseriesService"
+   ],
+   [
+    "AlarmService",
+    "UMLInterface",
+    "ThingsBoard/Persistence \\(dao\\)/AlarmService"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    2,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    3,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    4,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    5,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    6,
+    "UMLAssociation",
+    "originator"
+   ],
+   [
+    7,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    8,
+    "UMLDependency",
+    ""
+   ],
+   [
+    9,
+    "UMLAssociation",
+    "default chain"
+   ],
+   [
+    10,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    11,
+    "UMLDependency",
+    ""
+   ],
+   [
+    12,
+    "UMLDependency",
+    ""
+   ],
+   [
+    13,
+    "UMLDependency",
+    ""
+   ],
+   [
+    14,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    15,
+    "UMLGeneralization",
+    ""
+   ],
+   [
+    16,
+    "UMLDependency",
+    ""
+   ],
+   [
+    17,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    18,
+    "UMLDependency",
+    ""
+   ],
+   [
+    19,
+    "UMLDependency",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Class - Application Services",
+  "parent": "ThingsBoard",
+  "spec": {
+   "classes": [
+    {
+     "name": "DeviceStateService",
+     "kind": "interface"
+    },
+    {
+     "name": "DefaultDeviceStateService",
+     "kind": "class"
+    },
+    {
+     "name": "TbClusterService",
+     "kind": "interface"
+    },
+    {
+     "name": "TbCoreConsumerService",
+     "kind": "interface"
+    },
+    {
+     "name": "TbRuleEngineConsumerService",
+     "kind": "interface"
+    },
+    {
+     "name": "TelemetrySubscriptionService",
+     "kind": "interface"
+    },
+    {
+     "name": "SubscriptionManagerService",
+     "kind": "interface"
+    },
+    {
+     "name": "DeviceProvisionService",
+     "kind": "interface"
+    },
+    {
+     "name": "ClaimDevicesService",
+     "kind": "interface"
+    },
+    {
+     "name": "AlarmSubscriptionService",
+     "kind": "interface"
+    }
+   ],
+   "relations": [
+    {
+     "from": "DefaultDeviceStateService",
+     "to": "DeviceStateService",
+     "type": "realization"
+    },
+    {
+     "from": "DefaultDeviceStateService",
+     "to": "TelemetrySubscriptionService",
+     "type": "dependency"
+    },
+    {
+     "from": "DefaultDeviceStateService",
+     "to": "TbClusterService",
+     "type": "dependency"
+    },
+    {
+     "from": "TbCoreConsumerService",
+     "to": "TbClusterService",
+     "type": "dependency"
+    },
+    {
+     "from": "TbRuleEngineConsumerService",
+     "to": "TbClusterService",
+     "type": "dependency"
+    },
+    {
+     "from": "TelemetrySubscriptionService",
+     "to": "SubscriptionManagerService",
+     "type": "dependency"
+    },
+    {
+     "from": "AlarmSubscriptionService",
+     "to": "SubscriptionManagerService",
+     "type": "dependency"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "DeviceStateService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/DeviceStateService"
+   ],
+   [
+    "DefaultDeviceStateService",
+    "UMLClass",
+    "ThingsBoard/Application Services/DefaultDeviceStateService"
+   ],
+   [
+    "TbClusterService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/TbClusterService"
+   ],
+   [
+    "TbCoreConsumerService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/TbCoreConsumerService"
+   ],
+   [
+    "TbRuleEngineConsumerService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/TbRuleEngineConsumerService"
+   ],
+   [
+    "TelemetrySubscriptionService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/TelemetrySubscriptionService"
+   ],
+   [
+    "SubscriptionManagerService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/SubscriptionManagerService"
+   ],
+   [
+    "DeviceProvisionService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/DeviceProvisionService"
+   ],
+   [
+    "ClaimDevicesService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/ClaimDevicesService"
+   ],
+   [
+    "AlarmSubscriptionService",
+    "UMLInterface",
+    "ThingsBoard/Application Services/AlarmSubscriptionService"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ],
+   [
+    2,
+    "UMLDependency",
+    ""
+   ],
+   [
+    3,
+    "UMLDependency",
+    ""
+   ],
+   [
+    4,
+    "UMLDependency",
+    ""
+   ],
+   [
+    5,
+    "UMLDependency",
+    ""
+   ],
+   [
+    6,
+    "UMLDependency",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Class - Rule Engine",
+  "parent": "ThingsBoard",
+  "spec": {
+   "classes": [
+    {
+     "name": "TbNode",
+     "kind": "interface"
+    },
+    {
+     "name": "TbContext",
+     "kind": "interface"
+    },
+    {
+     "name": "TbNodeConfiguration",
+     "kind": "class"
+    },
+    {
+     "name": "ScriptEngine",
+     "kind": "interface"
+    },
+    {
+     "name": "RuleEngineTelemetryService",
+     "kind": "interface"
+    },
+    {
+     "name": "RuleEngineAlarmService",
+     "kind": "interface"
+    },
+    {
+     "name": "TbMsgTypeFilterNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbJsFilterNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbMsgTimeseriesNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbMsgAttributesNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbCreateAlarmNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbClearAlarmNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbDeviceProfileNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbLogNode",
+     "kind": "class"
+    },
+    {
+     "name": "TbMsg",
+     "kind": "class"
+    },
+    {
+     "name": "TbMsgMetaData",
+     "kind": "class"
+    }
+   ],
+   "relations": [
+    {
+     "from": "TbNode",
+     "to": "TbContext",
+     "type": "dependency"
+    },
+    {
+     "from": "TbNode",
+     "to": "TbMsg",
+     "type": "dependency"
+    },
+    {
+     "from": "TbMsgTypeFilterNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbJsFilterNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbMsgTimeseriesNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbMsgAttributesNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbCreateAlarmNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbClearAlarmNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbDeviceProfileNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbLogNode",
+     "to": "TbNode",
+     "type": "realization"
+    },
+    {
+     "from": "TbNode",
+     "to": "TbNodeConfiguration",
+     "type": "dependency"
+    },
+    {
+     "from": "TbJsFilterNode",
+     "to": "ScriptEngine",
+     "type": "dependency"
+    },
+    {
+     "from": "TbLogNode",
+     "to": "ScriptEngine",
+     "type": "dependency"
+    },
+    {
+     "from": "TbMsgTimeseriesNode",
+     "to": "RuleEngineTelemetryService",
+     "type": "dependency"
+    },
+    {
+     "from": "TbMsgAttributesNode",
+     "to": "RuleEngineTelemetryService",
+     "type": "dependency"
+    },
+    {
+     "from": "TbCreateAlarmNode",
+     "to": "RuleEngineAlarmService",
+     "type": "dependency"
+    },
+    {
+     "from": "TbClearAlarmNode",
+     "to": "RuleEngineAlarmService",
+     "type": "dependency"
+    },
+    {
+     "from": "TbMsg",
+     "to": "TbMsgMetaData",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "TbNode",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/TbNode"
+   ],
+   [
+    "TbContext",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/TbContext"
+   ],
+   [
+    "TbNodeConfiguration",
+    "UMLClass",
+    "ThingsBoard/Rule Engine API/TbNodeConfiguration"
+   ],
+   [
+    "ScriptEngine",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/ScriptEngine"
+   ],
+   [
+    "RuleEngineTelemetryService",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/RuleEngineTelemetryService"
+   ],
+   [
+    "RuleEngineAlarmService",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/RuleEngineAlarmService"
+   ],
+   [
+    "TbMsgTypeFilterNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbMsgTypeFilterNode"
+   ],
+   [
+    "TbJsFilterNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbJsFilterNode"
+   ],
+   [
+    "TbMsgTimeseriesNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbMsgTimeseriesNode"
+   ],
+   [
+    "TbMsgAttributesNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbMsgAttributesNode"
+   ],
+   [
+    "TbCreateAlarmNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbCreateAlarmNode"
+   ],
+   [
+    "TbClearAlarmNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbClearAlarmNode"
+   ],
+   [
+    "TbDeviceProfileNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbDeviceProfileNode"
+   ],
+   [
+    "TbLogNode",
+    "UMLClass",
+    "ThingsBoard/Rule Node Library/TbLogNode"
+   ],
+   [
+    "TbMsg",
+    "UMLClass",
+    "ThingsBoard/Messaging \\(common\\.message\\, common\\.queue\\)/TbMsg"
+   ],
+   [
+    "TbMsgMetaData",
+    "UMLClass",
+    "ThingsBoard/Messaging \\(common\\.message\\, common\\.queue\\)/TbMsgMetaData"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLDependency",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ],
+   [
+    2,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    3,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    4,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    5,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    6,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    7,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    8,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    9,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    10,
+    "UMLDependency",
+    ""
+   ],
+   [
+    11,
+    "UMLDependency",
+    ""
+   ],
+   [
+    12,
+    "UMLDependency",
+    ""
+   ],
+   [
+    13,
+    "UMLDependency",
+    ""
+   ],
+   [
+    14,
+    "UMLDependency",
+    ""
+   ],
+   [
+    15,
+    "UMLDependency",
+    ""
+   ],
+   [
+    16,
+    "UMLDependency",
+    ""
+   ],
+   [
+    17,
+    "UMLAssociation",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Class - Transport",
+  "parent": "ThingsBoard",
+  "spec": {
+   "classes": [
+    {
+     "name": "TransportService",
+     "kind": "interface"
+    },
+    {
+     "name": "DefaultTransportService",
+     "kind": "class"
+    },
+    {
+     "name": "TransportContext",
+     "kind": "class"
+    },
+    {
+     "name": "SessionMsgListener",
+     "kind": "interface"
+    },
+    {
+     "name": "TransportDeviceProfileCache",
+     "kind": "interface"
+    },
+    {
+     "name": "MqttTransportService",
+     "kind": "class"
+    },
+    {
+     "name": "MqttTransportServerInitializer",
+     "kind": "class"
+    },
+    {
+     "name": "MqttTransportHandler",
+     "kind": "class"
+    },
+    {
+     "name": "MqttTransportContext",
+     "kind": "class"
+    },
+    {
+     "name": "MqttTransportAdaptor",
+     "kind": "interface"
+    },
+    {
+     "name": "JsonMqttAdaptor",
+     "kind": "class"
+    },
+    {
+     "name": "ProtoMqttAdaptor",
+     "kind": "class"
+    },
+    {
+     "name": "DeviceSessionCtx",
+     "kind": "class"
+    },
+    {
+     "name": "HttpTransportController",
+     "kind": "class"
+    },
+    {
+     "name": "CoapTransportResource",
+     "kind": "class"
+    }
+   ],
+   "relations": [
+    {
+     "from": "DefaultTransportService",
+     "to": "TransportService",
+     "type": "realization"
+    },
+    {
+     "from": "TransportService",
+     "to": "SessionMsgListener",
+     "type": "dependency"
+    },
+    {
+     "from": "TransportContext",
+     "to": "TransportService",
+     "type": "directed"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "TransportService",
+     "type": "dependency"
+    },
+    {
+     "from": "HttpTransportController",
+     "to": "TransportService",
+     "type": "dependency"
+    },
+    {
+     "from": "CoapTransportResource",
+     "to": "TransportService",
+     "type": "dependency"
+    },
+    {
+     "from": "MqttTransportContext",
+     "to": "TransportContext",
+     "type": "generalization"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "SessionMsgListener",
+     "type": "realization"
+    },
+    {
+     "from": "MqttTransportService",
+     "to": "MqttTransportServerInitializer",
+     "type": "composition"
+    },
+    {
+     "from": "MqttTransportServerInitializer",
+     "to": "MqttTransportHandler",
+     "type": "dependency"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "MqttTransportAdaptor",
+     "type": "dependency"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "DeviceSessionCtx",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1"
+    },
+    {
+     "from": "MqttTransportContext",
+     "to": "MqttTransportAdaptor",
+     "type": "aggregation",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "2"
+    },
+    {
+     "from": "JsonMqttAdaptor",
+     "to": "MqttTransportAdaptor",
+     "type": "realization"
+    },
+    {
+     "from": "ProtoMqttAdaptor",
+     "to": "MqttTransportAdaptor",
+     "type": "realization"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "TransportService",
+    "UMLInterface",
+    "ThingsBoard/Transport API \\(common\\.transport\\)/TransportService"
+   ],
+   [
+    "DefaultTransportService",
+    "UMLClass",
+    "ThingsBoard/Transport API \\(common\\.transport\\)/DefaultTransportService"
+   ],
+   [
+    "TransportContext",
+    "UMLClass",
+    "ThingsBoard/Transport API \\(common\\.transport\\)/TransportContext"
+   ],
+   [
+    "SessionMsgListener",
+    "UMLInterface",
+    "ThingsBoard/Transport API \\(common\\.transport\\)/SessionMsgListener"
+   ],
+   [
+    "TransportDeviceProfileCache",
+    "UMLInterface",
+    "ThingsBoard/Transport API \\(common\\.transport\\)/TransportDeviceProfileCache"
+   ],
+   [
+    "MqttTransportService",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/MqttTransportService"
+   ],
+   [
+    "MqttTransportServerInitializer",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/MqttTransportServerInitializer"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/MqttTransportHandler"
+   ],
+   [
+    "MqttTransportContext",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/MqttTransportContext"
+   ],
+   [
+    "MqttTransportAdaptor",
+    "UMLInterface",
+    "ThingsBoard/Protocol Transports/MqttTransportAdaptor"
+   ],
+   [
+    "JsonMqttAdaptor",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/JsonMqttAdaptor"
+   ],
+   [
+    "ProtoMqttAdaptor",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/ProtoMqttAdaptor"
+   ],
+   [
+    "DeviceSessionCtx",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/DeviceSessionCtx"
+   ],
+   [
+    "HttpTransportController",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/HttpTransportController"
+   ],
+   [
+    "CoapTransportResource",
+    "UMLClass",
+    "ThingsBoard/Protocol Transports/CoapTransportResource"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ],
+   [
+    2,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    3,
+    "UMLDependency",
+    ""
+   ],
+   [
+    4,
+    "UMLDependency",
+    ""
+   ],
+   [
+    5,
+    "UMLDependency",
+    ""
+   ],
+   [
+    6,
+    "UMLGeneralization",
+    ""
+   ],
+   [
+    7,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    8,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    9,
+    "UMLDependency",
+    ""
+   ],
+   [
+    10,
+    "UMLDependency",
+    ""
+   ],
+   [
+    11,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    12,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    13,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    14,
+    "UMLInterfaceRealization",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Class - Actor System",
+  "parent": "ThingsBoard",
+  "spec": {
+   "classes": [
+    {
+     "name": "TbActor",
+     "kind": "interface"
+    },
+    {
+     "name": "TbActorSystem",
+     "kind": "interface"
+    },
+    {
+     "name": "DefaultTbActorSystem",
+     "kind": "class"
+    },
+    {
+     "name": "TbActorMailbox",
+     "kind": "class"
+    },
+    {
+     "name": "Dispatcher",
+     "kind": "class"
+    },
+    {
+     "name": "ActorSystemContext",
+     "kind": "class"
+    },
+    {
+     "name": "AppActor",
+     "kind": "class"
+    },
+    {
+     "name": "TenantActor",
+     "kind": "class"
+    },
+    {
+     "name": "DeviceActor",
+     "kind": "class"
+    },
+    {
+     "name": "RuleChainManagerActor",
+     "kind": "abstract"
+    },
+    {
+     "name": "RuleChainActor",
+     "kind": "class"
+    },
+    {
+     "name": "RuleNodeActor",
+     "kind": "class"
+    },
+    {
+     "name": "DefaultTbContext",
+     "kind": "class"
+    },
+    {
+     "name": "CalculatedFieldManagerActor",
+     "kind": "class"
+    },
+    {
+     "name": "TbNode",
+     "kind": "interface"
+    },
+    {
+     "name": "TbContext",
+     "kind": "interface"
+    }
+   ],
+   "relations": [
+    {
+     "from": "TbActorMailbox",
+     "to": "TbActor",
+     "type": "aggregation",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1"
+    },
+    {
+     "from": "AppActor",
+     "to": "TbActor",
+     "type": "realization"
+    },
+    {
+     "from": "DefaultTbActorSystem",
+     "to": "TbActorSystem",
+     "type": "realization"
+    },
+    {
+     "from": "DefaultTbActorSystem",
+     "to": "TbActorMailbox",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "DefaultTbActorSystem",
+     "to": "Dispatcher",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1..*"
+    },
+    {
+     "from": "AppActor",
+     "to": "ActorSystemContext",
+     "type": "dependency"
+    },
+    {
+     "from": "AppActor",
+     "to": "TenantActor",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "TenantActor",
+     "to": "RuleChainManagerActor",
+     "type": "generalization"
+    },
+    {
+     "from": "TenantActor",
+     "to": "DeviceActor",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "TenantActor",
+     "to": "CalculatedFieldManagerActor",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..1"
+    },
+    {
+     "from": "RuleChainManagerActor",
+     "to": "RuleChainActor",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "0..*"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1..*"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbNode",
+     "type": "aggregation",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "DefaultTbContext",
+     "type": "dependency"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "TbContext",
+     "type": "realization"
+    },
+    {
+     "from": "TbNode",
+     "to": "TbContext",
+     "type": "dependency"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "TbActor",
+    "UMLInterface",
+    "ThingsBoard/Actor Framework \\(common\\.actor\\)/TbActor"
+   ],
+   [
+    "TbActorSystem",
+    "UMLInterface",
+    "ThingsBoard/Actor Framework \\(common\\.actor\\)/TbActorSystem"
+   ],
+   [
+    "DefaultTbActorSystem",
+    "UMLClass",
+    "ThingsBoard/Actor Framework \\(common\\.actor\\)/DefaultTbActorSystem"
+   ],
+   [
+    "TbActorMailbox",
+    "UMLClass",
+    "ThingsBoard/Actor Framework \\(common\\.actor\\)/TbActorMailbox"
+   ],
+   [
+    "Dispatcher",
+    "UMLClass",
+    "ThingsBoard/Actor Framework \\(common\\.actor\\)/Dispatcher"
+   ],
+   [
+    "ActorSystemContext",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/ActorSystemContext"
+   ],
+   [
+    "AppActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/AppActor"
+   ],
+   [
+    "TenantActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/TenantActor"
+   ],
+   [
+    "DeviceActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/DeviceActor"
+   ],
+   [
+    "RuleChainManagerActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleChainManagerActor"
+   ],
+   [
+    "RuleChainActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleChainActor"
+   ],
+   [
+    "RuleNodeActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor"
+   ],
+   [
+    "DefaultTbContext",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/DefaultTbContext"
+   ],
+   [
+    "CalculatedFieldManagerActor",
+    "UMLClass",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/CalculatedFieldManagerActor"
+   ],
+   [
+    "TbNode",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/TbNode"
+   ],
+   [
+    "TbContext",
+    "UMLInterface",
+    "ThingsBoard/Rule Engine API/TbContext"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    2,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    3,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    4,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    5,
+    "UMLDependency",
+    ""
+   ],
+   [
+    6,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    7,
+    "UMLGeneralization",
+    ""
+   ],
+   [
+    8,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    9,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    10,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    11,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    12,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    13,
+    "UMLDependency",
+    ""
+   ],
+   [
+    14,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    15,
+    "UMLDependency",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Class - Security",
+  "parent": "ThingsBoard",
+  "spec": {
+   "classes": [
+    {
+     "name": "RestLoginProcessingFilter",
+     "kind": "class"
+    },
+    {
+     "name": "RestAuthenticationProvider",
+     "kind": "class"
+    },
+    {
+     "name": "RestAwareAuthenticationSuccessHandler",
+     "kind": "class"
+    },
+    {
+     "name": "JwtTokenFactory",
+     "kind": "class"
+    },
+    {
+     "name": "JwtTokenAuthenticationProcessingFilter",
+     "kind": "class"
+    },
+    {
+     "name": "JwtAuthenticationProvider",
+     "kind": "class"
+    },
+    {
+     "name": "RefreshTokenProcessingFilter",
+     "kind": "class"
+    },
+    {
+     "name": "SecurityUser",
+     "kind": "class"
+    },
+    {
+     "name": "AccessControlService",
+     "kind": "interface"
+    },
+    {
+     "name": "DefaultAccessControlService",
+     "kind": "class"
+    },
+    {
+     "name": "Permissions",
+     "kind": "interface"
+    },
+    {
+     "name": "TenantAdminPermissions",
+     "kind": "class"
+    },
+    {
+     "name": "CustomerUserPermissions",
+     "kind": "class"
+    },
+    {
+     "name": "SysAdminPermissions",
+     "kind": "class"
+    },
+    {
+     "name": "AccessValidator",
+     "kind": "class"
+    }
+   ],
+   "relations": [
+    {
+     "from": "RestLoginProcessingFilter",
+     "to": "RestAuthenticationProvider",
+     "type": "dependency"
+    },
+    {
+     "from": "RestLoginProcessingFilter",
+     "to": "RestAwareAuthenticationSuccessHandler",
+     "type": "dependency"
+    },
+    {
+     "from": "RestAuthenticationProvider",
+     "to": "SecurityUser",
+     "type": "dependency"
+    },
+    {
+     "from": "RestAwareAuthenticationSuccessHandler",
+     "to": "JwtTokenFactory",
+     "type": "dependency"
+    },
+    {
+     "from": "JwtTokenFactory",
+     "to": "SecurityUser",
+     "type": "dependency"
+    },
+    {
+     "from": "JwtAuthenticationProvider",
+     "to": "JwtTokenFactory",
+     "type": "dependency"
+    },
+    {
+     "from": "RefreshTokenProcessingFilter",
+     "to": "JwtTokenFactory",
+     "type": "dependency"
+    },
+    {
+     "from": "JwtTokenAuthenticationProcessingFilter",
+     "to": "JwtAuthenticationProvider",
+     "type": "dependency"
+    },
+    {
+     "from": "DefaultAccessControlService",
+     "to": "AccessControlService",
+     "type": "realization"
+    },
+    {
+     "from": "AccessValidator",
+     "to": "AccessControlService",
+     "type": "dependency"
+    },
+    {
+     "from": "DefaultAccessControlService",
+     "to": "Permissions",
+     "type": "aggregation",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "3"
+    },
+    {
+     "from": "TenantAdminPermissions",
+     "to": "Permissions",
+     "type": "realization"
+    },
+    {
+     "from": "CustomerUserPermissions",
+     "to": "Permissions",
+     "type": "realization"
+    },
+    {
+     "from": "SysAdminPermissions",
+     "to": "Permissions",
+     "type": "realization"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "RestLoginProcessingFilter",
+    "UMLClass",
+    "ThingsBoard/Security/RestLoginProcessingFilter"
+   ],
+   [
+    "RestAuthenticationProvider",
+    "UMLClass",
+    "ThingsBoard/Security/RestAuthenticationProvider"
+   ],
+   [
+    "RestAwareAuthenticationSuccessHandler",
+    "UMLClass",
+    "ThingsBoard/Security/RestAwareAuthenticationSuccessHandler"
+   ],
+   [
+    "JwtTokenFactory",
+    "UMLClass",
+    "ThingsBoard/Security/JwtTokenFactory"
+   ],
+   [
+    "JwtTokenAuthenticationProcessingFilter",
+    "UMLClass",
+    "ThingsBoard/Security/JwtTokenAuthenticationProcessingFilter"
+   ],
+   [
+    "JwtAuthenticationProvider",
+    "UMLClass",
+    "ThingsBoard/Security/JwtAuthenticationProvider"
+   ],
+   [
+    "RefreshTokenProcessingFilter",
+    "UMLClass",
+    "ThingsBoard/Security/RefreshTokenProcessingFilter"
+   ],
+   [
+    "SecurityUser",
+    "UMLClass",
+    "ThingsBoard/Security/SecurityUser"
+   ],
+   [
+    "AccessControlService",
+    "UMLInterface",
+    "ThingsBoard/Security/AccessControlService"
+   ],
+   [
+    "DefaultAccessControlService",
+    "UMLClass",
+    "ThingsBoard/Security/DefaultAccessControlService"
+   ],
+   [
+    "Permissions",
+    "UMLInterface",
+    "ThingsBoard/Security/Permissions"
+   ],
+   [
+    "TenantAdminPermissions",
+    "UMLClass",
+    "ThingsBoard/Security/TenantAdminPermissions"
+   ],
+   [
+    "CustomerUserPermissions",
+    "UMLClass",
+    "ThingsBoard/Security/CustomerUserPermissions"
+   ],
+   [
+    "SysAdminPermissions",
+    "UMLClass",
+    "ThingsBoard/Security/SysAdminPermissions"
+   ],
+   [
+    "AccessValidator",
+    "UMLClass",
+    "ThingsBoard/Security/AccessValidator"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLDependency",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ],
+   [
+    2,
+    "UMLDependency",
+    ""
+   ],
+   [
+    3,
+    "UMLDependency",
+    ""
+   ],
+   [
+    4,
+    "UMLDependency",
+    ""
+   ],
+   [
+    5,
+    "UMLDependency",
+    ""
+   ],
+   [
+    6,
+    "UMLDependency",
+    ""
+   ],
+   [
+    7,
+    "UMLDependency",
+    ""
+   ],
+   [
+    8,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    9,
+    "UMLDependency",
+    ""
+   ],
+   [
+    10,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    11,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    12,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    13,
+    "UMLInterfaceRealization",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Seq - Telemetry ingestion over MQTT",
+  "parent": "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT",
+  "spec": {
+   "participants": [
+    "Device",
+    "MqttTransportHandler",
+    "DefaultTransportService",
+    "Queue",
+    "TbRuleEngineConsumerService",
+    "RuleChainActor",
+    "RuleNodeActor",
+    "TelemetrySubscriptionService",
+    "TimeseriesService"
+   ],
+   "messages": [
+    {
+     "from": "Device",
+     "to": "MqttTransportHandler",
+     "text": "PUBLISH v1/devices/me/telemetry",
+     "kind": "async"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "MqttTransportHandler",
+     "text": "convertToPostTelemetry(payload)",
+     "kind": "sync"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "DefaultTransportService",
+     "text": "process(sessionInfo, PostTelemetryMsg)",
+     "kind": "sync"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "DefaultTransportService",
+     "text": "check rate limits, wrap as TbMsg",
+     "kind": "sync"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "Queue",
+     "text": "send ToRuleEngineMsg",
+     "kind": "async"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "MqttTransportHandler",
+     "text": "onSuccess",
+     "kind": "reply"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "Device",
+     "text": "PUBACK",
+     "kind": "reply"
+    },
+    {
+     "from": "Queue",
+     "to": "TbRuleEngineConsumerService",
+     "text": "poll batch",
+     "kind": "async"
+    },
+    {
+     "from": "TbRuleEngineConsumerService",
+     "to": "RuleChainActor",
+     "text": "forward TbMsg",
+     "kind": "async"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "text": "RuleChainToRuleNodeMsg",
+     "kind": "async"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TelemetrySubscriptionService",
+     "text": "saveTimeseries(request)",
+     "kind": "sync"
+    },
+    {
+     "from": "TelemetrySubscriptionService",
+     "to": "TimeseriesService",
+     "text": "save(entityId, tsKvEntry)",
+     "kind": "sync"
+    },
+    {
+     "from": "TimeseriesService",
+     "to": "TelemetrySubscriptionService",
+     "text": "saved",
+     "kind": "reply"
+    },
+    {
+     "from": "TelemetrySubscriptionService",
+     "to": "TelemetrySubscriptionService",
+     "text": "notify websocket subscribers",
+     "kind": "sync"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "RuleChainActor",
+     "text": "tellNext(Success)",
+     "kind": "async"
+    }
+   ],
+   "fragments": [
+    {
+     "operator": "opt",
+     "guard": "payload invalid or limit exceeded",
+     "operands": [],
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/Device"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/MqttTransportHandler"
+   ],
+   [
+    "DefaultTransportService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/DefaultTransportService"
+   ],
+   [
+    "Queue",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/Queue"
+   ],
+   [
+    "TbRuleEngineConsumerService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/TbRuleEngineConsumerService"
+   ],
+   [
+    "RuleChainActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/RuleChainActor"
+   ],
+   [
+    "RuleNodeActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/RuleNodeActor"
+   ],
+   [
+    "TelemetrySubscriptionService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/TelemetrySubscriptionService"
+   ],
+   [
+    "TimeseriesService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/TimeseriesService"
+   ],
+   [
+    "fragment 0",
+    "UMLCombinedFragment",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/payload invalid or limit exceeded"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "PUBLISH v1/devices/me/telemetry"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "convertToPostTelemetry(payload)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "process(sessionInfo, PostTelemetryMsg)"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "check rate limits, wrap as TbMsg"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "send ToRuleEngineMsg"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "onSuccess"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "PUBACK"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "poll batch"
+   ],
+   [
+    8,
+    "UMLMessage",
+    "forward TbMsg"
+   ],
+   [
+    9,
+    "UMLMessage",
+    "RuleChainToRuleNodeMsg"
+   ],
+   [
+    10,
+    "UMLMessage",
+    "saveTimeseries(request)"
+   ],
+   [
+    11,
+    "UMLMessage",
+    "save(entityId, tsKvEntry)"
+   ],
+   [
+    12,
+    "UMLMessage",
+    "saved"
+   ],
+   [
+    13,
+    "UMLMessage",
+    "notify websocket subscribers"
+   ],
+   [
+    14,
+    "UMLMessage",
+    "tellNext(Success)"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Seq - Rule chain processing",
+  "parent": "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing",
+  "spec": {
+   "participants": [
+    "RuleChainActor",
+    "RuleNodeActor",
+    "TbMsgTypeFilterNode",
+    "TbDeviceProfileNode",
+    "TbMsgTimeseriesNode",
+    "TbCreateAlarmNode",
+    "DefaultTbContext",
+    "TbClusterService"
+   ],
+   "messages": [
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "text": "RuleChainToRuleNodeMsg(first node)",
+     "kind": "async"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbMsgTypeFilterNode",
+     "text": "onMsg(ctx, msg)",
+     "kind": "sync"
+    },
+    {
+     "from": "TbMsgTypeFilterNode",
+     "to": "DefaultTbContext",
+     "text": "tellNext(msg, True)",
+     "kind": "sync"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "RuleChainActor",
+     "text": "RuleNodeToRuleChainTellNextMsg",
+     "kind": "async"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "text": "next node by relation",
+     "kind": "async"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbDeviceProfileNode",
+     "text": "onMsg(ctx, msg)",
+     "kind": "sync"
+    },
+    {
+     "from": "TbDeviceProfileNode",
+     "to": "TbDeviceProfileNode",
+     "text": "evaluate alarm rules",
+     "kind": "sync"
+    },
+    {
+     "from": "TbDeviceProfileNode",
+     "to": "DefaultTbContext",
+     "text": "tellNext(msg, Alarm Created)",
+     "kind": "sync"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "RuleChainActor",
+     "text": "tell next",
+     "kind": "async"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "text": "route to save node",
+     "kind": "async"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbMsgTimeseriesNode",
+     "text": "onMsg(ctx, msg)",
+     "kind": "sync"
+    },
+    {
+     "from": "TbMsgTimeseriesNode",
+     "to": "DefaultTbContext",
+     "text": "tellSuccess(msg)",
+     "kind": "sync"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "TbClusterService",
+     "text": "pushMsgToRuleEngine(other chain)",
+     "kind": "async"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbCreateAlarmNode",
+     "text": "onMsg for alarm branch",
+     "kind": "sync"
+    },
+    {
+     "from": "TbCreateAlarmNode",
+     "to": "DefaultTbContext",
+     "text": "tellNext(msg, Created)",
+     "kind": "sync"
+    }
+   ],
+   "fragments": [
+    {
+     "operator": "alt",
+     "guard": "type matches",
+     "operands": [
+      "else: tellNext False"
+     ],
+     "from": 2,
+     "to": 2
+    },
+    {
+     "operator": "opt",
+     "guard": "alarm condition met",
+     "operands": [],
+     "from": 7,
+     "to": 8
+    }
+   ]
+  },
+  "bind": [
+   [
+    "RuleChainActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/RuleChainActor"
+   ],
+   [
+    "RuleNodeActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/RuleNodeActor"
+   ],
+   [
+    "TbMsgTypeFilterNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbMsgTypeFilterNode"
+   ],
+   [
+    "TbDeviceProfileNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbDeviceProfileNode"
+   ],
+   [
+    "TbMsgTimeseriesNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbMsgTimeseriesNode"
+   ],
+   [
+    "TbCreateAlarmNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbCreateAlarmNode"
+   ],
+   [
+    "DefaultTbContext",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/DefaultTbContext"
+   ],
+   [
+    "TbClusterService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbClusterService"
+   ],
+   [
+    "fragment 0",
+    "UMLCombinedFragment",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/type matches"
+   ],
+   [
+    "fragment 1",
+    "UMLCombinedFragment",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/alarm condition met"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "RuleChainToRuleNodeMsg(first node)"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "onMsg(ctx, msg)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "tellNext(msg, True)"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "RuleNodeToRuleChainTellNextMsg"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "next node by relation"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "onMsg(ctx, msg)"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "evaluate alarm rules"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "tellNext(msg, Alarm Created)"
+   ],
+   [
+    8,
+    "UMLMessage",
+    "tell next"
+   ],
+   [
+    9,
+    "UMLMessage",
+    "route to save node"
+   ],
+   [
+    10,
+    "UMLMessage",
+    "onMsg(ctx, msg)"
+   ],
+   [
+    11,
+    "UMLMessage",
+    "tellSuccess(msg)"
+   ],
+   [
+    12,
+    "UMLMessage",
+    "pushMsgToRuleEngine(other chain)"
+   ],
+   [
+    13,
+    "UMLMessage",
+    "onMsg for alarm branch"
+   ],
+   [
+    14,
+    "UMLMessage",
+    "tellNext(msg, Created)"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Seq - Device provisioning",
+  "parent": "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning",
+  "spec": {
+   "participants": [
+    "Device",
+    "MqttTransportHandler",
+    "DefaultTransportService",
+    "Queue",
+    "TbCoreConsumerService",
+    "DeviceProvisionService",
+    "DeviceService",
+    "DeviceCredentialsService"
+   ],
+   "messages": [
+    {
+     "from": "Device",
+     "to": "MqttTransportHandler",
+     "text": "PUBLISH /provision {provisionDeviceKey, secret, name}",
+     "kind": "async"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "DefaultTransportService",
+     "text": "process(ProvisionDeviceRequestMsg)",
+     "kind": "sync"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "Queue",
+     "text": "send TransportApiRequest",
+     "kind": "async"
+    },
+    {
+     "from": "Queue",
+     "to": "TbCoreConsumerService",
+     "text": "poll TransportApiRequest",
+     "kind": "async"
+    },
+    {
+     "from": "TbCoreConsumerService",
+     "to": "DeviceProvisionService",
+     "text": "provisionDevice(request)",
+     "kind": "sync"
+    },
+    {
+     "from": "DeviceProvisionService",
+     "to": "DeviceService",
+     "text": "findDeviceByName / saveDevice",
+     "kind": "sync"
+    },
+    {
+     "from": "DeviceProvisionService",
+     "to": "DeviceCredentialsService",
+     "text": "create or update credentials",
+     "kind": "sync"
+    },
+    {
+     "from": "DeviceProvisionService",
+     "to": "TbCoreConsumerService",
+     "text": "ProvisionResponse(credentials)",
+     "kind": "reply"
+    },
+    {
+     "from": "TbCoreConsumerService",
+     "to": "Queue",
+     "text": "TransportApiResponse",
+     "kind": "reply"
+    },
+    {
+     "from": "Queue",
+     "to": "DefaultTransportService",
+     "text": "response",
+     "kind": "reply"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "MqttTransportHandler",
+     "text": "ProvisionDeviceResponseMsg",
+     "kind": "reply"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "Device",
+     "text": "PUBLISH /provision/response {credentials}",
+     "kind": "reply"
+    }
+   ],
+   "fragments": [
+    {
+     "operator": "alt",
+     "guard": "key and secret valid",
+     "operands": [
+      "else: status NOT_FOUND"
+     ],
+     "from": 4,
+     "to": 7
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/Device"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/MqttTransportHandler"
+   ],
+   [
+    "DefaultTransportService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DefaultTransportService"
+   ],
+   [
+    "Queue",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/Queue"
+   ],
+   [
+    "TbCoreConsumerService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/TbCoreConsumerService"
+   ],
+   [
+    "DeviceProvisionService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DeviceProvisionService"
+   ],
+   [
+    "DeviceService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DeviceService"
+   ],
+   [
+    "DeviceCredentialsService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DeviceCredentialsService"
+   ],
+   [
+    "fragment 0",
+    "UMLCombinedFragment",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/key and secret valid"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "PUBLISH /provision {provisionDeviceKey, secret, name}"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "process(ProvisionDeviceRequestMsg)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "send TransportApiRequest"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "poll TransportApiRequest"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "provisionDevice(request)"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "findDeviceByName / saveDevice"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "create or update credentials"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "ProvisionResponse(credentials)"
+   ],
+   [
+    8,
+    "UMLMessage",
+    "TransportApiResponse"
+   ],
+   [
+    9,
+    "UMLMessage",
+    "response"
+   ],
+   [
+    10,
+    "UMLMessage",
+    "ProvisionDeviceResponseMsg"
+   ],
+   [
+    11,
+    "UMLMessage",
+    "PUBLISH /provision/response {credentials}"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Seq - Device claiming",
+  "parent": "ThingsBoard/Seq - Device claiming/Seq - Device claiming",
+  "spec": {
+   "participants": [
+    "Device",
+    "MqttTransportHandler",
+    "ClaimDevicesService",
+    "DeviceService",
+    "DeviceController",
+    "Customer User"
+   ],
+   "messages": [
+    {
+     "from": "Device",
+     "to": "MqttTransportHandler",
+     "text": "PUBLISH v1/devices/me/claim {secretKey, durationMs}",
+     "kind": "async"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "ClaimDevicesService",
+     "text": "registerClaimingInfo(deviceId, secretKey, duration)",
+     "kind": "async"
+    },
+    {
+     "from": "Customer User",
+     "to": "DeviceController",
+     "text": "POST /api/customer/device/{name}/claim {secretKey}",
+     "kind": "sync"
+    },
+    {
+     "from": "DeviceController",
+     "to": "ClaimDevicesService",
+     "text": "claimDevice(device, customerId, secretKey)",
+     "kind": "sync"
+    },
+    {
+     "from": "ClaimDevicesService",
+     "to": "DeviceService",
+     "text": "assignDeviceToCustomer(deviceId, customerId)",
+     "kind": "sync"
+    },
+    {
+     "from": "ClaimDevicesService",
+     "to": "DeviceController",
+     "text": "ClaimResult(SUCCESS)",
+     "kind": "reply"
+    },
+    {
+     "from": "DeviceController",
+     "to": "Customer User",
+     "text": "200 OK",
+     "kind": "reply"
+    }
+   ],
+   "fragments": [
+    {
+     "operator": "alt",
+     "guard": "secret matches and not expired",
+     "operands": [
+      "else: FAILURE"
+     ],
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/Device"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/MqttTransportHandler"
+   ],
+   [
+    "ClaimDevicesService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/ClaimDevicesService"
+   ],
+   [
+    "DeviceService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/DeviceService"
+   ],
+   [
+    "DeviceController",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/DeviceController"
+   ],
+   [
+    "Customer User",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/Customer User"
+   ],
+   [
+    "fragment 0",
+    "UMLCombinedFragment",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/secret matches and not expired"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "PUBLISH v1/devices/me/claim {secretKey, durationMs}"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "registerClaimingInfo(deviceId, secretKey, duration)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "POST /api/customer/device/{name}/claim {secretKey}"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "claimDevice(device, customerId, secretKey)"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "assignDeviceToCustomer(deviceId, customerId)"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "ClaimResult(SUCCESS)"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "200 OK"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Seq - REST login",
+  "parent": "ThingsBoard/Seq - REST login/Seq - REST login",
+  "spec": {
+   "participants": [
+    "Browser",
+    "RestLoginProcessingFilter",
+    "RestAuthenticationProvider",
+    "UserService",
+    "JwtTokenFactory",
+    "RestAwareAuthenticationSuccessHandler"
+   ],
+   "messages": [
+    {
+     "from": "Browser",
+     "to": "RestLoginProcessingFilter",
+     "text": "POST /api/auth/login {username, password}",
+     "kind": "sync"
+    },
+    {
+     "from": "RestLoginProcessingFilter",
+     "to": "RestAuthenticationProvider",
+     "text": "authenticate(LoginRequest)",
+     "kind": "sync"
+    },
+    {
+     "from": "RestAuthenticationProvider",
+     "to": "UserService",
+     "text": "findUserByEmail(email)",
+     "kind": "sync"
+    },
+    {
+     "from": "RestAuthenticationProvider",
+     "to": "RestAuthenticationProvider",
+     "text": "verify password, check lockout and MFA",
+     "kind": "sync"
+    },
+    {
+     "from": "RestAuthenticationProvider",
+     "to": "RestLoginProcessingFilter",
+     "text": "SecurityUser",
+     "kind": "reply"
+    },
+    {
+     "from": "RestLoginProcessingFilter",
+     "to": "RestAwareAuthenticationSuccessHandler",
+     "text": "onAuthenticationSuccess",
+     "kind": "sync"
+    },
+    {
+     "from": "RestAwareAuthenticationSuccessHandler",
+     "to": "JwtTokenFactory",
+     "text": "createAccessJwtToken + createRefreshToken",
+     "kind": "sync"
+    },
+    {
+     "from": "RestAwareAuthenticationSuccessHandler",
+     "to": "Browser",
+     "text": "{token, refreshToken}",
+     "kind": "reply"
+    }
+   ],
+   "fragments": [
+    {
+     "operator": "alt",
+     "guard": "credentials valid",
+     "operands": [
+      "else: 401 Unauthorized"
+     ],
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Browser",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/Browser"
+   ],
+   [
+    "RestLoginProcessingFilter",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/RestLoginProcessingFilter"
+   ],
+   [
+    "RestAuthenticationProvider",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/RestAuthenticationProvider"
+   ],
+   [
+    "UserService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/UserService"
+   ],
+   [
+    "JwtTokenFactory",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/JwtTokenFactory"
+   ],
+   [
+    "RestAwareAuthenticationSuccessHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/RestAwareAuthenticationSuccessHandler"
+   ],
+   [
+    "fragment 0",
+    "UMLCombinedFragment",
+    "ThingsBoard/Seq - REST login/Seq - REST login/credentials valid"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "POST /api/auth/login {username, password}"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "authenticate(LoginRequest)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "findUserByEmail(email)"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "verify password, check lockout and MFA"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "SecurityUser"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "onAuthenticationSuccess"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "createAccessJwtToken + createRefreshToken"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "{token, refreshToken}"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "usecase",
+  "name": "Use Cases - Tenant Administrator",
+  "parent": "ThingsBoard",
+  "spec": {
+   "system": "ThingsBoard",
+   "actors": [
+    "Tenant Administrator",
+    "External System",
+    "Device"
+   ],
+   "useCases": [
+    "Log in",
+    "Manage devices and profiles",
+    "Manage credentials",
+    "Provision device",
+    "Design rule chains",
+    "Debug rule nodes",
+    "Build dashboards",
+    "Manage customers and users",
+    "Assign entities to customer",
+    "Handle alarms",
+    "Acknowledge alarm",
+    "Send RPC command",
+    "Forward events externally"
+   ],
+   "relations": [
+    {
+     "from": "Tenant Administrator",
+     "to": "Log in",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Manage devices and profiles",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Provision device",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Design rule chains",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Build dashboards",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Manage customers and users",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Assign entities to customer",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Handle alarms",
+     "type": "association"
+    },
+    {
+     "from": "Tenant Administrator",
+     "to": "Send RPC command",
+     "type": "association"
+    },
+    {
+     "from": "External System",
+     "to": "Forward events externally",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Provision device",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Send RPC command",
+     "type": "association"
+    },
+    {
+     "from": "Manage devices and profiles",
+     "to": "Manage credentials",
+     "type": "include"
+    },
+    {
+     "from": "Provision device",
+     "to": "Manage devices and profiles",
+     "type": "extend"
+    },
+    {
+     "from": "Design rule chains",
+     "to": "Debug rule nodes",
+     "type": "include"
+    },
+    {
+     "from": "Assign entities to customer",
+     "to": "Manage customers and users",
+     "type": "include"
+    },
+    {
+     "from": "Handle alarms",
+     "to": "Acknowledge alarm",
+     "type": "include"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Tenant Administrator",
+    "UMLActor",
+    "ThingsBoard/Tenant Administrator"
+   ],
+   [
+    "External System",
+    "UMLActor",
+    "ThingsBoard/External System"
+   ],
+   [
+    "Device",
+    "UMLActor",
+    "ThingsBoard/Device"
+   ],
+   [
+    "Log in",
+    "UMLUseCase",
+    "ThingsBoard/Log in"
+   ],
+   [
+    "Manage devices and profiles",
+    "UMLUseCase",
+    "ThingsBoard/Manage devices and profiles"
+   ],
+   [
+    "Manage credentials",
+    "UMLUseCase",
+    "ThingsBoard/Manage credentials"
+   ],
+   [
+    "Provision device",
+    "UMLUseCase",
+    "ThingsBoard/Provision device"
+   ],
+   [
+    "Design rule chains",
+    "UMLUseCase",
+    "ThingsBoard/Design rule chains"
+   ],
+   [
+    "Debug rule nodes",
+    "UMLUseCase",
+    "ThingsBoard/Debug rule nodes"
+   ],
+   [
+    "Build dashboards",
+    "UMLUseCase",
+    "ThingsBoard/Build dashboards"
+   ],
+   [
+    "Manage customers and users",
+    "UMLUseCase",
+    "ThingsBoard/Manage customers and users"
+   ],
+   [
+    "Assign entities to customer",
+    "UMLUseCase",
+    "ThingsBoard/Assign entities to customer"
+   ],
+   [
+    "Handle alarms",
+    "UMLUseCase",
+    "ThingsBoard/Handle alarms"
+   ],
+   [
+    "Acknowledge alarm",
+    "UMLUseCase",
+    "ThingsBoard/Acknowledge alarm"
+   ],
+   [
+    "Send RPC command",
+    "UMLUseCase",
+    "ThingsBoard/Send RPC command"
+   ],
+   [
+    "Forward events externally",
+    "UMLUseCase",
+    "ThingsBoard/Forward events externally"
+   ],
+   [
+    "ThingsBoard",
+    "UMLUseCaseSubject",
+    "ThingsBoard/ThingsBoard"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    2,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    3,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    4,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    5,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    6,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    7,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    8,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    9,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    10,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    11,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    12,
+    "UMLInclude",
+    ""
+   ],
+   [
+    13,
+    "UMLExtend",
+    ""
+   ],
+   [
+    14,
+    "UMLInclude",
+    ""
+   ],
+   [
+    15,
+    "UMLInclude",
+    ""
+   ],
+   [
+    16,
+    "UMLInclude",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "usecase",
+  "name": "Use Cases - Customer User",
+  "parent": "ThingsBoard",
+  "spec": {
+   "system": "ThingsBoard",
+   "actors": [
+    "Customer User",
+    "Device"
+   ],
+   "useCases": [
+    "Log in",
+    "View dashboards",
+    "Handle alarms",
+    "Acknowledge alarm",
+    "Send RPC command",
+    "Claim device"
+   ],
+   "relations": [
+    {
+     "from": "Customer User",
+     "to": "Log in",
+     "type": "association"
+    },
+    {
+     "from": "Customer User",
+     "to": "Handle alarms",
+     "type": "association"
+    },
+    {
+     "from": "Customer User",
+     "to": "View dashboards",
+     "type": "association"
+    },
+    {
+     "from": "Customer User",
+     "to": "Send RPC command",
+     "type": "association"
+    },
+    {
+     "from": "Customer User",
+     "to": "Claim device",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Send RPC command",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Claim device",
+     "type": "association"
+    },
+    {
+     "from": "Handle alarms",
+     "to": "Acknowledge alarm",
+     "type": "include"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Customer User",
+    "UMLActor",
+    "ThingsBoard/Customer User"
+   ],
+   [
+    "Device",
+    "UMLActor",
+    "ThingsBoard/Device"
+   ],
+   [
+    "Log in",
+    "UMLUseCase",
+    "ThingsBoard/Log in"
+   ],
+   [
+    "View dashboards",
+    "UMLUseCase",
+    "ThingsBoard/View dashboards"
+   ],
+   [
+    "Handle alarms",
+    "UMLUseCase",
+    "ThingsBoard/Handle alarms"
+   ],
+   [
+    "Acknowledge alarm",
+    "UMLUseCase",
+    "ThingsBoard/Acknowledge alarm"
+   ],
+   [
+    "Send RPC command",
+    "UMLUseCase",
+    "ThingsBoard/Send RPC command"
+   ],
+   [
+    "Claim device",
+    "UMLUseCase",
+    "ThingsBoard/Claim device"
+   ],
+   [
+    "ThingsBoard",
+    "UMLUseCaseSubject",
+    "ThingsBoard/ThingsBoard"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    2,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    3,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    4,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    5,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    6,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    7,
+    "UMLInclude",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "usecase",
+  "name": "Use Cases - Device",
+  "parent": "ThingsBoard",
+  "spec": {
+   "system": "ThingsBoard",
+   "actors": [
+    "Device",
+    "Gateway"
+   ],
+   "useCases": [
+    "Authenticate by credentials",
+    "Publish telemetry",
+    "Report and read attributes",
+    "Subscribe to attribute updates",
+    "Send RPC command",
+    "Provision device",
+    "Claim device"
+   ],
+   "relations": [
+    {
+     "from": "Device",
+     "to": "Provision device",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Send RPC command",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Claim device",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Authenticate by credentials",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Publish telemetry",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Report and read attributes",
+     "type": "association"
+    },
+    {
+     "from": "Device",
+     "to": "Subscribe to attribute updates",
+     "type": "association"
+    },
+    {
+     "from": "Gateway",
+     "to": "Publish telemetry",
+     "type": "association"
+    },
+    {
+     "from": "Publish telemetry",
+     "to": "Authenticate by credentials",
+     "type": "include"
+    },
+    {
+     "from": "Report and read attributes",
+     "to": "Authenticate by credentials",
+     "type": "include"
+    },
+    {
+     "from": "Subscribe to attribute updates",
+     "to": "Authenticate by credentials",
+     "type": "include"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLActor",
+    "ThingsBoard/Device"
+   ],
+   [
+    "Gateway",
+    "UMLActor",
+    "ThingsBoard/Gateway"
+   ],
+   [
+    "Authenticate by credentials",
+    "UMLUseCase",
+    "ThingsBoard/Authenticate by credentials"
+   ],
+   [
+    "Publish telemetry",
+    "UMLUseCase",
+    "ThingsBoard/Publish telemetry"
+   ],
+   [
+    "Report and read attributes",
+    "UMLUseCase",
+    "ThingsBoard/Report and read attributes"
+   ],
+   [
+    "Subscribe to attribute updates",
+    "UMLUseCase",
+    "ThingsBoard/Subscribe to attribute updates"
+   ],
+   [
+    "Send RPC command",
+    "UMLUseCase",
+    "ThingsBoard/Send RPC command"
+   ],
+   [
+    "Provision device",
+    "UMLUseCase",
+    "ThingsBoard/Provision device"
+   ],
+   [
+    "Claim device",
+    "UMLUseCase",
+    "ThingsBoard/Claim device"
+   ],
+   [
+    "ThingsBoard",
+    "UMLUseCaseSubject",
+    "ThingsBoard/ThingsBoard"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    2,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    3,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    4,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    5,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    6,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    7,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    8,
+    "UMLInclude",
+    ""
+   ],
+   [
+    9,
+    "UMLInclude",
+    ""
+   ],
+   [
+    10,
+    "UMLInclude",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "usecase",
+  "name": "Use Cases - System Administrator",
+  "parent": "ThingsBoard",
+  "spec": {
+   "system": "Platform Administration",
+   "actors": [
+    "System Administrator"
+   ],
+   "useCases": [
+    "Log in",
+    "Manage tenants",
+    "Configure system settings"
+   ],
+   "outside": [
+    "Log in"
+   ],
+   "relations": [
+    {
+     "from": "System Administrator",
+     "to": "Manage tenants",
+     "type": "association"
+    },
+    {
+     "from": "System Administrator",
+     "to": "Configure system settings",
+     "type": "association"
+    },
+    {
+     "from": "System Administrator",
+     "to": "Log in",
+     "type": "association"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "System Administrator",
+    "UMLActor",
+    "ThingsBoard/System Administrator"
+   ],
+   [
+    "Log in",
+    "UMLUseCase",
+    "ThingsBoard/Log in"
+   ],
+   [
+    "Manage tenants",
+    "UMLUseCase",
+    "ThingsBoard/Manage tenants"
+   ],
+   [
+    "Configure system settings",
+    "UMLUseCase",
+    "ThingsBoard/Configure system settings"
+   ],
+   [
+    "Platform Administration",
+    "UMLUseCaseSubject",
+    "ThingsBoard/Platform Administration"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    2,
+    "UMLAssociation",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "statemachine",
+  "name": "State - Device lifecycle",
+  "parent": "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle",
+  "spec": {
+   "states": [
+    {
+     "id": "s0",
+     "type": "initial"
+    },
+    {
+     "id": "s1",
+     "name": "Provisioned",
+     "type": "state"
+    },
+    {
+     "id": "s2",
+     "name": "Registered",
+     "type": "state"
+    },
+    {
+     "id": "s3",
+     "name": "Connected",
+     "type": "state"
+    },
+    {
+     "id": "s4",
+     "name": "Active",
+     "type": "state"
+    },
+    {
+     "id": "s5",
+     "name": "Inactive",
+     "type": "state"
+    },
+    {
+     "id": "s6",
+     "name": "Disconnected",
+     "type": "state"
+    },
+    {
+     "id": "s7",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "s0",
+     "to": "s1",
+     "trigger": "provision request / create device and credentials"
+    },
+    {
+     "from": "s1",
+     "to": "s2",
+     "trigger": "saveDevice complete"
+    },
+    {
+     "from": "s2",
+     "to": "s3",
+     "trigger": "session open / onDeviceConnect"
+    },
+    {
+     "from": "s3",
+     "to": "s4",
+     "trigger": "telemetry or attribute / onDeviceActivity"
+    },
+    {
+     "from": "s4",
+     "to": "s4",
+     "trigger": "telemetry / update lastActivityTime"
+    },
+    {
+     "from": "s4",
+     "to": "s5",
+     "trigger": "activity timeout / onDeviceInactivity",
+     "guard": "now - lastActivity > timeout"
+    },
+    {
+     "from": "s5",
+     "to": "s4",
+     "trigger": "telemetry"
+    },
+    {
+     "from": "s4",
+     "to": "s6",
+     "trigger": "session close / onDeviceDisconnect"
+    },
+    {
+     "from": "s3",
+     "to": "s6",
+     "trigger": "session close"
+    },
+    {
+     "from": "s5",
+     "to": "s6",
+     "trigger": "session close"
+    },
+    {
+     "from": "s6",
+     "to": "s3",
+     "trigger": "reconnect"
+    },
+    {
+     "from": "s2",
+     "to": "s7",
+     "trigger": "delete device"
+    },
+    {
+     "from": "s6",
+     "to": "s7",
+     "trigger": "delete device"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "s0",
+    "UMLPseudostate",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//"
+   ],
+   [
+    "s1",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//Provisioned"
+   ],
+   [
+    "s2",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//Registered"
+   ],
+   [
+    "s3",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//Connected"
+   ],
+   [
+    "s4",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//Active"
+   ],
+   [
+    "s5",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//Inactive"
+   ],
+   [
+    "s6",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//Disconnected"
+   ],
+   [
+    "s7",
+    "UMLFinalState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Device/State - Device lifecycle//"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLTransition",
+    "provision request / create device and credentials"
+   ],
+   [
+    1,
+    "UMLTransition",
+    "saveDevice complete"
+   ],
+   [
+    2,
+    "UMLTransition",
+    "session open / onDeviceConnect"
+   ],
+   [
+    3,
+    "UMLTransition",
+    "telemetry or attribute / onDeviceActivity"
+   ],
+   [
+    4,
+    "UMLTransition",
+    "telemetry / update lastActivityTime"
+   ],
+   [
+    5,
+    "UMLTransition",
+    "activity timeout / onDeviceInactivity"
+   ],
+   [
+    6,
+    "UMLTransition",
+    "telemetry"
+   ],
+   [
+    7,
+    "UMLTransition",
+    "session close / onDeviceDisconnect"
+   ],
+   [
+    8,
+    "UMLTransition",
+    "session close"
+   ],
+   [
+    9,
+    "UMLTransition",
+    "session close"
+   ],
+   [
+    10,
+    "UMLTransition",
+    "reconnect"
+   ],
+   [
+    11,
+    "UMLTransition",
+    "delete device"
+   ],
+   [
+    12,
+    "UMLTransition",
+    "delete device"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "statemachine",
+  "name": "State - Alarm lifecycle",
+  "parent": "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle",
+  "spec": {
+   "states": [
+    {
+     "id": "s0",
+     "type": "initial"
+    },
+    {
+     "id": "s1",
+     "name": "Active Unacknowledged",
+     "type": "state"
+    },
+    {
+     "id": "s2",
+     "name": "Active Acknowledged",
+     "type": "state"
+    },
+    {
+     "id": "s3",
+     "name": "Cleared Unacknowledged",
+     "type": "state"
+    },
+    {
+     "id": "s4",
+     "name": "Cleared Acknowledged",
+     "type": "state"
+    },
+    {
+     "id": "s5",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "s0",
+     "to": "s1",
+     "trigger": "createAlarm / raise ALARM event"
+    },
+    {
+     "from": "s1",
+     "to": "s1",
+     "trigger": "createOrUpdate same type / update severity and details"
+    },
+    {
+     "from": "s1",
+     "to": "s2",
+     "trigger": "acknowledge"
+    },
+    {
+     "from": "s1",
+     "to": "s3",
+     "trigger": "clear"
+    },
+    {
+     "from": "s2",
+     "to": "s4",
+     "trigger": "clear"
+    },
+    {
+     "from": "s3",
+     "to": "s4",
+     "trigger": "acknowledge"
+    },
+    {
+     "from": "s4",
+     "to": "s5",
+     "trigger": "delete or TTL expiry"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "s0",
+    "UMLPseudostate",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle//"
+   ],
+   [
+    "s1",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle//Active Unacknowledged"
+   ],
+   [
+    "s2",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle//Active Acknowledged"
+   ],
+   [
+    "s3",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle//Cleared Unacknowledged"
+   ],
+   [
+    "s4",
+    "UMLState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle//Cleared Acknowledged"
+   ],
+   [
+    "s5",
+    "UMLFinalState",
+    "ThingsBoard/Domain Model \\(common\\.data\\)/Alarm/State - Alarm lifecycle//"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLTransition",
+    "createAlarm / raise ALARM event"
+   ],
+   [
+    1,
+    "UMLTransition",
+    "createOrUpdate same type / update severity and details"
+   ],
+   [
+    2,
+    "UMLTransition",
+    "acknowledge"
+   ],
+   [
+    3,
+    "UMLTransition",
+    "clear"
+   ],
+   [
+    4,
+    "UMLTransition",
+    "clear"
+   ],
+   [
+    5,
+    "UMLTransition",
+    "acknowledge"
+   ],
+   [
+    6,
+    "UMLTransition",
+    "delete or TTL expiry"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "statemachine",
+  "name": "State - Rule node lifecycle",
+  "parent": "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle",
+  "spec": {
+   "states": [
+    {
+     "id": "s0",
+     "type": "initial"
+    },
+    {
+     "id": "s1",
+     "name": "Created",
+     "type": "state"
+    },
+    {
+     "id": "s2",
+     "name": "Initializing",
+     "type": "state"
+    },
+    {
+     "id": "s3",
+     "name": "Active",
+     "type": "state"
+    },
+    {
+     "id": "s4",
+     "name": "Failed",
+     "type": "state"
+    },
+    {
+     "id": "s5",
+     "name": "Reinitializing",
+     "type": "state"
+    },
+    {
+     "id": "s6",
+     "name": "Stopped",
+     "type": "state"
+    },
+    {
+     "id": "s7",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "s0",
+     "to": "s1",
+     "trigger": "actor created by RuleChainActor"
+    },
+    {
+     "from": "s1",
+     "to": "s2",
+     "trigger": "init message / TbNode.init(ctx, config)"
+    },
+    {
+     "from": "s2",
+     "to": "s3",
+     "trigger": "init ok"
+    },
+    {
+     "from": "s2",
+     "to": "s4",
+     "trigger": "TbNodeException / InitFailureStrategy"
+    },
+    {
+     "from": "s4",
+     "to": "s2",
+     "trigger": "retry with backoff"
+    },
+    {
+     "from": "s3",
+     "to": "s3",
+     "trigger": "TbMsg / onMsg then tellNext"
+    },
+    {
+     "from": "s3",
+     "to": "s5",
+     "trigger": "node configuration updated"
+    },
+    {
+     "from": "s5",
+     "to": "s3",
+     "trigger": "init ok / destroy old then init"
+    },
+    {
+     "from": "s5",
+     "to": "s4",
+     "trigger": "init error"
+    },
+    {
+     "from": "s3",
+     "to": "s6",
+     "trigger": "chain deleted or partition moved / TbNode.destroy"
+    },
+    {
+     "from": "s4",
+     "to": "s6",
+     "trigger": "chain deleted"
+    },
+    {
+     "from": "s6",
+     "to": "s7",
+     "trigger": "actor terminated"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "s0",
+    "UMLPseudostate",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//"
+   ],
+   [
+    "s1",
+    "UMLState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//Created"
+   ],
+   [
+    "s2",
+    "UMLState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//Initializing"
+   ],
+   [
+    "s3",
+    "UMLState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//Active"
+   ],
+   [
+    "s4",
+    "UMLState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//Failed"
+   ],
+   [
+    "s5",
+    "UMLState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//Reinitializing"
+   ],
+   [
+    "s6",
+    "UMLState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//Stopped"
+   ],
+   [
+    "s7",
+    "UMLFinalState",
+    "ThingsBoard/Actor System \\(application\\.actors\\)/RuleNodeActor/State - Rule node lifecycle//"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLTransition",
+    "actor created by RuleChainActor"
+   ],
+   [
+    1,
+    "UMLTransition",
+    "init message / TbNode.init(ctx, config)"
+   ],
+   [
+    2,
+    "UMLTransition",
+    "init ok"
+   ],
+   [
+    3,
+    "UMLTransition",
+    "TbNodeException / InitFailureStrategy"
+   ],
+   [
+    4,
+    "UMLTransition",
+    "retry with backoff"
+   ],
+   [
+    5,
+    "UMLTransition",
+    "TbMsg / onMsg then tellNext"
+   ],
+   [
+    6,
+    "UMLTransition",
+    "node configuration updated"
+   ],
+   [
+    7,
+    "UMLTransition",
+    "init ok / destroy old then init"
+   ],
+   [
+    8,
+    "UMLTransition",
+    "init error"
+   ],
+   [
+    9,
+    "UMLTransition",
+    "chain deleted or partition moved / TbNode.destroy"
+   ],
+   [
+    10,
+    "UMLTransition",
+    "chain deleted"
+   ],
+   [
+    11,
+    "UMLTransition",
+    "actor terminated"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "activity",
+  "name": "Activity - Rule chain execution",
+  "parent": "ThingsBoard",
+  "spec": {
+   "lanes": [
+    "Queue Consumer",
+    "Rule Chain Actor",
+    "Rule Node",
+    "Services"
+   ],
+   "nodes": [
+    {
+     "id": "s",
+     "type": "initial",
+     "lane": "Queue Consumer"
+    },
+    {
+     "name": "Poll message pack",
+     "lane": "Queue Consumer"
+    },
+    {
+     "name": "Resolve tenant rule chain",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "name": "Send message to first node",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "name": "Execute node onMsg",
+     "lane": "Rule Node"
+    },
+    {
+     "id": "d1",
+     "type": "decision",
+     "lane": "Rule Node"
+    },
+    {
+     "name": "Call services (save, alarm, script)",
+     "lane": "Services"
+    },
+    {
+     "name": "tellNext with relation",
+     "lane": "Rule Node"
+    },
+    {
+     "name": "tellFailure",
+     "lane": "Rule Node"
+    },
+    {
+     "id": "d2",
+     "type": "decision",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "name": "Look up connected nodes",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "id": "fk",
+     "type": "fork",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "name": "Forward to next node",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "name": "Forward to other chain via queue",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "id": "jn",
+     "type": "join",
+     "lane": "Rule Chain Actor"
+    },
+    {
+     "name": "Ack message and complete pack",
+     "lane": "Queue Consumer"
+    },
+    {
+     "id": "e",
+     "type": "final",
+     "lane": "Queue Consumer"
+    }
+   ],
+   "flows": [
+    {
+     "from": "s",
+     "to": "Poll message pack"
+    },
+    {
+     "from": "Poll message pack",
+     "to": "Resolve tenant rule chain"
+    },
+    {
+     "from": "Resolve tenant rule chain",
+     "to": "Send message to first node"
+    },
+    {
+     "from": "Send message to first node",
+     "to": "Execute node onMsg"
+    },
+    {
+     "from": "Execute node onMsg",
+     "to": "d1"
+    },
+    {
+     "from": "d1",
+     "to": "Call services (save, alarm, script)",
+     "guard": "needs service"
+    },
+    {
+     "from": "Call services (save, alarm, script)",
+     "to": "tellNext with relation"
+    },
+    {
+     "from": "d1",
+     "to": "tellNext with relation",
+     "guard": "pure routing"
+    },
+    {
+     "from": "d1",
+     "to": "tellFailure",
+     "guard": "exception"
+    },
+    {
+     "from": "tellNext with relation",
+     "to": "Look up connected nodes"
+    },
+    {
+     "from": "tellFailure",
+     "to": "Look up connected nodes"
+    },
+    {
+     "from": "Look up connected nodes",
+     "to": "d2"
+    },
+    {
+     "from": "d2",
+     "to": "fk",
+     "guard": "has outgoing relations"
+    },
+    {
+     "from": "d2",
+     "to": "Ack message and complete pack",
+     "guard": "no relation"
+    },
+    {
+     "from": "fk",
+     "to": "Forward to next node"
+    },
+    {
+     "from": "fk",
+     "to": "Forward to other chain via queue"
+    },
+    {
+     "from": "Forward to next node",
+     "to": "jn"
+    },
+    {
+     "from": "Forward to other chain via queue",
+     "to": "jn"
+    },
+    {
+     "from": "jn",
+     "to": "Ack message and complete pack"
+    },
+    {
+     "from": "Ack message and complete pack",
+     "to": "e"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "erd",
+  "name": "ThingsBoard data model",
+  "parent": "ThingsBoard",
+  "spec": {
+   "entities": [
+    {
+     "name": "tenant",
+     "columns": [
+      "id uuid PK",
+      "title varchar",
+      "tenant_profile_id uuid FK",
+      "region varchar"
+     ]
+    },
+    {
+     "name": "tenant_profile",
+     "columns": [
+      "id uuid PK",
+      "name varchar",
+      "profile_data jsonb",
+      "isolated_tb_rule_engine boolean"
+     ]
+    },
+    {
+     "name": "customer",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "title varchar",
+      "parent_customer_id uuid FK"
+     ]
+    },
+    {
+     "name": "tb_user",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "customer_id uuid FK",
+      "email varchar",
+      "authority varchar"
+     ]
+    },
+    {
+     "name": "user_credentials",
+     "columns": [
+      "id uuid PK",
+      "user_id uuid FK",
+      "password varchar",
+      "enabled boolean"
+     ]
+    },
+    {
+     "name": "device_profile",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "name varchar",
+      "transport_type varchar",
+      "provision_type varchar",
+      "default_rule_chain_id uuid FK",
+      "profile_data jsonb"
+     ]
+    },
+    {
+     "name": "device",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "customer_id uuid FK",
+      "device_profile_id uuid FK",
+      "name varchar",
+      "type varchar",
+      "device_data jsonb"
+     ]
+    },
+    {
+     "name": "device_credentials",
+     "columns": [
+      "id uuid PK",
+      "device_id uuid FK",
+      "credentials_type varchar",
+      "credentials_id varchar",
+      "credentials_value varchar"
+     ]
+    },
+    {
+     "name": "asset",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "customer_id uuid FK",
+      "name varchar",
+      "type varchar"
+     ]
+    },
+    {
+     "name": "alarm",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "originator_id uuid",
+      "originator_type int",
+      "type varchar",
+      "severity varchar",
+      "acknowledged boolean",
+      "cleared boolean",
+      "start_ts bigint"
+     ]
+    },
+    {
+     "name": "entity_alarm",
+     "columns": [
+      "entity_id uuid PK",
+      "alarm_id uuid PK FK",
+      "tenant_id uuid"
+     ]
+    },
+    {
+     "name": "relation",
+     "columns": [
+      "from_id uuid PK",
+      "from_type varchar PK",
+      "to_id uuid PK",
+      "to_type varchar PK",
+      "relation_type varchar PK",
+      "relation_type_group varchar PK"
+     ]
+    },
+    {
+     "name": "rule_chain",
+     "columns": [
+      "id uuid PK",
+      "tenant_id uuid FK",
+      "name varchar",
+      "first_rule_node_id uuid FK",
+      "root boolean"
+     ]
+    },
+    {
+     "name": "rule_node",
+     "columns": [
+      "id uuid PK",
+      "rule_chain_id uuid FK",
+      "type varchar",
+      "configuration varchar"
+     ]
+    },
+    {
+     "name": "attribute_kv",
+     "columns": [
+      "entity_id uuid PK",
+      "attribute_type int PK",
+      "attribute_key int PK",
+      "last_update_ts bigint",
+      "long_v bigint",
+      "str_v varchar"
+     ]
+    },
+    {
+     "name": "ts_kv",
+     "columns": [
+      "entity_id uuid PK",
+      "key int PK",
+      "ts bigint PK",
+      "long_v bigint",
+      "dbl_v double",
+      "str_v varchar"
+     ]
+    },
+    {
+     "name": "ts_kv_latest",
+     "columns": [
+      "entity_id uuid PK",
+      "key int PK",
+      "ts bigint",
+      "long_v bigint",
+      "dbl_v double",
+      "str_v varchar"
+     ]
+    },
+    {
+     "name": "key_dictionary",
+     "columns": [
+      "key varchar PK",
+      "key_id int"
+     ]
+    }
+   ],
+   "relationships": [
+    {
+     "from": "tenant_profile",
+     "to": "tenant",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "tenant",
+     "to": "customer",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "tenant",
+     "to": "tb_user",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "customer",
+     "to": "tb_user",
+     "fromCardinality": "0..1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "tb_user",
+     "to": "user_credentials",
+     "fromCardinality": "1",
+     "toCardinality": "1"
+    },
+    {
+     "from": "tenant",
+     "to": "device_profile",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "device_profile",
+     "to": "device",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "tenant",
+     "to": "device",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "customer",
+     "to": "device",
+     "fromCardinality": "0..1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "device",
+     "to": "device_credentials",
+     "fromCardinality": "1",
+     "toCardinality": "1"
+    },
+    {
+     "from": "tenant",
+     "to": "asset",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "customer",
+     "to": "asset",
+     "fromCardinality": "0..1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "tenant",
+     "to": "rule_chain",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "rule_chain",
+     "to": "rule_node",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "rule_chain",
+     "to": "device_profile",
+     "fromCardinality": "0..1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "alarm",
+     "to": "entity_alarm",
+     "fromCardinality": "1",
+     "toCardinality": "1..*"
+    },
+    {
+     "from": "device",
+     "to": "ts_kv",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "device",
+     "to": "ts_kv_latest",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "device",
+     "to": "attribute_kv",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "key_dictionary",
+     "to": "ts_kv",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "c4",
+  "name": "ThingsBoard containers",
+  "parent": "ThingsBoard",
+  "spec": {
+   "elements": [
+    {
+     "id": "ui",
+     "name": "Web UI",
+     "type": "container",
+     "technology": "Angular 20, nginx",
+     "description": "Dashboards and admin screens"
+    },
+    {
+     "id": "node",
+     "name": "TB Node (core + rule engine)",
+     "type": "container",
+     "technology": "Spring Boot, Java",
+     "description": "REST API, actor system, rule engine, services"
+    },
+    {
+     "id": "mqtt",
+     "name": "MQTT Transport",
+     "type": "container",
+     "technology": "Netty",
+     "description": "Device MQTT front door"
+    },
+    {
+     "id": "http",
+     "name": "HTTP Transport",
+     "type": "container",
+     "technology": "Spring Boot",
+     "description": "Device HTTP front door"
+    },
+    {
+     "id": "coap",
+     "name": "CoAP Transport",
+     "type": "container",
+     "technology": "Californium",
+     "description": "Device CoAP front door"
+    },
+    {
+     "id": "lwm2m",
+     "name": "LwM2M Transport",
+     "type": "container",
+     "technology": "Leshan",
+     "description": "Device LwM2M front door"
+    },
+    {
+     "id": "snmp",
+     "name": "SNMP Transport",
+     "type": "container",
+     "technology": "SNMP4J",
+     "description": "Polls SNMP devices"
+    },
+    {
+     "id": "jsx",
+     "name": "JS Executor",
+     "type": "container",
+     "technology": "Node.js",
+     "description": "Remote script sandbox"
+    },
+    {
+     "id": "vc",
+     "name": "VC Executor",
+     "type": "container",
+     "technology": "Java",
+     "description": "Git-based version control"
+    },
+    {
+     "id": "edqs",
+     "name": "EDQS",
+     "type": "container",
+     "technology": "Java",
+     "description": "Entity data query replica"
+    },
+    {
+     "id": "integ",
+     "name": "Integration Executor",
+     "type": "container",
+     "technology": "Java",
+     "description": "Runs integrations"
+    },
+    {
+     "id": "queue",
+     "name": "Message Queue",
+     "type": "container",
+     "kind": "database",
+     "technology": "Kafka",
+     "description": "Core, rule engine, transport topics"
+    },
+    {
+     "id": "pg",
+     "name": "PostgreSQL / TimescaleDB",
+     "type": "container",
+     "kind": "database",
+     "technology": "SQL",
+     "description": "Entities and timeseries"
+    },
+    {
+     "id": "cass",
+     "name": "Cassandra",
+     "type": "container",
+     "kind": "database",
+     "technology": "NoSQL",
+     "description": "Optional timeseries store"
+    },
+    {
+     "id": "redis",
+     "name": "Redis / Valkey",
+     "type": "container",
+     "kind": "database",
+     "technology": "Cache",
+     "description": "Entity and latest-value cache"
+    },
+    {
+     "id": "dev",
+     "name": "Device",
+     "type": "person",
+     "description": "Sensor, gateway, actuator"
+    },
+    {
+     "id": "user",
+     "name": "Platform User",
+     "type": "person",
+     "description": "Admin or customer"
+    },
+    {
+     "id": "ext",
+     "name": "External Systems",
+     "type": "system",
+     "description": "MQTT brokers, Kafka, REST, cloud services",
+     "external": true
+    }
+   ],
+   "relations": [
+    {
+     "from": "user",
+     "to": "ui",
+     "label": "Uses",
+     "technology": "HTTPS"
+    },
+    {
+     "from": "ui",
+     "to": "node",
+     "label": "Calls REST and WebSocket",
+     "technology": "HTTPS"
+    },
+    {
+     "from": "dev",
+     "to": "mqtt",
+     "label": "Publishes telemetry",
+     "technology": "MQTT"
+    },
+    {
+     "from": "dev",
+     "to": "http",
+     "label": "Posts telemetry",
+     "technology": "HTTP"
+    },
+    {
+     "from": "dev",
+     "to": "coap",
+     "label": "Posts telemetry",
+     "technology": "CoAP"
+    },
+    {
+     "from": "dev",
+     "to": "lwm2m",
+     "label": "Reports",
+     "technology": "LwM2M"
+    },
+    {
+     "from": "snmp",
+     "to": "dev",
+     "label": "Polls",
+     "technology": "SNMP"
+    },
+    {
+     "from": "mqtt",
+     "to": "queue",
+     "label": "Produces device messages",
+     "technology": "Kafka"
+    },
+    {
+     "from": "http",
+     "to": "queue",
+     "label": "Produces device messages",
+     "technology": "Kafka"
+    },
+    {
+     "from": "coap",
+     "to": "queue",
+     "label": "Produces device messages",
+     "technology": "Kafka"
+    },
+    {
+     "from": "lwm2m",
+     "to": "queue",
+     "label": "Produces device messages",
+     "technology": "Kafka"
+    },
+    {
+     "from": "snmp",
+     "to": "queue",
+     "label": "Produces device messages",
+     "technology": "Kafka"
+    },
+    {
+     "from": "queue",
+     "to": "node",
+     "label": "Consumes core and rule engine topics",
+     "technology": "Kafka"
+    },
+    {
+     "from": "node",
+     "to": "queue",
+     "label": "Produces notifications and responses",
+     "technology": "Kafka"
+    },
+    {
+     "from": "node",
+     "to": "pg",
+     "label": "Reads and writes",
+     "technology": "JDBC"
+    },
+    {
+     "from": "node",
+     "to": "cass",
+     "label": "Writes timeseries",
+     "technology": "CQL"
+    },
+    {
+     "from": "node",
+     "to": "redis",
+     "label": "Caches",
+     "technology": "RESP"
+    },
+    {
+     "from": "node",
+     "to": "jsx",
+     "label": "Executes scripts",
+     "technology": "Kafka"
+    },
+    {
+     "from": "node",
+     "to": "vc",
+     "label": "Version control commands",
+     "technology": "Kafka"
+    },
+    {
+     "from": "queue",
+     "to": "edqs",
+     "label": "Entity events",
+     "technology": "Kafka"
+    },
+    {
+     "from": "node",
+     "to": "edqs",
+     "label": "Entity queries",
+     "technology": "Kafka"
+    },
+    {
+     "from": "integ",
+     "to": "queue",
+     "label": "Uplink and downlink",
+     "technology": "Kafka"
+    },
+    {
+     "from": "integ",
+     "to": "ext",
+     "label": "Integrates",
+     "technology": "protocol specific"
+    },
+    {
+     "from": "node",
+     "to": "ext",
+     "label": "Rule node calls",
+     "technology": "REST, MQTT, Kafka"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "deployment",
+  "name": "Deployment - Microservices",
+  "parent": "ThingsBoard",
+  "spec": {
+   "nodes": [
+    {
+     "name": "Client Tier",
+     "stereotype": "device",
+     "deploys": [
+      "Browser",
+      "IoT Device"
+     ]
+    },
+    {
+     "name": "Ingress / Load Balancer",
+     "deploys": [
+      "nginx / HAProxy"
+     ]
+    },
+    {
+     "name": "UI Pod",
+     "deploys": [
+      "tb-web-ui"
+     ]
+    },
+    {
+     "name": "Transport Pods",
+     "deploys": [
+      "tb-mqtt-transport",
+      "tb-http-transport",
+      "tb-coap-transport",
+      "tb-lwm2m-transport",
+      "tb-snmp-transport"
+     ]
+    },
+    {
+     "name": "TB Node Pods (x N)",
+     "deploys": [
+      "tb-node"
+     ]
+    },
+    {
+     "name": "Executor Pods",
+     "deploys": [
+      "tb-js-executor",
+      "tb-vc-executor",
+      "tb-edqs",
+      "tb-integration-executor"
+     ]
+    },
+    {
+     "name": "Kafka Cluster",
+     "deploys": [
+      "Kafka"
+     ]
+    },
+    {
+     "name": "Data Tier",
+     "deploys": [
+      "PostgreSQL",
+      "Cassandra",
+      "Valkey"
+     ]
+    }
+   ],
+   "artifacts": [
+    "Browser",
+    "IoT Device",
+    "nginx / HAProxy",
+    "tb-web-ui",
+    "tb-mqtt-transport",
+    "tb-http-transport",
+    "tb-coap-transport",
+    "tb-lwm2m-transport",
+    "tb-snmp-transport",
+    "tb-node",
+    "tb-js-executor",
+    "tb-vc-executor",
+    "tb-edqs",
+    "tb-integration-executor",
+    "Kafka",
+    "PostgreSQL",
+    "Cassandra",
+    "Valkey"
+   ],
+   "paths": [
+    {
+     "from": "Client Tier",
+     "to": "Ingress / Load Balancer",
+     "name": "HTTPS, MQTT, CoAP"
+    },
+    {
+     "from": "Ingress / Load Balancer",
+     "to": "UI Pod",
+     "name": "HTTP"
+    },
+    {
+     "from": "Ingress / Load Balancer",
+     "to": "TB Node Pods (x N)",
+     "name": "REST, WS"
+    },
+    {
+     "from": "Ingress / Load Balancer",
+     "to": "Transport Pods",
+     "name": "device protocols"
+    },
+    {
+     "from": "Transport Pods",
+     "to": "Kafka Cluster",
+     "name": "produce"
+    },
+    {
+     "from": "Kafka Cluster",
+     "to": "TB Node Pods (x N)",
+     "name": "consume"
+    },
+    {
+     "from": "Kafka Cluster",
+     "to": "Executor Pods",
+     "name": "consume"
+    },
+    {
+     "from": "TB Node Pods (x N)",
+     "to": "Data Tier",
+     "name": "JDBC, CQL, RESP"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "deployment",
+  "name": "Deployment - Monolith",
+  "parent": "ThingsBoard",
+  "spec": {
+   "nodes": [
+    {
+     "name": "Client Tier",
+     "stereotype": "device",
+     "deploys": [
+      "Browser",
+      "IoT Device"
+     ]
+    },
+    {
+     "name": "Single Host or Container",
+     "deploys": [
+      "thingsboard.jar (UI, REST, MQTT, HTTP, CoAP, rule engine)",
+      "in-memory queue"
+     ]
+    },
+    {
+     "name": "Database Host",
+     "deploys": [
+      "PostgreSQL"
+     ]
+    }
+   ],
+   "artifacts": [
+    "Browser",
+    "IoT Device",
+    "thingsboard.jar (UI, REST, MQTT, HTTP, CoAP, rule engine)",
+    "in-memory queue",
+    "PostgreSQL"
+   ],
+   "paths": [
+    {
+     "from": "Client Tier",
+     "to": "Single Host or Container",
+     "name": "HTTP 8080, MQTT 1883, CoAP 5683"
+    },
+    {
+     "from": "Single Host or Container",
+     "to": "Database Host",
+     "name": "JDBC"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "mindmap",
+  "name": "ThingsBoard Features",
+  "parent": "ThingsBoard",
+  "spec": {
+   "root": {
+    "name": "ThingsBoard Features",
+    "children": [
+     {
+      "name": "Device Management",
+      "children": [
+       {
+        "name": "Device profiles"
+       },
+       {
+        "name": "Credentials: token, MQTT basic, X.509"
+       },
+       {
+        "name": "Provisioning"
+       },
+       {
+        "name": "Claiming"
+       },
+       {
+        "name": "OTA firmware updates"
+       },
+       {
+        "name": "Bulk import"
+       },
+       {
+        "name": "Connectivity status"
+       }
+      ]
+     },
+     {
+      "name": "Connectivity",
+      "children": [
+       {
+        "name": "MQTT"
+       },
+       {
+        "name": "HTTP"
+       },
+       {
+        "name": "CoAP"
+       },
+       {
+        "name": "LwM2M"
+       },
+       {
+        "name": "SNMP"
+       },
+       {
+        "name": "Gateways"
+       },
+       {
+        "name": "Integrations and converters"
+       }
+      ]
+     },
+     {
+      "name": "Data",
+      "children": [
+       {
+        "name": "Telemetry timeseries"
+       },
+       {
+        "name": "Attributes: client, server, shared"
+       },
+       {
+        "name": "Latest values"
+       },
+       {
+        "name": "Calculated fields"
+       },
+       {
+        "name": "Entity relations"
+       },
+       {
+        "name": "Storage: SQL, Timescale, Cassandra"
+       }
+      ]
+     },
+     {
+      "name": "Rule Engine",
+      "children": [
+       {
+        "name": "Rule chains"
+       },
+       {
+        "name": "Node library: filter, enrich, transform, action, external"
+       },
+       {
+        "name": "Scripting: JS and TBEL"
+       },
+       {
+        "name": "Debugging"
+       },
+       {
+        "name": "Queues and processing strategies"
+       }
+      ]
+     },
+     {
+      "name": "Alarms and Notifications",
+      "children": [
+       {
+        "name": "Alarm rules in profiles"
+       },
+       {
+        "name": "Alarm comments and assignment"
+       },
+       {
+        "name": "Notification center"
+       },
+       {
+        "name": "Email, SMS, mobile push, Slack, Teams"
+       }
+      ]
+     },
+     {
+      "name": "Visualization",
+      "children": [
+       {
+        "name": "Dashboards and widgets"
+       },
+       {
+        "name": "SCADA symbols"
+       },
+       {
+        "name": "Reports"
+       },
+       {
+        "name": "White labeling"
+       },
+       {
+        "name": "Mobile apps"
+       }
+      ]
+     },
+     {
+      "name": "Multi-tenancy and Security",
+      "children": [
+       {
+        "name": "Tenants and tenant profiles"
+       },
+       {
+        "name": "Customers"
+       },
+       {
+        "name": "Roles and group permissions"
+       },
+       {
+        "name": "OAuth2, MFA, API keys"
+       },
+       {
+        "name": "Audit log"
+       },
+       {
+        "name": "API usage limits"
+       }
+      ]
+     },
+     {
+      "name": "Platform",
+      "children": [
+       {
+        "name": "Actor-based rule engine"
+       },
+       {
+        "name": "Kafka partitioned queues"
+       },
+       {
+        "name": "Microservice deployment"
+       },
+       {
+        "name": "Edge computing"
+       },
+       {
+        "name": "Version control"
+       },
+       {
+        "name": "AI models and agents"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Seq - Telemetry ingestion over MQTT communication",
+  "parent": "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT",
+  "spec": {
+   "nodes": [
+    "Device",
+    "MqttTransportHandler",
+    "DefaultTransportService",
+    "Queue",
+    "TbRuleEngineConsumerService",
+    "RuleChainActor",
+    "RuleNodeActor",
+    "TelemetrySubscriptionService",
+    "TimeseriesService"
+   ],
+   "edges": [
+    {
+     "from": "Device",
+     "to": "MqttTransportHandler",
+     "name": "PUBLISH v1/devices/me/telemetry"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "DefaultTransportService",
+     "name": "process(sessionInfo, PostTelemetryMsg)"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "Queue",
+     "name": "send ToRuleEngineMsg"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "MqttTransportHandler",
+     "name": "onSuccess"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "Device",
+     "name": "PUBACK"
+    },
+    {
+     "from": "Queue",
+     "to": "TbRuleEngineConsumerService",
+     "name": "poll batch"
+    },
+    {
+     "from": "TbRuleEngineConsumerService",
+     "to": "RuleChainActor",
+     "name": "forward TbMsg"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "name": "RuleChainToRuleNodeMsg"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TelemetrySubscriptionService",
+     "name": "saveTimeseries(request)"
+    },
+    {
+     "from": "TelemetrySubscriptionService",
+     "to": "TimeseriesService",
+     "name": "save(entityId, tsKvEntry)"
+    },
+    {
+     "from": "TimeseriesService",
+     "to": "TelemetrySubscriptionService",
+     "name": "saved"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "RuleChainActor",
+     "name": "tellNext(Success)"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/Device"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/MqttTransportHandler"
+   ],
+   [
+    "DefaultTransportService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/DefaultTransportService"
+   ],
+   [
+    "Queue",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/Queue"
+   ],
+   [
+    "TbRuleEngineConsumerService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/TbRuleEngineConsumerService"
+   ],
+   [
+    "RuleChainActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/RuleChainActor"
+   ],
+   [
+    "RuleNodeActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/RuleNodeActor"
+   ],
+   [
+    "TelemetrySubscriptionService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/TelemetrySubscriptionService"
+   ],
+   [
+    "TimeseriesService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Telemetry ingestion over MQTT/Seq - Telemetry ingestion over MQTT/TimeseriesService"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "PUBLISH v1/devices/me/telemetry"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "process(sessionInfo, PostTelemetryMsg)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "send ToRuleEngineMsg"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "onSuccess"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "PUBACK"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "poll batch"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "forward TbMsg"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "RuleChainToRuleNodeMsg"
+   ],
+   [
+    8,
+    "UMLMessage",
+    "saveTimeseries(request)"
+   ],
+   [
+    9,
+    "UMLMessage",
+    "save(entityId, tsKvEntry)"
+   ],
+   [
+    10,
+    "UMLMessage",
+    "saved"
+   ],
+   [
+    11,
+    "UMLMessage",
+    "tellNext(Success)"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Seq - Rule chain processing communication",
+  "parent": "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing",
+  "spec": {
+   "nodes": [
+    "RuleChainActor",
+    "RuleNodeActor",
+    "TbMsgTypeFilterNode",
+    "TbDeviceProfileNode",
+    "TbMsgTimeseriesNode",
+    "TbCreateAlarmNode",
+    "DefaultTbContext",
+    "TbClusterService"
+   ],
+   "edges": [
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "name": "RuleChainToRuleNodeMsg(first node)"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbMsgTypeFilterNode",
+     "name": "onMsg(ctx, msg)"
+    },
+    {
+     "from": "TbMsgTypeFilterNode",
+     "to": "DefaultTbContext",
+     "name": "tellNext(msg, True)"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "RuleChainActor",
+     "name": "RuleNodeToRuleChainTellNextMsg"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "name": "next node by relation"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbDeviceProfileNode",
+     "name": "onMsg(ctx, msg)"
+    },
+    {
+     "from": "TbDeviceProfileNode",
+     "to": "DefaultTbContext",
+     "name": "tellNext(msg, Alarm Created)"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "RuleChainActor",
+     "name": "tell next"
+    },
+    {
+     "from": "RuleChainActor",
+     "to": "RuleNodeActor",
+     "name": "route to save node"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbMsgTimeseriesNode",
+     "name": "onMsg(ctx, msg)"
+    },
+    {
+     "from": "TbMsgTimeseriesNode",
+     "to": "DefaultTbContext",
+     "name": "tellSuccess(msg)"
+    },
+    {
+     "from": "DefaultTbContext",
+     "to": "TbClusterService",
+     "name": "pushMsgToRuleEngine(other chain)"
+    },
+    {
+     "from": "RuleNodeActor",
+     "to": "TbCreateAlarmNode",
+     "name": "onMsg for alarm branch"
+    },
+    {
+     "from": "TbCreateAlarmNode",
+     "to": "DefaultTbContext",
+     "name": "tellNext(msg, Created)"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "RuleChainActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/RuleChainActor"
+   ],
+   [
+    "RuleNodeActor",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/RuleNodeActor"
+   ],
+   [
+    "TbMsgTypeFilterNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbMsgTypeFilterNode"
+   ],
+   [
+    "TbDeviceProfileNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbDeviceProfileNode"
+   ],
+   [
+    "TbMsgTimeseriesNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbMsgTimeseriesNode"
+   ],
+   [
+    "TbCreateAlarmNode",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbCreateAlarmNode"
+   ],
+   [
+    "DefaultTbContext",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/DefaultTbContext"
+   ],
+   [
+    "TbClusterService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Rule chain processing/Seq - Rule chain processing/TbClusterService"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "RuleChainToRuleNodeMsg(first node)"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "onMsg(ctx, msg)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "tellNext(msg, True)"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "RuleNodeToRuleChainTellNextMsg"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "next node by relation"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "onMsg(ctx, msg)"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "tellNext(msg, Alarm Created)"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "tell next"
+   ],
+   [
+    8,
+    "UMLMessage",
+    "route to save node"
+   ],
+   [
+    9,
+    "UMLMessage",
+    "onMsg(ctx, msg)"
+   ],
+   [
+    10,
+    "UMLMessage",
+    "tellSuccess(msg)"
+   ],
+   [
+    11,
+    "UMLMessage",
+    "pushMsgToRuleEngine(other chain)"
+   ],
+   [
+    12,
+    "UMLMessage",
+    "onMsg for alarm branch"
+   ],
+   [
+    13,
+    "UMLMessage",
+    "tellNext(msg, Created)"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Seq - Device provisioning communication",
+  "parent": "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning",
+  "spec": {
+   "nodes": [
+    "Device",
+    "MqttTransportHandler",
+    "DefaultTransportService",
+    "Queue",
+    "TbCoreConsumerService",
+    "DeviceProvisionService",
+    "DeviceService",
+    "DeviceCredentialsService"
+   ],
+   "edges": [
+    {
+     "from": "Device",
+     "to": "MqttTransportHandler",
+     "name": "PUBLISH /provision {provisionDeviceKey, secret, name}"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "DefaultTransportService",
+     "name": "process(ProvisionDeviceRequestMsg)"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "Queue",
+     "name": "send TransportApiRequest"
+    },
+    {
+     "from": "Queue",
+     "to": "TbCoreConsumerService",
+     "name": "poll TransportApiRequest"
+    },
+    {
+     "from": "TbCoreConsumerService",
+     "to": "DeviceProvisionService",
+     "name": "provisionDevice(request)"
+    },
+    {
+     "from": "DeviceProvisionService",
+     "to": "DeviceService",
+     "name": "findDeviceByName / saveDevice"
+    },
+    {
+     "from": "DeviceProvisionService",
+     "to": "DeviceCredentialsService",
+     "name": "create or update credentials"
+    },
+    {
+     "from": "DeviceProvisionService",
+     "to": "TbCoreConsumerService",
+     "name": "ProvisionResponse(credentials)"
+    },
+    {
+     "from": "TbCoreConsumerService",
+     "to": "Queue",
+     "name": "TransportApiResponse"
+    },
+    {
+     "from": "Queue",
+     "to": "DefaultTransportService",
+     "name": "response"
+    },
+    {
+     "from": "DefaultTransportService",
+     "to": "MqttTransportHandler",
+     "name": "ProvisionDeviceResponseMsg"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "Device",
+     "name": "PUBLISH /provision/response {credentials}"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/Device"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/MqttTransportHandler"
+   ],
+   [
+    "DefaultTransportService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DefaultTransportService"
+   ],
+   [
+    "Queue",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/Queue"
+   ],
+   [
+    "TbCoreConsumerService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/TbCoreConsumerService"
+   ],
+   [
+    "DeviceProvisionService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DeviceProvisionService"
+   ],
+   [
+    "DeviceService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DeviceService"
+   ],
+   [
+    "DeviceCredentialsService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device provisioning/Seq - Device provisioning/DeviceCredentialsService"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "PUBLISH /provision {provisionDeviceKey, secret, name}"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "process(ProvisionDeviceRequestMsg)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "send TransportApiRequest"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "poll TransportApiRequest"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "provisionDevice(request)"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "findDeviceByName / saveDevice"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "create or update credentials"
+   ],
+   [
+    7,
+    "UMLMessage",
+    "ProvisionResponse(credentials)"
+   ],
+   [
+    8,
+    "UMLMessage",
+    "TransportApiResponse"
+   ],
+   [
+    9,
+    "UMLMessage",
+    "response"
+   ],
+   [
+    10,
+    "UMLMessage",
+    "ProvisionDeviceResponseMsg"
+   ],
+   [
+    11,
+    "UMLMessage",
+    "PUBLISH /provision/response {credentials}"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Seq - Device claiming communication",
+  "parent": "ThingsBoard/Seq - Device claiming/Seq - Device claiming",
+  "spec": {
+   "nodes": [
+    "Device",
+    "MqttTransportHandler",
+    "ClaimDevicesService",
+    "DeviceService",
+    "DeviceController",
+    "Customer User"
+   ],
+   "edges": [
+    {
+     "from": "Device",
+     "to": "MqttTransportHandler",
+     "name": "PUBLISH v1/devices/me/claim {secretKey, durationMs}"
+    },
+    {
+     "from": "MqttTransportHandler",
+     "to": "ClaimDevicesService",
+     "name": "registerClaimingInfo(deviceId, secretKey, duration)"
+    },
+    {
+     "from": "Customer User",
+     "to": "DeviceController",
+     "name": "POST /api/customer/device/{name}/claim {secretKey}"
+    },
+    {
+     "from": "DeviceController",
+     "to": "ClaimDevicesService",
+     "name": "claimDevice(device, customerId, secretKey)"
+    },
+    {
+     "from": "ClaimDevicesService",
+     "to": "DeviceService",
+     "name": "assignDeviceToCustomer(deviceId, customerId)"
+    },
+    {
+     "from": "ClaimDevicesService",
+     "to": "DeviceController",
+     "name": "ClaimResult(SUCCESS)"
+    },
+    {
+     "from": "DeviceController",
+     "to": "Customer User",
+     "name": "200 OK"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Device",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/Device"
+   ],
+   [
+    "MqttTransportHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/MqttTransportHandler"
+   ],
+   [
+    "ClaimDevicesService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/ClaimDevicesService"
+   ],
+   [
+    "DeviceService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/DeviceService"
+   ],
+   [
+    "DeviceController",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/DeviceController"
+   ],
+   [
+    "Customer User",
+    "UMLLifeline",
+    "ThingsBoard/Seq - Device claiming/Seq - Device claiming/Customer User"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "PUBLISH v1/devices/me/claim {secretKey, durationMs}"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "registerClaimingInfo(deviceId, secretKey, duration)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "POST /api/customer/device/{name}/claim {secretKey}"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "claimDevice(device, customerId, secretKey)"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "assignDeviceToCustomer(deviceId, customerId)"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "ClaimResult(SUCCESS)"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "200 OK"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Seq - REST login communication",
+  "parent": "ThingsBoard/Seq - REST login/Seq - REST login",
+  "spec": {
+   "nodes": [
+    "Browser",
+    "RestLoginProcessingFilter",
+    "RestAuthenticationProvider",
+    "UserService",
+    "JwtTokenFactory",
+    "RestAwareAuthenticationSuccessHandler"
+   ],
+   "edges": [
+    {
+     "from": "Browser",
+     "to": "RestLoginProcessingFilter",
+     "name": "POST /api/auth/login {username, password}"
+    },
+    {
+     "from": "RestLoginProcessingFilter",
+     "to": "RestAuthenticationProvider",
+     "name": "authenticate(LoginRequest)"
+    },
+    {
+     "from": "RestAuthenticationProvider",
+     "to": "UserService",
+     "name": "findUserByEmail(email)"
+    },
+    {
+     "from": "RestAuthenticationProvider",
+     "to": "RestLoginProcessingFilter",
+     "name": "SecurityUser"
+    },
+    {
+     "from": "RestLoginProcessingFilter",
+     "to": "RestAwareAuthenticationSuccessHandler",
+     "name": "onAuthenticationSuccess"
+    },
+    {
+     "from": "RestAwareAuthenticationSuccessHandler",
+     "to": "JwtTokenFactory",
+     "name": "createAccessJwtToken + createRefreshToken"
+    },
+    {
+     "from": "RestAwareAuthenticationSuccessHandler",
+     "to": "Browser",
+     "name": "{token, refreshToken}"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Browser",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/Browser"
+   ],
+   [
+    "RestLoginProcessingFilter",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/RestLoginProcessingFilter"
+   ],
+   [
+    "RestAuthenticationProvider",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/RestAuthenticationProvider"
+   ],
+   [
+    "UserService",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/UserService"
+   ],
+   [
+    "JwtTokenFactory",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/JwtTokenFactory"
+   ],
+   [
+    "RestAwareAuthenticationSuccessHandler",
+    "UMLLifeline",
+    "ThingsBoard/Seq - REST login/Seq - REST login/RestAwareAuthenticationSuccessHandler"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "POST /api/auth/login {username, password}"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "authenticate(LoginRequest)"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "findUserByEmail(email)"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "SecurityUser"
+   ],
+   [
+    4,
+    "UMLMessage",
+    "onAuthenticationSuccess"
+   ],
+   [
+    5,
+    "UMLMessage",
+    "createAccessJwtToken + createRefreshToken"
+   ],
+   [
+    6,
+    "UMLMessage",
+    "{token, refreshToken}"
+   ]
+  ],
+  "accessorsOnly": []
+ }
+]

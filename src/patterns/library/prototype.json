@@ -1,0 +1,66 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Prototype",
+  "category": "creational",
+  "intent": "Create objects by copying a prototypical instance.",
+  "roles": [
+    {
+      "name": "Prototype",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares the operation that clones.",
+      "operations": [
+        {
+          "name": "clone",
+          "isAbstract": true,
+          "isQuery": true,
+          "returnType": "{Prototype}"
+        }
+      ]
+    },
+    {
+      "name": "ConcretePrototype",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Copies itself.",
+      "operations": [
+        {
+          "name": "clone",
+          "isQuery": true,
+          "returnType": "{Prototype}"
+        }
+      ]
+    },
+    {
+      "name": "Client",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Makes new objects by asking a prototype to clone itself.",
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcretePrototype",
+      "to": "Prototype"
+    },
+    {
+      "type": "association",
+      "from": "Client",
+      "to": "Prototype",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "prototype",
+        "multiplicity": "1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+@startuml
+(*) --> "Choose items" as N1
+N1 --> "Check stock" as N2
+N2 --> "in stock?" as N3
+N3 --> [yes] "Reserve" as N4
+N4 --> ===N5===
+===N5=== --> "Charge card" as N6
+===N5=== --> "Pack" as N7
+N6 --> ===N8===
+N7 --> ===N8===
+N3 --> [no] "Notify" as N9
+===N8=== --> "N10" as N10
+N9 --> N10
+N10 --> "more?" as N11
+N11 --> [yes] "Next" as N12
+N12 --> N11
+N11 --> [no] (*)
+@enduml

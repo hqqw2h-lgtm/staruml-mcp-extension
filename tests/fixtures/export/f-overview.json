@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "name": "",
+      "id": "initial",
+      "type": "initial"
+    },
+    {
+      "name": "Log in",
+      "type": "interactionUse"
+    },
+    {
+      "name": "",
+      "id": "decision",
+      "type": "decision"
+    },
+    {
+      "name": "Browse",
+      "type": "interaction"
+    },
+    {
+      "name": "",
+      "id": "final",
+      "type": "final"
+    }
+  ],
+  "edges": [
+    {
+      "from": "initial",
+      "to": "Log in",
+      "type": "flow"
+    },
+    {
+      "from": "Log in",
+      "to": "decision",
+      "type": "flow"
+    },
+    {
+      "from": "decision",
+      "to": "Browse",
+      "type": "flow",
+      "name": "[ok]"
+    },
+    {
+      "from": "decision",
+      "to": "final",
+      "type": "flow",
+      "name": "[failed]"
+    },
+    {
+      "from": "Browse",
+      "to": "final",
+      "type": "flow"
+    }
+  ]
+}

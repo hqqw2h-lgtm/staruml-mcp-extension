@@ -1,0 +1,84 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Proxy",
+  "category": "structural",
+  "intent": "Provide a surrogate for another object to control access to it.",
+  "roles": [
+    {
+      "name": "Subject",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface the real subject and its proxy share.",
+      "operations": [
+        {
+          "name": "request",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "RealSubject",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "The object the proxy stands for.",
+      "operations": [
+        {
+          "name": "request"
+        }
+      ]
+    },
+    {
+      "name": "Proxy",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Controls access to the real subject.",
+      "documentation": "{Proxy} stands in for {RealSubject}.",
+      "operations": [
+        {
+          "name": "request"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "RealSubject",
+      "to": "Subject"
+    },
+    {
+      "type": "realization",
+      "from": "Proxy",
+      "to": "Subject"
+    },
+    {
+      "type": "association",
+      "from": "Proxy",
+      "to": "RealSubject",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "realSubject",
+        "multiplicity": "1"
+      }
+    }
+  ],
+  "alsoKnownAs": ["Surrogate"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Proxy",
+        "text": "request()"
+      },
+      {
+        "from": "Proxy",
+        "to": "RealSubject",
+        "text": "request()"
+      }
+    ],
+    "participants": ["Client", "Proxy", "RealSubject"]
+  }
+}

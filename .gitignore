@@ -5,3 +5,7 @@ main.js.map
 Thumbs.db
 .vscode/
 .idea/
+coverage/
+tests/visual/failures/
+reports/
+.stryker-tmp/

@@ -1,0 +1,73 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Chain of Responsibility",
+  "category": "behavioral",
+  "intent": "Pass a request along a chain of handlers until one handles it.",
+  "roles": [
+    {
+      "name": "Handler",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Handles a request or passes it to its successor.",
+      "properties": {
+        "isAbstract": true
+      },
+      "operations": [
+        {
+          "name": "handleRequest"
+        },
+        {
+          "name": "setNext",
+          "parameters": [
+            {
+              "name": "next",
+              "type": "{Handler}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteHandler",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Handles the requests it is responsible for.",
+      "operations": [
+        {
+          "name": "handleRequest"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "ConcreteHandler",
+      "to": "Handler"
+    },
+    {
+      "type": "association",
+      "from": "Handler",
+      "to": "Handler",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "successor",
+        "multiplicity": "0..1"
+      }
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "ConcreteHandler",
+        "text": "handleRequest()"
+      }
+    ],
+    "participants": ["Client", "ConcreteHandler"]
+  }
+}

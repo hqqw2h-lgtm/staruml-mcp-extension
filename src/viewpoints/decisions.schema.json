@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "rules": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^D[0-9]{2}$" },
+          "viewpoint": {
+            "type": "string",
+            "enum": [
+              "context",
+              "container",
+              "component",
+              "code",
+              "runtime",
+              "lifecycle",
+              "actors-goals",
+              "deployment",
+              "data"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "class",
+              "sequence",
+              "usecase",
+              "activity",
+              "statemachine",
+              "erd",
+              "flowchart",
+              "mindmap",
+              "requirement",
+              "c4",
+              "package",
+              "component",
+              "deployment",
+              "composite",
+              "object",
+              "communication",
+              "timing",
+              "overview",
+              "infoflow",
+              "profile",
+              "dfd",
+              "bdd",
+              "ibd",
+              "parametric",
+              "bpmn",
+              "wireframe",
+              "aws",
+              "azure",
+              "gcp"
+            ]
+          },
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The template the view is drawn with (see /list_templates)."
+          },
+          "phrases": {
+            "minItems": 1,
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Words of an intent that ask for this view; each scores its word count."
+          },
+          "weak": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Words that hint at it; each scores a quarter of its word count."
+          },
+          "scopes": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "model",
+                "package",
+                "class",
+                "interaction",
+                "statemachine",
+                "actor",
+                "usecase",
+                "other"
+              ]
+            },
+            "description": "Scopes it can be drawn for."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why this view answers such an intent."
+          }
+        },
+        "required": [
+          "id",
+          "viewpoint",
+          "kind",
+          "template",
+          "phrases",
+          "scopes",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "model",
+          "package",
+          "class",
+          "interaction",
+          "statemachine",
+          "actor",
+          "usecase",
+          "other"
+        ]
+      },
+      "additionalProperties": { "type": "string" },
+      "description": "The rule an intent matching none takes, by scope kind."
+    }
+  },
+  "required": ["version", "rules", "defaults"],
+  "additionalProperties": false
+}

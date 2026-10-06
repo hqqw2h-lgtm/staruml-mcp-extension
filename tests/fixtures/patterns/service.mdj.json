@@ -1,0 +1,128 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLInterface",
+     "name": "Service",
+     "ownedElements": [],
+     "documentation": "Service is stateless; its operations work on the domain objects passed to them.",
+     "stereotype": "service",
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#4",
+       "_type": "UMLOperation",
+       "name": "execute",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": true
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLClass",
+     "name": "ServiceImpl",
+     "ownedElements": [
+      {
+       "_id": "#6",
+       "_type": "UMLInterfaceRealization",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#5"
+       },
+       "target": {
+        "$ref": "#3"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "",
+     "stereotype": "service",
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#7",
+       "_type": "UMLOperation",
+       "name": "execute",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLClassDiagram",
+     "name": "Service",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#9",
+       "_type": "UMLInterfaceView",
+       "model": {
+        "$ref": "#3"
+       }
+      },
+      {
+       "_id": "#10",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#5"
+       }
+      },
+      {
+       "_id": "#11",
+       "_type": "UMLInterfaceRealizationView",
+       "model": {
+        "$ref": "#6"
+       }
+      }
+     ]
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

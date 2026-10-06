@@ -1,0 +1,39 @@
+name: Mutation
+
+# Stryker over the planners, readers, writers, serializer, handlers, model
+# and quality code (issue #27). ~24 000 mutants take hours, so the run is
+# weekly rather than per push; it fails below 85 % killed (stryker.config.json
+# thresholds.break).
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Restore the incremental result
+        uses: actions/cache@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-${{ github.sha }}
+          restore-keys: stryker-
+
+      - run: npm run test:mutation
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation

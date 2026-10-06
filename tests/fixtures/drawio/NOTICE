@@ -1,0 +1,5 @@
+mxfile.xsd is copied unchanged from jgraph/drawio-mcp (shared/mxfile.xsd,
+commit eebe7def96409a15511a51fda958f4a620c2300a), Copyright JGraph Ltd,
+licensed under the Apache License, Version 2.0
+(https://www.apache.org/licenses/LICENSE-2.0). It is used only by the tests
+to check the .drawio files this extension writes; no drawio-mcp code is used.

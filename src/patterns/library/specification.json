@@ -1,0 +1,154 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Specification",
+  "category": "domain",
+  "intent": "Express a business rule as a combinable object that tells whether a candidate satisfies it.",
+  "roles": [
+    {
+      "name": "Specification",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Decides whether a candidate satisfies the rule.",
+      "operations": [
+        {
+          "name": "isSatisfiedBy",
+          "isAbstract": true,
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "candidate",
+              "type": "{Candidate}",
+              "direction": "in"
+            }
+          ],
+          "returnType": "boolean"
+        },
+        {
+          "name": "and",
+          "isAbstract": true,
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "other",
+              "type": "{Specification}",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Specification}"
+        },
+        {
+          "name": "or",
+          "isAbstract": true,
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "other",
+              "type": "{Specification}",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Specification}"
+        },
+        {
+          "name": "not",
+          "isAbstract": true,
+          "isQuery": true,
+          "returnType": "{Specification}"
+        }
+      ]
+    },
+    {
+      "name": "CompositeSpecification",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Implements and, or and not over isSatisfiedBy.",
+      "properties": {
+        "isAbstract": true
+      },
+      "operations": [
+        {
+          "name": "and",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "other",
+              "type": "{Specification}",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Specification}"
+        },
+        {
+          "name": "or",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "other",
+              "type": "{Specification}",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Specification}"
+        },
+        {
+          "name": "not",
+          "isQuery": true,
+          "returnType": "{Specification}"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteSpecification",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "One business rule.",
+      "operations": [
+        {
+          "name": "isSatisfiedBy",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "candidate",
+              "type": "{Candidate}",
+              "direction": "in"
+            }
+          ],
+          "returnType": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "Candidate",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "What the rule is about."
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "CompositeSpecification",
+      "to": "Specification"
+    },
+    {
+      "type": "generalization",
+      "from": "ConcreteSpecification",
+      "to": "CompositeSpecification"
+    },
+    {
+      "type": "dependency",
+      "from": "Specification",
+      "to": "Candidate"
+    }
+  ],
+  "checks": [
+    {
+      "id": "specification-query",
+      "role": "Specification",
+      "property": "isQuery",
+      "equals": true,
+      "message": "Checking a rule changes nothing: isSatisfiedBy is a query.",
+      "member": "isSatisfiedBy"
+    }
+  ]
+}

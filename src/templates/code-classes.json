@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "code-classes",
+  "version": 1,
+  "title": "Class diagram",
+  "description": "Classes of one area with their structural relationships, general types on top.",
+  "viewpoint": "code",
+  "kind": "class",
+  "default": true,
+  "content": {
+    "maxElements": 30
+  },
+  "style": "project",
+  "layout": {
+    "preset": "hierarchy-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

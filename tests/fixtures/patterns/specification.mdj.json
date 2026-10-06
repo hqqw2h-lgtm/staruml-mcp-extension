@@ -1,0 +1,555 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLInterface",
+     "name": "Specification",
+     "ownedElements": [
+      {
+       "_id": "#4",
+       "_type": "UMLDependency",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#3"
+       },
+       "target": {
+        "$ref": "#5"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#6",
+       "_type": "UMLOperation",
+       "name": "isSatisfiedBy",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#7",
+         "_type": "UMLParameter",
+         "name": "candidate",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#5"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#8",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": "boolean",
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": true
+      },
+      {
+       "_id": "#9",
+       "_type": "UMLOperation",
+       "name": "and",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#10",
+         "_type": "UMLParameter",
+         "name": "other",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#11",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": true
+      },
+      {
+       "_id": "#12",
+       "_type": "UMLOperation",
+       "name": "or",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#13",
+         "_type": "UMLParameter",
+         "name": "other",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#14",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": true
+      },
+      {
+       "_id": "#15",
+       "_type": "UMLOperation",
+       "name": "not",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#16",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": true
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLClass",
+     "name": "CompositeSpecification",
+     "ownedElements": [
+      {
+       "_id": "#18",
+       "_type": "UMLInterfaceRealization",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#17"
+       },
+       "target": {
+        "$ref": "#3"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#19",
+       "_type": "UMLOperation",
+       "name": "and",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#20",
+         "_type": "UMLParameter",
+         "name": "other",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#21",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": false
+      },
+      {
+       "_id": "#22",
+       "_type": "UMLOperation",
+       "name": "or",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#23",
+         "_type": "UMLParameter",
+         "name": "other",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#24",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": false
+      },
+      {
+       "_id": "#25",
+       "_type": "UMLOperation",
+       "name": "not",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#26",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": true,
+     "isLeaf": false
+    },
+    {
+     "_id": "#27",
+     "_type": "UMLClass",
+     "name": "ConcreteSpecification",
+     "ownedElements": [
+      {
+       "_id": "#28",
+       "_type": "UMLGeneralization",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#27"
+       },
+       "target": {
+        "$ref": "#17"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#29",
+       "_type": "UMLOperation",
+       "name": "isSatisfiedBy",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#30",
+         "_type": "UMLParameter",
+         "name": "candidate",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#5"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#31",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": "boolean",
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLClass",
+     "name": "Candidate",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#32",
+     "_type": "UMLClassDiagram",
+     "name": "Specification",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#33",
+       "_type": "UMLInterfaceView",
+       "model": {
+        "$ref": "#3"
+       }
+      },
+      {
+       "_id": "#34",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#17"
+       }
+      },
+      {
+       "_id": "#35",
+       "_type": "UMLInterfaceRealizationView",
+       "model": {
+        "$ref": "#18"
+       }
+      },
+      {
+       "_id": "#36",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#27"
+       }
+      },
+      {
+       "_id": "#37",
+       "_type": "UMLGeneralizationView",
+       "model": {
+        "$ref": "#28"
+       }
+      },
+      {
+       "_id": "#38",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#5"
+       }
+      },
+      {
+       "_id": "#39",
+       "_type": "UMLDependencyView",
+       "model": {
+        "$ref": "#4"
+       }
+      }
+     ]
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

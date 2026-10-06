@@ -1,0 +1,477 @@
+{
+  "uml-standard": {
+    "name": "uml-standard",
+    "description": "UML 2.5 conventions on StarUML's own look: PascalCase types, camelCase members, UPPER_CASE constants and literals, 'Verb noun' use cases, lowercase packages; rectilinear edges; the layout each kind reads best in.",
+    "strict": false,
+    "blockSaveOnErrors": false,
+    "naming": {
+      "classifier": {
+        "pattern": "PascalCase",
+        "fix": "pascal"
+      },
+      "attribute": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "operation": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "constant": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "literal": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "usecase": {
+        "pattern": "Verb noun",
+        "fix": "none"
+      },
+      "package": {
+        "pattern": "lowercase",
+        "fix": "none"
+      }
+    },
+    "visuals": {
+      "kinds": {},
+      "stereotypes": {},
+      "edges": {},
+      "show": {},
+      "grid": {
+        "size": 10,
+        "snap": true
+      }
+    },
+    "layout": {
+      "presets": {
+        "class": "hierarchy-down",
+        "package": "hierarchy-down",
+        "activity": "flow-down",
+        "statemachine": "flow-right",
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
+      },
+      "spacing": {
+        "node": 50,
+        "rank": 70
+      },
+      "maxElements": 30,
+      "page": {
+        "width": 1600,
+        "height": 1200
+      },
+      "labelWrap": 220
+    },
+    "rules": {
+      "requireMultiplicities": true,
+      "allowedRelationships": {
+        "class": [
+          "association",
+          "directed",
+          "aggregation",
+          "composition",
+          "generalization",
+          "realization",
+          "dependency"
+        ],
+        "package": ["dependency"],
+        "usecase": ["association", "directed", "generalization", "dependency"]
+      },
+      "documentationRequired": [],
+      "forbidDuplicateNames": true
+    },
+    "quality": {
+      "minScore": 80,
+      "maxIterations": 3,
+      "thresholds": {}
+    },
+    "policy": {
+      "classDiagrams": "views",
+      "hideGetters": false,
+      "neighbours": true,
+      "packageOverview": true
+    }
+  },
+  "minimal": {
+    "name": "minimal",
+    "description": "Names only: attribute and operation compartments hidden, no colour, fewer elements per diagram; for overviews.",
+    "strict": false,
+    "blockSaveOnErrors": false,
+    "naming": {
+      "classifier": {
+        "pattern": "PascalCase",
+        "fix": "pascal"
+      },
+      "attribute": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "operation": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "constant": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "literal": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "usecase": {
+        "pattern": "Verb noun",
+        "fix": "none"
+      },
+      "package": {
+        "pattern": "lowercase",
+        "fix": "none"
+      }
+    },
+    "visuals": {
+      "kinds": {},
+      "stereotypes": {},
+      "edges": {},
+      "show": {
+        "suppressAttributes": true,
+        "suppressOperations": true,
+        "showVisibility": false
+      },
+      "grid": {
+        "size": 10,
+        "snap": true
+      }
+    },
+    "layout": {
+      "presets": {
+        "class": "hierarchy-down",
+        "package": "hierarchy-down",
+        "activity": "flow-down",
+        "statemachine": "flow-right",
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
+      },
+      "spacing": {
+        "node": 50,
+        "rank": 70
+      },
+      "maxElements": 20,
+      "page": {
+        "width": 1600,
+        "height": 1200
+      },
+      "labelWrap": 220
+    },
+    "rules": {
+      "requireMultiplicities": false,
+      "allowedRelationships": {
+        "class": [
+          "association",
+          "directed",
+          "aggregation",
+          "composition",
+          "generalization",
+          "realization",
+          "dependency"
+        ],
+        "package": ["dependency"],
+        "usecase": ["association", "directed", "generalization", "dependency"]
+      },
+      "documentationRequired": [],
+      "forbidDuplicateNames": true
+    },
+    "quality": {
+      "minScore": 80,
+      "maxIterations": 3,
+      "thresholds": {}
+    },
+    "policy": {
+      "classDiagrams": "views",
+      "hideGetters": true,
+      "neighbours": false,
+      "packageOverview": true
+    }
+  },
+  "presentation": {
+    "name": "presentation",
+    "description": "Slides: soft fills per kind, 15pt text, operation signatures and visibility hidden, rounded edges, wrapped names.",
+    "strict": false,
+    "blockSaveOnErrors": false,
+    "naming": {
+      "classifier": {
+        "pattern": "PascalCase",
+        "fix": "pascal"
+      },
+      "attribute": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "operation": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "constant": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "literal": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "usecase": {
+        "pattern": "Verb noun",
+        "fix": "none"
+      },
+      "package": {
+        "pattern": "lowercase",
+        "fix": "none"
+      }
+    },
+    "visuals": {
+      "kinds": {
+        "*": {
+          "fillColor": "#fdf6e3",
+          "lineColor": "#586e75",
+          "fontColor": "#073642",
+          "fontSize": 15
+        },
+        "UMLInterface": {
+          "fillColor": "#e8f4fd",
+          "lineColor": "#2b6cb0",
+          "fontColor": "#1a365d",
+          "fontSize": 15
+        },
+        "UMLEnumeration": {
+          "fillColor": "#f0fff4",
+          "lineColor": "#2f855a",
+          "fontColor": "#1c4532",
+          "fontSize": 15
+        },
+        "UMLPackage": {
+          "fillColor": "#f7fafc",
+          "lineColor": "#4a5568",
+          "fontColor": "#1a202c",
+          "fontSize": 15
+        },
+        "UMLActor": {
+          "fillColor": "#fffaf0",
+          "lineColor": "#c05621",
+          "fontColor": "#652b19",
+          "fontSize": 15
+        },
+        "UMLUseCase": {
+          "fillColor": "#fffaf0",
+          "lineColor": "#c05621",
+          "fontColor": "#652b19",
+          "fontSize": 15
+        },
+        "UMLNote": {
+          "fillColor": "#fefcbf",
+          "lineColor": "#b7791f",
+          "fontColor": "#5f370e",
+          "fontSize": 13
+        }
+      },
+      "stereotypes": {},
+      "edges": {
+        "lineStyle": "roundrect",
+        "lineColor": "#586e75",
+        "fontColor": "#073642"
+      },
+      "show": {
+        "showVisibility": false,
+        "showOperationSignature": false,
+        "wordWrap": true
+      },
+      "grid": {
+        "size": 10,
+        "snap": true
+      }
+    },
+    "layout": {
+      "presets": {
+        "class": "hierarchy-down",
+        "package": "hierarchy-down",
+        "activity": "flow-down",
+        "statemachine": "flow-right",
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
+      },
+      "spacing": {
+        "node": 70,
+        "rank": 90
+      },
+      "maxElements": 15,
+      "page": {
+        "width": 1600,
+        "height": 900
+      },
+      "labelWrap": 220
+    },
+    "rules": {
+      "requireMultiplicities": false,
+      "allowedRelationships": {
+        "class": [
+          "association",
+          "directed",
+          "aggregation",
+          "composition",
+          "generalization",
+          "realization",
+          "dependency"
+        ],
+        "package": ["dependency"],
+        "usecase": ["association", "directed", "generalization", "dependency"]
+      },
+      "documentationRequired": [],
+      "forbidDuplicateNames": true
+    },
+    "quality": {
+      "minScore": 80,
+      "maxIterations": 3,
+      "thresholds": {}
+    },
+    "policy": {
+      "classDiagrams": "views",
+      "hideGetters": true,
+      "neighbours": true,
+      "packageOverview": true
+    }
+  },
+  "print": {
+    "name": "print",
+    "description": "Paper: black on white, Arial 12, rectilinear edges, every compartment and signature shown, documentation required on packages and classes.",
+    "strict": false,
+    "blockSaveOnErrors": false,
+    "naming": {
+      "classifier": {
+        "pattern": "PascalCase",
+        "fix": "pascal"
+      },
+      "attribute": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "operation": {
+        "pattern": "camelCase",
+        "fix": "camel"
+      },
+      "constant": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "literal": {
+        "pattern": "UPPER_CASE",
+        "fix": "upperSnake"
+      },
+      "usecase": {
+        "pattern": "Verb noun",
+        "fix": "none"
+      },
+      "package": {
+        "pattern": "lowercase",
+        "fix": "lower"
+      }
+    },
+    "visuals": {
+      "kinds": {
+        "*": {
+          "fillColor": "#ffffff",
+          "lineColor": "#000000",
+          "fontColor": "#000000",
+          "fontFace": "Arial",
+          "fontSize": 12
+        }
+      },
+      "stereotypes": {},
+      "edges": {
+        "lineStyle": "rectilinear",
+        "lineColor": "#000000",
+        "fontColor": "#000000"
+      },
+      "show": {},
+      "grid": {
+        "size": 10,
+        "snap": true
+      }
+    },
+    "layout": {
+      "presets": {
+        "class": "hierarchy-down",
+        "package": "hierarchy-down",
+        "activity": "flow-down",
+        "statemachine": "flow-right",
+        "erd": "hierarchy-right",
+        "profile": "hierarchy-down",
+        "dfd": "flow-right",
+        "infoflow": "flow-right",
+        "object": "flow-right",
+        "bpmn": "flow-right",
+        "aws": "flow-right",
+        "azure": "flow-right",
+        "gcp": "flow-right"
+      },
+      "spacing": {
+        "node": 50,
+        "rank": 70
+      },
+      "maxElements": 30,
+      "page": {
+        "width": 1123,
+        "height": 794
+      },
+      "labelWrap": 220
+    },
+    "rules": {
+      "requireMultiplicities": true,
+      "allowedRelationships": {
+        "class": [
+          "association",
+          "directed",
+          "aggregation",
+          "composition",
+          "generalization",
+          "realization",
+          "dependency"
+        ],
+        "package": ["dependency"],
+        "usecase": ["association", "directed", "generalization", "dependency"]
+      },
+      "documentationRequired": ["package", "class", "interface"],
+      "forbidDuplicateNames": true
+    },
+    "quality": {
+      "minScore": 80,
+      "maxIterations": 3,
+      "thresholds": {}
+    },
+    "policy": {
+      "classDiagrams": "views",
+      "hideGetters": false,
+      "neighbours": true,
+      "packageOverview": true
+    }
+  }
+}

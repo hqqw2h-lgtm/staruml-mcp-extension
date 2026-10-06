@@ -1,0 +1,304 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLTimingDiagram",
+   "name": "Request timing",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLTimingFrameView",
+     "model": {
+      "$ref": "#3"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 30,
+     "width": 680,
+     "height": 250,
+     "showNamespace": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLTimingLifelineView",
+     "model": {
+      "$ref": "#6"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 40,
+     "top": 80,
+     "width": 640,
+     "height": 80
+    },
+    {
+     "_id": "#7",
+     "_type": "UMLTimingStateView",
+     "model": {
+      "$ref": "#8"
+     },
+     "containerView": {
+      "$ref": "#5"
+     },
+     "left": 160,
+     "top": 90,
+     "width": 520,
+     "height": 20
+    },
+    {
+     "_id": "#9",
+     "_type": "UMLTimingStateView",
+     "model": {
+      "$ref": "#10"
+     },
+     "containerView": {
+      "$ref": "#5"
+     },
+     "left": 160,
+     "top": 120,
+     "width": 520,
+     "height": 20
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLTimeSegmentView",
+     "model": {
+      "$ref": "#12"
+     },
+     "containerView": {
+      "$ref": "#7"
+     },
+     "left": 160,
+     "top": 90,
+     "width": 120,
+     "height": 20
+    },
+    {
+     "_id": "#13",
+     "_type": "UMLTimeSegmentView",
+     "model": {
+      "$ref": "#14"
+     },
+     "containerView": {
+      "$ref": "#9"
+     },
+     "left": 280,
+     "top": 120,
+     "width": 200,
+     "height": 20
+    },
+    {
+     "_id": "#15",
+     "_type": "UMLTimingLifelineView",
+     "model": {
+      "$ref": "#16"
+     },
+     "containerView": {
+      "$ref": "#4"
+     },
+     "left": 40,
+     "top": 180,
+     "width": 640,
+     "height": 80
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLTimingStateView",
+     "model": {
+      "$ref": "#18"
+     },
+     "containerView": {
+      "$ref": "#15"
+     },
+     "left": 160,
+     "top": 190,
+     "width": 520,
+     "height": 20
+    },
+    {
+     "_id": "#19",
+     "_type": "UMLTimingStateView",
+     "model": {
+      "$ref": "#20"
+     },
+     "containerView": {
+      "$ref": "#15"
+     },
+     "left": 160,
+     "top": 220,
+     "width": 520,
+     "height": 20
+    },
+    {
+     "_id": "#21",
+     "_type": "UMLTimeSegmentView",
+     "model": {
+      "$ref": "#22"
+     },
+     "containerView": {
+      "$ref": "#17"
+     },
+     "left": 160,
+     "top": 190,
+     "width": 160,
+     "height": 20
+    },
+    {
+     "_id": "#23",
+     "_type": "UMLTimeSegmentView",
+     "model": {
+      "$ref": "#24"
+     },
+     "containerView": {
+      "$ref": "#19"
+     },
+     "left": 320,
+     "top": 220,
+     "width": 160,
+     "height": 20
+    },
+    {
+     "_id": "#25",
+     "_type": "UMLTimingMessageView",
+     "model": {
+      "$ref": "#26"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#23"
+     },
+     "tail": {
+      "$ref": "#11"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#6",
+   "_type": "UMLLifeline",
+   "name": "client",
+   "ownedElements": [
+    {
+     "_id": "#8",
+     "_type": "UMLConstraint",
+     "name": "idle",
+     "ownedElements": [
+      {
+       "_id": "#12",
+       "_type": "UMLStateInvariant",
+       "name": "t1",
+       "ownedElements": [],
+       "stereotype": null,
+       "visibility": "public",
+       "parameters": []
+      }
+     ],
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLConstraint",
+     "name": "waiting",
+     "ownedElements": [
+      {
+       "_id": "#14",
+       "_type": "UMLStateInvariant",
+       "name": "t2",
+       "ownedElements": [],
+       "stereotype": null,
+       "visibility": "public",
+       "parameters": []
+      }
+     ],
+     "stereotype": null,
+     "visibility": "public"
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#16",
+   "_type": "UMLLifeline",
+   "name": "server",
+   "ownedElements": [
+    {
+     "_id": "#18",
+     "_type": "UMLConstraint",
+     "name": "idle",
+     "ownedElements": [
+      {
+       "_id": "#22",
+       "_type": "UMLStateInvariant",
+       "name": "t3",
+       "ownedElements": [],
+       "stereotype": null,
+       "visibility": "public",
+       "parameters": []
+      }
+     ],
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLConstraint",
+     "name": "busy",
+     "ownedElements": [
+      {
+       "_id": "#24",
+       "_type": "UMLStateInvariant",
+       "name": "t4",
+       "ownedElements": [],
+       "stereotype": null,
+       "visibility": "public",
+       "parameters": []
+      }
+     ],
+     "stereotype": null,
+     "visibility": "public"
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#26",
+   "_type": "UMLMessage",
+   "name": "request",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#12"
+   },
+   "target": {
+    "$ref": "#24"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  }
+ ]
+}

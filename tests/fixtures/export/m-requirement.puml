@@ -1,0 +1,32 @@
+@startuml
+class "test_req" as R0 <<requirement>> {
+  id = 1
+  text = the test text.
+  risk = high
+  verifyMethod = test
+}
+class "test_req2" as R1 <<functionalRequirement>> {
+  id = 1.1
+  text = the second test text.
+  risk = low
+  verifyMethod = inspection
+}
+class "test_req3" as R2 <<performanceRequirement>> {
+  id = 1.2
+  text = the third test text.
+  risk = medium
+  verifyMethod = demonstration
+}
+class "test_entity" as R3 <<element>> {
+  type = simulation
+}
+class "test_entity2" as R4 <<element>> {
+  type = word doc
+  docRef = reqs/test_entity
+}
+R3 ..> R1 : <<satisfy>>
+R0 ..> R1 : <<trace>>
+R4 ..> R2 : <<verify>>
+R4 ..> R0 : <<copy>>
+R0 +-- R2
+@enduml

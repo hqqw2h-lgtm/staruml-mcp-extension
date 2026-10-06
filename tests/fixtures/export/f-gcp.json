@@ -1,0 +1,37 @@
+{
+  "nodes": [
+    {
+      "name": "User",
+      "type": "user"
+    },
+    {
+      "name": "Project",
+      "type": "zone",
+      "properties": {
+        "zoneType": "project"
+      }
+    },
+    {
+      "name": "Cloud Run",
+      "type": "product",
+      "in": "Project"
+    },
+    {
+      "name": "Cloud SQL",
+      "type": "service",
+      "in": "Project"
+    }
+  ],
+  "edges": [
+    {
+      "from": "User",
+      "to": "Cloud Run",
+      "type": "path"
+    },
+    {
+      "from": "Cloud Run",
+      "to": "Cloud SQL",
+      "type": "path"
+    }
+  ]
+}

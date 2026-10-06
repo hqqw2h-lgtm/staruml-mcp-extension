@@ -1,0 +1,99 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Flyweight",
+  "category": "structural",
+  "intent": "Use sharing to support large numbers of fine-grained objects efficiently.",
+  "roles": [
+    {
+      "name": "FlyweightFactory",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Makes and shares flyweights.",
+      "operations": [
+        {
+          "name": "getFlyweight",
+          "parameters": [
+            {
+              "name": "key",
+              "type": "String",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Flyweight}"
+        }
+      ]
+    },
+    {
+      "name": "Flyweight",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface through which flyweights receive extrinsic state.",
+      "operations": [
+        {
+          "name": "operation",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "extrinsicState",
+              "type": "Object",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteFlyweight",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Shared object holding intrinsic state.",
+      "attributes": [
+        {
+          "name": "intrinsicState",
+          "type": "Object",
+          "visibility": "private",
+          "isReadOnly": true
+        }
+      ],
+      "operations": [
+        {
+          "name": "operation",
+          "parameters": [
+            {
+              "name": "extrinsicState",
+              "type": "Object",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "aggregation",
+      "from": "FlyweightFactory",
+      "to": "Flyweight",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "flyweights",
+        "multiplicity": "0..*"
+      }
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteFlyweight",
+      "to": "Flyweight"
+    }
+  ],
+  "checks": [
+    {
+      "id": "flyweight-intrinsic-read-only",
+      "role": "ConcreteFlyweight",
+      "property": "isReadOnly",
+      "equals": true,
+      "message": "A flyweight is shared, so its intrinsic state does not change.",
+      "member": "intrinsicState"
+    }
+  ]
+}

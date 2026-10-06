@@ -1,0 +1,152 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLClass",
+     "name": "Entity",
+     "ownedElements": [],
+     "documentation": "Entity is identified by its id, whatever its other attributes.",
+     "stereotype": "entity",
+     "visibility": "public",
+     "attributes": [
+      {
+       "_id": "#4",
+       "_type": "UMLAttribute",
+       "name": "id",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "private",
+       "isStatic": false,
+       "isLeaf": false,
+       "type": "Object",
+       "multiplicity": "",
+       "isReadOnly": true,
+       "defaultValue": "",
+       "aggregation": "none",
+       "isID": true
+      }
+     ],
+     "operations": [
+      {
+       "_id": "#5",
+       "_type": "UMLOperation",
+       "name": "equals",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#6",
+         "_type": "UMLParameter",
+         "name": "other",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": "Object",
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "in"
+        },
+        {
+         "_id": "#7",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": "boolean",
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": false
+      },
+      {
+       "_id": "#8",
+       "_type": "UMLOperation",
+       "name": "hashCode",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#9",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": "int",
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": true,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLClassDiagram",
+     "name": "Entity",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#11",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#3"
+       }
+      }
+     ]
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

@@ -1,0 +1,1523 @@
+{
+  "class": {
+    "kind": "class",
+    "name": "Shop",
+    "spec": {
+      "classes": [
+        {
+          "name": "Order",
+          "attributes": ["+id: long"],
+          "operations": ["+place(): void"]
+        },
+        {
+          "name": "Payable",
+          "kind": "interface",
+          "operations": ["pay()"]
+        }
+      ],
+      "relations": [
+        {
+          "from": "Order",
+          "to": "Payable",
+          "type": "realization"
+        }
+      ]
+    }
+  },
+  "sequence": {
+    "kind": "sequence",
+    "name": "Checkout",
+    "spec": {
+      "participants": ["User", "Shop", "Bank"],
+      "messages": [
+        {
+          "from": "User",
+          "to": "Shop",
+          "text": "order()"
+        },
+        {
+          "from": "Shop",
+          "to": "Bank",
+          "text": "charge()",
+          "kind": "async"
+        },
+        {
+          "from": "Bank",
+          "to": "Shop",
+          "text": "ok",
+          "kind": "reply"
+        },
+        {
+          "from": "Shop",
+          "to": "Shop",
+          "text": "log()"
+        },
+        {
+          "from": "Shop",
+          "to": "User",
+          "text": "done",
+          "kind": "reply"
+        }
+      ],
+      "fragments": [
+        {
+          "operator": "alt",
+          "guard": "funds ok",
+          "from": 1,
+          "to": 2
+        },
+        {
+          "operator": "loop",
+          "from": 3,
+          "to": 3
+        }
+      ]
+    }
+  },
+  "usecase": {
+    "kind": "usecase",
+    "name": "Shop UC",
+    "spec": {
+      "system": "Shop",
+      "actors": ["Customer", "Admin"],
+      "useCases": ["Browse", "Buy", "Pay<br/>online"],
+      "relations": [
+        {
+          "from": "Customer",
+          "to": "Browse"
+        },
+        {
+          "from": "Customer",
+          "to": "Buy"
+        },
+        {
+          "from": "Buy",
+          "to": "Pay<br/>online",
+          "type": "include"
+        },
+        {
+          "from": "Admin",
+          "to": "Browse"
+        }
+      ]
+    }
+  },
+  "usecase-free": {
+    "kind": "usecase",
+    "name": "Free UC",
+    "spec": {
+      "actors": ["Customer"],
+      "useCases": ["Browse", "Buy"],
+      "relations": [
+        {
+          "from": "Customer",
+          "to": "Browse"
+        },
+        {
+          "from": "Buy",
+          "to": "Browse",
+          "type": "extend"
+        }
+      ]
+    }
+  },
+  "activity": {
+    "kind": "activity",
+    "name": "Order flow",
+    "spec": {
+      "lanes": ["Customer", "Shop"],
+      "nodes": [
+        {
+          "id": "start",
+          "type": "initial",
+          "lane": "Customer"
+        },
+        {
+          "name": "Place order",
+          "lane": "Customer"
+        },
+        {
+          "id": "ok",
+          "name": "in stock?",
+          "type": "decision",
+          "lane": "Shop"
+        },
+        {
+          "name": "Ship",
+          "lane": "Shop"
+        },
+        {
+          "name": "Refund",
+          "lane": "Shop"
+        },
+        {
+          "id": "end",
+          "type": "final",
+          "lane": "Shop"
+        }
+      ],
+      "flows": [
+        {
+          "from": "start",
+          "to": "Place order"
+        },
+        {
+          "from": "Place order",
+          "to": "ok"
+        },
+        {
+          "from": "ok",
+          "to": "Ship",
+          "guard": "yes"
+        },
+        {
+          "from": "ok",
+          "to": "Refund",
+          "guard": "no"
+        },
+        {
+          "from": "Ship",
+          "to": "end"
+        },
+        {
+          "from": "Refund",
+          "to": "end"
+        }
+      ]
+    }
+  },
+  "activity-free": {
+    "kind": "activity",
+    "name": "Free flow",
+    "spec": {
+      "nodes": [
+        {
+          "id": "s",
+          "type": "initial"
+        },
+        "A",
+        {
+          "id": "f",
+          "type": "fork"
+        },
+        "B",
+        "C",
+        {
+          "id": "j",
+          "type": "join"
+        },
+        {
+          "id": "e",
+          "type": "final"
+        }
+      ],
+      "flows": [
+        {
+          "from": "s",
+          "to": "A"
+        },
+        {
+          "from": "A",
+          "to": "f"
+        },
+        {
+          "from": "f",
+          "to": "B"
+        },
+        {
+          "from": "f",
+          "to": "C"
+        },
+        {
+          "from": "B",
+          "to": "j"
+        },
+        {
+          "from": "C",
+          "to": "j"
+        },
+        {
+          "from": "j",
+          "to": "e"
+        }
+      ]
+    }
+  },
+  "statemachine": {
+    "kind": "statemachine",
+    "name": "Order states",
+    "spec": {
+      "states": [
+        {
+          "id": "i",
+          "type": "initial"
+        },
+        "New",
+        "Paid",
+        {
+          "id": "c",
+          "type": "choice"
+        },
+        "Shipped",
+        {
+          "id": "f",
+          "type": "final"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "i",
+          "to": "New"
+        },
+        {
+          "from": "New",
+          "to": "Paid",
+          "trigger": "pay",
+          "guard": "amount > 0"
+        },
+        {
+          "from": "Paid",
+          "to": "c"
+        },
+        {
+          "from": "c",
+          "to": "Shipped",
+          "guard": "in stock"
+        },
+        {
+          "from": "Shipped",
+          "to": "f",
+          "trigger": "deliver",
+          "effect": "notify"
+        }
+      ]
+    }
+  },
+  "erd": {
+    "kind": "erd",
+    "name": "Shop DB",
+    "spec": {
+      "entities": [
+        {
+          "name": "customer",
+          "columns": ["id int PK", "name varchar(40)"]
+        },
+        {
+          "name": "orders",
+          "columns": [
+            "id int PK",
+            "customer_id int FK",
+            "total decimal(10,2) NULL"
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "from": "customer",
+          "to": "orders",
+          "name": "places"
+        }
+      ]
+    }
+  },
+  "flowchart": {
+    "kind": "flowchart",
+    "name": "Login",
+    "spec": {
+      "nodes": [
+        {
+          "id": "s",
+          "name": "Start",
+          "shape": "terminator"
+        },
+        {
+          "id": "i",
+          "name": "Enter\ncredentials",
+          "shape": "manualInput"
+        },
+        {
+          "id": "d",
+          "name": "valid?",
+          "shape": "decision"
+        },
+        {
+          "id": "ok",
+          "name": "Home"
+        },
+        {
+          "id": "e",
+          "name": "End",
+          "shape": "terminator"
+        }
+      ],
+      "flows": [
+        {
+          "from": "s",
+          "to": "i"
+        },
+        {
+          "from": "i",
+          "to": "d"
+        },
+        {
+          "from": "d",
+          "to": "ok",
+          "label": "yes"
+        },
+        {
+          "from": "d",
+          "to": "i",
+          "label": "no"
+        },
+        {
+          "from": "ok",
+          "to": "e"
+        }
+      ]
+    }
+  },
+  "mindmap": {
+    "kind": "mindmap",
+    "name": "Ideas",
+    "spec": {
+      "root": {
+        "name": "Shop",
+        "children": [
+          {
+            "name": "Catalog",
+            "children": [
+              {
+                "name": "Search"
+              }
+            ]
+          },
+          {
+            "name": "Cart"
+          },
+          {
+            "name": "Pay"
+          }
+        ]
+      }
+    }
+  },
+  "m-class": {
+    "mermaid": "---\ntitle: Animals\n---\nclassDiagram\n  Animal <|-- Duck\n  Animal <|-- Fish\n  Animal : +int age\n  Animal: +isMammal() bool\n  class Duck{\n    +String beakColor\n    +swim()\n  }\n  class Fish {\n    <<interface>>\n    +swim()\n  }\n  Duck \"1\" *-- \"many\" Egg : lays"
+  },
+  "m-seq": {
+    "mermaid": "sequenceDiagram\n  title Greeting\n  participant A as Alice\n  actor B as Bob\n  participant C\n  A->>B: Hello\n  loop Every minute\n    B-->>A: Fine\n  end\n  alt sick\n    opt really\n      B-)A: cough\n    end\n  else well\n    B->>C: great\n  end\n  C->>C: self"
+  },
+  "m-flow": {
+    "mermaid": "flowchart LR\n  A([Start]) --> B[Do it]\n  B --> C{OK?}\n  C -->|yes| D[(Store)]\n  C -- no --> B\n  D --> E([End])"
+  },
+  "m-activity": {
+    "kind": "activity",
+    "mermaid": "flowchart TD\n  subgraph Customer\n    S([start]) --> O[Order]\n  end\n  subgraph Shop\n    O --> C{stock?}\n    C -->|yes| SH[Ship]\n    C -->|no| R[Refund]\n    SH --> E([end])\n    R --> E\n  end"
+  },
+  "m-usecase": {
+    "kind": "usecase",
+    "mermaid": "flowchart LR\n  U[User]\n  subgraph Shop\n    B((Browse))\n    P((Pay))\n    L((Login))\n  end\n  U --> B\n  U --> P\n  P -.->|include| L"
+  },
+  "m-erd": {
+    "mermaid": "erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE-ITEM : contains\n  CUSTOMER {\n    string name PK\n    string email UK\n  }\n  ORDER {\n    int id PK\n    string customer FK\n  }"
+  },
+  "m-state": {
+    "mermaid": "stateDiagram-v2\n  [*] --> Still\n  Still --> [*]\n  Still --> Moving : push\n  Moving --> Still\n  Moving --> Crash : hit [fast]\n  state check <<choice>>\n  Crash --> check\n  check --> [*]\n  state \"Long<br/>name\" as LN\n  Crash --> LN"
+  },
+  "m-state-nested": {
+    "mermaid": "stateDiagram-v2\n  [*] --> Idle\n  state \"Working hard\" as Active\n  state Active {\n    [*] --> Running\n    Running --> Paused : pause\n    Paused --> Running : resume\n    state Paused {\n      [*] --> Frozen\n    }\n  }\n  Idle --> Active : start\n  Active --> [*] : stop [done]\n  note right of Idle : waiting<br/>for work\n  note left of Running\n    busy\n    here\n  end note\n  classDef hot fill:#f96,stroke:#333,color:#000\n  class Active hot\n  Idle:::cold\n  classDef cold fill:#9cf"
+  },
+  "m-class-notes": {
+    "mermaid": "classDiagram\n  class Order:::money {\n    +id: long\n  }\n  class Line\n  Order *-- Line\n  note for Order \"the aggregate root\"\n  note \"free text\"\n  classDef money fill:#ffeeaa\n  style Line stroke:#ff0000,stroke-width:2px"
+  },
+  "m-seq-notes": {
+    "mermaid": "sequenceDiagram\n  participant A as Alice\n  participant B as Bob\n  Note right of A: thinking\n  A->>B: ask\n  par first\n    B->>A: one\n  and second\n    B->>A: two\n    B->>A: three\n  end\n  Note over A,B: done\n  Note left of B: bye"
+  },
+  "m-flow-styles": {
+    "mermaid": "flowchart LR\n  classDef default fill:#eeeeee\n  classDef warn fill:#ffcccc,stroke:#cc0000,color:#330000\n  A[Start]:::warn --> B{Check}\n  B -->|yes| C[Done]\n  class C warn\n  style B fill:#ccffcc"
+  },
+  "statemachine-nested": {
+    "kind": "statemachine",
+    "name": "Nested spec",
+    "spec": {
+      "states": [
+        {
+          "id": "i",
+          "type": "initial"
+        },
+        "Off",
+        {
+          "name": "On"
+        },
+        {
+          "id": "oi",
+          "type": "initial",
+          "parent": "On"
+        },
+        {
+          "name": "Low",
+          "parent": "On"
+        },
+        {
+          "name": "High",
+          "parent": "On"
+        }
+      ],
+      "transitions": [
+        {
+          "from": "i",
+          "to": "Off"
+        },
+        {
+          "from": "Off",
+          "to": "On",
+          "trigger": "switch"
+        },
+        {
+          "from": "oi",
+          "to": "Low"
+        },
+        {
+          "from": "Low",
+          "to": "High",
+          "trigger": "up"
+        },
+        {
+          "from": "On",
+          "to": "Off",
+          "trigger": "switch"
+        }
+      ],
+      "notes": [
+        {
+          "text": "two speeds",
+          "on": ["Low", "High"]
+        }
+      ],
+      "styles": {
+        "On": {
+          "fillColor": "#ddf"
+        }
+      }
+    }
+  },
+  "p-class": {
+    "text": "@startuml\ntitle Library\nskinparam classAttributeIconSize 0\npackage \"Catalogue\" {\n  abstract class Item <<entity>> {\n    -id : long\n    +title : String\n    {abstract} +loanPeriod() : int\n  }\n  class Book extends Item {\n    +isbn : String\n  }\n  interface Lendable\n  enum Format {\n    PRINT\n    EBOOK\n  }\n}\nclass Member #ffeecc {\n  String name\n  +borrow(item : Item) : Loan\n}\nclass Loan\nBook ..|> Lendable\nMember \"1\" -- \"0..*\" Loan : holds >\nLoan --> \"1\" Item\nLoan *-- Format\nnote \"Members borrow items\" as N1\nN1 .. Member\nnote right of Book : printed or e-book\n@enduml"
+  },
+  "p-seq": {
+    "text": "@startuml\nactor User\nparticipant \"Web App\" as W\nparticipant Server as S\ndatabase DB\nUser -> W : open\nactivate W\nW ->> S : fetch\nS --> W : data\nalt cache hit\n  S -> S : read cache\nelse miss\n  S -> DB : query\n  DB --> S : rows\nend\ncreate participant Log\nS -> Log : new\nnote over W, S : all HTTPS\nnote right of User\n  happy\n  path\nend note\n@enduml"
+  },
+  "p-usecase": {
+    "text": "@startuml\nleft to right direction\nactor Customer\nactor \"Shop Admin\" as Admin\nrectangle Shop {\n  usecase \"Browse catalogue\" as UC1\n  usecase (Checkout) as UC2\n  (Pay)\n}\nCustomer --> UC1\nCustomer --> UC2\nUC2 ..> (Pay) : <<include>>\nAdmin -- UC1\nAdmin --|> Customer\n@enduml"
+  },
+  "p-activity": {
+    "text": "@startuml\n|Customer|\nstart\n:Choose items;\n|Shop|\n:Check stock;\nif (in stock?) then (yes)\n  :Reserve;\n  fork\n    :Charge card;\n  fork again\n    :Pack;\n  end fork\nelse (no)\n  :Notify;\nendif\nwhile (more?) is (yes)\n  :Next;\nendwhile (no)\nstop\n@enduml"
+  },
+  "p-legacy": {
+    "text": "@startuml\n(*) --> \"Receive order\" as A1\nA1 --> ===S1===\n===S1=== --> \"Pick\" as A2\n===S1=== --> \"Bill\" as A3\nA2 --> ===S2===\nA3 --> ===S2===\n===S2=== --> [paid] \"Ship\" as A4\nA4 --> (*)\n@enduml",
+    "format": "plantuml"
+  },
+  "p-state": {
+    "text": "@startuml\n[*] --> Idle\nstate \"Working hard\" as Active {\n  [*] --> Running\n  Running --> Paused : pause\n  Paused --> Running : resume [allowed] / log\n}\nIdle --> Active : start\nstate Check <<choice>>\nActive --> Check\nCheck --> [*]\nnote left of Idle : waiting\n@enduml"
+  },
+  "p-erd": {
+    "text": "@startuml\nentity \"Customer\" as E0 {\n  *id : int <<PK>>\n  --\n  name : varchar(80)\n  email : varchar <<UK>>\n}\nentity Invoice {\n  *no : int <<PK>>\n  customer_id : int <<FK>>\n}\nE0 ||--o{ Invoice : bills\n@enduml"
+  },
+  "p-mindmap": {
+    "text": "@startmindmap\n* Project\n** Goals\n*** Speed\n** Risks\n*** Budget\n**:Multi\nline;\n@endmindmap"
+  },
+  "p-c4": {
+    "text": "@startuml\n!include <C4/C4_Context>\nLAYOUT_LEFT_RIGHT()\nPerson(admin, \"Administrator\")\nSystem_Boundary(c1, \"Sample\") {\n  System(web, \"Web\", \"Serves pages\")\n}\nSystemDb_Ext(db, \"Store\", \"Keeps data\")\nRel(admin, web, \"Uses\", \"HTTPS\")\nBiRel(web, db, \"Reads\")\n@enduml"
+  },
+  "sql-shop": {
+    "text": "-- Online shop\nCREATE TABLE customer (\n  id SERIAL PRIMARY KEY,\n  email VARCHAR(120) NOT NULL UNIQUE,\n  name VARCHAR(80)\n);\nCREATE TABLE \"order\" (\n  id BIGINT NOT NULL,\n  customer_id INT NOT NULL REFERENCES customer(id),\n  placed_at TIMESTAMP WITH TIME ZONE DEFAULT now(),\n  total NUMERIC(10, 2),\n  CONSTRAINT order_pk PRIMARY KEY (id)\n);\nCREATE TABLE order_line (\n  order_id BIGINT NOT NULL,\n  line_no INT NOT NULL,\n  product_id INT,\n  qty INT NOT NULL CHECK (qty > 0),\n  PRIMARY KEY (order_id, line_no),\n  FOREIGN KEY (order_id) REFERENCES \"order\"(id) ON DELETE CASCADE\n);\nCREATE TABLE product (id INT PRIMARY KEY, sku VARCHAR(20) UNIQUE);\nCREATE INDEX order_customer ON \"order\"(customer_id);\nALTER TABLE order_line ADD CONSTRAINT line_product FOREIGN KEY (product_id) REFERENCES product(id);",
+    "name": "Shop"
+  },
+  "json-class": {
+    "text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"Order\",\n  \"type\": \"object\",\n  \"required\": [\"id\", \"customer\", \"lines\"],\n  \"properties\": {\n    \"id\": { \"type\": \"string\", \"format\": \"uuid\" },\n    \"placedAt\": { \"type\": \"string\", \"format\": \"date-time\" },\n    \"status\": { \"$ref\": \"#/$defs/Status\" },\n    \"customer\": { \"$ref\": \"#/$defs/Customer\" },\n    \"lines\": { \"type\": \"array\", \"items\": { \"$ref\": \"#/$defs/Line\" } },\n    \"shipping\": {\n      \"type\": \"object\",\n      \"properties\": { \"street\": { \"type\": \"string\" }, \"city\": { \"type\": \"string\" } }\n    },\n    \"note\": { \"type\": [\"string\", \"null\"] }\n  },\n  \"$defs\": {\n    \"Status\": { \"type\": \"string\", \"enum\": [\"NEW\", \"PAID\", \"SHIPPED\"] },\n    \"Party\": { \"type\": \"object\", \"properties\": { \"id\": { \"type\": \"integer\" }, \"name\": { \"type\": \"string\" } }, \"required\": [\"id\"] },\n    \"Customer\": { \"allOf\": [ { \"$ref\": \"#/$defs/Party\" }, { \"properties\": { \"email\": { \"type\": \"string\", \"format\": \"email\" } } } ] },\n    \"Line\": {\n      \"type\": \"object\",\n      \"required\": [\"qty\"],\n      \"properties\": { \"qty\": { \"type\": \"integer\" }, \"price\": { \"type\": \"number\" }, \"tags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } } }\n    }\n  }\n}"
+  },
+  "json-erd": {
+    "text": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"Order\",\n  \"type\": \"object\",\n  \"required\": [\"id\", \"customer\", \"lines\"],\n  \"properties\": {\n    \"id\": { \"type\": \"string\", \"format\": \"uuid\" },\n    \"placedAt\": { \"type\": \"string\", \"format\": \"date-time\" },\n    \"status\": { \"$ref\": \"#/$defs/Status\" },\n    \"customer\": { \"$ref\": \"#/$defs/Customer\" },\n    \"lines\": { \"type\": \"array\", \"items\": { \"$ref\": \"#/$defs/Line\" } },\n    \"shipping\": {\n      \"type\": \"object\",\n      \"properties\": { \"street\": { \"type\": \"string\" }, \"city\": { \"type\": \"string\" } }\n    },\n    \"note\": { \"type\": [\"string\", \"null\"] }\n  },\n  \"$defs\": {\n    \"Status\": { \"type\": \"string\", \"enum\": [\"NEW\", \"PAID\", \"SHIPPED\"] },\n    \"Party\": { \"type\": \"object\", \"properties\": { \"id\": { \"type\": \"integer\" }, \"name\": { \"type\": \"string\" } }, \"required\": [\"id\"] },\n    \"Customer\": { \"allOf\": [ { \"$ref\": \"#/$defs/Party\" }, { \"properties\": { \"email\": { \"type\": \"string\", \"format\": \"email\" } } } ] },\n    \"Line\": {\n      \"type\": \"object\",\n      \"required\": [\"qty\"],\n      \"properties\": { \"qty\": { \"type\": \"integer\" }, \"price\": { \"type\": \"number\" }, \"tags\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } } }\n    }\n  }\n}",
+    "kind": "erd",
+    "name": "Order tables"
+  },
+  "m-requirement": {
+    "text": "requirementDiagram\n    requirement test_req {\n    id: 1\n    text: the test text.\n    risk: high\n    verifymethod: test\n    }\n    functionalRequirement test_req2 {\n    id: 1.1\n    text: the second test text.\n    risk: low\n    verifymethod: inspection\n    }\n    performanceRequirement test_req3 {\n    id: 1.2\n    text: the third test text.\n    risk: medium\n    verifymethod: demonstration\n    }\n    element test_entity {\n    type: simulation\n    }\n    element test_entity2 {\n    type: word doc\n    docRef: reqs/test_entity\n    }\n    test_entity - satisfies -> test_req2\n    test_req - traces -> test_req2\n    test_req - contains -> test_req3\n    test_entity2 - verifies -> test_req3\n    test_req <- copies - test_entity2"
+  },
+  "m-c4": {
+    "mermaid": "C4Container\ntitle Container diagram for Internet Banking System\nPerson(customer, \"Customer\", \"A customer of the bank, with personal bank accounts\")\nSystem_Boundary(c1, \"Internet Banking\") {\n    Container(spa, \"Single-Page App\", \"JavaScript, Angular\", \"Provides all the Internet banking functionality to customers via their web browser\")\n    Container(backend_api, \"API Application\", \"Java, Docker Container\", \"Provides Internet banking functionality via API\")\n    ContainerDb(database, \"Database\", \"SQL Database\", \"Stores user registration information, hashed auth credentials, access logs, etc.\")\n}\nSystem_Ext(email_system, \"E-Mail System\", \"The internal Microsoft Exchange system\")\nRel(customer, spa, \"Uses\", \"HTTPS\")\nRel(spa, backend_api, \"Uses\", \"async, JSON/HTTPS\")\nRel_Back(database, backend_api, \"Reads from and writes to\", \"sync, JDBC\")\nRel(email_system, customer, \"Sends e-mails to\")\nUpdateElementStyle(customer, $fontColor=\"red\", $bgColor=\"#08427b\", $borderColor=\"#073b6f\")"
+  },
+  "requirement": {
+    "kind": "requirement",
+    "name": "Spec requirements",
+    "spec": {
+      "requirements": [
+        {
+          "name": "Fast",
+          "type": "performance",
+          "id": "R1",
+          "text": "Pages load in 1 s",
+          "risk": "high",
+          "verifyMethod": "test"
+        },
+        {
+          "name": "Secure",
+          "id": "R2",
+          "text": "Data is encrypted"
+        }
+      ],
+      "elements": [
+        {
+          "name": "LoadTest",
+          "type": "test",
+          "docRef": "tests/load"
+        }
+      ],
+      "relations": [
+        {
+          "from": "LoadTest",
+          "to": "Fast",
+          "type": "verifies"
+        },
+        {
+          "from": "Fast",
+          "to": "Secure",
+          "type": "derives"
+        },
+        {
+          "from": "Secure",
+          "to": "Fast",
+          "type": "contains"
+        }
+      ]
+    }
+  },
+  "c4": {
+    "kind": "c4",
+    "name": "Spec C4",
+    "spec": {
+      "elements": [
+        {
+          "id": "u",
+          "name": "User",
+          "type": "person",
+          "description": "Uses the app"
+        },
+        {
+          "id": "app",
+          "name": "App",
+          "type": "container",
+          "technology": "React",
+          "description": "UI"
+        },
+        {
+          "id": "db",
+          "name": "DB",
+          "type": "container",
+          "kind": "database",
+          "technology": "Postgres"
+        },
+        {
+          "id": "mail",
+          "name": "Mailer",
+          "type": "system",
+          "external": true
+        }
+      ],
+      "relations": [
+        {
+          "from": "u",
+          "to": "app",
+          "label": "Uses",
+          "technology": "HTTPS"
+        },
+        {
+          "from": "app",
+          "to": "db",
+          "label": "Reads",
+          "description": "SQL queries"
+        },
+        {
+          "from": "app",
+          "to": "mail",
+          "label": "Sends mail"
+        }
+      ]
+    }
+  },
+  "composition": {
+    "kind": "class",
+    "name": "Purchasing",
+    "spec": {
+      "classes": [
+        {
+          "name": "PurchaseOrder"
+        },
+        {
+          "name": "PurchaseLine"
+        },
+        {
+          "name": "Catalog"
+        },
+        {
+          "name": "Product"
+        }
+      ],
+      "relations": [
+        {
+          "from": "PurchaseOrder",
+          "to": "PurchaseLine",
+          "type": "composition",
+          "name": "lines",
+          "fromMultiplicity": "1",
+          "toMultiplicity": "1..*"
+        },
+        {
+          "from": "Catalog",
+          "to": "Product",
+          "type": "aggregation",
+          "toMultiplicity": "*"
+        }
+      ]
+    }
+  },
+  "m-composition": {
+    "name": "Bundles",
+    "mermaid": "classDiagram\n  PurchaseLine \"1..*\" --* \"1\" PurchaseOrder : lines\n  Catalog o-- \"*\" Product\n  Product \"*\" --o Bundle\n  Wheel --* Car"
+  },
+  "package": {
+    "kind": "package",
+    "name": "Layers",
+    "spec": {
+      "packages": [
+        "Web",
+        {
+          "name": "Domain",
+          "stereotype": "layer"
+        },
+        {
+          "name": "Model",
+          "parent": "Domain"
+        },
+        {
+          "name": "Services",
+          "parent": "Domain"
+        },
+        "Persistence"
+      ],
+      "dependencies": [
+        {
+          "from": "Web",
+          "to": "Services",
+          "type": "use"
+        },
+        {
+          "from": "Services",
+          "to": "Model",
+          "type": "import"
+        },
+        {
+          "from": "Persistence",
+          "to": "Model",
+          "type": "access"
+        },
+        {
+          "from": "Web",
+          "to": "Persistence"
+        }
+      ]
+    }
+  },
+  "package-flat": {
+    "kind": "package",
+    "name": "Flat",
+    "spec": {
+      "packages": ["Api", "Core", "Infra"],
+      "dependencies": [
+        {
+          "from": "Api",
+          "to": "Core"
+        },
+        {
+          "from": "Infra",
+          "to": "Core",
+          "type": "merge",
+          "name": "extends"
+        }
+      ]
+    }
+  },
+  "component": {
+    "kind": "component",
+    "name": "Transport",
+    "spec": {
+      "components": [
+        {
+          "name": "MqttTransport",
+          "stereotype": "service",
+          "ports": ["mqtt", "rpc"],
+          "provides": ["TransportService"],
+          "requires": ["DeviceAuth"]
+        },
+        {
+          "name": "RuleEngine",
+          "ports": ["in"],
+          "provides": ["RuleEngineApi"]
+        },
+        {
+          "name": "Core",
+          "requires": ["RuleEngineApi"]
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "TransportService",
+          "operations": ["process(msg: TbMsg): void"]
+        },
+        "DeviceAuth"
+      ],
+      "connectors": [
+        {
+          "from": "MqttTransport.rpc",
+          "to": "RuleEngine.in",
+          "name": "queue"
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "Core",
+          "to": "MqttTransport",
+          "name": "starts"
+        }
+      ]
+    }
+  },
+  "component-flat": {
+    "kind": "component",
+    "name": "Plain",
+    "spec": {
+      "components": [
+        "A",
+        {
+          "name": "B",
+          "provides": ["IB"]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "A",
+          "to": "B"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "kind": "deployment",
+    "name": "Cluster",
+    "spec": {
+      "nodes": [
+        {
+          "name": "k8s",
+          "stereotype": "executionEnvironment"
+        },
+        {
+          "name": "tb-node",
+          "parent": "k8s",
+          "deploys": ["tb.jar"]
+        },
+        {
+          "name": "Postgres",
+          "stereotype": "device",
+          "deploys": ["schema.sql"]
+        },
+        "Kafka"
+      ],
+      "artifacts": [
+        {
+          "name": "tb.jar",
+          "manifests": ["Core"]
+        },
+        "schema.sql"
+      ],
+      "components": ["Core"],
+      "paths": [
+        {
+          "from": "tb-node",
+          "to": "Postgres",
+          "name": "JDBC"
+        },
+        {
+          "from": "tb-node",
+          "to": "Kafka",
+          "name": "TCP"
+        }
+      ]
+    }
+  },
+  "deployment-flat": {
+    "kind": "deployment",
+    "name": "Single",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Server",
+          "deploys": ["app.war"]
+        },
+        "Db"
+      ],
+      "artifacts": ["app.war"],
+      "paths": [
+        {
+          "from": "Server",
+          "to": "Db"
+        }
+      ]
+    }
+  },
+  "f-composite": {
+    "kind": "composite",
+    "name": "Car structure",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Car",
+          "type": "class",
+          "attributes": ["+vin: String"]
+        },
+        {
+          "name": "engine",
+          "type": "part",
+          "in": "Car"
+        },
+        {
+          "name": "wheels",
+          "type": "part",
+          "in": "Car"
+        },
+        {
+          "name": "power",
+          "type": "port",
+          "in": "Car"
+        }
+      ],
+      "edges": [
+        {
+          "from": "engine",
+          "to": "wheels",
+          "name": "drives"
+        }
+      ]
+    }
+  },
+  "f-object": {
+    "kind": "object",
+    "name": "Order snapshot",
+    "spec": {
+      "nodes": [
+        {
+          "name": "order1",
+          "slots": ["total = 42", "status = PAID"]
+        },
+        {
+          "name": "alice"
+        },
+        {
+          "name": "item7"
+        }
+      ],
+      "edges": [
+        {
+          "from": "order1",
+          "to": "alice",
+          "name": "placedBy"
+        },
+        {
+          "from": "order1",
+          "to": "item7",
+          "type": "directedLink"
+        }
+      ]
+    }
+  },
+  "f-communication": {
+    "kind": "communication",
+    "name": "Checkout talk",
+    "spec": {
+      "nodes": ["client", "server", "db"],
+      "edges": [
+        {
+          "from": "client",
+          "to": "server",
+          "name": "checkout()"
+        },
+        {
+          "from": "server",
+          "to": "db",
+          "name": "save(order)"
+        },
+        {
+          "from": "server",
+          "to": "client",
+          "name": "done"
+        }
+      ]
+    }
+  },
+  "f-timing": {
+    "kind": "timing",
+    "name": "Request timing",
+    "spec": {
+      "nodes": [
+        {
+          "name": "client",
+          "type": "lifeline"
+        },
+        {
+          "id": "client.idle",
+          "name": "idle",
+          "type": "state",
+          "in": "client"
+        },
+        {
+          "id": "client.waiting",
+          "name": "waiting",
+          "type": "state",
+          "in": "client"
+        },
+        {
+          "id": "c1",
+          "name": "t1",
+          "type": "segment",
+          "in": "client.idle",
+          "width": 120
+        },
+        {
+          "id": "c2",
+          "name": "t2",
+          "type": "segment",
+          "in": "client.waiting",
+          "width": 200
+        },
+        {
+          "name": "server",
+          "type": "lifeline"
+        },
+        {
+          "id": "server.idle",
+          "name": "idle",
+          "type": "state",
+          "in": "server"
+        },
+        {
+          "id": "server.busy",
+          "name": "busy",
+          "type": "state",
+          "in": "server"
+        },
+        {
+          "id": "s1",
+          "name": "t3",
+          "type": "segment",
+          "in": "server.idle",
+          "width": 160
+        },
+        {
+          "id": "s2",
+          "name": "t4",
+          "type": "segment",
+          "in": "server.busy",
+          "width": 160
+        }
+      ],
+      "edges": [
+        {
+          "from": "c1",
+          "to": "s2",
+          "name": "request"
+        }
+      ]
+    }
+  },
+  "f-overview": {
+    "kind": "overview",
+    "name": "Shopping overview",
+    "spec": {
+      "nodes": [
+        {
+          "id": "start",
+          "type": "initial"
+        },
+        {
+          "name": "Log in",
+          "type": "interactionUse"
+        },
+        {
+          "id": "ok",
+          "type": "decision"
+        },
+        {
+          "name": "Browse",
+          "type": "interaction"
+        },
+        {
+          "id": "end",
+          "type": "final"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "Log in"
+        },
+        {
+          "from": "Log in",
+          "to": "ok"
+        },
+        {
+          "from": "ok",
+          "to": "Browse",
+          "name": "[ok]"
+        },
+        {
+          "from": "ok",
+          "to": "end",
+          "name": "[failed]"
+        },
+        {
+          "from": "Browse",
+          "to": "end"
+        }
+      ]
+    }
+  },
+  "f-infoflow": {
+    "kind": "infoflow",
+    "name": "Billing information",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Shop"
+        },
+        {
+          "name": "Customer",
+          "type": "actor"
+        },
+        {
+          "name": "Invoice",
+          "type": "item"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Shop",
+          "to": "Customer",
+          "name": "invoices"
+        }
+      ]
+    }
+  },
+  "f-profile": {
+    "kind": "profile",
+    "name": "Persistence profile",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Entity",
+          "attributes": ["table: String"]
+        },
+        {
+          "name": "Id"
+        },
+        {
+          "name": "Class",
+          "type": "metaclass"
+        },
+        {
+          "name": "Property",
+          "type": "metaclass"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Entity",
+          "to": "Class"
+        },
+        {
+          "from": "Id",
+          "to": "Property"
+        }
+      ]
+    }
+  },
+  "f-dfd": {
+    "kind": "dfd",
+    "name": "Order processing",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Customer",
+          "type": "external",
+          "documentation": "Places and receives orders."
+        },
+        {
+          "name": "Place order",
+          "properties": {
+            "id": "1"
+          }
+        },
+        {
+          "name": "Ship order",
+          "properties": {
+            "id": "2"
+          }
+        },
+        {
+          "name": "Orders",
+          "type": "store",
+          "properties": {
+            "id": "D1"
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "Customer",
+          "to": "Place order",
+          "name": "order"
+        },
+        {
+          "from": "Place order",
+          "to": "Orders",
+          "name": "order record"
+        },
+        {
+          "from": "Orders",
+          "to": "Ship order",
+          "name": "pending order"
+        },
+        {
+          "from": "Ship order",
+          "to": "Customer",
+          "name": "parcel"
+        }
+      ]
+    }
+  },
+  "f-bdd": {
+    "kind": "bdd",
+    "name": "Vehicle blocks",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Vehicle",
+          "attributes": ["mass: Kilogram"],
+          "operations": ["accelerate(by: Real)"]
+        },
+        {
+          "name": "Car",
+          "stereotype": "system"
+        },
+        {
+          "name": "Engine"
+        },
+        {
+          "name": "Wheel"
+        },
+        {
+          "name": "Kilogram",
+          "type": "valueType"
+        },
+        {
+          "name": "Newton",
+          "type": "constraintBlock"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Car",
+          "to": "Vehicle",
+          "type": "generalization"
+        },
+        {
+          "from": "Car",
+          "to": "Engine"
+        },
+        {
+          "from": "Car",
+          "to": "Wheel"
+        }
+      ]
+    }
+  },
+  "f-ibd": {
+    "kind": "ibd",
+    "name": "Car internals",
+    "spec": {
+      "block": "Car",
+      "nodes": [
+        {
+          "name": "engine"
+        },
+        {
+          "name": "gearbox"
+        },
+        {
+          "name": "wheels"
+        },
+        {
+          "name": "fuel",
+          "type": "port"
+        }
+      ],
+      "edges": [
+        {
+          "from": "fuel",
+          "to": "engine"
+        },
+        {
+          "from": "engine",
+          "to": "gearbox"
+        },
+        {
+          "from": "gearbox",
+          "to": "wheels"
+        }
+      ]
+    }
+  },
+  "f-parametric": {
+    "kind": "parametric",
+    "name": "Car dynamics",
+    "spec": {
+      "block": "Car",
+      "nodes": [
+        {
+          "name": "newton"
+        },
+        {
+          "name": "mass",
+          "type": "value"
+        },
+        {
+          "name": "acceleration",
+          "type": "value"
+        }
+      ],
+      "edges": [
+        {
+          "from": "newton",
+          "to": "mass"
+        },
+        {
+          "from": "newton",
+          "to": "acceleration"
+        }
+      ]
+    }
+  },
+  "f-bpmn": {
+    "kind": "bpmn",
+    "name": "Order fulfilment",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Shop",
+          "type": "pool"
+        },
+        {
+          "name": "Sales",
+          "type": "lane",
+          "in": "Shop"
+        },
+        {
+          "name": "Warehouse",
+          "type": "lane",
+          "in": "Shop"
+        },
+        {
+          "name": "Order received",
+          "type": "start",
+          "in": "Sales"
+        },
+        {
+          "name": "Check order",
+          "type": "userTask",
+          "in": "Sales"
+        },
+        {
+          "id": "ok",
+          "name": "In stock?",
+          "type": "exclusive",
+          "in": "Sales"
+        },
+        {
+          "name": "Pack",
+          "in": "Warehouse"
+        },
+        {
+          "name": "Done",
+          "type": "end",
+          "in": "Warehouse"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Order received",
+          "to": "Check order"
+        },
+        {
+          "from": "Check order",
+          "to": "ok"
+        },
+        {
+          "from": "ok",
+          "to": "Pack",
+          "name": "yes"
+        },
+        {
+          "from": "Pack",
+          "to": "Done"
+        }
+      ]
+    }
+  },
+  "f-wireframe": {
+    "kind": "wireframe",
+    "name": "Login screen",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Login",
+          "type": "webFrame"
+        },
+        {
+          "name": "Email",
+          "type": "input",
+          "in": "Login"
+        },
+        {
+          "name": "Password",
+          "type": "input",
+          "in": "Login"
+        },
+        {
+          "name": "Remember me",
+          "type": "checkbox",
+          "in": "Login",
+          "properties": {
+            "checked": true
+          }
+        },
+        {
+          "name": "Sign in",
+          "type": "button",
+          "in": "Login"
+        }
+      ]
+    }
+  },
+  "f-aws": {
+    "kind": "aws",
+    "name": "Web tier",
+    "spec": {
+      "nodes": [
+        {
+          "name": "AWS Cloud",
+          "type": "group"
+        },
+        {
+          "name": "VPC",
+          "type": "group",
+          "in": "AWS Cloud"
+        },
+        {
+          "name": "Load balancer",
+          "in": "VPC"
+        },
+        {
+          "name": "Web server",
+          "in": "VPC"
+        },
+        {
+          "name": "Database",
+          "type": "resource",
+          "in": "VPC"
+        }
+      ],
+      "edges": [
+        {
+          "from": "Load balancer",
+          "to": "Web server"
+        },
+        {
+          "from": "Web server",
+          "to": "Database"
+        }
+      ]
+    }
+  },
+  "f-azure": {
+    "kind": "azure",
+    "name": "App platform",
+    "spec": {
+      "nodes": [
+        {
+          "name": "Resource group",
+          "type": "group"
+        },
+        {
+          "name": "App Service",
+          "in": "Resource group"
+        },
+        {
+          "name": "SQL Database",
+          "in": "Resource group"
+        }
+      ],
+      "edges": [
+        {
+          "from": "App Service",
+          "to": "SQL Database",
+          "properties": {
+            "dashed": true
+          }
+        }
+      ]
+    }
+  },
+  "f-gcp": {
+    "kind": "gcp",
+    "name": "Serverless app",
+    "spec": {
+      "nodes": [
+        {
+          "name": "User",
+          "type": "user"
+        },
+        {
+          "name": "Project",
+          "type": "zone"
+        },
+        {
+          "name": "Cloud Run",
+          "in": "Project"
+        },
+        {
+          "name": "Cloud SQL",
+          "type": "service",
+          "in": "Project"
+        }
+      ],
+      "edges": [
+        {
+          "from": "User",
+          "to": "Cloud Run"
+        },
+        {
+          "from": "Cloud Run",
+          "to": "Cloud SQL"
+        }
+      ]
+    }
+  }
+}

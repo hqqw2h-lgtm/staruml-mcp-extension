@@ -1,0 +1,150 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLPackageDiagram",
+   "name": "Flat",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 140,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 240,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLPackage",
+   "name": "Api",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLPackage",
+   "name": "Core",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLPackage",
+   "name": "Infra",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLDependency",
+   "name": "extends",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": "merge",
+   "visibility": "public"
+  }
+ ]
+}

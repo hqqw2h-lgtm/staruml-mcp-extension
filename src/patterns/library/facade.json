@@ -1,0 +1,59 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Facade",
+  "category": "structural",
+  "intent": "Provide a unified interface to a set of interfaces in a subsystem.",
+  "roles": [
+    {
+      "name": "Facade",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Knows which subsystem classes serve a request and delegates to them.",
+      "documentation": "{Facade} is the one entry point to its subsystem.",
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    },
+    {
+      "name": "SubsystemClass",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Does the work the facade delegates.",
+      "operations": [
+        {
+          "name": "work"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "association",
+      "from": "Facade",
+      "to": "SubsystemClass",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable"
+      }
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Facade",
+        "text": "operation()"
+      },
+      {
+        "from": "Facade",
+        "to": "SubsystemClass",
+        "text": "work()"
+      }
+    ],
+    "participants": ["Client", "Facade", "SubsystemClass"]
+  }
+}

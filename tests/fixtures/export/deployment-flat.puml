@@ -1,0 +1,8 @@
+@startuml
+title Single
+node "Server" as D0
+node "Db" as D1
+artifact "app.war" as D2
+D2 ..> D0 : <<deploy>>
+D0 -- D1
+@enduml

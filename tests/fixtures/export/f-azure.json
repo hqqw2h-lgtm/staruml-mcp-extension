@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "name": "Resource group",
+      "type": "group"
+    },
+    {
+      "name": "App Service",
+      "type": "service",
+      "in": "Resource group"
+    },
+    {
+      "name": "SQL Database",
+      "type": "service",
+      "in": "Resource group"
+    }
+  ],
+  "edges": [
+    {
+      "from": "App Service",
+      "to": "SQL Database",
+      "type": "connector"
+    }
+  ]
+}

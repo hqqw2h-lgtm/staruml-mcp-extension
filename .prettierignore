@@ -1,0 +1,16 @@
+main.js
+main.js.map
+coverage/
+node_modules/
+package-lock.json
+# Golden files written by tests/unit/handlers/build.test.ts, compared byte for byte.
+tests/fixtures/build/*.mdj.json
+# Golden files written by tests/unit/patterns/library.test.ts, compared byte for byte.
+tests/fixtures/patterns/*.mdj.json
+# Spec goldens written by tests/unit/handlers/export-text.test.ts, compared byte for byte.
+tests/fixtures/export/*.json
+reports/
+.stryker-tmp/
+tests/fixtures/domains/*.derived.json
+# draw.io goldens written by tests/unit/text/drawio-writer.test.ts and the XSD vendored from jgraph/drawio-mcp, compared byte for byte.
+tests/fixtures/drawio/

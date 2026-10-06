@@ -1,0 +1,13 @@
+@startuml
+title Container diagram for Internet Banking System
+!include <C4/C4_Container>
+Person(E0, "Customer", "A customer of the bank, with personal bank accounts")
+Container(E1, "Single-Page App", "JavaScript, Angular", "Provides all the Internet banking functionality to customers via their web browser")
+Container(E2, "API Application", "Java, Docker Container", "Provides Internet banking functionality via API")
+ContainerDb(E3, "Database", "SQL Database", "Stores user registration information, hashed auth credentials, access logs, etc.")
+System_Ext(E4, "E-Mail System", "The internal Microsoft Exchange system")
+Rel(E0, E1, "Uses", "HTTPS")
+Rel(E1, E2, "Uses", "async, JSON/HTTPS")
+Rel(E2, E3, "Reads from and writes to", "sync, JDBC")
+Rel(E4, E0, "Sends e-mails to")
+@enduml

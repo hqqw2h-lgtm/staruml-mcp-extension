@@ -1,0 +1,321 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLClassDiagram",
+   "name": "Animals",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLClassView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 180,
+     "height": 68,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLClassView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 260,
+     "top": 140,
+     "width": 180,
+     "height": 68,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLInterfaceView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 150,
+     "top": 240,
+     "width": 180,
+     "height": 54,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLClassView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 150,
+     "top": 340,
+     "width": 180,
+     "height": 40,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLGeneralizationView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#4"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLGeneralizationView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#4"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLAssociationView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLClass",
+   "name": "Animal",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [
+    {
+     "_id": "#18",
+     "_type": "UMLAttribute",
+     "name": "age",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": "int",
+     "multiplicity": "",
+     "defaultValue": "",
+     "aggregation": "none"
+    }
+   ],
+   "operations": [
+    {
+     "_id": "#19",
+     "_type": "UMLOperation",
+     "name": "isMammal",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "parameters": [
+      {
+       "_id": "#20",
+       "_type": "UMLParameter",
+       "name": "",
+       "ownedElements": [],
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "type": "bool",
+       "multiplicity": "",
+       "defaultValue": "",
+       "direction": "return"
+      }
+     ],
+     "isAbstract": false
+    }
+   ],
+   "isAbstract": false
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLClass",
+   "name": "Duck",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [
+    {
+     "_id": "#21",
+     "_type": "UMLAttribute",
+     "name": "beakColor",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": "String",
+     "multiplicity": "",
+     "defaultValue": "",
+     "aggregation": "none"
+    }
+   ],
+   "operations": [
+    {
+     "_id": "#22",
+     "_type": "UMLOperation",
+     "name": "swim",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "parameters": [],
+     "isAbstract": false
+    }
+   ],
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLInterface",
+   "name": "Fish",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [
+    {
+     "_id": "#23",
+     "_type": "UMLOperation",
+     "name": "swim",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "parameters": [],
+     "isAbstract": false
+    }
+   ],
+   "isAbstract": false
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLClass",
+   "name": "Egg",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLGeneralization",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLGeneralization",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#17",
+   "_type": "UMLAssociation",
+   "name": "lays",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#24",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "composite",
+    "multiplicity": "1",
+    "defaultValue": ""
+   },
+   "end2": {
+    "_id": "#25",
+    "_type": "UMLAssociationEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#11"
+    },
+    "stereotype": "",
+    "visibility": "public",
+    "navigable": "unspecified",
+    "aggregation": "none",
+    "multiplicity": "many",
+    "defaultValue": ""
+   },
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ]
+}

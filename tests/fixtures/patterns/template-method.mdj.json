@@ -1,0 +1,287 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Template Method sequence",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLClass",
+     "name": "AbstractClass",
+     "ownedElements": [],
+     "documentation": "AbstractClass.templateMethod() fixes the order of the steps its subclasses fill in.",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#4",
+       "_type": "UMLOperation",
+       "name": "templateMethod",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": false,
+       "isLeaf": true,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      },
+      {
+       "_id": "#5",
+       "_type": "UMLOperation",
+       "name": "primitiveOperation1",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "protected",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": true
+      },
+      {
+       "_id": "#6",
+       "_type": "UMLOperation",
+       "name": "primitiveOperation2",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "protected",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": true
+      }
+     ],
+     "isAbstract": true,
+     "isLeaf": false
+    },
+    {
+     "_id": "#7",
+     "_type": "UMLClass",
+     "name": "ConcreteClass",
+     "ownedElements": [
+      {
+       "_id": "#8",
+       "_type": "UMLGeneralization",
+       "name": "",
+       "ownedElements": [],
+       "documentation": "",
+       "source": {
+        "$ref": "#7"
+       },
+       "target": {
+        "$ref": "#3"
+       },
+       "stereotype": null,
+       "visibility": "public"
+      }
+     ],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [],
+     "operations": [
+      {
+       "_id": "#9",
+       "_type": "UMLOperation",
+       "name": "primitiveOperation1",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "protected",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      },
+      {
+       "_id": "#10",
+       "_type": "UMLOperation",
+       "name": "primitiveOperation2",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "protected",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLClassDiagram",
+     "name": "Template Method",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#12",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#3"
+       }
+      },
+      {
+       "_id": "#13",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#7"
+       }
+      },
+      {
+       "_id": "#14",
+       "_type": "UMLGeneralizationView",
+       "model": {
+        "$ref": "#8"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#15",
+     "_type": "UMLSequenceDiagram",
+     "name": "Template Method sequence",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#16",
+       "_type": "UMLFrameView",
+       "model": {
+        "$ref": "#15"
+       }
+      },
+      {
+       "_id": "#17",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#18"
+       }
+      },
+      {
+       "_id": "#19",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#20"
+       }
+      },
+      {
+       "_id": "#21",
+       "_type": "UMLSeqMessageView",
+       "model": {
+        "$ref": "#22"
+       }
+      },
+      {
+       "_id": "#23",
+       "_type": "UMLSeqMessageView",
+       "model": {
+        "$ref": "#24"
+       }
+      },
+      {
+       "_id": "#25",
+       "_type": "UMLSeqMessageView",
+       "model": {
+        "$ref": "#26"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLLifeline",
+     "name": "Client",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLLifeline",
+     "name": "ConcreteClass",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#22",
+     "_type": "UMLMessage",
+     "name": "templateMethod()",
+     "ownedElements": [],
+     "documentation": "",
+     "source": {
+      "$ref": "#18"
+     },
+     "target": {
+      "$ref": "#20"
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "messageSort": "synchCall"
+    },
+    {
+     "_id": "#24",
+     "_type": "UMLMessage",
+     "name": "primitiveOperation1()",
+     "ownedElements": [],
+     "documentation": "",
+     "source": {
+      "$ref": "#20"
+     },
+     "target": {
+      "$ref": "#20"
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "messageSort": "synchCall"
+    },
+    {
+     "_id": "#26",
+     "_type": "UMLMessage",
+     "name": "primitiveOperation2()",
+     "ownedElements": [],
+     "documentation": "",
+     "source": {
+      "$ref": "#20"
+     },
+     "target": {
+      "$ref": "#20"
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "messageSort": "synchCall"
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

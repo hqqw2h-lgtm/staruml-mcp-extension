@@ -1,0 +1,26 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "container-overview",
+  "version": 1,
+  "title": "Container overview",
+  "description": "The running parts of the system with their technology and how they talk, people and outside systems around them.",
+  "viewpoint": "container",
+  "kind": "c4",
+  "default": true,
+  "content": {
+    "maxElements": 25
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": [
+      "Person: someone who uses the system",
+      "Container: an application, service or data store that runs on its own",
+      "Grey: outside the system",
+      "Arrow: a call or data flow, labelled with its purpose and technology"
+    ]
+  }
+}

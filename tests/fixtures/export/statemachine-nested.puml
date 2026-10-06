@@ -1,0 +1,17 @@
+@startuml
+title Nested spec
+left to right direction
+state "Off" as N1
+state "On" as N2 {
+  state "Low" as N4
+  state "High" as N5
+  [*] --> N4
+  N4 --> N5 : up
+}
+[*] --> N1
+N1 --> N2 : switch
+N2 --> N1 : switch
+note right of N4
+  two speeds
+end note
+@enduml

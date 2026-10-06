@@ -1,0 +1,35 @@
+flowchart TD
+  subgraph L0["Customer"]
+    N0(["start"])
+    N1["Choose items"]
+  end
+  subgraph L1["Shop"]
+    N2["Check stock"]
+    N3{"in stock?"}
+    N4["Reserve"]
+    N5{{"fork"}}
+    N6["Charge card"]
+    N7["Pack"]
+    N8{{"join"}}
+    N9["Notify"]
+    N10{" "}
+    N11{"more?"}
+    N12["Next"]
+    N13(["end"])
+  end
+  N0 --> N1
+  N1 --> N2
+  N2 --> N3
+  N3 -->|yes| N4
+  N4 --> N5
+  N5 --> N6
+  N5 --> N7
+  N6 --> N8
+  N7 --> N8
+  N3 -->|no| N9
+  N8 --> N10
+  N9 --> N10
+  N10 --> N11
+  N11 -->|yes| N12
+  N12 --> N11
+  N11 -->|no| N13

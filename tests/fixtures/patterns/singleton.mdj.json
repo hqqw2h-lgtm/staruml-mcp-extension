@@ -1,0 +1,194 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Singleton sequence",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLClass",
+     "name": "Singleton",
+     "ownedElements": [],
+     "documentation": "Singleton has exactly one instance, reached through getInstance().",
+     "stereotype": null,
+     "visibility": "public",
+     "attributes": [
+      {
+       "_id": "#4",
+       "_type": "UMLAttribute",
+       "name": "instance",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "private",
+       "isStatic": true,
+       "isLeaf": false,
+       "type": {
+        "$ref": "#3"
+       },
+       "multiplicity": "",
+       "isReadOnly": false,
+       "defaultValue": "",
+       "aggregation": "none",
+       "isID": false
+      }
+     ],
+     "operations": [
+      {
+       "_id": "#5",
+       "_type": "UMLOperation",
+       "name": "Singleton",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": "create",
+       "visibility": "private",
+       "isStatic": false,
+       "isLeaf": false,
+       "parameters": [],
+       "isQuery": false,
+       "isAbstract": false
+      },
+      {
+       "_id": "#6",
+       "_type": "UMLOperation",
+       "name": "getInstance",
+       "ownedElements": [],
+       "documentation": "",
+       "stereotype": null,
+       "visibility": "public",
+       "isStatic": true,
+       "isLeaf": false,
+       "parameters": [
+        {
+         "_id": "#7",
+         "_type": "UMLParameter",
+         "name": "",
+         "ownedElements": [],
+         "documentation": "",
+         "stereotype": null,
+         "visibility": "public",
+         "isStatic": false,
+         "isLeaf": false,
+         "type": {
+          "$ref": "#3"
+         },
+         "multiplicity": "",
+         "isReadOnly": false,
+         "defaultValue": "",
+         "direction": "return"
+        }
+       ],
+       "isQuery": false,
+       "isAbstract": false
+      }
+     ],
+     "isAbstract": false,
+     "isLeaf": true
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLClassDiagram",
+     "name": "Singleton",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#9",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#3"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLSequenceDiagram",
+     "name": "Singleton sequence",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#11",
+       "_type": "UMLFrameView",
+       "model": {
+        "$ref": "#10"
+       }
+      },
+      {
+       "_id": "#12",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#13"
+       }
+      },
+      {
+       "_id": "#14",
+       "_type": "UMLSeqLifelineView",
+       "model": {
+        "$ref": "#15"
+       }
+      },
+      {
+       "_id": "#16",
+       "_type": "UMLSeqMessageView",
+       "model": {
+        "$ref": "#17"
+       }
+      }
+     ]
+    },
+    {
+     "_id": "#13",
+     "_type": "UMLLifeline",
+     "name": "Client",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#15",
+     "_type": "UMLLifeline",
+     "name": "Singleton",
+     "ownedElements": [],
+     "documentation": "",
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLMessage",
+     "name": "getInstance()",
+     "ownedElements": [],
+     "documentation": "",
+     "source": {
+      "$ref": "#13"
+     },
+     "target": {
+      "$ref": "#15"
+     },
+     "stereotype": null,
+     "visibility": "public",
+     "messageSort": "synchCall"
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

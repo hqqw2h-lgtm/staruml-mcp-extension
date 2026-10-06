@@ -1,0 +1,25 @@
+@startuml
+left to right direction
+state "Idle" as N1
+state "Working hard" as N2 {
+  state "Running" as N4
+  state "Paused" as N5 {
+    state "Frozen" as N7
+    [*] --> N7
+  }
+  [*] --> N4
+  N4 --> N5 : pause
+  N5 --> N4 : resume
+}
+[*] --> N1
+N1 --> N2 : start
+N2 --> [*] : stop [done]
+note right of N1
+  waiting
+  for work
+end note
+note right of N4
+  busy
+  here
+end note
+@enduml

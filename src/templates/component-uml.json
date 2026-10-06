@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "component-uml",
+  "version": 1,
+  "title": "Component wiring",
+  "description": "UML components with the interfaces they provide and require.",
+  "viewpoint": "component",
+  "kind": "component",
+  "default": true,
+  "content": {
+    "maxElements": 20
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

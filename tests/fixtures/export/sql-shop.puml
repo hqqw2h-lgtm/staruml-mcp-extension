@@ -1,0 +1,31 @@
+@startuml
+title Shop
+entity "customer" as E0 {
+  *id : SERIAL <<PK>>
+  --
+  email : VARCHAR(120) <<UK>>
+  name : VARCHAR(80)
+}
+entity "order" as E1 {
+  *id : BIGINT <<PK>>
+  --
+  customer_id : INT <<FK>>
+  placed_at : TIMESTAMP WITH TIME ZONE
+  total : NUMERIC(10,2)
+}
+entity "order_line" as E2 {
+  *order_id : BIGINT <<PK>> <<FK>>
+  *line_no : INT <<PK>>
+  --
+  product_id : INT <<FK>>
+  qty : INT
+}
+entity "product" as E3 {
+  *id : INT <<PK>>
+  --
+  sku : VARCHAR(20) <<UK>>
+}
+E0 ||..o{ E1
+E1 ||--o{ E2
+E3 |o..o{ E2
+@enduml

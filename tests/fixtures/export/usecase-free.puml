@@ -1,0 +1,9 @@
+@startuml
+title Free UC
+left to right direction
+actor "Customer" as A0
+usecase "Browse" as U0
+usecase "Buy" as U1
+A0 --> U0
+U1 ..> U0 : <<extend>>
+@enduml

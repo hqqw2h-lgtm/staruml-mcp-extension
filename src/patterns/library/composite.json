@@ -1,0 +1,165 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Composite",
+  "category": "structural",
+  "intent": "Compose objects into tree structures and let clients treat individual objects and compositions uniformly.",
+  "roles": [
+    {
+      "name": "Component",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Declares the interface of objects in the tree.",
+      "properties": {
+        "isAbstract": true
+      },
+      "documentation": "{Component} is what {Leaf} and {Composite} have in common.",
+      "operations": [
+        {
+          "name": "operation",
+          "isAbstract": true
+        },
+        {
+          "name": "add",
+          "parameters": [
+            {
+              "name": "child",
+              "type": "{Component}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "parameters": [
+            {
+              "name": "child",
+              "type": "{Component}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "getChild",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "index",
+              "type": "int",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Component}"
+        }
+      ]
+    },
+    {
+      "name": "Leaf",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "A tree element without children.",
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    },
+    {
+      "name": "Composite",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "A tree element with children.",
+      "operations": [
+        {
+          "name": "operation"
+        },
+        {
+          "name": "add",
+          "parameters": [
+            {
+              "name": "child",
+              "type": "{Component}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "parameters": [
+            {
+              "name": "child",
+              "type": "{Component}",
+              "direction": "in"
+            }
+          ]
+        },
+        {
+          "name": "getChild",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "index",
+              "type": "int",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{Component}"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "Leaf",
+      "to": "Component"
+    },
+    {
+      "type": "generalization",
+      "from": "Composite",
+      "to": "Component"
+    },
+    {
+      "type": "composition",
+      "from": "Composite",
+      "to": "Component",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "children",
+        "multiplicity": "0..*"
+      }
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "Composite",
+        "text": "operation()"
+      },
+      {
+        "from": "Composite",
+        "to": "Leaf",
+        "text": "operation()"
+      }
+    ],
+    "participants": ["Client", "Composite", "Leaf"]
+  },
+  "checks": [
+    {
+      "id": "composite-owns-children",
+      "role": "Composite",
+      "property": "aggregation",
+      "equals": "composite",
+      "message": "A composite owns its children: the association from it to its components is a composition.",
+      "relationship": 2,
+      "end": "from"
+    },
+    {
+      "id": "composite-component-abstract",
+      "role": "Component",
+      "property": "isAbstract",
+      "equals": true,
+      "message": "The component of a composite is abstract; leaves and composites are its concrete kinds."
+    }
+  ]
+}

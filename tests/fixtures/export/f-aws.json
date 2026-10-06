@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "name": "AWS Cloud",
+      "type": "group"
+    },
+    {
+      "name": "VPC",
+      "type": "group",
+      "in": "AWS Cloud"
+    },
+    {
+      "name": "Load balancer",
+      "type": "service",
+      "in": "VPC"
+    },
+    {
+      "name": "Web server",
+      "type": "service",
+      "in": "VPC"
+    },
+    {
+      "name": "Database",
+      "type": "resource",
+      "in": "VPC"
+    }
+  ],
+  "edges": [
+    {
+      "from": "Load balancer",
+      "to": "Web server",
+      "type": "arrow"
+    },
+    {
+      "from": "Web server",
+      "to": "Database",
+      "type": "arrow"
+    }
+  ]
+}

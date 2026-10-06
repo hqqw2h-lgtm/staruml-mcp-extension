@@ -1,0 +1,96 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Memento",
+  "category": "behavioral",
+  "intent": "Capture an object's internal state without violating encapsulation so it can be restored later.",
+  "roles": [
+    {
+      "name": "Originator",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Makes a memento of its state and restores from one.",
+      "attributes": [
+        {
+          "name": "state",
+          "type": "Object",
+          "visibility": "private"
+        }
+      ],
+      "operations": [
+        {
+          "name": "save",
+          "returnType": "{Memento}"
+        },
+        {
+          "name": "restore",
+          "parameters": [
+            {
+              "name": "memento",
+              "type": "{Memento}",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Memento",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Holds a snapshot of the originator's state.",
+      "properties": {
+        "isLeaf": true
+      },
+      "attributes": [
+        {
+          "name": "state",
+          "type": "Object",
+          "visibility": "private",
+          "isReadOnly": true
+        }
+      ],
+      "operations": [
+        {
+          "name": "getState",
+          "isQuery": true,
+          "returnType": "Object"
+        }
+      ]
+    },
+    {
+      "name": "Caretaker",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Keeps mementos without looking inside."
+    }
+  ],
+  "relationships": [
+    {
+      "type": "aggregation",
+      "from": "Caretaker",
+      "to": "Memento",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "history",
+        "multiplicity": "0..*"
+      }
+    },
+    {
+      "type": "dependency",
+      "from": "Originator",
+      "to": "Memento",
+      "stereotype": "create"
+    }
+  ],
+  "alsoKnownAs": ["Token"],
+  "checks": [
+    {
+      "id": "memento-state-read-only",
+      "role": "Memento",
+      "property": "isReadOnly",
+      "equals": true,
+      "message": "A memento's state is a snapshot and does not change.",
+      "member": "state"
+    }
+  ]
+}

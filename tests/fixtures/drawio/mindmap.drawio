@@ -1,0 +1,37 @@
+<mxfile host="staruml-mcp-extension" type="device" compressed="false">
+  <diagram id="ID1" name="Ideas">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ID2" value="Shop" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="190" y="70" width="80" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ID3" value="Catalog" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="340" y="46" width="89" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ID4" value="Search" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="499" y="46" width="82" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ID5" value="Cart" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="340" y="94" width="80" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ID6" value="Pay" style="rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="80" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ID7" value="" style="html=1;labelBackgroundColor=default;endArrow=none;curved=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID8" value="" style="html=1;labelBackgroundColor=default;endArrow=none;curved=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID3" target="ID4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID9" value="" style="html=1;labelBackgroundColor=default;endArrow=none;curved=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ID10" value="" style="html=1;labelBackgroundColor=default;endArrow=none;curved=1;strokeColor=#000000;fontColor=#000000;fontFamily=Arial;fontSize=13;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ID2" target="ID6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

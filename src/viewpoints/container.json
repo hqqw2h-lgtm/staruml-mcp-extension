@@ -1,0 +1,25 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "container",
+  "title": "Containers",
+  "summary": "The separately running or deployable units inside the system (applications, services, data stores, queues) with the technology each uses and how they talk to each other and to the outside.",
+  "question": "Which running parts make up the system, what is each built with, and how do they communicate?",
+  "concerns": [
+    "technology choices",
+    "responsibilities of each running unit",
+    "communication paths and protocols"
+  ],
+  "stakeholders": ["architect", "developer", "tester", "operator"],
+  "kinds": ["c4"],
+  "elements": ["C4Person", "C4SoftwareSystem", "C4Container"],
+  "relationships": ["C4Relationship"],
+  "limits": { "maxElements": 25 },
+  "required": ["title", "legend"],
+  "legend": [
+    "Person: someone who uses the system",
+    "Container: an application, service or data store that runs on its own",
+    "Grey: outside the system",
+    "Arrow: a call or data flow, labelled with its purpose and technology"
+  ],
+  "split": "One view per group of containers that change together; the rest of the system as one box."
+}

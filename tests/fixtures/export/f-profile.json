@@ -1,0 +1,35 @@
+{
+  "nodes": [
+    {
+      "name": "Entity",
+      "type": "stereotype",
+      "attributes": [
+        "+table: String"
+      ]
+    },
+    {
+      "name": "Id",
+      "type": "stereotype"
+    },
+    {
+      "name": "Class",
+      "type": "metaclass"
+    },
+    {
+      "name": "Property",
+      "type": "metaclass"
+    }
+  ],
+  "edges": [
+    {
+      "from": "Entity",
+      "to": "Class",
+      "type": "extension"
+    },
+    {
+      "from": "Id",
+      "to": "Property",
+      "type": "extension"
+    }
+  ]
+}

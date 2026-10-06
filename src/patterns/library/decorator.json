@@ -1,0 +1,103 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Decorator",
+  "category": "structural",
+  "intent": "Attach responsibilities to an object dynamically, as a flexible alternative to subclassing.",
+  "roles": [
+    {
+      "name": "Component",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface of objects that can be decorated.",
+      "operations": [
+        {
+          "name": "operation",
+          "isAbstract": true
+        }
+      ]
+    },
+    {
+      "name": "ConcreteComponent",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "The object decorated.",
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    },
+    {
+      "name": "Decorator",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Holds a component and forwards to it.",
+      "properties": {
+        "isAbstract": true
+      },
+      "operations": [
+        {
+          "name": "operation"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteDecorator",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "Adds a responsibility.",
+      "operations": [
+        {
+          "name": "operation"
+        },
+        {
+          "name": "addedBehavior",
+          "visibility": "private"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcreteComponent",
+      "to": "Component"
+    },
+    {
+      "type": "realization",
+      "from": "Decorator",
+      "to": "Component"
+    },
+    {
+      "type": "generalization",
+      "from": "ConcreteDecorator",
+      "to": "Decorator"
+    },
+    {
+      "type": "aggregation",
+      "from": "Decorator",
+      "to": "Component",
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "component",
+        "multiplicity": "1"
+      }
+    }
+  ],
+  "alsoKnownAs": ["Wrapper"],
+  "sequence": {
+    "messages": [
+      {
+        "from": "Client",
+        "to": "ConcreteDecorator",
+        "text": "operation()"
+      },
+      {
+        "from": "ConcreteDecorator",
+        "to": "ConcreteComponent",
+        "text": "operation()"
+      }
+    ],
+    "participants": ["Client", "ConcreteDecorator", "ConcreteComponent"]
+  }
+}

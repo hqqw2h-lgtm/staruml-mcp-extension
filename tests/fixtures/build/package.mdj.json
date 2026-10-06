@@ -1,0 +1,253 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLPackageDiagram",
+   "name": "Layers",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 130,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 280,
+     "top": 40,
+     "width": 200,
+     "height": 240,
+     "showNamespace": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 320,
+     "top": 200,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": {
+      "$ref": "#6"
+     },
+     "left": 320,
+     "top": 80,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLPackageView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 430,
+     "width": 160,
+     "height": 60,
+     "showNamespace": false
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLDependencyView",
+     "model": {
+      "$ref": "#21"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLPackage",
+   "name": "Web",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLPackage",
+   "name": "Domain",
+   "ownedElements": [
+    {
+     "_id": "#9",
+     "_type": "UMLPackage",
+     "name": "Model",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public"
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLPackage",
+     "name": "Services",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public"
+    }
+   ],
+   "stereotype": "layer",
+   "visibility": "public"
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLPackage",
+   "name": "Persistence",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#11"
+   },
+   "stereotype": "use",
+   "visibility": "public"
+  },
+  {
+   "_id": "#17",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": "import",
+   "visibility": "public"
+  },
+  {
+   "_id": "#19",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#9"
+   },
+   "stereotype": "access",
+   "visibility": "public"
+  },
+  {
+   "_id": "#21",
+   "_type": "UMLDependency",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#13"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ]
+}

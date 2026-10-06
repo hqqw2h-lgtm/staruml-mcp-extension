@@ -1,0 +1,205 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "SysMLRequirementDiagram",
+   "name": "Spec requirements",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "SysMLRequirementView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 180,
+     "height": 100,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#6",
+     "_type": "SysMLRequirementView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 150,
+     "top": 140,
+     "width": 180,
+     "height": 100,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLClassView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 150,
+     "top": 240,
+     "width": 180,
+     "height": 78,
+     "showNamespace": false,
+     "suppressAttributes": false,
+     "suppressOperations": false
+    },
+    {
+     "_id": "#10",
+     "_type": "SysMLVerifyView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#4"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#12",
+     "_type": "SysMLDeriveReqtView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLContainmentView",
+     "model": null,
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#7",
+   "_type": "SysMLRequirement",
+   "name": "Secure",
+   "ownedElements": [
+    {
+     "_id": "#5",
+     "_type": "SysMLRequirement",
+     "name": "Fast",
+     "ownedElements": [],
+     "stereotype": "performanceRequirement",
+     "visibility": "public",
+     "attributes": [],
+     "operations": [],
+     "isAbstract": false
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public",
+   "attributes": [],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLClass",
+   "name": "LoadTest",
+   "ownedElements": [],
+   "stereotype": "element",
+   "visibility": "public",
+   "attributes": [
+    {
+     "_id": "#15",
+     "_type": "UMLAttribute",
+     "name": "Type",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": null,
+     "multiplicity": "",
+     "defaultValue": "test",
+     "aggregation": "none"
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLAttribute",
+     "name": "DocRef",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "isStatic": false,
+     "type": null,
+     "multiplicity": "",
+     "defaultValue": "tests/load",
+     "aggregation": "none"
+    }
+   ],
+   "operations": [],
+   "isAbstract": false
+  },
+  {
+   "_id": "#11",
+   "_type": "SysMLVerify",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#5"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#13",
+   "_type": "SysMLDeriveReqt",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   },
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ]
+}

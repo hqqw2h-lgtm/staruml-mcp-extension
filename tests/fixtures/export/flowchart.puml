@@ -1,0 +1,8 @@
+@startuml
+title Login
+"Start" as N0 --> "Enter\ncredentials" as N1
+N1 --> "valid?" as N2
+N2 --> [yes] "Home" as N3
+N2 --> [no] N1
+N3 --> "End" as N4
+@enduml

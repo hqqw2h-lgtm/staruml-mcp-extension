@@ -1,0 +1,24 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "lifecycle",
+  "title": "Lifecycle",
+  "summary": "The states one kind of object goes through and the events that move it from one to the next.",
+  "question": "Which states can this object be in, and what moves it between them?",
+  "concerns": [
+    "valid states and transitions",
+    "events, guards and effects",
+    "start and end of an object's life"
+  ],
+  "stakeholders": ["developer", "tester", "analyst"],
+  "kinds": ["statemachine"],
+  "elements": [
+    "UMLState",
+    "UMLPseudostate",
+    "UMLFinalState",
+    "UMLConnectionPointReference"
+  ],
+  "relationships": ["UMLTransition"],
+  "limits": { "maxElements": 20 },
+  "required": ["title"],
+  "split": "Nest related states in a composite state, or draw each composite state's inside as its own view."
+}

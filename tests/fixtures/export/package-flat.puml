@@ -1,0 +1,8 @@
+@startuml
+title Flat
+package "Api" as P0
+package "Core" as P1
+package "Infra" as P2
+P0 ..> P1
+P2 ..> P1 : <<merge>> extends
+@enduml

@@ -1,0 +1,100 @@
+{
+  "context-landscape": {
+    "diagram": "ThingsBoard context",
+    "rating": 5,
+    "score": 99,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "the system as one box among people and neighbours; every arrow labelled with its technology"
+  },
+  "container-overview": {
+    "diagram": "ThingsBoard containers",
+    "rating": 4,
+    "score": 90,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "busy around the queue but every container, store and protocol reads; legend below"
+  },
+  "component-packages": {
+    "diagram": "ThingsBoard packages",
+    "rating": 4,
+    "score": 90,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "clear layering with the domain model on top; dependency lines bundle at the shared packages"
+  },
+  "component-c4": {
+    "diagram": "TB Node components",
+    "rating": 4,
+    "score": 100,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "a straight dependency chain, technologies on each box"
+  },
+  "component-uml": {
+    "diagram": "Transport wiring",
+    "rating": 4,
+    "score": 99,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "provided and required interfaces join where they are assembled"
+  },
+  "code-classes": {
+    "diagram": "Class - Actor System",
+    "rating": 4,
+    "score": 98,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "hierarchy readable, contracts on top; two lines cross near AppActor"
+  },
+  "runtime-sequence": {
+    "diagram": "Seq - Telemetry ingestion over MQTT",
+    "rating": 4,
+    "score": 94,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "initiator leftmost, messages in order, one opt fragment; wide"
+  },
+  "runtime-communication": {
+    "diagram": "Server-side RPC communication",
+    "rating": 4,
+    "score": 85,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "one call chain, each message beside its connector, frame around it"
+  },
+  "runtime-activity": {
+    "diagram": "Activity - Rule chain execution",
+    "rating": 4,
+    "score": 82,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "lanes per part, decisions and fork readable; one guard label touches an action"
+  },
+  "lifecycle-states": {
+    "diagram": "State - Alarm lifecycle",
+    "rating": 4,
+    "score": 98,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "states left to right, triggers on every transition; self-transition label crowds its state"
+  },
+  "actors-goals-usecases": {
+    "diagram": "Use Cases - Customer User",
+    "rating": 4,
+    "score": 96,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "actors left of the boundary, include drawn, no crossing"
+  },
+  "actors-goals-features": {
+    "diagram": "ThingsBoard Features",
+    "rating": 4,
+    "score": 86,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "balanced tree, every branch grouped; a few leaf lines overlap at the hubs"
+  },
+  "deployment-nodes": {
+    "diagram": "Deployment - Monolith",
+    "rating": 4,
+    "score": 94,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "small topology with protocols on the paths; one deploy label drifts from its arrow"
+  },
+  "data-erd": {
+    "diagram": "ThingsBoard data model",
+    "rating": 4,
+    "score": 94,
+    "reviewer": "Claude Opus 5.5, from the exported PNG",
+    "notes": "dense but every relationship has its cardinality; few crossings"
+  }
+}

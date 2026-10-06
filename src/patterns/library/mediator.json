@@ -1,0 +1,122 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Mediator",
+  "category": "behavioral",
+  "intent": "Define an object that encapsulates how a set of objects interact, so they do not refer to each other.",
+  "roles": [
+    {
+      "name": "Mediator",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface colleagues use to talk to each other.",
+      "operations": [
+        {
+          "name": "notify",
+          "isAbstract": true,
+          "parameters": [
+            {
+              "name": "sender",
+              "type": "{Colleague}",
+              "direction": "in"
+            },
+            {
+              "name": "event",
+              "type": "String",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ConcreteMediator",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Coordinates the colleagues.",
+      "operations": [
+        {
+          "name": "notify",
+          "parameters": [
+            {
+              "name": "sender",
+              "type": "{Colleague}",
+              "direction": "in"
+            },
+            {
+              "name": "event",
+              "type": "String",
+              "direction": "in"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Colleague",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Talks to its mediator instead of other colleagues.",
+      "properties": {
+        "isAbstract": true
+      }
+    },
+    {
+      "name": "ConcreteColleague",
+      "type": "UMLClass",
+      "cardinality": "many",
+      "description": "A participant in the interaction.",
+      "operations": [
+        {
+          "name": "changed"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcreteMediator",
+      "to": "Mediator"
+    },
+    {
+      "type": "generalization",
+      "from": "ConcreteColleague",
+      "to": "Colleague"
+    },
+    {
+      "type": "association",
+      "from": "Colleague",
+      "to": "Mediator",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "mediator",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "association",
+      "from": "ConcreteMediator",
+      "to": "ConcreteColleague",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "colleagues"
+      }
+    }
+  ],
+  "sequence": {
+    "messages": [
+      {
+        "from": "ConcreteColleague",
+        "to": "ConcreteMediator",
+        "text": "notify(sender, event)"
+      }
+    ],
+    "participants": ["ConcreteColleague", "ConcreteMediator"]
+  }
+}

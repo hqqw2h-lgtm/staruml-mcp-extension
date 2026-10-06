@@ -1,0 +1,13 @@
+---
+title: "Shop"
+---
+classDiagram
+  class Order {
+    +id: long
+    +place(): void
+  }
+  class Payable {
+    <<interface>>
+    +pay()
+  }
+  Payable <|.. Order

@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "category": {
+      "type": "string",
+      "enum": ["creational", "structural", "behavioral", "domain"]
+    },
+    "intent": { "type": "string", "minLength": 1 },
+    "alsoKnownAs": { "type": "array", "items": { "type": "string" } },
+    "roles": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "type": {
+            "type": "string",
+            "enum": ["UMLClass", "UMLInterface", "UMLEnumeration"]
+          },
+          "cardinality": {
+            "type": "string",
+            "enum": ["1", "many"],
+            "description": "many: the role binds a list of elements, e.g. every concrete strategy."
+          },
+          "optional": {
+            "type": "boolean",
+            "description": "Made only when bound; its relationships likewise."
+          },
+          "description": { "type": "string" },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "isAbstract": { "type": "boolean" },
+              "isLeaf": { "type": "boolean" },
+              "isActive": { "type": "boolean" }
+            },
+            "additionalProperties": false,
+            "description": "Properties of the bound element."
+          },
+          "stereotype": { "type": "string" },
+          "documentation": {
+            "type": "string",
+            "description": "Documentation template, {Role} replaced by bound names; set on elements without documentation."
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "type": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Type: a type name, or {Role} for the element bound to that role."
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": ["public", "protected", "private", "package"]
+                },
+                "isStatic": { "type": "boolean" },
+                "isReadOnly": { "type": "boolean" },
+                "isDerived": { "type": "boolean" },
+                "isID": { "type": "boolean" },
+                "multiplicity": { "type": "string" },
+                "defaultValue": { "type": "string" },
+                "documentation": { "type": "string" }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            }
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Operation name; {Role} names a constructor after the class."
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": ["public", "protected", "private", "package"]
+                },
+                "isStatic": { "type": "boolean" },
+                "isAbstract": { "type": "boolean" },
+                "isLeaf": {
+                  "type": "boolean",
+                  "description": "Final: subclasses do not override it."
+                },
+                "isQuery": {
+                  "type": "boolean",
+                  "description": "Changes no state."
+                },
+                "stereotype": {
+                  "type": "string",
+                  "description": "E.g. create for a constructor."
+                },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string", "minLength": 1 },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Type: a type name, or {Role} for the element bound to that role."
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": ["in", "inout", "out"]
+                      }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": false
+                  }
+                },
+                "returnType": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Return type: a type name, or {Role} for the element bound to that role."
+                },
+                "documentation": { "type": "string" }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["name", "type", "cardinality", "description"],
+        "additionalProperties": false
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "association",
+              "aggregation",
+              "composition",
+              "generalization",
+              "realization",
+              "dependency"
+            ],
+            "description": "aggregation and composition: from is the whole, whose end (end1) gets the diamond; generalization: from is the specific; realization: from implements to; dependency: from uses to."
+          },
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "stereotype": { "type": "string" },
+          "fromEnd": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "navigable": {
+                "type": "string",
+                "enum": ["unspecified", "navigable", "notNavigable"]
+              },
+              "multiplicity": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "toEnd": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "navigable": {
+                "type": "string",
+                "enum": ["unspecified", "navigable", "notNavigable"]
+              },
+              "multiplicity": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "from", "to"],
+        "additionalProperties": false
+      }
+    },
+    "sequence": {
+      "type": "object",
+      "properties": {
+        "participants": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 },
+              "text": { "type": "string" }
+            },
+            "required": ["from", "to", "text"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["participants", "messages"],
+      "additionalProperties": false,
+      "description": "Messages of a sequence diagram of the pattern; participants are role names or other lifelines such as Client."
+    },
+    "variants": {
+      "type": "object",
+      "propertyNames": { "type": "string" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "roles": {
+            "type": "object",
+            "propertyNames": { "type": "string" },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "type": {
+                  "type": "string",
+                  "enum": ["UMLClass", "UMLInterface", "UMLEnumeration"]
+                },
+                "cardinality": {
+                  "type": "string",
+                  "enum": ["1", "many"],
+                  "description": "many: the role binds a list of elements, e.g. every concrete strategy."
+                },
+                "optional": {
+                  "type": "boolean",
+                  "description": "Made only when bound; its relationships likewise."
+                },
+                "description": { "type": "string" },
+                "properties": {
+                  "type": "object",
+                  "properties": {
+                    "isAbstract": { "type": "boolean" },
+                    "isLeaf": { "type": "boolean" },
+                    "isActive": { "type": "boolean" }
+                  },
+                  "additionalProperties": false,
+                  "description": "Properties of the bound element."
+                },
+                "stereotype": { "type": "string" },
+                "documentation": {
+                  "type": "string",
+                  "description": "Documentation template, {Role} replaced by bound names; set on elements without documentation."
+                },
+                "attributes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string", "minLength": 1 },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Type: a type name, or {Role} for the element bound to that role."
+                      },
+                      "visibility": {
+                        "type": "string",
+                        "enum": ["public", "protected", "private", "package"]
+                      },
+                      "isStatic": { "type": "boolean" },
+                      "isReadOnly": { "type": "boolean" },
+                      "isDerived": { "type": "boolean" },
+                      "isID": { "type": "boolean" },
+                      "multiplicity": { "type": "string" },
+                      "defaultValue": { "type": "string" },
+                      "documentation": { "type": "string" }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": false
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Operation name; {Role} names a constructor after the class."
+                      },
+                      "visibility": {
+                        "type": "string",
+                        "enum": ["public", "protected", "private", "package"]
+                      },
+                      "isStatic": { "type": "boolean" },
+                      "isAbstract": { "type": "boolean" },
+                      "isLeaf": {
+                        "type": "boolean",
+                        "description": "Final: subclasses do not override it."
+                      },
+                      "isQuery": {
+                        "type": "boolean",
+                        "description": "Changes no state."
+                      },
+                      "stereotype": {
+                        "type": "string",
+                        "description": "E.g. create for a constructor."
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": { "type": "string", "minLength": 1 },
+                            "type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Type: a type name, or {Role} for the element bound to that role."
+                            },
+                            "direction": {
+                              "type": "string",
+                              "enum": ["in", "inout", "out"]
+                            }
+                          },
+                          "required": ["name"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "returnType": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Return type: a type name, or {Role} for the element bound to that role."
+                      },
+                      "documentation": { "type": "string" }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "Role fields that replace the pattern's, by role name."
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "association",
+                    "aggregation",
+                    "composition",
+                    "generalization",
+                    "realization",
+                    "dependency"
+                  ],
+                  "description": "aggregation and composition: from is the whole, whose end (end1) gets the diamond; generalization: from is the specific; realization: from implements to; dependency: from uses to."
+                },
+                "from": { "type": "string", "minLength": 1 },
+                "to": { "type": "string", "minLength": 1 },
+                "stereotype": { "type": "string" },
+                "fromEnd": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "navigable": {
+                      "type": "string",
+                      "enum": ["unspecified", "navigable", "notNavigable"]
+                    },
+                    "multiplicity": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "toEnd": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "navigable": {
+                      "type": "string",
+                      "enum": ["unspecified", "navigable", "notNavigable"]
+                    },
+                    "multiplicity": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["type", "from", "to"],
+              "additionalProperties": false
+            },
+            "description": "Replaces the pattern's relationships."
+          }
+        },
+        "required": ["description"],
+        "additionalProperties": false
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "role": { "type": "string", "minLength": 1 },
+          "member": {
+            "type": "string",
+            "minLength": 1,
+            "description": "An attribute or operation of the role's element, by name or {Role}."
+          },
+          "members": {
+            "type": "string",
+            "enum": ["attributes", "operations"],
+            "description": "Every attribute or operation."
+          },
+          "relationship": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Index in relationships; with end, an end of it."
+          },
+          "end": { "type": "string", "enum": ["from", "to"] },
+          "property": { "type": "string", "minLength": 1 },
+          "equals": { "type": ["string", "boolean"] },
+          "message": { "type": "string", "minLength": 1 }
+        },
+        "required": ["id", "role", "property", "equals", "message"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["name", "category", "intent", "roles", "relationships"],
+  "additionalProperties": false
+}

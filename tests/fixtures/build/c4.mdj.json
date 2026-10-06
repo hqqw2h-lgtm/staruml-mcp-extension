@@ -1,0 +1,183 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "C4Diagram",
+   "name": "Spec C4",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "C4PersonView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 180,
+     "height": 140
+    },
+    {
+     "_id": "#6",
+     "_type": "C4ContainerView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 200,
+     "width": 180,
+     "height": 110
+    },
+    {
+     "_id": "#8",
+     "_type": "C4ContainerView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 350,
+     "top": 330,
+     "width": 180,
+     "height": 110
+    },
+    {
+     "_id": "#10",
+     "_type": "C4SoftwareSystemView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 150,
+     "top": 340,
+     "width": 180,
+     "height": 110
+    },
+    {
+     "_id": "#12",
+     "_type": "C4RelationshipView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#14",
+     "_type": "C4RelationshipView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#16",
+     "_type": "C4RelationshipView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "C4Person",
+   "name": "User",
+   "ownedElements": []
+  },
+  {
+   "_id": "#7",
+   "_type": "C4Container",
+   "name": "App",
+   "ownedElements": [],
+   "kind": "server-webapp"
+  },
+  {
+   "_id": "#9",
+   "_type": "C4Container",
+   "name": "DB",
+   "ownedElements": [],
+   "kind": "database"
+  },
+  {
+   "_id": "#11",
+   "_type": "C4SoftwareSystem",
+   "name": "Mailer",
+   "ownedElements": []
+  },
+  {
+   "_id": "#13",
+   "_type": "C4Relationship",
+   "name": "Uses",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   }
+  },
+  {
+   "_id": "#15",
+   "_type": "C4Relationship",
+   "name": "Reads",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   }
+  },
+  {
+   "_id": "#17",
+   "_type": "C4Relationship",
+   "name": "Sends mail",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#11"
+   }
+  }
+ ]
+}

@@ -1,0 +1,615 @@
+{
+  "/add_attribute": [
+    { "ref": "AAAAAAGhEg7XwvhLm3g=", "name": "amount", "type": "int" },
+    {
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "title",
+      "type": "String",
+      "visibility": "private",
+      "multiplicity": "1"
+    },
+    {
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "writtenBy",
+      "type": { "$ref": "AAAAAAGhEhCgN+sMhY4=" },
+      "multiplicity": "1..*",
+      "aggregation": "shared",
+      "isReadOnly": true
+    }
+  ],
+  "/add_enumeration_literal": [
+    { "enumerationId": "AAAAAAGhEhCgbOso/vY=", "name": "RED" }
+  ],
+  "/add_operation": [
+    {
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "temporary",
+      "parameters": [{ "name": "x" }]
+    },
+    {
+      "ownerId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "lend",
+      "isQuery": false,
+      "parameters": [
+        { "name": "to", "type": { "$ref": "AAAAAAGhEhCgN+sMhY4=" } },
+        { "name": "days", "type": "int", "defaultValue": "14" }
+      ],
+      "returnType": "boolean",
+      "fields": ["parameters", "name", "type", "direction"],
+      "depth": 1
+    }
+  ],
+  "/add_parameter": [
+    {
+      "operationId": "AAAAAAGhEhCgUesVg5A=",
+      "name": "note",
+      "type": "String",
+      "direction": "in"
+    }
+  ],
+  "/add_slot": [
+    {
+      "instanceId": "AAAAAAGhEhCge+sxBSQ=",
+      "name": "title",
+      "definingFeature": "AAAAAAGhEhCgPusPraE=",
+      "value": "\"Dune\"",
+      "fields": ["definingFeature", "value", "_parent"]
+    }
+  ],
+  "/add_tag": [
+    {
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "t-number",
+      "kind": "number",
+      "value": 412,
+      "fields": ["kind", "number"]
+    },
+    {
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "t-boolean",
+      "kind": "boolean",
+      "value": true,
+      "fields": ["kind", "checked"]
+    },
+    {
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
+      "name": "t-string",
+      "kind": "string",
+      "value": "fiction",
+      "fields": ["kind", "value"]
+    }
+  ],
+  "/add_template_parameter": [
+    { "ownerId": "AAAAAAGhEhCgMusJ9wc=", "name": "T", "parameterType": "class" }
+  ],
+  "/apply_pattern": [
+    { "pattern": "DTO", "parent": "AAAAAAGhEg7UBfV+SLA=", "diagram": "DTO" },
+    { "pattern": "Strategy", "parent": "Model/Handles", "diagram": "Handles" },
+    { "pattern": "Proxy", "parent": "AAAAAAGhEg6Ddz+qdjM=", "diagram": "Proxy" }
+  ],
+  "/apply_preset": [
+    { "ref": "Loans/Copy", "preset": "entity", "dryRun": true },
+    { "ref": "AAAAAAGhEg7XwvhLm3g=", "preset": "value-object" }
+  ],
+  "/apply_style_profile": [
+    { "dryRun": true },
+    { "scope": "AAAAAAGhEgTdS1yfr/8=" }
+  ],
+  "/apply_theme": [
+    { "ref": "AAAAAAGhEhB9DdYs+YY=", "theme": "blueprint" },
+    { "ref": "AAAAAAGhEhB9DdYs+YY=", "theme": "by-stereotype", "dryRun": true }
+  ],
+  "/batch": [
+    {
+      "result": "terse",
+      "ops": [
+        {
+          "path": "/create_element",
+          "body": { "type": "UMLModel", "parent": "@project", "name": "Loose" }
+        }
+      ]
+    },
+    {
+      "result": "full",
+      "ops": [
+        {
+          "path": "/create_element",
+          "as": "c",
+          "body": { "type": "UMLClass", "parent": "Sales", "name": "Invoice" }
+        },
+        {
+          "path": "/add_attribute",
+          "body": { "ref": "$c.path", "name": "due" }
+        },
+        { "path": "/get_element_by_id", "body": { "ref": "Sales/Invoice.due" } }
+      ]
+    },
+    {
+      "result": "full",
+      "atomic": false,
+      "ops": [
+        {
+          "path": "/create_element",
+          "as": "k",
+          "body": {
+            "type": "UMLClass",
+            "parentId": "AAAAAAGhEhCbyuatFDA=",
+            "name": "Kept"
+          }
+        },
+        {
+          "path": "/create_element",
+          "body": { "type": "Nope", "parentId": "AAAAAAGhEhCbyuatFDA=" }
+        },
+        {
+          "path": "/get_element_by_id",
+          "body": { "id": "$k", "fields": ["name"] }
+        }
+      ]
+    }
+  ],
+  "/build_diagram": [
+    { "result": "full", "text": "flowchart\n  A --> B" },
+    { "result": "full", "kind": "class", "reuse": false, "spec": {} },
+    { "result": "full", "text": "@startuml\nA -> B : hi\n@enduml" }
+  ],
+  "/build_model": [
+    {
+      "spec": {
+        "system": "Shop",
+        "classes": [
+          { "name": "Order", "operations": ["+place(): void"] },
+          { "name": "Bank", "kind": "interface" }
+        ]
+      }
+    },
+    {
+      "spec": {
+        "system": "Billing",
+        "classes": [{ "name": "Order" }, { "name": "Invoice" }],
+        "collaborations": [
+          {
+            "name": "Pay",
+            "participants": ["Order", "Invoice"],
+            "messages": [
+              ["Order", "Invoice", "pay()"],
+              ["Invoice", "Order", "paid", "reply"]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "spec": {
+        "system": "Crowd",
+        "collaborations": [
+          {
+            "name": "Rush",
+            "messages": [
+              ["Part0", "Part1", "step0()"],
+              ["Part1", "Part2", "step1()"],
+              ["Part2", "Part3", "step2()"],
+              ["Part3", "Part4", "step3()"],
+              ["Part4", "Part5", "step4()"],
+              ["Part5", "Part6", "step5()"],
+              ["Part6", "Part7", "step6()"],
+              ["Part7", "Part8", "step7()"],
+              ["Part8", "Part9", "step8()"],
+              ["Part9", "Part10", "step9()"],
+              ["Part10", "Part11", "step10()"],
+              ["Part11", "Part12", "step11()"],
+              ["Part12", "Part13", "step12()"]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "/check_messages": [{ "diagram": "AAAAAAGhEg+3BhNxMUE=" }],
+  "/close_diagram": [{ "id": "AAAAAAGhEhCoGuxpLCs=" }],
+  "/close_diagrams": [
+    { "keep": ["Ordering"] },
+    { "diagrams": ["AAAAAAGhEhCCWdhvGSc="] }
+  ],
+  "/create_diagram": [
+    { "type": "C4Diagram", "parentId": "AAAAAAGhEg/Xg0xpQuE=" },
+    { "type": "C4Diagram", "parentId": "AAAAAAGhEhA4l54E930=" },
+    { "type": "AWSDiagram", "parentId": "AAAAAAGhEg/Xg0xpQuE=" }
+  ],
+  "/create_edge_with_view": [
+    {
+      "type": "UMLGeneralization",
+      "diagramId": "AAAAAAGhEhBxrtBgVtg=",
+      "tailViewId": "AAAAAAGhEhBx1NCPwzA=",
+      "headViewId": "AAAAAAGhEhBxy9Blf+M="
+    },
+    {
+      "type": "UMLAssociation",
+      "parentId": "AAAAAAGhEhCGYd4ySnA=",
+      "diagramId": "AAAAAAGhEhCGZt41b2E=",
+      "tailViewId": "AAAAAAGhEhCGdd46H8g=",
+      "headViewId": "AAAAAAGhEhCGkt5kuq8="
+    },
+    {
+      "type": "UMLAssociation",
+      "parentId": "AAAAAAGhEhCkJ+tSnkA=",
+      "diagramId": "AAAAAAGhEhCkLutVY0A=",
+      "tailViewId": "AAAAAAGhEhCkR+ta5s8=",
+      "headViewId": "AAAAAAGhEhCkT+uEbEs=",
+      "name": "wrote"
+    }
+  ],
+  "/create_element": [
+    { "type": "Tag", "parentId": "AAAAAAGhEg/Xg0xpQuE=" },
+    { "type": "UMLClass", "parent": "Model", "name": "Money" },
+    { "type": "UMLClass", "parent": "Other", "name": "Order" }
+  ],
+  "/create_element_with_view": [
+    { "type": "UMLClass", "diagram": "AAAAAAGhEhBkMMUBf4M=", "name": "P0" },
+    { "type": "UMLClass", "diagram": "AAAAAAGhEhBkMMUBf4M=", "name": "P1" },
+    { "type": "UMLClass", "diagram": "AAAAAAGhEhBkMMUBf4M=", "name": "P2" }
+  ],
+  "/create_relationship": [
+    {
+      "type": "UMLComposition",
+      "tail": "Customer",
+      "head": "Order",
+      "diagram": "Shop"
+    },
+    {
+      "type": "UMLDependency",
+      "tail": "AAAAAAGhEhBexsFDuzM=",
+      "head": "AAAAAAGhEhBetcDuJNM="
+    },
+    {
+      "type": "UMLMessage",
+      "tailId": "AAAAAAGhEhBG/LAs/R0=",
+      "headId": "AAAAAAGhEhBHCrBK9O0=",
+      "fields": ["_parent"]
+    }
+  ],
+  "/create_view_of": [
+    { "modelId": "AAAAAAGhEg9Ef34KbP4=", "diagramId": "AAAAAAGhEg9Es35yo2g=" },
+    { "modelId": "AAAAAAGhEg9EhH4zIqg=", "diagramId": "AAAAAAGhEg9Es35yo2g=" },
+    { "modelId": "AAAAAAGhEg9EiH5c2Oo=", "diagramId": "AAAAAAGhEg9Es35yo2g=" }
+  ],
+  "/debug": [{}],
+  "/delete_element": [
+    { "id": "AAAAAAGhEhCLqOIKn+Q=" },
+    { "id": "AAAAAAGhEhCoQuxs8Cw=" },
+    { "ref": "AAAAAAGhEhBk+8dQRFM=" }
+  ],
+  "/derive_diagrams": [
+    { "scope": "Clinic" },
+    { "scope": "AAAAAAGhEg2Btjpfz1I=" },
+    { "scope": "AAAAAAGhEgu/Vo5xv5c=" }
+  ],
+  "/describe_commands": [
+    { "ids": ["edit:undo", "project:save-as", "project:open"] }
+  ],
+  "/describe_diagram": [
+    { "diagram": "@current" },
+    { "diagramId": "AAAAAAGhEhCK5N8hzPo=" },
+    { "diagramId": "AAAAAAGhEhCLOOCEg98=" }
+  ],
+  "/describe_pattern": [{ "name": "Strategy" }],
+  "/describe_template": [{ "name": "lifecycle-states" }],
+  "/describe_type": [{ "type": "UMLAssociationEnd" }],
+  "/describe_viewpoint": [{ "name": "context" }],
+  "/detect_patterns": [
+    {},
+    { "patterns": ["Observer"] },
+    { "scope": "Lending", "patterns": ["Strategy"] }
+  ],
+  "/diagram_quality": [
+    { "ref": "Ordering" },
+    { "ref": "AAAAAAGhEg+Zm/hk3NY=" },
+    { "ref": "AAAAAAGhEga+wMAjtOw=" }
+  ],
+  "/diff_diagram": [
+    {
+      "diagram": "Shop",
+      "kind": "class",
+      "spec": {
+        "classes": [
+          { "name": "Order", "attributes": ["+id: long"] },
+          { "name": "Line" },
+          { "name": "Old" }
+        ],
+        "relations": [{ "from": "Order", "to": "Line", "type": "composition" }]
+      }
+    },
+    {
+      "diagram": "Shop",
+      "kind": "class",
+      "spec": {
+        "classes": [
+          { "name": "Order", "attributes": ["+id: long", "+total: double"] },
+          { "name": "Line" },
+          { "name": "New" }
+        ],
+        "relations": [{ "from": "Order", "to": "Line", "type": "composition" }]
+      }
+    }
+  ],
+  "/diff_since": [{ "snapshot": "before" }],
+  "/divide_fragment": [{ "ref": "AAAAAAGhEhCxGuzIVIk=", "at": [255] }],
+  "/execute_command": [
+    { "id": "edit:undo" },
+    { "id": "view:actual-size" },
+    { "id": "mcp-ext:set-token", "args": ["live-token"] }
+  ],
+  "/explain_model": [
+    { "scope": "Clinic" },
+    { "scope": "AAAAAAGhEgu/Vo5xv5c=", "maxChars": 400000 },
+    { "scope": "AAAAAAGhEhAj3YgUr/w=", "maxChars": 1000000 }
+  ],
+  "/explain_style_violation": [
+    { "ref": "Model/bad_name" },
+    { "kind": "classifier", "name": "order_line" }
+  ],
+  "/export_diagram": [
+    {},
+    { "format": "png", "scale": 2 },
+    { "id": "AAAAAAGhEhB4ltK8JbI=" }
+  ],
+  "/export_diagrams": [
+    {
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IT4c7o/images"
+    }
+  ],
+  "/export_fragment": [
+    { "ref": "Billing", "filename": "/tmp/billing.mfj" },
+    {
+      "ref": "AAAAAAGhEhCB+tgevds=",
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-juyfN4/exported.mfj"
+    }
+  ],
+  "/export_html": [
+    {
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-GcwQHk/html"
+    }
+  ],
+  "/export_pdf": [
+    {
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-GcwQHk/shapes.pdf",
+      "ids": ["AAAAAAGhEhBxrtBgVtg="]
+    }
+  ],
+  "/export_text": [
+    { "format": "mermaid", "diagram": "Ordering" },
+    { "format": "spec", "diagram": "Order processing" },
+    { "diagram": "AAAAAAGhEgt3XlilTfw=", "format": "spec" }
+  ],
+  "/find_elements": [
+    { "limit": 1 },
+    { "type": "Diagram" },
+    { "type": "UMLClass" }
+  ],
+  "/generate_code": [
+    {
+      "language": "java",
+      "baseId": "AAAAAAGhEhCX2eXslAs=",
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IT4c7o/java",
+      "options": { "javaDoc": false }
+    }
+  ],
+  "/get_all_commands": [{}],
+  "/get_connected_node_views": [
+    { "id": "AAAAAAGhEhBxy9Blf+M=", "edgeType": "UMLGeneralizationView" }
+  ],
+  "/get_edge_views_of": [{ "id": "AAAAAAGhEhBxy9Blf+M=" }],
+  "/get_editor_state": [{}],
+  "/get_element_by_id": [
+    { "ref": "Old" },
+    { "ref": "Order" },
+    { "ref": "Order@Shop" }
+  ],
+  "/get_preference": [
+    { "key": "diagramEditor.showGrid" },
+    { "key": "mcp-ext.limits.maxBatchOps" }
+  ],
+  "/get_project_info": [{}, { "fields": ["ownedElements"] }],
+  "/get_project_metadata": [{}],
+  "/get_refs_to": [{ "id": "AAAAAAGhEhBxy9BjumU=" }],
+  "/get_relationships_of": [{ "id": "AAAAAAGhEhBxy9BjumU=" }],
+  "/get_selection": [{}],
+  "/get_style_profile": [{}],
+  "/get_views_of": [{ "id": "AAAAAAGhEhBxy9BjumU=", "fields": ["model"] }],
+  "/import_fragment": [
+    { "filename": "/tmp/billing.mfj", "parent": "@project" },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-juyfN4/exported.mfj"
+    }
+  ],
+  "/improve_diagram": [
+    { "ref": "Ordering" },
+    { "ref": "AAAAAAGhEg+c1/6DMYg=" },
+    { "ref": "AAAAAAGhEg+fHP+1R/Y=" }
+  ],
+  "/introspect": [{}, { "include": ["factory"] }, { "include": ["endpoints"] }],
+  "/is_modified": [{}],
+  "/layout_diagram": [
+    { "diagram": "AAAAAAGhEg+c1/6DMYg=" },
+    { "id": "AAAAAAGhEhBxrtBgVtg=", "direction": "TB" },
+    { "diagramId": "AAAAAAGhEhBsmc94EnM=", "preset": "flow-down" }
+  ],
+  "/lint_diagram": [
+    { "diagram": "Messy" },
+    { "diagram": "Alarms" },
+    { "diagram": "Messy", "rules": ["overlap"] }
+  ],
+  "/list_code_generators": [{}],
+  "/list_extensions": [{}],
+  "/list_patterns": [{}],
+  "/list_templates": [{}],
+  "/list_viewpoints": [{}],
+  "/list_working_diagrams": [{}],
+  "/model_lint": [
+    { "scope": "Clinic" },
+    { "scope": "AAAAAAGhEgu/Vo5xv5c=", "limit": 1000 }
+  ],
+  "/move_views": [
+    { "ids": ["AAAAAAGhEhBxy9Blf+M="], "dx": 20, "dy": 30 },
+    { "refs": ["AAAAAAGhEhBdoLzCxXc="], "dx": 70, "dy": 0 },
+    { "refs": ["AAAAAAGhEg+Z+fjl+hw="], "dx": 260, "dy": 30 }
+  ],
+  "/new_from_template": [{ "template": "UMLConventional" }],
+  "/new_project": [{}],
+  "/open_project": [
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-iB7IV2/profile.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-NrfjbE/endpoints.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-DMdnLD/class-diagram.mdj"
+    }
+  ],
+  "/performance_stats": [{}],
+  "/quick_find": [
+    { "text": "ZEBRA" },
+    { "text": "invoice" },
+    { "text": "quarterl" }
+  ],
+  "/redo": [{}],
+  "/request_diagram": [
+    {
+      "intent": "which states can an alarm be in",
+      "audience": "tester",
+      "scope": "ThingsBoard"
+    },
+    {
+      "intent": "what data is stored in the database",
+      "audience": "dba",
+      "scope": "ThingsBoard"
+    },
+    {
+      "intent": "its lifecycle",
+      "scope": "ThingsBoard/Domain Model \\(common\\.data\\)/Device"
+    }
+  ],
+  "/resize_node": [
+    { "ref": "Line", "width": 220, "height": 80 },
+    { "id": "AAAAAAGhEhBtL8/uTX4=", "width": 600, "height": 400 },
+    { "id": "AAAAAAGhEhBxy9Blf+M=", "width": 220, "height": 120 }
+  ],
+  "/restore_snapshot": [{ "snapshot": "loop" }, { "snapshot": "before" }],
+  "/reverse_code": [
+    {
+      "language": "java",
+      "path": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-IT4c7o/java",
+      "options": { "typeHierarchy": false, "packageOverview": false }
+    }
+  ],
+  "/route_edges": [
+    { "diagramId": "AAAAAAGhEhBtj9APXig=", "lineStyle": "curve" }
+  ],
+  "/save_project": [
+    {},
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-iB7IV2/blocked.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-iB7IV2/profile.mdj"
+    }
+  ],
+  "/save_project_as": [
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-cZ6noL/patterns.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-YCxHdN/features.mdj"
+    },
+    {
+      "filename": "/var/folders/ph/n44m8whn469gr3k9z6js6l_h0000gn/T/staruml-live-8qBs6s/project-first.mdj"
+    }
+  ],
+  "/search_types": [
+    { "query": "composition", "limit": 3 },
+    { "query": "composition", "limit": 5 },
+    { "query": "use case", "categories": ["palette"] }
+  ],
+  "/set_documentation": [
+    {
+      "ref": "ThingsBoard/Domain Model \\(common\\.data\\)/Device",
+      "documentation": "A connected thing."
+    },
+    {
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
+      "documentation": "A published work.",
+      "fields": ["documentation"]
+    }
+  ],
+  "/set_editor_state": [
+    { "zoom": 1, "gridVisible": true, "center": { "x": 0, "y": 0 } },
+    { "diagramId": "AAAAAAGhEhBxrtBgVtg=", "zoom": 1.5, "gridVisible": false }
+  ],
+  "/set_preference": [
+    { "key": "diagramEditor.showGrid", "value": true },
+    { "key": "diagramEditor.showGrid", "value": false }
+  ],
+  "/set_project_metadata": [
+    { "author": "Ada", "version": "2.1" },
+    { "author": "Modelling team", "version": "1.2" }
+  ],
+  "/set_selection": [
+    {},
+    { "viewIds": ["AAAAAAGhEhBxy9Blf+M=", "AAAAAAGhEhBx1NCPwzA="] }
+  ],
+  "/set_stereotype": [
+    {
+      "elementId": "AAAAAAGhEhCgMusJ9wc=",
+      "stereotype": "entity",
+      "fields": ["stereotype"]
+    }
+  ],
+  "/set_style_profile": [
+    { "reset": true },
+    { "profile": "print" },
+    { "patch": { "strict": true } }
+  ],
+  "/set_view_style": [
+    { "ids": ["AAAAAAGhEhBx3NC5Ny8="], "lineStyle": "rectilinear" },
+    {
+      "refs": ["AAAAAAGhEgTdVFyloXY="],
+      "fillColor": "#ff0000",
+      "override": true
+    },
+    {
+      "ids": ["AAAAAAGhEhBxy9Blf+M=", "AAAAAAGhEhBx1NCPwzA="],
+      "fillColor": "#ffcc00",
+      "lineColor": "#336699",
+      "fontColor": "#990000",
+      "fontFace": "Helvetica",
+      "fontSize": 15,
+      "stereotypeDisplay": "label",
+      "autoResize": false
+    }
+  ],
+  "/set_z_order": [
+    { "ids": ["AAAAAAGhEhBx1NCPwzA="], "position": "back" },
+    { "ids": ["AAAAAAGhEhBx1NCPwzA="], "position": "front" }
+  ],
+  "/snapshot": [{ "label": "loop" }, { "label": "before" }],
+  "/switch_diagram": [
+    { "diagram": "Shop" },
+    { "id": "AAAAAAGhEhCkLutVY0A=" },
+    { "id": "AAAAAAGhEhCoGuxpLCs=" }
+  ],
+  "/sync_operations": [{ "diagram": "AAAAAAGhEg+3BhNxMUE=" }],
+  "/uml_lint": [{}, { "limit": 1000 }, { "scope": "Shop" }],
+  "/undo": [{}],
+  "/update_element": [
+    { "ref": "Line", "field": "name", "value": "OrderLine" },
+    { "id": "AAAAAAGhEhA73KSE4/w=", "field": "width", "value": 700 },
+    { "id": "AAAAAAGhEhA8MqUlyJE=", "field": "width", "value": 700 }
+  ],
+  "/validate_model": [
+    {},
+    { "scope": "AAAAAAGhEhCK5N8g/+Q=" },
+    { "scope": "AAAAAAGhEhCLqOIKn+Q=" }
+  ],
+  "/viewpoint_lint": [{ "scope": "AAAAAAGhEgmko+Y+Ess=", "limit": 1000 }]
+}

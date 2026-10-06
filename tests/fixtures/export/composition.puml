@@ -1,0 +1,9 @@
+@startuml
+title Purchasing
+class "PurchaseOrder" as C0
+class "PurchaseLine" as C1
+class "Catalog" as C2
+class "Product" as C3
+C0 "1" *-- "1..*" C1 : lines
+C2 o-- "*" C3
+@enduml

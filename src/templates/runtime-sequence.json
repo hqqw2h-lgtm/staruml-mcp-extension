@@ -1,0 +1,22 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "runtime-sequence",
+  "version": 1,
+  "title": "Scenario as a sequence",
+  "description": "One scenario's messages in time order, the initiator leftmost.",
+  "viewpoint": "runtime",
+  "kind": "sequence",
+  "default": true,
+  "content": {
+    "maxElements": 30,
+    "maxLifelines": 12
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

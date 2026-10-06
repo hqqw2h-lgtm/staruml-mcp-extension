@@ -1,0 +1,294 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLInteractionOverviewDiagram",
+   "name": "Shopping overview",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLFrameView",
+     "model": {
+      "$ref": "#3"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 40,
+     "width": 240,
+     "height": 813,
+     "showNamespace": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLControlNodeView",
+     "model": {
+      "$ref": "#6"
+     },
+     "containerView": null,
+     "left": 130,
+     "top": 90,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "_id": "#7",
+     "_type": "UMLInteractionUseView",
+     "model": {
+      "$ref": "#8"
+     },
+     "containerView": null,
+     "left": 60,
+     "top": 250,
+     "width": 160,
+     "height": 60
+    },
+    {
+     "_id": "#9",
+     "_type": "UMLControlNodeView",
+     "model": {
+      "$ref": "#10"
+     },
+     "containerView": null,
+     "left": 125,
+     "top": 440,
+     "width": 30,
+     "height": 40
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLInteractionInlineView",
+     "model": {
+      "$ref": "#12"
+     },
+     "containerView": null,
+     "left": 160,
+     "top": 580,
+     "width": 200,
+     "height": 120,
+     "showNamespace": false
+    },
+    {
+     "_id": "#13",
+     "_type": "UMLControlNodeView",
+     "model": {
+      "$ref": "#14"
+     },
+     "containerView": null,
+     "left": 127,
+     "top": 807,
+     "width": 26,
+     "height": 26
+    },
+    {
+     "_id": "#15",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#16"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#7"
+     },
+     "tail": {
+      "$ref": "#5"
+     }
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#18"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#9"
+     },
+     "tail": {
+      "$ref": "#7"
+     }
+    },
+    {
+     "_id": "#19",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#20"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#11"
+     },
+     "tail": {
+      "$ref": "#9"
+     }
+    },
+    {
+     "_id": "#21",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#22"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#13"
+     },
+     "tail": {
+      "$ref": "#9"
+     }
+    },
+    {
+     "_id": "#23",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#24"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#13"
+     },
+     "tail": {
+      "$ref": "#11"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#6",
+   "_type": "UMLInitialNode",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#8",
+   "_type": "UMLAction",
+   "name": "Log in",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "opaque",
+   "target": null
+  },
+  {
+   "_id": "#10",
+   "_type": "UMLDecisionNode",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#12",
+   "_type": "UMLAction",
+   "name": "Browse",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "opaque",
+   "target": null
+  },
+  {
+   "_id": "#14",
+   "_type": "UMLActivityFinalNode",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#16",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#6"
+   },
+   "target": {
+    "$ref": "#8"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#18",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#8"
+   },
+   "target": {
+    "$ref": "#10"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#20",
+   "_type": "UMLControlFlow",
+   "name": "[ok]",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#10"
+   },
+   "target": {
+    "$ref": "#12"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#22",
+   "_type": "UMLControlFlow",
+   "name": "[failed]",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#10"
+   },
+   "target": {
+    "$ref": "#14"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#24",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#12"
+   },
+   "target": {
+    "$ref": "#14"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  }
+ ]
+}

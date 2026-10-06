@@ -1,0 +1,181 @@
+{
+  "context-landscape": {
+    "diagram": "ThingsBoard context",
+    "score": 99,
+    "fingerprint": {
+      "nodes": { "C4Person": 0.5, "C4SoftwareSystem": 0.5 },
+      "edges": { "C4Relationship": 1 },
+      "aspect": 0.734,
+      "flow": 1,
+      "density": 1
+    }
+  },
+  "container-overview": {
+    "diagram": "ThingsBoard containers",
+    "score": 90,
+    "fingerprint": {
+      "nodes": {
+        "C4Container": 0.833,
+        "C4Person": 0.111,
+        "C4SoftwareSystem": 0.056
+      },
+      "edges": { "C4Relationship": 1 },
+      "aspect": 1.288,
+      "flow": 0.5,
+      "density": 1.333
+    }
+  },
+  "component-packages": {
+    "diagram": "ThingsBoard packages",
+    "score": 90,
+    "fingerprint": {
+      "nodes": { "UMLPackage": 1 },
+      "edges": { "UMLDependency": 1 },
+      "aspect": 2.203,
+      "flow": 0.357,
+      "density": 1.867
+    }
+  },
+  "component-c4": {
+    "diagram": "TB Node components",
+    "score": 100,
+    "fingerprint": {
+      "nodes": { "C4Component": 1 },
+      "edges": { "C4Relationship": 1 },
+      "aspect": 0.44,
+      "flow": 1,
+      "density": 0.857
+    }
+  },
+  "component-uml": {
+    "diagram": "Transport wiring",
+    "score": 99,
+    "fingerprint": {
+      "nodes": { "UMLComponent": 0.5, "UMLInterface": 0.5 },
+      "edges": { "UMLDependency": 0.4, "UMLInterfaceRealization": 0.6 },
+      "aspect": 0.729,
+      "flow": 0.2,
+      "density": 0.833
+    }
+  },
+  "code-classes": {
+    "diagram": "Class - Actor System",
+    "score": 98,
+    "fingerprint": {
+      "nodes": { "UMLClass": 0.75, "UMLInterface": 0.25 },
+      "edges": {
+        "UMLAssociation": 0.563,
+        "UMLDependency": 0.188,
+        "UMLGeneralization": 0.063,
+        "UMLInterfaceRealization": 0.188
+      },
+      "aspect": 1.406,
+      "flow": 0.438,
+      "density": 1
+    }
+  },
+  "runtime-sequence": {
+    "diagram": "Seq - Telemetry ingestion over MQTT",
+    "score": 94,
+    "fingerprint": {
+      "nodes": { "UMLCombinedFragment": 0.1, "UMLLifeline": 0.9 },
+      "edges": { "UMLMessage": 1 },
+      "aspect": 2.899,
+      "flow": 0,
+      "density": 1.5
+    }
+  },
+  "runtime-communication": {
+    "diagram": "Server-side RPC communication",
+    "score": 85,
+    "fingerprint": {
+      "nodes": { "UMLLifeline": 1 },
+      "edges": { "UMLConnector": 0.5, "UMLMessage": 0.5 },
+      "aspect": 0.631,
+      "flow": 0.25,
+      "density": 1.6
+    }
+  },
+  "runtime-activity": {
+    "diagram": "Activity - Rule chain execution",
+    "score": 82,
+    "fingerprint": {
+      "nodes": {
+        "UMLAction": 0.524,
+        "UMLActivityFinalNode": 0.048,
+        "UMLActivityPartition": 0.19,
+        "UMLDecisionNode": 0.095,
+        "UMLForkNode": 0.048,
+        "UMLInitialNode": 0.048,
+        "UMLJoinNode": 0.048
+      },
+      "edges": { "UMLControlFlow": 1 },
+      "aspect": 0.856,
+      "flow": 0.55,
+      "density": 0.952
+    }
+  },
+  "lifecycle-states": {
+    "diagram": "State - Alarm lifecycle",
+    "score": 98,
+    "fingerprint": {
+      "nodes": {
+        "UMLFinalState": 0.167,
+        "UMLPseudostate": 0.167,
+        "UMLState": 0.667
+      },
+      "edges": { "UMLTransition": 1 },
+      "aspect": 1.26,
+      "flow": 0.286,
+      "density": 1.167
+    }
+  },
+  "actors-goals-usecases": {
+    "diagram": "Use Cases - Customer User",
+    "score": 96,
+    "fingerprint": {
+      "nodes": {
+        "UMLActor": 0.222,
+        "UMLUseCase": 0.667,
+        "UMLUseCaseSubject": 0.111
+      },
+      "edges": { "UMLAssociation": 0.875, "UMLInclude": 0.125 },
+      "aspect": 1.422,
+      "flow": 0,
+      "density": 0.889
+    }
+  },
+  "actors-goals-features": {
+    "diagram": "ThingsBoard Features",
+    "score": 86,
+    "fingerprint": {
+      "nodes": { "MMNode": 1 },
+      "edges": { "MMEdge": 1 },
+      "aspect": 1.329,
+      "flow": 0.093,
+      "density": 0.982
+    }
+  },
+  "deployment-nodes": {
+    "diagram": "Deployment - Monolith",
+    "score": 94,
+    "fingerprint": {
+      "nodes": { "UMLArtifact": 0.625, "UMLNode": 0.375 },
+      "edges": { "UMLCommunicationPath": 0.286, "UMLDeployment": 0.714 },
+      "aspect": 1.985,
+      "flow": 0.714,
+      "density": 0.875
+    }
+  },
+  "data-erd": {
+    "diagram": "ThingsBoard data model",
+    "score": 94,
+    "fingerprint": {
+      "nodes": { "ERDEntity": 1 },
+      "edges": { "ERDRelationship": 1 },
+      "aspect": 1.566,
+      "flow": 0.1,
+      "density": 1.111
+    }
+  }
+}

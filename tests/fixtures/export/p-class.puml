@@ -1,0 +1,36 @@
+@startuml
+title Library
+package "Catalogue" {
+  abstract class "Item" as C0 {
+    -id: long
+    +title: String
+    +loanPeriod(): int*
+  }
+  class "Book" as C1 {
+    +isbn: String
+  }
+  interface "Lendable" as C2
+  enum "Format" as C3 {
+    PRINT
+    EBOOK
+  }
+}
+class "Member" as C4 {
+  +name: String
+  +borrow(item: Item): Loan
+}
+class "Loan" as C5
+C0 <|-- C1
+C2 <|.. C1
+C4 "1" -- "0..*" C5 : holds
+C5 --> "1" C0
+C5 *-- C3
+note as N0
+  Members borrow items
+end note
+N0 .. C4
+note as N1
+  printed or e-book
+end note
+N1 .. C1
+@enduml

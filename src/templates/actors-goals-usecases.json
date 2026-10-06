@@ -1,0 +1,21 @@
+{
+  "$schema": "./template.schema.json",
+  "name": "actors-goals-usecases",
+  "version": 1,
+  "title": "Use cases",
+  "description": "Actors and their goals inside the system boundary.",
+  "viewpoint": "actors-goals",
+  "kind": "usecase",
+  "default": true,
+  "content": {
+    "maxElements": 25
+  },
+  "style": "project",
+  "layout": {
+    "preset": "flow-down"
+  },
+  "parts": {
+    "titleBlock": true,
+    "legend": []
+  }
+}

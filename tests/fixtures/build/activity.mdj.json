@@ -1,0 +1,374 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLActivityDiagram",
+   "name": "Order flow",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLSwimlaneView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 220,
+     "height": 530
+    },
+    {
+     "_id": "#6",
+     "_type": "UMLSwimlaneView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 260,
+     "top": 40,
+     "width": 300,
+     "height": 530
+    },
+    {
+     "_id": "#8",
+     "_type": "UMLControlNodeView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 140,
+     "top": 125,
+     "width": 20,
+     "height": 20
+    },
+    {
+     "_id": "#10",
+     "_type": "UMLActionView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 90,
+     "top": 200,
+     "width": 120,
+     "height": 50,
+     "showNamespace": false
+    },
+    {
+     "_id": "#12",
+     "_type": "UMLControlNodeView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "left": 395,
+     "top": 295,
+     "width": 83,
+     "height": 40
+    },
+    {
+     "_id": "#14",
+     "_type": "UMLActionView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "left": 280,
+     "top": 380,
+     "width": 120,
+     "height": 50,
+     "showNamespace": false
+    },
+    {
+     "_id": "#16",
+     "_type": "UMLActionView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "left": 420,
+     "top": 380,
+     "width": 120,
+     "height": 50,
+     "showNamespace": false
+    },
+    {
+     "_id": "#18",
+     "_type": "UMLControlNodeView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "left": 397,
+     "top": 482,
+     "width": 26,
+     "height": 26
+    },
+    {
+     "_id": "#20",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#21"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#23"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#25"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#26",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#27"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#16"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#28",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#29"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#18"
+     },
+     "tail": {
+      "$ref": "#14"
+     }
+    },
+    {
+     "_id": "#30",
+     "_type": "UMLControlFlowView",
+     "model": {
+      "$ref": "#31"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#18"
+     },
+     "tail": {
+      "$ref": "#16"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "UMLActivityPartition",
+   "name": "Customer",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#7",
+   "_type": "UMLActivityPartition",
+   "name": "Shop",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#9",
+   "_type": "UMLInitialNode",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#11",
+   "_type": "UMLAction",
+   "name": "Place order",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "opaque",
+   "target": null
+  },
+  {
+   "_id": "#13",
+   "_type": "UMLDecisionNode",
+   "name": "in stock?",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#15",
+   "_type": "UMLAction",
+   "name": "Ship",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "opaque",
+   "target": null
+  },
+  {
+   "_id": "#17",
+   "_type": "UMLAction",
+   "name": "Refund",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "kind": "opaque",
+   "target": null
+  },
+  {
+   "_id": "#19",
+   "_type": "UMLActivityFinalNode",
+   "name": "",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#21",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#9"
+   },
+   "target": {
+    "$ref": "#11"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#23",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#13"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#25",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#15"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": "yes"
+  },
+  {
+   "_id": "#27",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#13"
+   },
+   "target": {
+    "$ref": "#17"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": "no"
+  },
+  {
+   "_id": "#29",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#15"
+   },
+   "target": {
+    "$ref": "#19"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  },
+  {
+   "_id": "#31",
+   "_type": "UMLControlFlow",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#17"
+   },
+   "target": {
+    "$ref": "#19"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "guard": ""
+  }
+ ]
+}

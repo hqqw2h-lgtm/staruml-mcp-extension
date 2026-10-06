@@ -1,0 +1,45 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "DTO",
+  "category": "domain",
+  "intent": "Carry data between processes in one object with no behaviour.",
+  "roles": [
+    {
+      "name": "DataTransferObject",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "A bag of serializable fields.",
+      "stereotype": "DTO",
+      "documentation": "{DataTransferObject} carries data across a boundary and has no behaviour."
+    },
+    {
+      "name": "Assembler",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Builds DTOs from domain objects and back.",
+      "optional": true,
+      "operations": [
+        {
+          "name": "toDto",
+          "parameters": [
+            {
+              "name": "source",
+              "type": "Object",
+              "direction": "in"
+            }
+          ],
+          "returnType": "{DataTransferObject}"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "dependency",
+      "from": "Assembler",
+      "to": "DataTransferObject",
+      "stereotype": "create"
+    }
+  ],
+  "alsoKnownAs": ["Data Transfer Object"]
+}

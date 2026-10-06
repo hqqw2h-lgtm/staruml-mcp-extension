@@ -1,0 +1,61 @@
+{
+  "interface": {
+    "description": "A pure interface: public abstract operations, attributes only as constants (static, read only).",
+    "appliesTo": ["UMLInterface"],
+    "attributes": {
+      "isStatic": true,
+      "isReadOnly": true,
+      "visibility": "public"
+    },
+    "operations": { "isAbstract": true, "visibility": "public" }
+  },
+  "abstract": {
+    "description": "An abstract class: no instances of its own; subclasses complete it.",
+    "appliesTo": ["UMLClass"],
+    "element": { "isAbstract": true, "isLeaf": false }
+  },
+  "value-object": {
+    "description": "A value: final, private read-only attributes, query operations only; setters are reported.",
+    "appliesTo": ["UMLClass"],
+    "element": { "isLeaf": true, "stereotype": "valueObject" },
+    "attributes": { "isReadOnly": true, "visibility": "private" },
+    "operations": { "isQuery": true },
+    "reportSetters": true
+  },
+  "entity": {
+    "description": "An entity: stereotyped entity, identified by a read-only id attribute.",
+    "appliesTo": ["UMLClass"],
+    "element": { "stereotype": "entity" },
+    "ensureAttributes": [
+      {
+        "name": "id",
+        "type": "Object",
+        "visibility": "private",
+        "isID": true,
+        "isReadOnly": true
+      }
+    ]
+  },
+  "enum": {
+    "description": "An enumeration: final, attributes read only.",
+    "appliesTo": ["UMLEnumeration"],
+    "element": { "isLeaf": true },
+    "attributes": { "isReadOnly": true }
+  },
+  "static-utility": {
+    "description": "A utility class: final, static members only, a private constructor so it is never instantiated.",
+    "appliesTo": ["UMLClass"],
+    "element": { "isLeaf": true, "stereotype": "utility" },
+    "attributes": { "isStatic": true },
+    "operations": { "isStatic": true },
+    "ensureConstructor": { "visibility": "private" }
+  },
+  "immutable": {
+    "description": "An immutable class: final, read-only attributes, query operations only; setters are reported.",
+    "appliesTo": ["UMLClass"],
+    "element": { "isLeaf": true },
+    "attributes": { "isReadOnly": true },
+    "operations": { "isQuery": true },
+    "reportSetters": true
+  }
+}

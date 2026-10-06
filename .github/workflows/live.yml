@@ -1,0 +1,68 @@
+name: Live
+
+# Needs a machine with StarUML 7.x running and this extension installed, so it
+# runs on demand on a self-hosted runner labelled "staruml" rather than on push.
+on:
+  workflow_dispatch:
+    inputs:
+      requests:
+        description: Load test request count
+        default: "5000"
+      concurrency:
+        description: Load test concurrency
+        default: "50"
+      soakOps:
+        description: Soak test creates (each deleted again)
+        default: "2000"
+
+jobs:
+  live:
+    runs-on: [self-hosted, staruml]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The MCP server's skill, whose examples tests/integration/skill.live.test.ts replays.
+      - uses: actions/checkout@v4
+        with:
+          repository: hqqw2h-lgtm/staruml-mcp
+          path: staruml-mcp
+
+      - name: Build and install into StarUML
+        run: |
+          npm run build
+          npm run install:local
+
+      - name: Restart StarUML (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          osascript -e 'quit app "StarUML"' || true
+          sleep 3
+          open -a StarUML
+          for i in $(seq 1 30); do curl -sf http://localhost:58322/ >/dev/null && exit 0; sleep 1; done
+          exit 1
+
+      - name: Live integration tests
+        run: npm run test:live
+        env:
+          STARUML_LIVE: "1"
+          SKILL_PATH: ${{ github.workspace }}/staruml-mcp/plugins/claude-code/skills/staruml/SKILL.md
+
+      - name: Load test
+        run: npm run test:load -- --requests ${{ inputs.requests }} --concurrency ${{ inputs.concurrency }}
+
+      - name: Soak test
+        timeout-minutes: 60
+        run: npm run test:soak -- --ops ${{ inputs.soakOps }} --json soak.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak
+          path: soak.json

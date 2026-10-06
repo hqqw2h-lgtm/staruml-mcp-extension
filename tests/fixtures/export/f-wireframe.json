@@ -1,0 +1,32 @@
+{
+  "nodes": [
+    {
+      "name": "Login",
+      "type": "webFrame"
+    },
+    {
+      "name": "Email",
+      "type": "input",
+      "in": "Login"
+    },
+    {
+      "name": "Password",
+      "type": "input",
+      "in": "Login"
+    },
+    {
+      "name": "Remember me",
+      "type": "checkbox",
+      "in": "Login",
+      "properties": {
+        "checked": true
+      }
+    },
+    {
+      "name": "Sign in",
+      "type": "button",
+      "in": "Login"
+    }
+  ],
+  "edges": []
+}

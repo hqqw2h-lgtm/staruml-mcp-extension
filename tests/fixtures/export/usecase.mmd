@@ -1,0 +1,15 @@
+---
+title: "Shop UC"
+---
+flowchart LR
+  A0["Customer"]
+  A1["Admin"]
+  subgraph S["Shop"]
+    U0(["Browse"])
+    U1(["Buy"])
+    U2(["Pay<br/>online"])
+  end
+  A0 --- U0
+  A0 --- U1
+  U1 -->|include| U2
+  A1 --- U0

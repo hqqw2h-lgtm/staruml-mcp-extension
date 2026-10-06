@@ -1,0 +1,55 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": []
+    },
+    {
+     "_id": "#3",
+     "_type": "UMLClass",
+     "name": "DataTransferObject",
+     "ownedElements": [],
+     "documentation": "DataTransferObject carries data across a boundary and has no behaviour.",
+     "stereotype": "DTO",
+     "visibility": "public",
+     "attributes": [],
+     "operations": [],
+     "isAbstract": false,
+     "isLeaf": false
+    },
+    {
+     "_id": "#4",
+     "_type": "UMLClassDiagram",
+     "name": "DTO",
+     "ownedElements": [],
+     "documentation": "",
+     "ownedViews": [
+      {
+       "_id": "#5",
+       "_type": "UMLClassView",
+       "model": {
+        "$ref": "#3"
+       }
+      }
+     ]
+    }
+   ],
+   "documentation": "",
+   "stereotype": null,
+   "visibility": "public"
+  }
+ ],
+ "documentation": ""
+}

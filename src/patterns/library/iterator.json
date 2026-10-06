@@ -1,0 +1,117 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Iterator",
+  "category": "behavioral",
+  "intent": "Access the elements of an aggregate sequentially without exposing its representation.",
+  "roles": [
+    {
+      "name": "Aggregate",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Declares the operation that makes an iterator.",
+      "operations": [
+        {
+          "name": "createIterator",
+          "isAbstract": true,
+          "returnType": "{Iterator}"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteAggregate",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Makes iterators over its elements.",
+      "operations": [
+        {
+          "name": "createIterator",
+          "returnType": "{Iterator}"
+        }
+      ]
+    },
+    {
+      "name": "Iterator",
+      "type": "UMLInterface",
+      "cardinality": "1",
+      "description": "Interface for traversing elements.",
+      "operations": [
+        {
+          "name": "first",
+          "isAbstract": true
+        },
+        {
+          "name": "next",
+          "isAbstract": true
+        },
+        {
+          "name": "isDone",
+          "isAbstract": true,
+          "isQuery": true,
+          "returnType": "boolean"
+        },
+        {
+          "name": "currentItem",
+          "isAbstract": true,
+          "isQuery": true,
+          "returnType": "Object"
+        }
+      ]
+    },
+    {
+      "name": "ConcreteIterator",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "Keeps the position of a traversal.",
+      "operations": [
+        {
+          "name": "first"
+        },
+        {
+          "name": "next"
+        },
+        {
+          "name": "isDone",
+          "isQuery": true,
+          "returnType": "boolean"
+        },
+        {
+          "name": "currentItem",
+          "isQuery": true,
+          "returnType": "Object"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "realization",
+      "from": "ConcreteAggregate",
+      "to": "Aggregate"
+    },
+    {
+      "type": "realization",
+      "from": "ConcreteIterator",
+      "to": "Iterator"
+    },
+    {
+      "type": "association",
+      "from": "ConcreteIterator",
+      "to": "ConcreteAggregate",
+      "fromEnd": {
+        "navigable": "notNavigable"
+      },
+      "toEnd": {
+        "navigable": "navigable",
+        "name": "aggregate",
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "dependency",
+      "from": "ConcreteAggregate",
+      "to": "ConcreteIterator",
+      "stereotype": "create"
+    }
+  ],
+  "alsoKnownAs": ["Cursor"]
+}

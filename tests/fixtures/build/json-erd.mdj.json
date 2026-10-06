@@ -1,0 +1,536 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "ERDDiagram",
+   "name": "Order tables",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 160,
+     "height": 72
+    },
+    {
+     "_id": "#6",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 220,
+     "top": 40,
+     "width": 160,
+     "height": 136
+    },
+    {
+     "_id": "#8",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 280,
+     "top": 256,
+     "width": 160,
+     "height": 56
+    },
+    {
+     "_id": "#10",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 190,
+     "top": 336,
+     "width": 160,
+     "height": 72
+    },
+    {
+     "_id": "#12",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 256,
+     "width": 160,
+     "height": 56
+    },
+    {
+     "_id": "#14",
+     "_type": "ERDEntityView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 488,
+     "width": 160,
+     "height": 88
+    },
+    {
+     "_id": "#16",
+     "_type": "ERDRelationshipView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#8"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "ERDRelationshipView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#12"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "ERDRelationshipView",
+     "model": {
+      "$ref": "#21"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "ERDRelationshipView",
+     "model": {
+      "$ref": "#23"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "ERDRelationshipView",
+     "model": {
+      "$ref": "#25"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "ERDEntity",
+   "name": "OrderShipping",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#26",
+     "_type": "ERDColumn",
+     "name": "street",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    },
+    {
+     "_id": "#27",
+     "_type": "ERDColumn",
+     "name": "city",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#7",
+   "_type": "ERDEntity",
+   "name": "Order",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#28",
+     "_type": "ERDColumn",
+     "name": "id",
+     "ownedElements": [],
+     "type": "uuid",
+     "length": "",
+     "primaryKey": true,
+     "foreignKey": false,
+     "nullable": false,
+     "unique": false
+    },
+    {
+     "_id": "#29",
+     "_type": "ERDColumn",
+     "name": "placedAt",
+     "ownedElements": [],
+     "type": "timestamp",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    },
+    {
+     "_id": "#30",
+     "_type": "ERDColumn",
+     "name": "status_id",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": true,
+     "nullable": true,
+     "unique": false
+    },
+    {
+     "_id": "#31",
+     "_type": "ERDColumn",
+     "name": "customer_id",
+     "ownedElements": [],
+     "type": "",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": true,
+     "nullable": false,
+     "unique": false
+    },
+    {
+     "_id": "#32",
+     "_type": "ERDColumn",
+     "name": "shipping_id",
+     "ownedElements": [],
+     "type": "",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": true,
+     "nullable": true,
+     "unique": false
+    },
+    {
+     "_id": "#33",
+     "_type": "ERDColumn",
+     "name": "note",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#9",
+   "_type": "ERDEntity",
+   "name": "Status",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#34",
+     "_type": "ERDColumn",
+     "name": "value",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": true,
+     "foreignKey": false,
+     "nullable": false,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#11",
+   "_type": "ERDEntity",
+   "name": "Party",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#35",
+     "_type": "ERDColumn",
+     "name": "id",
+     "ownedElements": [],
+     "type": "integer",
+     "length": "",
+     "primaryKey": true,
+     "foreignKey": false,
+     "nullable": false,
+     "unique": false
+    },
+    {
+     "_id": "#36",
+     "_type": "ERDColumn",
+     "name": "name",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#13",
+   "_type": "ERDEntity",
+   "name": "Customer",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#37",
+     "_type": "ERDColumn",
+     "name": "email",
+     "ownedElements": [],
+     "type": "varchar",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#15",
+   "_type": "ERDEntity",
+   "name": "Line",
+   "ownedElements": [],
+   "columns": [
+    {
+     "_id": "#38",
+     "_type": "ERDColumn",
+     "name": "qty",
+     "ownedElements": [],
+     "type": "integer",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": false,
+     "unique": false
+    },
+    {
+     "_id": "#39",
+     "_type": "ERDColumn",
+     "name": "price",
+     "ownedElements": [],
+     "type": "numeric",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    },
+    {
+     "_id": "#40",
+     "_type": "ERDColumn",
+     "name": "tags",
+     "ownedElements": [],
+     "type": "varchar[]",
+     "length": "",
+     "primaryKey": false,
+     "foreignKey": false,
+     "nullable": true,
+     "unique": false
+    }
+   ]
+  },
+  {
+   "_id": "#17",
+   "_type": "ERDRelationship",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#41",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#9"
+    },
+    "cardinality": "0..1"
+   },
+   "end2": {
+    "_id": "#42",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "cardinality": "0..*"
+   },
+   "identifying": false
+  },
+  {
+   "_id": "#19",
+   "_type": "ERDRelationship",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#43",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#13"
+    },
+    "cardinality": "1"
+   },
+   "end2": {
+    "_id": "#44",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "cardinality": "0..*"
+   },
+   "identifying": false
+  },
+  {
+   "_id": "#21",
+   "_type": "ERDRelationship",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#45",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "cardinality": "1"
+   },
+   "end2": {
+    "_id": "#46",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#15"
+    },
+    "cardinality": "0..*"
+   },
+   "identifying": false
+  },
+  {
+   "_id": "#23",
+   "_type": "ERDRelationship",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#47",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#5"
+    },
+    "cardinality": "0..1"
+   },
+   "end2": {
+    "_id": "#48",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#7"
+    },
+    "cardinality": "0..*"
+   },
+   "identifying": false
+  },
+  {
+   "_id": "#25",
+   "_type": "ERDRelationship",
+   "name": "",
+   "ownedElements": [],
+   "end1": {
+    "_id": "#49",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#11"
+    },
+    "cardinality": "1"
+   },
+   "end2": {
+    "_id": "#50",
+    "_type": "ERDRelationshipEnd",
+    "name": "",
+    "ownedElements": [],
+    "reference": {
+     "$ref": "#13"
+    },
+    "cardinality": "0..1"
+   },
+   "identifying": true
+  }
+ ]
+}

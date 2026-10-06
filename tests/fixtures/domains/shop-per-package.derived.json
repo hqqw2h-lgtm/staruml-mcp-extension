@@ -1,0 +1,933 @@
+[
+ {
+  "kind": "package",
+  "name": "Shop packages",
+  "parent": "Shop",
+  "spec": {
+   "packages": [
+    {
+     "name": "Sales"
+    },
+    {
+     "name": "Billing"
+    },
+    {
+     "name": "Infra",
+     "parent": "Billing"
+    }
+   ],
+   "dependencies": [
+    {
+     "from": "Sales",
+     "to": "Billing"
+    },
+    {
+     "from": "Billing",
+     "to": "Sales"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Sales",
+    "UMLPackage",
+    "Shop/Sales"
+   ],
+   [
+    "Billing",
+    "UMLPackage",
+    "Shop/Billing"
+   ],
+   [
+    "Infra",
+    "UMLPackage",
+    "Shop/Billing/Infra"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLDependency",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Shop",
+  "parent": "Shop",
+  "spec": {
+   "classes": [
+    {
+     "name": "Loose",
+     "kind": "class"
+    }
+   ],
+   "relations": []
+  },
+  "bind": [
+   [
+    "Loose",
+    "UMLClass",
+    "Shop/Loose"
+   ]
+  ],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Sales",
+  "parent": "Shop/Sales",
+  "spec": {
+   "classes": [
+    {
+     "name": "Order",
+     "kind": "class"
+    },
+    {
+     "name": "Line",
+     "kind": "class"
+    },
+    {
+     "name": "Entity",
+     "kind": "abstract"
+    }
+   ],
+   "relations": [
+    {
+     "from": "Order",
+     "to": "Line",
+     "type": "composition",
+     "fromMultiplicity": "1",
+     "toMultiplicity": "1..*"
+    },
+    {
+     "from": "Order",
+     "to": "Entity",
+     "type": "generalization"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Order",
+    "UMLClass",
+    "Shop/Sales/Order"
+   ],
+   [
+    "Line",
+    "UMLClass",
+    "Shop/Sales/Line"
+   ],
+   [
+    "Entity",
+    "UMLClass",
+    "Shop/Sales/Entity"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLGeneralization",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "class",
+  "name": "Billing",
+  "parent": "Shop/Billing",
+  "spec": {
+   "classes": [
+    {
+     "name": "Payable",
+     "kind": "interface"
+    },
+    {
+     "name": "Invoice",
+     "kind": "class"
+    },
+    {
+     "name": "Status",
+     "kind": "enum"
+    },
+    {
+     "name": "Order2",
+     "kind": "class"
+    }
+   ],
+   "relations": [
+    {
+     "from": "Invoice",
+     "to": "Payable",
+     "type": "realization"
+    },
+    {
+     "from": "Invoice",
+     "to": "Status",
+     "type": "dependency"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Payable",
+    "UMLInterface",
+    "Shop/Billing/Payable"
+   ],
+   [
+    "Invoice",
+    "UMLClass",
+    "Shop/Billing/Invoice"
+   ],
+   [
+    "Status",
+    "UMLEnumeration",
+    "Shop/Billing/Status"
+   ],
+   [
+    "Order2",
+    "UMLClass",
+    "Shop/Billing/Order2"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLInterfaceRealization",
+    ""
+   ],
+   [
+    1,
+    "UMLDependency",
+    ""
+   ]
+  ],
+  "accessorsOnly": [
+   "Shop/Billing/Invoice"
+  ]
+ },
+ {
+  "kind": "class",
+  "name": "Infra",
+  "parent": "Shop/Billing/Infra",
+  "spec": {
+   "classes": [
+    {
+     "name": "Clock",
+     "kind": "class"
+    }
+   ],
+   "relations": []
+  },
+  "bind": [
+   [
+    "Clock",
+    "UMLClass",
+    "Shop/Billing/Infra/Clock"
+   ]
+  ],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Checkout",
+  "parent": "Shop/Checkout/Checkout",
+  "spec": {
+   "participants": [
+    "Clerk",
+    "Order",
+    "Invoice"
+   ],
+   "messages": [
+    {
+     "from": "Clerk",
+     "to": "Order",
+     "text": "place()",
+     "kind": "sync"
+    },
+    {
+     "from": "Order",
+     "to": "Invoice",
+     "text": "pay()",
+     "kind": "async"
+    },
+    {
+     "from": "Invoice",
+     "to": "Order",
+     "text": "paid",
+     "kind": "reply"
+    },
+    {
+     "from": "Order",
+     "to": "Order",
+     "text": "total()",
+     "kind": "sync"
+    }
+   ],
+   "fragments": [
+    {
+     "operator": "opt",
+     "guard": "paid",
+     "operands": [],
+     "from": 1,
+     "to": 2
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Clerk",
+    "UMLLifeline",
+    "Shop/Checkout/Checkout/Clerk"
+   ],
+   [
+    "Order",
+    "UMLLifeline",
+    "Shop/Checkout/Checkout/Order"
+   ],
+   [
+    "Invoice",
+    "UMLLifeline",
+    "Shop/Checkout/Checkout/Invoice"
+   ],
+   [
+    "fragment 0",
+    "UMLCombinedFragment",
+    "Shop/Checkout/Checkout/paid"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "place()"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "pay()"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "paid"
+   ],
+   [
+    3,
+    "UMLMessage",
+    "total()"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "sequence",
+  "name": "Idle",
+  "parent": "Shop/Idle/Idle",
+  "spec": {
+   "participants": [
+    "Clerk",
+    "Order"
+   ],
+   "messages": [
+    {
+     "from": "Clerk",
+     "to": "Order",
+     "text": "noop()",
+     "kind": "create"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Clerk",
+    "UMLLifeline",
+    "Shop/Idle/Idle/Clerk"
+   ],
+   [
+    "Order",
+    "UMLLifeline",
+    "Shop/Idle/Idle/Order"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "noop()"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "usecase",
+  "name": "Audit",
+  "parent": "Shop",
+  "spec": {
+   "system": "Shop",
+   "actors": [],
+   "useCases": [
+    "Audit books"
+   ],
+   "relations": []
+  },
+  "bind": [
+   [
+    "Audit books",
+    "UMLUseCase",
+    "Shop/Audit books"
+   ],
+   [
+    "Shop",
+    "UMLUseCaseSubject",
+    "Shop/Shop"
+   ]
+  ],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "usecase",
+  "name": "Clerk goals",
+  "parent": "Shop",
+  "spec": {
+   "system": "Store",
+   "actors": [
+    "Clerk",
+    "Auditor"
+   ],
+   "useCases": [
+    "Place order",
+    "Pay bill"
+   ],
+   "relations": [
+    {
+     "from": "Clerk",
+     "to": "Place order",
+     "type": "association"
+    },
+    {
+     "from": "Clerk",
+     "to": "Pay bill",
+     "type": "association"
+    },
+    {
+     "from": "Place order",
+     "to": "Pay bill",
+     "type": "include"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Clerk",
+    "UMLActor",
+    "Shop/Clerk"
+   ],
+   [
+    "Auditor",
+    "UMLActor",
+    "Shop/Auditor"
+   ],
+   [
+    "Place order",
+    "UMLUseCase",
+    "Shop/Place order"
+   ],
+   [
+    "Pay bill",
+    "UMLUseCase",
+    "Shop/Pay bill"
+   ],
+   [
+    "Store",
+    "UMLUseCaseSubject",
+    "Shop/Store"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    1,
+    "UMLAssociation",
+    ""
+   ],
+   [
+    2,
+    "UMLInclude",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "statemachine",
+  "name": "Order life",
+  "parent": "Shop/Sales/Order/Order life",
+  "spec": {
+   "states": [
+    {
+     "id": "s0",
+     "type": "initial"
+    },
+    {
+     "id": "s1",
+     "name": "Open",
+     "type": "state"
+    },
+    {
+     "id": "s2",
+     "name": "Busy",
+     "type": "state"
+    },
+    {
+     "id": "s3",
+     "name": "Checking",
+     "type": "state",
+     "parent": "s2"
+    },
+    {
+     "id": "s4",
+     "type": "choice"
+    },
+    {
+     "id": "s5",
+     "type": "fork"
+    },
+    {
+     "id": "s6",
+     "type": "join"
+    },
+    {
+     "id": "s7",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "s0",
+     "to": "s1"
+    },
+    {
+     "from": "s1",
+     "to": "s2",
+     "trigger": "work",
+     "guard": "ok"
+    },
+    {
+     "from": "s2",
+     "to": "s4"
+    },
+    {
+     "from": "s4",
+     "to": "s5"
+    },
+    {
+     "from": "s5",
+     "to": "s6"
+    },
+    {
+     "from": "s6",
+     "to": "s7"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "s0",
+    "UMLPseudostate",
+    "Shop/Sales/Order/Order life//"
+   ],
+   [
+    "s1",
+    "UMLState",
+    "Shop/Sales/Order/Order life//Open"
+   ],
+   [
+    "s2",
+    "UMLState",
+    "Shop/Sales/Order/Order life//Busy"
+   ],
+   [
+    "s3",
+    "UMLState",
+    "Shop/Sales/Order/Order life//Busy//Checking"
+   ],
+   [
+    "s4",
+    "UMLPseudostate",
+    "Shop/Sales/Order/Order life//"
+   ],
+   [
+    "s5",
+    "UMLPseudostate",
+    "Shop/Sales/Order/Order life//"
+   ],
+   [
+    "s6",
+    "UMLPseudostate",
+    "Shop/Sales/Order/Order life//"
+   ],
+   [
+    "s7",
+    "UMLFinalState",
+    "Shop/Sales/Order/Order life//"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLTransition",
+    ""
+   ],
+   [
+    1,
+    "UMLTransition",
+    "work"
+   ],
+   [
+    2,
+    "UMLTransition",
+    ""
+   ],
+   [
+    3,
+    "UMLTransition",
+    ""
+   ],
+   [
+    4,
+    "UMLTransition",
+    ""
+   ],
+   [
+    5,
+    "UMLTransition",
+    ""
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "activity",
+  "name": "Fulfil",
+  "parent": "Shop",
+  "spec": {
+   "lanes": [
+    "Shop"
+   ],
+   "nodes": [
+    {
+     "id": "s",
+     "type": "initial",
+     "lane": "Shop"
+    },
+    {
+     "name": "Pack",
+     "lane": "Shop"
+    },
+    {
+     "id": "e",
+     "type": "final",
+     "lane": "Shop"
+    }
+   ],
+   "flows": [
+    {
+     "from": "s",
+     "to": "Pack",
+     "guard": ""
+    },
+    {
+     "from": "Pack",
+     "to": "e",
+     "guard": "done"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "erd",
+  "name": "Shop data model",
+  "parent": "Shop",
+  "spec": {
+   "entities": [
+    {
+     "name": "orders",
+     "columns": [
+      "id int PK"
+     ]
+    },
+    {
+     "name": "lines",
+     "columns": [
+      "id int PK",
+      "order_id int FK"
+     ]
+    }
+   ],
+   "relationships": [
+    {
+     "from": "orders",
+     "to": "lines",
+     "fromCardinality": "1",
+     "toCardinality": "0..*"
+    },
+    {
+     "from": "orders",
+     "to": "lines",
+     "name": "again"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "c4",
+  "name": "Shop containers",
+  "parent": "Shop",
+  "spec": {
+   "elements": [
+    {
+     "id": "web",
+     "name": "Web",
+     "type": "container",
+     "technology": "TS"
+    },
+    {
+     "id": "db",
+     "name": "DB",
+     "type": "container",
+     "kind": "database"
+    }
+   ],
+   "relations": [
+    {
+     "from": "web",
+     "to": "db",
+     "label": "reads",
+     "technology": "SQL"
+    },
+    {
+     "from": "db",
+     "to": "web",
+     "label": "notifies"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "deployment",
+  "name": "Prod",
+  "parent": "Shop",
+  "spec": {
+   "nodes": [
+    {
+     "name": "Edge",
+     "stereotype": "device",
+     "deploys": [
+      "app.js"
+     ]
+    },
+    {
+     "name": "Host"
+    },
+    {
+     "name": "Box",
+     "stereotype": "executionEnvironment",
+     "parent": "Host",
+     "deploys": [
+      "shop.jar"
+     ]
+    }
+   ],
+   "artifacts": [
+    "app.js",
+    "shop.jar"
+   ],
+   "paths": [
+    {
+     "from": "Edge",
+     "to": "Host",
+     "name": "HTTPS"
+    },
+    {
+     "from": "Host",
+     "to": "Edge"
+    }
+   ]
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "deployment",
+  "name": "Bare",
+  "parent": "Shop",
+  "spec": {
+   "nodes": [
+    {
+     "name": "Lonely"
+    }
+   ],
+   "artifacts": [],
+   "paths": []
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "mindmap",
+  "name": "Shop features",
+  "parent": "Shop",
+  "spec": {
+   "root": {
+    "name": "Shop features",
+    "children": [
+     {
+      "name": "Orders",
+      "children": [
+       {
+        "name": "Cart"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "bind": [],
+  "bindEdges": [],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Checkout communication",
+  "parent": "Shop/Checkout/Checkout",
+  "spec": {
+   "nodes": [
+    "Clerk",
+    "Order",
+    "Invoice"
+   ],
+   "edges": [
+    {
+     "from": "Clerk",
+     "to": "Order",
+     "name": "place()"
+    },
+    {
+     "from": "Order",
+     "to": "Invoice",
+     "name": "pay()"
+    },
+    {
+     "from": "Invoice",
+     "to": "Order",
+     "name": "paid"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Clerk",
+    "UMLLifeline",
+    "Shop/Checkout/Checkout/Clerk"
+   ],
+   [
+    "Order",
+    "UMLLifeline",
+    "Shop/Checkout/Checkout/Order"
+   ],
+   [
+    "Invoice",
+    "UMLLifeline",
+    "Shop/Checkout/Checkout/Invoice"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "place()"
+   ],
+   [
+    1,
+    "UMLMessage",
+    "pay()"
+   ],
+   [
+    2,
+    "UMLMessage",
+    "paid"
+   ]
+  ],
+  "accessorsOnly": []
+ },
+ {
+  "kind": "communication",
+  "name": "Idle communication",
+  "parent": "Shop/Idle/Idle",
+  "spec": {
+   "nodes": [
+    "Clerk",
+    "Order"
+   ],
+   "edges": [
+    {
+     "from": "Clerk",
+     "to": "Order",
+     "name": "noop()"
+    }
+   ]
+  },
+  "bind": [
+   [
+    "Clerk",
+    "UMLLifeline",
+    "Shop/Idle/Idle/Clerk"
+   ],
+   [
+    "Order",
+    "UMLLifeline",
+    "Shop/Idle/Idle/Order"
+   ]
+  ],
+  "bindEdges": [
+   [
+    0,
+    "UMLMessage",
+    "noop()"
+   ]
+  ],
+  "accessorsOnly": []
+ }
+]

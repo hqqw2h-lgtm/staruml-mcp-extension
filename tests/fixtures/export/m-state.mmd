@@ -1,0 +1,15 @@
+stateDiagram-v2
+  direction RL
+  state "Still" as N1
+  state "Moving" as N3
+  state "Crash" as N4
+  state N5 <<choice>>
+  state "Long<br/>name" as N7
+  [*] --> N1
+  N1 --> [*]
+  N1 --> N3 : push
+  N3 --> N1
+  N3 --> N4 : hit [fast]
+  N4 --> N5
+  N5 --> [*]
+  N4 --> N7

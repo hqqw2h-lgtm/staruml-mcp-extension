@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "type": "string",
+      "enum": [
+        "context",
+        "container",
+        "component",
+        "code",
+        "runtime",
+        "lifecycle",
+        "actors-goals",
+        "deployment",
+        "data"
+      ]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What a view of this kind shows, in a sentence."
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The question every view of it must answer."
+    },
+    "concerns": {
+      "minItems": 1,
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "stakeholders": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "business",
+          "analyst",
+          "architect",
+          "developer",
+          "tester",
+          "operator",
+          "dba"
+        ]
+      }
+    },
+    "kinds": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "class",
+          "sequence",
+          "usecase",
+          "activity",
+          "statemachine",
+          "erd",
+          "flowchart",
+          "mindmap",
+          "requirement",
+          "c4",
+          "package",
+          "component",
+          "deployment",
+          "composite",
+          "object",
+          "communication",
+          "timing",
+          "overview",
+          "infoflow",
+          "profile",
+          "dfd",
+          "bdd",
+          "ibd",
+          "parametric",
+          "bpmn",
+          "wireframe",
+          "aws",
+          "azure",
+          "gcp"
+        ]
+      },
+      "description": "Diagram kinds that can show it, the usual one first."
+    },
+    "elements": {
+      "minItems": 1,
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+      "description": "Node types a view may show, by StarUML metaclass name (UMLClass, C4Person, ERDEntity)."
+    },
+    "relationships": {
+      "minItems": 0,
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+      "description": "Edge types a view may show, by StarUML metaclass name (UMLClass, C4Person, ERDEntity)."
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "maxElements": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "Nodes past which a view is split."
+        },
+        "maxLifelines": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "Lifelines past which a scenario is drawn otherwise."
+        },
+        "kinds": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "class",
+              "sequence",
+              "usecase",
+              "activity",
+              "statemachine",
+              "erd",
+              "flowchart",
+              "mindmap",
+              "requirement",
+              "c4",
+              "package",
+              "component",
+              "deployment",
+              "composite",
+              "object",
+              "communication",
+              "timing",
+              "overview",
+              "infoflow",
+              "profile",
+              "dfd",
+              "bdd",
+              "ibd",
+              "parametric",
+              "bpmn",
+              "wireframe",
+              "aws",
+              "azure",
+              "gcp"
+            ]
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "description": "maxElements for a diagram kind, where it differs."
+        }
+      },
+      "required": ["maxElements"],
+      "additionalProperties": false
+    },
+    "required": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["title", "legend", "trigger"] },
+      "description": "title: a name that is not the default; legend: a legend note; trigger: what starts the scenario."
+    },
+    "legend": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Lines of the legend note, under 'Legend'."
+    },
+    "split": {
+      "type": "string",
+      "minLength": 1,
+      "description": "How a view past its limits is divided."
+    }
+  },
+  "required": [
+    "name",
+    "title",
+    "summary",
+    "question",
+    "concerns",
+    "stakeholders",
+    "kinds",
+    "elements",
+    "relationships",
+    "limits",
+    "required",
+    "split"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,269 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Untitled",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "MMMindmapDiagram",
+   "name": "",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#5"
+     },
+     "containerView": null,
+     "left": 190,
+     "top": 70,
+     "width": 89,
+     "height": 36
+    },
+    {
+     "_id": "#6",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#7"
+     },
+     "containerView": null,
+     "left": 349,
+     "top": 46,
+     "width": 80,
+     "height": 36
+    },
+    {
+     "_id": "#8",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#9"
+     },
+     "containerView": null,
+     "left": 499,
+     "top": 46,
+     "width": 80,
+     "height": 36
+    },
+    {
+     "_id": "#10",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#11"
+     },
+     "containerView": null,
+     "left": 349,
+     "top": 94,
+     "width": 80,
+     "height": 36
+    },
+    {
+     "_id": "#12",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#13"
+     },
+     "containerView": null,
+     "left": 499,
+     "top": 94,
+     "width": 82,
+     "height": 36
+    },
+    {
+     "_id": "#14",
+     "_type": "MMNodeView",
+     "model": {
+      "$ref": "#15"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 70,
+     "width": 80,
+     "height": 36
+    },
+    {
+     "_id": "#16",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#17"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#6"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#18",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#19"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#8"
+     },
+     "tail": {
+      "$ref": "#6"
+     }
+    },
+    {
+     "_id": "#20",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#21"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#10"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    },
+    {
+     "_id": "#22",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#23"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#12"
+     },
+     "tail": {
+      "$ref": "#10"
+     }
+    },
+    {
+     "_id": "#24",
+     "_type": "MMEdgeView",
+     "model": {
+      "$ref": "#25"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#14"
+     },
+     "tail": {
+      "$ref": "#4"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#5",
+   "_type": "MMNode",
+   "name": "Project",
+   "ownedElements": []
+  },
+  {
+   "_id": "#7",
+   "_type": "MMNode",
+   "name": "Goals",
+   "ownedElements": []
+  },
+  {
+   "_id": "#9",
+   "_type": "MMNode",
+   "name": "Speed",
+   "ownedElements": []
+  },
+  {
+   "_id": "#11",
+   "_type": "MMNode",
+   "name": "Risks",
+   "ownedElements": []
+  },
+  {
+   "_id": "#13",
+   "_type": "MMNode",
+   "name": "Budget",
+   "ownedElements": []
+  },
+  {
+   "_id": "#15",
+   "_type": "MMNode",
+   "name": "Multi\nline",
+   "ownedElements": []
+  },
+  {
+   "_id": "#17",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#7"
+   }
+  },
+  {
+   "_id": "#19",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#7"
+   },
+   "target": {
+    "$ref": "#9"
+   }
+  },
+  {
+   "_id": "#21",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#11"
+   }
+  },
+  {
+   "_id": "#23",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#11"
+   },
+   "target": {
+    "$ref": "#13"
+   }
+  },
+  {
+   "_id": "#25",
+   "_type": "MMEdge",
+   "name": "",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#5"
+   },
+   "target": {
+    "$ref": "#15"
+   }
+  }
+ ]
+}

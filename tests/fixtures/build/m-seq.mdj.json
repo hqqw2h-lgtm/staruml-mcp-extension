@@ -1,0 +1,369 @@
+{
+ "_id": "#0",
+ "_type": "Project",
+ "name": "Greeting",
+ "ownedElements": [
+  {
+   "_id": "#1",
+   "_type": "UMLModel",
+   "name": "Model",
+   "ownedElements": [
+    {
+     "_id": "#2",
+     "_type": "UMLClassDiagram",
+     "name": "Main",
+     "ownedElements": [],
+     "ownedViews": []
+    }
+   ],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#3",
+   "_type": "UMLSequenceDiagram",
+   "name": "Greeting",
+   "ownedElements": [],
+   "ownedViews": [
+    {
+     "_id": "#4",
+     "_type": "UMLFrameView",
+     "model": {
+      "$ref": "#3"
+     },
+     "containerView": null,
+     "left": 8,
+     "top": 8,
+     "width": 602,
+     "height": 792,
+     "showNamespace": false
+    },
+    {
+     "_id": "#5",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#6"
+     },
+     "containerView": null,
+     "left": 40,
+     "top": 40,
+     "width": 120,
+     "height": 740,
+     "showNamespace": false
+    },
+    {
+     "_id": "#7",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#8"
+     },
+     "containerView": null,
+     "left": 240,
+     "top": 40,
+     "width": 120,
+     "height": 740,
+     "showNamespace": false
+    },
+    {
+     "_id": "#9",
+     "_type": "UMLSeqLifelineView",
+     "model": {
+      "$ref": "#10"
+     },
+     "containerView": null,
+     "left": 440,
+     "top": 40,
+     "width": 120,
+     "height": 740,
+     "showNamespace": false
+    },
+    {
+     "_id": "#11",
+     "_type": "UMLCombinedFragmentView",
+     "model": {
+      "$ref": "#12"
+     },
+     "containerView": null,
+     "left": 10,
+     "top": 185,
+     "width": 380,
+     "height": 100
+    },
+    {
+     "_id": "#13",
+     "_type": "UMLCombinedFragmentView",
+     "model": {
+      "$ref": "#14"
+     },
+     "containerView": null,
+     "left": 20,
+     "top": 415,
+     "width": 360,
+     "height": 100
+    },
+    {
+     "_id": "#15",
+     "_type": "UMLCombinedFragmentView",
+     "model": {
+      "$ref": "#16"
+     },
+     "containerView": null,
+     "left": 10,
+     "top": 335,
+     "width": 580,
+     "height": 300
+    },
+    {
+     "_id": "#17",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#18"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#7"
+     },
+     "tail": {
+      "$ref": "#5"
+     }
+    },
+    {
+     "_id": "#19",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#20"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#5"
+     },
+     "tail": {
+      "$ref": "#7"
+     }
+    },
+    {
+     "_id": "#21",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#22"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#5"
+     },
+     "tail": {
+      "$ref": "#7"
+     }
+    },
+    {
+     "_id": "#23",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#24"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#9"
+     },
+     "tail": {
+      "$ref": "#7"
+     }
+    },
+    {
+     "_id": "#25",
+     "_type": "UMLSeqMessageView",
+     "model": {
+      "$ref": "#26"
+     },
+     "containerView": null,
+     "head": {
+      "$ref": "#9"
+     },
+     "tail": {
+      "$ref": "#9"
+     }
+    }
+   ]
+  },
+  {
+   "_id": "#6",
+   "_type": "UMLLifeline",
+   "name": "Alice",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#8",
+   "_type": "UMLLifeline",
+   "name": "Bob",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#10",
+   "_type": "UMLLifeline",
+   "name": "C",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public"
+  },
+  {
+   "_id": "#12",
+   "_type": "UMLCombinedFragment",
+   "name": "Every minute",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "parameters": [],
+   "interactionOperator": "loop",
+   "operands": [
+    {
+     "_id": "#27",
+     "_type": "UMLInteractionOperand",
+     "name": "Every minute",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "Every minute"
+    }
+   ]
+  },
+  {
+   "_id": "#14",
+   "_type": "UMLCombinedFragment",
+   "name": "really",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "parameters": [],
+   "interactionOperator": "opt",
+   "operands": [
+    {
+     "_id": "#28",
+     "_type": "UMLInteractionOperand",
+     "name": "really",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "really"
+    }
+   ]
+  },
+  {
+   "_id": "#16",
+   "_type": "UMLCombinedFragment",
+   "name": "sick",
+   "ownedElements": [],
+   "stereotype": null,
+   "visibility": "public",
+   "parameters": [],
+   "interactionOperator": "alt",
+   "operands": [
+    {
+     "_id": "#29",
+     "_type": "UMLInteractionOperand",
+     "name": "sick",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "sick"
+    },
+    {
+     "_id": "#30",
+     "_type": "UMLInteractionOperand",
+     "name": "well",
+     "ownedElements": [],
+     "stereotype": null,
+     "visibility": "public",
+     "parameters": [],
+     "guard": "well"
+    }
+   ]
+  },
+  {
+   "_id": "#18",
+   "_type": "UMLMessage",
+   "name": "Hello",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#6"
+   },
+   "target": {
+    "$ref": "#8"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#20",
+   "_type": "UMLMessage",
+   "name": "Fine",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#8"
+   },
+   "target": {
+    "$ref": "#6"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "reply",
+   "guard": ""
+  },
+  {
+   "_id": "#22",
+   "_type": "UMLMessage",
+   "name": "cough",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#8"
+   },
+   "target": {
+    "$ref": "#6"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "asynchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#24",
+   "_type": "UMLMessage",
+   "name": "great",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#8"
+   },
+   "target": {
+    "$ref": "#10"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  },
+  {
+   "_id": "#26",
+   "_type": "UMLMessage",
+   "name": "self",
+   "ownedElements": [],
+   "source": {
+    "$ref": "#10"
+   },
+   "target": {
+    "$ref": "#10"
+   },
+   "stereotype": null,
+   "visibility": "public",
+   "messageSort": "synchCall",
+   "guard": ""
+  }
+ ]
+}

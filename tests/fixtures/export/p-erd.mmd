@@ -1,0 +1,11 @@
+erDiagram
+  Customer {
+    int id PK
+    varchar(80) name
+    varchar email UK
+  }
+  Invoice {
+    int no PK
+    int customer_id FK
+  }
+  Customer ||--o{ Invoice : "bills"

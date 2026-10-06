@@ -1,0 +1,49 @@
+{
+  "$schema": "../pattern.schema.json",
+  "name": "Value Object",
+  "category": "domain",
+  "intent": "Model a descriptive value by its attributes alone: immutable, compared by value, without identity.",
+  "roles": [
+    {
+      "name": "ValueObject",
+      "type": "UMLClass",
+      "cardinality": "1",
+      "description": "A value defined by its attributes.",
+      "properties": {
+        "isLeaf": true
+      },
+      "stereotype": "valueObject",
+      "documentation": "{ValueObject} is immutable and equal to any value with the same attributes.",
+      "operations": [
+        {
+          "name": "equals",
+          "isQuery": true,
+          "parameters": [
+            {
+              "name": "other",
+              "type": "Object",
+              "direction": "in"
+            }
+          ],
+          "returnType": "boolean"
+        },
+        {
+          "name": "hashCode",
+          "isQuery": true,
+          "returnType": "int"
+        }
+      ]
+    }
+  ],
+  "relationships": [],
+  "checks": [
+    {
+      "id": "value-object-immutable",
+      "role": "ValueObject",
+      "property": "isReadOnly",
+      "equals": true,
+      "message": "A value object is immutable: every attribute is read only and it has no setters.",
+      "members": "attributes"
+    }
+  ]
+}

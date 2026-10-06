@@ -1,0 +1,10 @@
+flowchart LR
+  A0["User"]
+  subgraph S["Shop"]
+    U0(["Browse"])
+    U1(["Pay"])
+    U2(["Login"])
+  end
+  A0 --- U0
+  A0 --- U1
+  U1 -->|include| U2

@@ -1,0 +1,33 @@
+{
+  "$schema": "./viewpoint.schema.json",
+  "name": "code",
+  "title": "Code structure",
+  "summary": "Classes, interfaces and enumerations of one area with their structural relationships: ownership, inheritance, realisation and use.",
+  "question": "Which types make up this part of the system, and how are they related?",
+  "concerns": [
+    "domain concepts and their responsibilities",
+    "type hierarchies and contracts",
+    "coupling between types"
+  ],
+  "stakeholders": ["developer", "architect"],
+  "kinds": ["class"],
+  "elements": [
+    "UMLClass",
+    "UMLInterface",
+    "UMLEnumeration",
+    "UMLDataType",
+    "UMLPrimitiveType",
+    "UMLSignal"
+  ],
+  "relationships": [
+    "UMLAssociation",
+    "UMLGeneralization",
+    "UMLInterfaceRealization",
+    "UMLRealization",
+    "UMLDependency",
+    "UMLAssociationClassLink"
+  ],
+  "limits": { "maxElements": 30 },
+  "required": ["title"],
+  "split": "One view per package or bounded context, with its direct collaborators from elsewhere."
+}
